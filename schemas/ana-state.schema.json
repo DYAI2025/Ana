@@ -1,0 +1,81 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://dyai.cloud/schemas/ana-state.schema.json",
+  "title": "Ana State",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "statement",
+    "kind",
+    "status",
+    "confidence",
+    "evidence",
+    "counterevidence",
+    "missingEvidence",
+    "falsification",
+    "context",
+    "createdAt",
+    "updatedAt",
+    "reviewBy"
+  ],
+  "properties": {
+    "id": {"type": "string", "pattern": "^AS-[0-9]{4,}$"},
+    "statement": {"type": "string", "minLength": 1},
+    "kind": {
+      "type": "string",
+      "enum": ["observation", "self-report", "hypothesis", "derived-state"]
+    },
+    "status": {
+      "type": "string",
+      "enum": ["candidate", "supported", "contested", "rejected", "retired"]
+    },
+    "confidence": {
+      "type": "string",
+      "enum": ["low", "low-medium", "medium", "medium-high", "high"]
+    },
+    "evidence": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/evidenceRef"}
+    },
+    "counterevidence": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/evidenceRef"}
+    },
+    "missingEvidence": {
+      "type": "array",
+      "items": {"type": "string"}
+    },
+    "falsification": {"type": "string", "minLength": 1},
+    "context": {"type": "string", "minLength": 1},
+    "createdAt": {"type": "string", "format": "date-time"},
+    "updatedAt": {"type": "string", "format": "date-time"},
+    "reviewBy": {"type": "string", "format": "date"},
+    "reviewedBy": {
+      "type": "array",
+      "items": {"type": "string"}
+    },
+    "anaFeedback": {"type": ["string", "null"]},
+    "supersedes": {"type": ["string", "null"]},
+    "tags": {
+      "type": "array",
+      "items": {"type": "string"}
+    }
+  },
+  "$defs": {
+    "evidenceRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sourceId", "sourceType"],
+      "properties": {
+        "sourceId": {"type": "string", "minLength": 1},
+        "sourceType": {
+          "type": "string",
+          "enum": ["transcript", "document", "user-statement", "measurement", "jira", "confluence", "web", "other"]
+        },
+        "locator": {"type": ["string", "null"]},
+        "note": {"type": ["string", "null"]}
+      }
+    }
+  }
+}
