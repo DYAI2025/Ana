@@ -14,6 +14,7 @@ Requires Node.js ≥ 22.12 (see `/.nvmrc`). From a clean checkout, at the reposi
 
 ```bash
 npm run dev          # installs apps/dashboard deps on first run, then serves http://localhost:3000
+                     # (if 3000 is busy, Next picks the next free port and prints it; or set PORT=3005)
 ```
 
 Other commands (repository root, or `npm run <x>` inside `apps/dashboard`):
@@ -22,7 +23,7 @@ Other commands (repository root, or `npm run <x>` inside `apps/dashboard`):
 |---|---|
 | `npm run check` | lint + typecheck + unit tests + production build |
 | `npm run e2e` | Playwright journeys, accessibility (axe), reduced-motion and viewport layout checks against a production build on port 3100 |
-| `npm start` | production build served on http://localhost:3000 |
+| `npm start` | production build served on http://localhost:3000 (or `PORT`) |
 
 Inside `apps/dashboard`: `npm test` (Vitest), `npx vitest run src/lib/search.test.ts` (one file),
 `npx playwright test e2e/journeys.spec.ts -g "Brain"` (one journey), `npm run e2e:install` (Chromium for Playwright).
