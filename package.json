@@ -1,0 +1,20 @@
+{
+  "name": "ana-resource-os",
+  "private": true,
+  "description": "ANA Resource OS — repository entry point. The dashboard app lives in apps/dashboard.",
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "scripts": {
+    "predev": "node scripts/ensure-dashboard-deps.mjs",
+    "dev": "npm --prefix apps/dashboard run dev",
+    "prebuild": "node scripts/ensure-dashboard-deps.mjs",
+    "build": "npm --prefix apps/dashboard run build",
+    "prestart": "node scripts/ensure-dashboard-deps.mjs",
+    "start": "npm --prefix apps/dashboard run build && npm --prefix apps/dashboard run start",
+    "precheck": "node scripts/ensure-dashboard-deps.mjs",
+    "check": "npm --prefix apps/dashboard run check",
+    "pree2e": "node scripts/ensure-dashboard-deps.mjs",
+    "e2e": "npm --prefix apps/dashboard run e2e"
+  }
+}

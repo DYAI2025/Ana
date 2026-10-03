@@ -1,0 +1,39 @@
+name: dashboard
+
+on:
+  push:
+    branches: [main]
+    paths: ["apps/dashboard/**", "package.json", "scripts/**", ".github/workflows/dashboard.yml"]
+  pull_request:
+    paths: ["apps/dashboard/**", "package.json", "scripts/**", ".github/workflows/dashboard.yml"]
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: apps/dashboard
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: apps/dashboard/package-lock.json
+      - run: npm ci --no-audit --no-fund
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm run test
+      - run: npm run build
+      - run: npx playwright install --with-deps chromium
+      - run: npm run e2e
+      - if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-results
+          path: apps/dashboard/test-results
+          retention-days: 7

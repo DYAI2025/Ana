@@ -1,0 +1,129 @@
+.page {
+  padding: 30px 0 20px;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+
+.meta {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: -12px 0 14px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.colors {
+  display: inline-flex;
+  gap: 6px;
+  padding: 4px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.11);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.color {
+  width: 26px;
+  height: 26px;
+  border-radius: 8px;
+  border: 2px solid transparent;
+}
+
+.color[aria-checked="true"] {
+  border-color: var(--pearl);
+  box-shadow: 0 0 0 2px var(--canvas) inset;
+}
+
+.color_blush {
+  background: #e9c9cf;
+}
+
+.color_lilac {
+  background: #cdc7e4;
+}
+
+.color_sand {
+  background: #ecdcc8;
+}
+
+.board {
+  position: relative;
+  flex: 1;
+  min-height: 460px;
+  height: clamp(460px, calc(100vh - 260px), 760px);
+  overflow: hidden;
+  border-radius: 26px 32px 26px 30px;
+  background-color: rgba(255, 255, 255, 0.035);
+  background-image: radial-gradient(rgba(245, 237, 228, 0.13) 1px, transparent 1.2px);
+  background-size: 22px 22px;
+  outline: none;
+}
+
+.note {
+  position: absolute;
+  min-width: 150px;
+  max-width: 220px;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+  transition:
+    box-shadow 0.2s var(--ease),
+    transform 0.2s var(--ease);
+}
+
+.note[data-dragging] {
+  cursor: grabbing;
+  transform: rotate(-1.2deg) scale(1.03);
+  z-index: 2;
+}
+
+.note:focus-visible {
+  outline: 2px solid var(--accent-bright);
+  outline-offset: 3px;
+}
+
+.note_sticky {
+  min-height: 110px;
+  padding: 14px 16px;
+  border-radius: 6px 6px 14px 6px;
+  color: #3a2f35;
+  font-size: 14px;
+  font-weight: 520;
+  line-height: 1.4;
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.5) inset, 0 12px 26px rgba(20, 14, 18, 0.28);
+}
+
+.note_sticky[data-dragging] {
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.5) inset, 0 22px 40px rgba(20, 14, 18, 0.38);
+}
+
+.note_text {
+  max-width: 320px;
+  padding: 6px 8px;
+  border-radius: 8px;
+  font-size: 18px;
+  font-weight: 560;
+  letter-spacing: -0.01em;
+  color: var(--pearl);
+  border: 1px dashed rgba(245, 237, 228, 0.22);
+}
+
+.noteText {
+  display: block;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.editor {
+  width: 100%;
+  min-height: 80px;
+  resize: none;
+  border: 0;
+  outline: 2px solid var(--accent-bright);
+  border-radius: 6px;
+  padding: 4px;
+  background: rgba(255, 255, 255, 0.55);
+  color: #2f272c;
+  font: inherit;
+}

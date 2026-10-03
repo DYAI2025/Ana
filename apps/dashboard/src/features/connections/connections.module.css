@@ -1,0 +1,248 @@
+.page {
+  padding: 34px 0 24px;
+  width: min(100%, 1060px);
+}
+
+.notice {
+  margin: -12px 0 18px;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.rails {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.rail {
+  display: grid;
+  grid-template-columns: 44px minmax(150px, 0.9fr) minmax(220px, 1.4fr) auto;
+  align-items: center;
+  gap: 18px;
+  min-height: 96px;
+  padding: 16px 20px;
+  border-radius: 23px 29px 23px 26px;
+}
+
+.railIcon {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.railMain {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+}
+
+.railTitle {
+  font-size: 15px;
+  font-weight: 560;
+}
+
+.sources {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.source {
+  padding: 4px 9px;
+  border-radius: 9px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  border: 1px dashed rgba(245, 237, 228, 0.22);
+}
+
+.footer {
+  margin-top: 18px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.empty {
+  display: grid;
+  grid-template-columns: 52px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 18px;
+  padding: 24px 26px;
+  border-radius: 25px 30px 24px 31px;
+}
+
+.emptyIcon {
+  display: grid;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.emptyCopy {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+}
+
+.emptyTitle {
+  font-size: 16px;
+  font-weight: 560;
+}
+
+.emptyBody {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.shelves {
+  list-style: none;
+  margin: 18px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.shelf {
+  display: grid;
+  grid-template-columns: 190px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 16px;
+  min-height: 74px;
+  padding: 12px 18px;
+  border-radius: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.shelfTitle {
+  font-size: 13.5px;
+  font-weight: 540;
+}
+
+.slots {
+  display: flex;
+  gap: 10px;
+}
+
+.slot {
+  width: 64px;
+  height: 40px;
+  border-radius: 10px;
+  border: 1px dashed rgba(245, 237, 228, 0.18);
+}
+
+.slotLabel {
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+/* align-items:start so one expanded card does not stretch its row (C4 defect) */
+.tools {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  align-items: start;
+  gap: 13px;
+}
+
+.tool {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-height: 160px;
+  padding: 18px 18px 14px;
+  border-radius: 21px 26px 22px 23px;
+}
+
+.tool[data-highlight] {
+  border-color: rgba(255, 128, 108, 0.6);
+}
+
+.toolHead {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.toolName {
+  font-size: 16px;
+  font-weight: 560;
+}
+
+.toolPurpose {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.toolHow {
+  font-size: 13px;
+  line-height: 1.5;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.toolActions {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: auto;
+}
+
+.flip {
+  transform: rotate(180deg);
+}
+
+@media (max-width: 1160px) {
+  .tools {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .rail {
+    grid-template-columns: 44px minmax(0, 1fr) auto;
+  }
+
+  .rail .sources {
+    grid-column: 2 / 4;
+    grid-row: 2;
+  }
+}
+
+@media (max-width: 760px) {
+  .tools {
+    grid-template-columns: 1fr;
+  }
+
+  .rail,
+  .empty,
+  .shelf {
+    grid-template-columns: 1fr;
+  }
+
+  .rail .sources {
+    grid-column: auto;
+    grid-row: auto;
+  }
+}

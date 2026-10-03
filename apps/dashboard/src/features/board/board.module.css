@@ -1,0 +1,239 @@
+.page {
+  padding: 34px 0 24px;
+}
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 18px;
+}
+
+.filter {
+  display: inline-flex;
+  gap: 3px;
+  padding: 3px;
+  border-radius: 15px;
+  border: 1px solid rgba(255, 255, 255, 0.11);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.filterButton {
+  display: inline-flex;
+  align-items: center;
+  min-height: 34px;
+  padding: 4px 12px;
+  border-radius: 11px;
+  border: 1px solid transparent;
+  background: transparent;
+  font-size: 12.5px;
+  color: var(--text-secondary);
+}
+
+.filterButton:hover {
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.filterButton[aria-pressed="true"] {
+  color: var(--text);
+  border-color: rgba(255, 255, 255, 0.16);
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0.06));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.16), inset 0 -2px 0 var(--accent);
+}
+
+.hint {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.board {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(200px, 1fr));
+  gap: 14px;
+  overflow-x: auto;
+  padding-bottom: 6px;
+}
+
+.column {
+  display: flex;
+  flex-direction: column;
+  min-height: 470px;
+  padding: 15px 12px 14px;
+  border-radius: 23px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.045), rgba(255, 255, 255, 0.02) 72%, rgba(255, 255, 255, 0.012));
+  transition:
+    background 0.2s var(--ease),
+    box-shadow 0.2s var(--ease);
+}
+
+.column[data-drop-target] {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.11), rgba(255, 255, 255, 0.05));
+  box-shadow: inset 0 0 0 1px rgba(245, 237, 228, 0.22), 0 0 34px rgba(245, 237, 228, 0.04);
+}
+
+.columnHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 4px 12px;
+}
+
+.columnTitle {
+  font-size: 11.5px;
+  font-weight: 650;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.count {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.tickets {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.ticket {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-height: 128px;
+  padding: 13px 14px 12px;
+  border-radius: 17px 21px 18px 19px;
+  cursor: grab;
+  transition:
+    transform 0.2s var(--ease),
+    border-color 0.2s var(--ease),
+    opacity 0.2s var(--ease),
+    box-shadow 0.2s var(--ease);
+}
+
+.ticket:hover {
+  transform: translateY(-2px);
+  border-color: var(--glass-edge-strong);
+}
+
+.ticket:focus-visible {
+  outline-offset: 2px;
+}
+
+.ticket[data-dragging] {
+  opacity: 0.55;
+  cursor: grabbing;
+}
+
+.ticket[data-highlight] {
+  border-color: rgba(255, 128, 108, 0.6);
+}
+
+.ticket[data-settled="moved"] {
+  animation: settle 0.42s var(--ease);
+}
+
+/* Done moment: a coral edge glow that stays on the card's own border */
+.ticket[data-settled="done"] {
+  animation: settle 0.42s var(--ease), done-glow 0.9s ease-out;
+}
+
+.ticketTop {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.category {
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+
+.grip {
+  color: var(--text-muted);
+}
+
+.ticketTitle {
+  font-size: 13.5px;
+  line-height: 1.4;
+  font-weight: 500;
+}
+
+.ticketFoot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: auto;
+}
+
+.key {
+  font-family: var(--mono);
+  font-size: 10.5px;
+  color: var(--text-muted);
+}
+
+.empty {
+  padding: 18px 6px;
+  font-size: 12.5px;
+  color: var(--text-muted);
+}
+
+.dropHint {
+  margin-top: auto;
+  padding: 14px 6px 0;
+  font-size: 11.5px;
+  color: var(--text-muted);
+  opacity: 0.7;
+}
+
+.column[data-drop-target] .dropHint {
+  color: var(--pearl);
+  opacity: 1;
+}
+
+@keyframes settle {
+  0% {
+    transform: translateY(-6px) scale(1.01);
+  }
+  100% {
+    transform: none;
+  }
+}
+
+@keyframes done-glow {
+  0% {
+    box-shadow: var(--glass-shadow), 0 0 0 1px rgba(255, 113, 91, 0.9), 0 0 26px rgba(255, 113, 91, 0.45);
+  }
+  100% {
+    box-shadow: var(--glass-shadow);
+  }
+}
+
+@media (max-width: 1160px) {
+  .board {
+    grid-template-columns: repeat(4, minmax(190px, 1fr));
+  }
+}
+
+@media (max-width: 760px) {
+  .board {
+    grid-template-columns: repeat(4, minmax(240px, 82vw));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ticket:hover {
+    transform: none;
+  }
+}
