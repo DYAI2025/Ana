@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "AnaStateSnapshot",
+  "type": "object",
+  "required": ["id", "generated_at", "status", "evidence_refs", "confidence", "review_after"],
+  "properties": {
+    "id": {"type": "string"},
+    "generated_at": {"type": "string", "format": "date-time"},
+    "status": {"enum": ["DRAFT", "ACTIVE", "SUPERSEDED", "REJECTED"]},
+    "current_goal": {"type": ["string", "null"]},
+    "current_focus": {"type": ["string", "null"]},
+    "active_constraints": {"type": "array", "items": {"type": "string"}},
+    "active_commitments": {"type": "array", "items": {"type": "string"}},
+    "open_decisions": {"type": "array", "items": {"type": "string"}},
+    "active_experiments": {"type": "array", "items": {"type": "string"}},
+    "current_friction": {"type": "array", "items": {"type": "string"}},
+    "evidence_refs": {"type": "array", "items": {"type": "string"}, "minItems": 1},
+    "counterevidence_refs": {"type": "array", "items": {"type": "string"}},
+    "confidence": {"type": "number", "minimum": 0, "maximum": 1},
+    "review_after": {"type": "string", "format": "date-time"},
+    "ana_correction": {"type": ["string", "null"]},
+    "notes": {"type": ["string", "null"]}
+  },
+  "additionalProperties": false
+}
