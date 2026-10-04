@@ -112,10 +112,13 @@
 }
 
 /* tooltip label on hover and keyboard focus */
+/* the transparent left border bridges the gap, so the pointer can move onto the label (WCAG 1.4.13 hoverable) */
 .navItem::after {
   content: attr(data-label);
   position: absolute;
-  left: calc(100% + 14px);
+  left: 100%;
+  border-left: 14px solid transparent !important;
+  background-clip: padding-box;
   top: 50%;
   transform: translate(-4px, -50%);
   padding: 7px 10px;
@@ -138,6 +141,7 @@
 .navItem:focus-visible::after {
   opacity: 1;
   transform: translate(0, -50%);
+  pointer-events: auto;
 }
 
 .navItem[data-tip-off]::after {

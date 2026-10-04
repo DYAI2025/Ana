@@ -54,7 +54,7 @@ function hexToRgba(hex: string, alpha: number) {
 
 export function drawBrain(ctx: CanvasRenderingContext2D, input: DrawInput): HitTarget[] {
   const { nodes, edges, camera, viewport, selected, hovered, related, labelOf } = input;
-  ctx.clearRect(0, 0, viewport.width, viewport.height);
+  ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height); // full canvas: the drawing viewport may be narrower
 
   const projected = new Map(nodes.map((node) => [node.id, project(node.position, camera, viewport)]));
   const depthAlpha = (depth: number) => 0.35 + ((depth + 1.2) / 2.4) * 0.65;
@@ -167,6 +167,7 @@ function drawLabels(ctx: CanvasRenderingContext2D, labels: LabelCandidate[], vie
     const height = 20;
     let x = label.x + label.radius + 8;
     if (x + width > viewport.width - 8) x = label.x - label.radius - 8 - width;
+    x = Math.max(8, x); // never past the canvas edge, even after flipping left
     const y = label.y - height / 2;
     const box = { x, y, w: width, h: height };
     const collides = placed.some((o) => box.x < o.x + o.w + 4 && box.x + box.w + 4 > o.x && box.y < o.y + o.h + 2 && box.y + box.h + 2 > o.y);

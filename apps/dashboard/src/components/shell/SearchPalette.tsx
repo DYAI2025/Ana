@@ -9,12 +9,15 @@ import { useFocusTrap } from "@/lib/hooks/useFocusTrap";
 import { buildSearchIndex, groupResults, searchEntries, type SearchEntry } from "@/lib/search";
 import styles from "./search.module.css";
 
-/** Each pick from search gets a fresh `nav` value so the target page re-applies it even if that URL is already open. */
+/**
+ * Each pick from search gets a `nav` value that never repeats — not even across reloads or shared links —
+ * so the target page re-applies the pick even if the same target URL is already open.
+ */
 let navCounter = 0;
 export function withNavNonce(href: string): string {
   if (!href.includes("?")) return href;
   navCounter += 1;
-  return `${href}&nav=${navCounter}`;
+  return `${href}&nav=${Date.now().toString(36)}${navCounter.toString(36)}`;
 }
 
 export function isEditableTarget(target: EventTarget | null): boolean {

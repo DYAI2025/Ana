@@ -117,8 +117,8 @@ const OVERLAY_STATES: { label: string; route: string; prepare: (page: import("@p
   { label: "lens knowledge", route: "/", prepare: (p) => p.getByTestId("context-knowledge").click() },
   { label: "lens business", route: "/", prepare: (p) => p.getByTestId("context-business").click() },
   { label: "lens community", route: "/", prepare: (p) => p.getByTestId("context-community").click() },
-  { label: "search over lens", route: "/", prepare: async (p) => { await p.getByTestId("context-work").click(); await p.keyboard.press("ControlOrMeta+k"); await p.getByTestId("search-input").fill("loop"); } },
-  { label: "whiteboard editing a note", route: "/whiteboard", prepare: async (p) => { await p.getByTestId("wb-note").first().focus(); await p.keyboard.press("Enter"); } },
+  { label: "search over lens", route: "/", prepare: async (p) => { await p.getByTestId("context-work").click(); await p.keyboard.press("ControlOrMeta+k"); await p.getByTestId("search-input").fill("loop"); await expect(p.getByTestId("context-lens")).toBeVisible(); await expect(p.getByTestId("search-result").first()).toBeVisible(); } },
+  { label: "whiteboard editing a note", route: "/whiteboard", prepare: async (p) => { await p.getByTestId("wb-note").first().focus(); await p.keyboard.press("Enter"); await expect(p.getByTestId("wb-note").first().locator("textarea")).toBeFocused(); } },
 ];
 
 for (const state of OVERLAY_STATES) {
@@ -129,6 +129,11 @@ for (const state of OVERLAY_STATES) {
     await state.prepare(page);
     await page.waitForTimeout(300);
     const results = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"]).analyze();
+    // "incomplete" = needs human review; colour-contrast ones are covered by contrast.spec.ts (pixel-measured),
+    // the rest are recorded on the test so they are visible in the report instead of silently dropped
+    for (const item of results.incomplete.filter((i) => i.id !== "color-contrast")) {
+      test.info().annotations.push({ type: "axe-incomplete", description: `${item.id}: ${item.nodes.length} node(s)` });
+    }
     const blocking = results.violations
       .filter((v) => v.impact === "serious" || v.impact === "critical")
       .map((v) => `${v.id} (${v.impact}): ${v.nodes.length} node(s) — ${v.nodes.slice(0, 3).map((n) => n.target.join(" ")).join(" | ")}`);

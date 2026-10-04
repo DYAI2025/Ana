@@ -8,7 +8,7 @@ import { useToast } from "@/components/providers/ToastProvider";
 import { Button } from "@/components/ui/Button";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { StatusChip } from "@/components/ui/StatusChip";
-import type { Bounds, NoteColor, WhiteboardNote } from "@/state/prototype";
+import { NOTE_GRAB_MARGIN, type Bounds, type NoteColor, type WhiteboardNote } from "@/state/prototype";
 import styles from "./whiteboard.module.css";
 
 const COLORS: readonly NoteColor[] = ["blush", "lilac", "sand"];
@@ -26,14 +26,17 @@ export function WhiteboardView() {
   const board = useRef<HTMLDivElement>(null);
   const drag = useRef<{ id: string; dx: number; dy: number } | null>(null);
   const addRef = useRef<HTMLButtonElement>(null);
-  // when the board shrinks, stored positions are clamped so notes stay reachable and drags start where they are drawn
+  // Notes keep their stored position; they are only *drawn* inside the current board, so a temporary
+  // shrink never rearranges the board, and widening it again restores the layout.
+  const [size, setSize] = useState<Bounds | null>(null);
   useEffect(() => {
     const el = board.current;
     if (!el) return;
-    const observer = new ResizeObserver(() => dispatch({ type: "clampNotes", bounds: { width: el.clientWidth, height: el.clientHeight } }));
+    const observer = new ResizeObserver(() => setSize({ width: el.clientWidth, height: el.clientHeight }));
     observer.observe(el);
     return () => observer.disconnect();
-  }, [dispatch]);
+  }, []);
+  const drawn = (value: number, extent: number | undefined) => (extent ? Math.min(value, Math.max(0, extent - NOTE_GRAB_MARGIN)) : value);
 
   const bounds = (): Bounds => ({ width: board.current?.clientWidth ?? 1000, height: board.current?.clientHeight ?? 600 });
   const focusNote = (id: string) => window.requestAnimationFrame(() => document.querySelector<HTMLElement>(`[data-note-id="${id}"]`)?.focus());
@@ -68,8 +71,9 @@ export function WhiteboardView() {
 
   const onPointerDown = (event: PointerEvent<HTMLDivElement>, note: WhiteboardNote) => {
     if (editing === note.id || event.button !== 0) return;
-    const rect = board.current!.getBoundingClientRect();
-    drag.current = { id: note.id, dx: event.clientX - rect.left - note.x, dy: event.clientY - rect.top - note.y };
+    // offset from where the note is drawn (not its stored, possibly off-board position)
+    const noteRect = event.currentTarget.getBoundingClientRect();
+    drag.current = { id: note.id, dx: event.clientX - noteRect.left, dy: event.clientY - noteRect.top };
     event.currentTarget.setPointerCapture(event.pointerId);
     setDraggingId(note.id);
   };
@@ -145,7 +149,7 @@ export function WhiteboardView() {
             <div
               key={note.id}
               className={`${styles.note} ${styles[`note_${note.kind}`]} ${note.kind === "sticky" ? styles[`color_${note.color}`] : ""}`}
-              style={{ left: note.x, top: note.y }}
+              style={{ left: drawn(note.x, size?.width), top: drawn(note.y, size?.height) }}
               tabIndex={0}
               role="group"
               aria-roledescription={kindLabel}

@@ -122,7 +122,7 @@
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
   line-height: 1.25;
-  word-break: break-word;
+  overflow-wrap: normal;
 }
 
 .chip {
@@ -292,6 +292,17 @@
 @media (max-width: 1360px) {
   .chipTime {
     display: none;
+  }
+}
+
+/* narrowest cells: drop the type icon too, so whole words fit (type stays in title, agenda and aria-label) */
+@media (max-width: 1160px) {
+  .chip > svg {
+    display: none;
+  }
+
+  .chip {
+    padding: 2px 4px;
   }
 }
 

@@ -191,8 +191,9 @@ test("whiteboard: notes beyond a shrunken board are pulled back and follow the p
   for (let i = 0; i < 20; i += 1) await page.keyboard.press("Shift+ArrowRight");
   await page.setViewportSize({ width: 1024, height: 768 });
   const boardBox = (await board.boundingBox())!;
+  // the board re-draws after its ResizeObserver fires
+  await expect.poll(async () => (await note.boundingBox())!.x - boardBox.x).toBeLessThanOrEqual(boardBox.width - 48 + 1);
   const before = (await note.boundingBox())!;
-  expect(before.x - boardBox.x).toBeLessThanOrEqual(boardBox.width - 48 + 1);
   await page.mouse.move(before.x + 10, before.y + 10);
   await page.mouse.down();
   await page.mouse.move(before.x - 90, before.y + 10, { steps: 6 });
@@ -216,4 +217,74 @@ test("brain at 1024×768 fits the viewport (side column does not overflow)", asy
 test("backlog 'Add idea' does not announce an expanded state it cannot toggle", async ({ page }) => {
   await page.goto("/backlog");
   await expect(page.getByTestId("add-idea")).not.toHaveAttribute("aria-expanded", /.*/);
+});
+
+test("search pick still re-applies after a reload (nav value never repeats)", async ({ page }) => {
+  await page.goto("/");
+  await page.keyboard.press("ControlOrMeta+k");
+  await page.getByTestId("search-input").fill("approved source links");
+  await page.keyboard.press("Enter");
+  await expect(page.locator('[data-ticket-id="t-source-links"]')).toBeFocused();
+  await page.reload();
+  await page.getByTestId("filter-ana").click();
+  await expect(page.locator('[data-ticket-id="t-source-links"]')).toHaveCount(0);
+  await page.keyboard.press("ControlOrMeta+k");
+  await page.getByTestId("search-input").fill("approved source links");
+  await page.keyboard.press("Enter");
+  await expect(page.locator('[data-ticket-id="t-source-links"]')).toBeFocused();
+});
+
+test("whiteboard: a temporary shrink does not rearrange notes; widening restores them", async ({ page }) => {
+  await page.goto("/whiteboard");
+  const note = page.getByTestId("wb-note").nth(2);
+  await note.focus();
+  for (let i = 0; i < 20; i += 1) await page.keyboard.press("Shift+ArrowRight");
+  const wide = (await note.boundingBox())!;
+  await page.setViewportSize({ width: 1024, height: 768 });
+  await page.waitForTimeout(200);
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.waitForTimeout(200);
+  const restored = (await note.boundingBox())!;
+  expect(Math.abs(restored.x - wide.x)).toBeLessThan(2);
+});
+
+test("brain: the selected concept's details are fully visible at 1280×800 and 1440×900", async ({ page }) => {
+  for (const viewport of [{ width: 1280, height: 800 }, { width: 1440, height: 900 }]) {
+    await page.setViewportSize(viewport);
+    await page.goto("/brain?node=workshop-02");
+    const clipped = await page.getByTestId("brain-selection").evaluate((el) => el.scrollHeight - el.clientHeight);
+    expect(clipped, `${viewport.width}`).toBeLessThanOrEqual(1);
+  }
+});
+
+test("tooltips are hoverable: the pointer can move onto the label without it disappearing", async ({ page }) => {
+  await page.goto("/");
+  const item = page.getByTestId("nav-brain");
+  const box = (await item.boundingBox())!;
+  await item.hover();
+  await page.mouse.move(box.x + box.width + 8, box.y + box.height / 2, { steps: 4 });
+  await page.mouse.move(box.x + box.width + 30, box.y + box.height / 2, { steps: 4 });
+  const opacity = await item.evaluate((el) => getComputedStyle(el, "::after").opacity);
+  expect(opacity).toBe("1");
+});
+
+test("calendar: a missing time focuses and marks the time field", async ({ page }) => {
+  await page.goto("/calendar");
+  await page.getByTestId("cal-add").click();
+  await page.getByTestId("cal-title").fill("Time check");
+  await page.getByTestId("cal-start").fill("");
+  await page.getByTestId("cal-submit").click();
+  await expect(page.getByTestId("cal-start")).toBeFocused();
+  await expect(page.getByTestId("cal-start")).toHaveAttribute("aria-invalid", "true");
+});
+
+test("calendar day buttons announce their event titles", async ({ page }) => {
+  await page.goto("/calendar");
+  await expect(page.locator('[data-date="2026-10-14"]')).toHaveAttribute("aria-label", /Workshop 02 · planned/);
+});
+
+test("sessions: a planned session is marked as planned, the last held session leads the timeline", async ({ page }) => {
+  await page.goto("/sessions");
+  await expect(page.getByTestId("session-workshop-02")).toContainText("Planned · not held yet");
+  await expect(page.getByTestId("session-working-session-01")).not.toContainText("Planned");
 });

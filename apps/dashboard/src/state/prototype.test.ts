@@ -134,21 +134,18 @@ describe("whiteboard notes", () => {
   });
 });
 
-describe("clampNotes", () => {
-  it("pulls every note back inside a smaller board and leaves others untouched", () => {
+describe("notes outside a shrunken board", () => {
+  it("keep their stored position (a temporary shrink is not lossy)", () => {
     let state = initial();
     state = prototypeReducer(state, { type: "addNote", kind: "sticky", color: "sand", text: "Far", x: 1100, y: 700 });
-    const far = state.notes.at(-1)!.id;
-    const before = state.notes.find((n) => n.id === "n-assets")!;
-    state = prototypeReducer(state, { type: "clampNotes", bounds: { width: 800, height: 500 } });
-    const moved = state.notes.find((n) => n.id === far)!;
-    expect(moved.x).toBeLessThanOrEqual(800 - 48);
-    expect(moved.y).toBeLessThanOrEqual(500 - 48);
-    expect(state.notes.find((n) => n.id === "n-assets")).toEqual(before);
+    expect(state.notes.at(-1)).toMatchObject({ x: 1100, y: 700 });
   });
 
-  it("returns the same state when nothing needs clamping", () => {
-    const state = initial();
-    expect(prototypeReducer(state, { type: "clampNotes", bounds: { width: 5000, height: 5000 } })).toBe(state);
+  it("nudge starts from the visible (clamped) position, so the first key press moves the note", () => {
+    let state = initial();
+    state = prototypeReducer(state, { type: "addNote", kind: "sticky", color: "sand", text: "Far", x: 1100, y: 100 });
+    const id = state.notes.at(-1)!.id;
+    state = prototypeReducer(state, { type: "nudgeNote", id, dx: -8, dy: 0, bounds: { width: 800, height: 500 } });
+    expect(state.notes.find((n) => n.id === id)!.x).toBe(800 - 48 - 8);
   });
 });

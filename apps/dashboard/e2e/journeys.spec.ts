@@ -145,7 +145,15 @@ test("10 · Brain rotates, zooms and selects a node on the canvas and from the l
 
   // click a real node on the canvas at its published screen position
   const hotspots = JSON.parse((await canvas.getAttribute("data-hotspots")) ?? "[]") as { id: string; x: number; y: number }[];
-  const inside = hotspots.filter((h) => h.x > 60 && h.x < box.width - 60 && h.y > 80 && h.y < box.height - 60);
+  // only nodes not covered by the toolbar, the selection card or the legend
+  const covers = await page.evaluate(() =>
+    ['[data-testid="brain-selection"]', '[role="toolbar"]', 'ul[aria-label="Type"]'].map((s) => document.querySelector(s)!.getBoundingClientRect().toJSON() as DOMRect),
+  );
+  const inside = hotspots.filter(
+    (h) =>
+      h.x > 20 && h.x < box.width - 20 && h.y > 20 && h.y < box.height - 20 &&
+      !covers.some((c) => box.x + h.x > c.left - 12 && box.x + h.x < c.right + 12 && box.y + h.y > c.top - 12 && box.y + h.y < c.bottom + 12),
+  );
   expect(inside.length).toBeGreaterThan(0);
   const target = inside[0]!;
   await page.mouse.click(box.x + target.x, box.y + target.y);

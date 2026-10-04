@@ -121,6 +121,7 @@ export const en = {
     subtitle: "Meetings and workshops, preserved as reusable context.",
     participants: "Participants",
     open: "Open session",
+    planned: "Planned · not held yet",
     notAttached: "Prototype content is not attached for this session.",
     tabsLabel: "Session views",
     tabs: { watch: "Watch", summary: "Summary", transcript: "Transcript", json: "JSON" },

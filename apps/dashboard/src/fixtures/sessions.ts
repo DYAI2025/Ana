@@ -21,6 +21,8 @@ export interface Session {
   end?: string;
   durationSeconds?: number;
   participants: readonly PersonId[];
+  /** scheduled but not held yet (shown as "planned") */
+  planned?: boolean;
   attached: boolean;
   keyPoints: readonly Localized[];
   decisions: readonly Localized[];
@@ -79,6 +81,7 @@ export const SESSIONS: readonly Session[] = [
     kind: l("Workshop 02", "Workshop 02", "Workshop 02"),
     title: l("Friction and what can be removed", "Reibung und was wegfallen kann", "Attriti e cosa si può eliminare"),
     // planned (also in the calendar on the same date); nothing recorded yet
+    planned: true,
     date: "2026-10-14",
     start: "10:00",
     end: "13:00",

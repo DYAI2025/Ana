@@ -41,6 +41,7 @@ export function SessionDetail({ session, initialTab }: { session: Session; initi
       <header className={styles.detailHead}>
         <p className="eyebrow">{text(session.kind)}</p>
         <h1 className={styles.detailTitle}>{text(session.title)}</h1>
+        {session.planned ? <StatusChip tone="local">{t("sessions.planned")}</StatusChip> : null}
         <div className={styles.slabMeta}>
           <span>{session.date ? `${formatDate(session.date, locale, { day: "2-digit", month: "long", year: "numeric" })} · ${session.start}–${session.end}` : t("common.prototype")}</span>
           <span className={styles.participants}>

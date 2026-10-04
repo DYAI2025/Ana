@@ -118,6 +118,7 @@ export const it: Messages = {
     subtitle: "Riunioni e workshop, conservati come contesto riutilizzabile.",
     participants: "Partecipanti",
     open: "Apri la sessione",
+    planned: "Previsto · non ancora svolto",
     notAttached: "Per questa sessione non è allegato alcun contenuto prototipo.",
     tabsLabel: "Viste della sessione",
     tabs: { watch: "Guarda", summary: "Riepilogo", transcript: "Trascrizione", json: "JSON" },

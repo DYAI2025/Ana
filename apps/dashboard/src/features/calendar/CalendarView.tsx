@@ -60,8 +60,9 @@ export function CalendarView({ highlight }: { highlight?: string }) {
     window.requestAnimationFrame(() => (opener && document.contains(opener) ? opener : addRef.current)?.focus());
   };
 
-  const openForm = (date?: string) => {
-    openerRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+  // the opener is passed in explicitly (Safari/Firefox do not focus clicked buttons, so activeElement is unreliable)
+  const openForm = (opener: HTMLElement, date?: string) => {
+    openerRef.current = opener;
     setDraft((d) => ({ ...d, date: date ?? selectedDate ?? d.date }));
     setFormOpen(true);
     setError(null);
@@ -110,7 +111,7 @@ export function CalendarView({ highlight }: { highlight?: string }) {
                 <ChevronRight size={16} aria-hidden="true" />
               </button>
             </div>
-            <Button ref={addRef} variant="primary" icon={<Plus size={16} aria-hidden="true" />} onClick={() => (formOpen ? closeForm() : openForm())} aria-expanded={formOpen} aria-controls={formId} data-testid="cal-add">
+            <Button ref={addRef} variant="primary" icon={<Plus size={16} aria-hidden="true" />} onClick={(e) => (formOpen ? closeForm() : openForm(e.currentTarget))} aria-expanded={formOpen} aria-controls={formId} data-testid="cal-add">
               {t("calendar.addEvent")}
             </Button>
           </>
@@ -141,7 +142,7 @@ export function CalendarView({ highlight }: { highlight?: string }) {
                           type="button"
                           className={styles.day}
                           aria-pressed={isSelected}
-                          aria-label={`${formatDate(day.date, locale, { weekday: "long", day: "numeric", month: "long" })}${events.length ? `, ${t("calendar.eventsOnDay", { count: events.length })}` : ""}`}
+                          aria-label={[formatDate(day.date, locale, { weekday: "long", day: "numeric", month: "long" }), ...events.map(eventLabel)].join(", ")}
                           onClick={() => setSelectedDate(isSelected ? null : day.date)}
                           data-date={day.date}
                         >
@@ -256,7 +257,7 @@ export function CalendarView({ highlight }: { highlight?: string }) {
               })}
             </ul>
             {selectedDate ? (
-              <Button variant="secondary" icon={<Plus size={14} aria-hidden="true" />} onClick={() => openForm(selectedDate)}>
+              <Button variant="secondary" icon={<Plus size={14} aria-hidden="true" />} onClick={(e) => openForm(e.currentTarget, selectedDate)}>
                 {t("calendar.addEvent")}
               </Button>
             ) : null}

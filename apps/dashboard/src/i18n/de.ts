@@ -118,6 +118,7 @@ export const de: Messages = {
     subtitle: "Meetings und Workshops, als wiederverwendbarer Kontext bewahrt.",
     participants: "Teilnehmende",
     open: "Session öffnen",
+    planned: "Geplant · hat noch nicht stattgefunden",
     notAttached: "Für diese Session ist kein Prototyp-Inhalt hinterlegt.",
     tabsLabel: "Session-Ansichten",
     tabs: { watch: "Ansehen", summary: "Zusammenfassung", transcript: "Transkript", json: "JSON" },

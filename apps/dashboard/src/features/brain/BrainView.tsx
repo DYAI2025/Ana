@@ -39,6 +39,7 @@ export function BrainView({ initialNode }: { initialNode?: string }) {
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const toolbar = useRef<HTMLDivElement>(null);
+  const selectionRef = useRef<HTMLElement>(null);
   useDismissibleTooltips(toolbar);
   // a node passed in (e.g. from search) starts already focused
   const camera = useRef<Camera>(initialCamera(valid));
@@ -50,6 +51,11 @@ export function BrainView({ initialNode }: { initialNode?: string }) {
   useEffect(() => {
     live.current = { selected, rotating, reduced, text };
   });
+
+  // a new selection starts at the top of the details card (stable element keeps the live region intact)
+  useEffect(() => {
+    selectionRef.current?.scrollTo({ top: 0 });
+  }, [selected]);
 
   // keep the selected concept visible in the list (canvas clicks and links can select off-screen items)
   useEffect(() => {
@@ -135,7 +141,8 @@ export function BrainView({ initialNode }: { initialNode?: string }) {
         nodes: BRAIN_NODES,
         edges: BRAIN_EDGES,
         camera: camera.current,
-        viewport: { width: canvas.clientWidth, height: canvas.clientHeight },
+        // while the details card is open, centre the graph in the free area to its left
+        viewport: { width: canvas.clientWidth - (sel && selectionRef.current && !selectionRef.current.hidden ? selectionRef.current.offsetWidth + 24 : 0), height: canvas.clientHeight },
         selected: sel,
         hovered: hovered.current,
         related: relatedRef.current,
@@ -257,6 +264,9 @@ export function BrainView({ initialNode }: { initialNode?: string }) {
             onKeyDown={onCanvasKey}
             data-testid="brain-canvas"
           />
+          <p className="visually-hidden" aria-live="polite">
+            {node ? `${t("brain.selected")}: ${text(node.label)}` : ""}
+          </p>
           <div ref={toolbar} className={styles.controls} role="toolbar" aria-label={t("brain.title")}>
             <button type="button" className={styles.control} onClick={() => nudge("left")} aria-label={t("brain.rotateLeft")} data-label={t("brain.rotateLeft")} data-testid="brain-rotate-left">
               <RotateCcw size={16} aria-hidden="true" />
@@ -300,10 +310,7 @@ export function BrainView({ initialNode }: { initialNode?: string }) {
               </li>
             ))}
           </ul>
-        </div>
-
-        <aside className={styles.side}>
-          <section className={`glass ${styles.card}`} aria-live="polite" data-testid="brain-selection">
+          <section ref={selectionRef} className={`glass ${styles.card} ${styles.selection}`} hidden={!node} data-testid="brain-selection">
             <h2 className={styles.cardLabel}>{t("brain.selected")}</h2>
             {node ? (
               <>
@@ -341,6 +348,9 @@ export function BrainView({ initialNode }: { initialNode?: string }) {
               <p className={styles.summary}>{t("brain.noneSelected")}</p>
             )}
           </section>
+        </div>
+
+        <aside className={styles.side}>
 
           <section className={`glass ${styles.card} ${styles.listCard}`}>
             <h2 className={styles.cardLabel}>{t("brain.listLabel")}</h2>
