@@ -19,7 +19,8 @@ export const TYPE_ICON: Readonly<Record<EventType, LucideIcon>> = { session: Vid
 
 function monthOf(date: string): YearMonth {
   const [y, m] = date.split("-").map(Number);
-  return { year: y!, month: m! };
+  // never let a malformed date reach Intl formatting (it throws on Invalid Date)
+  return Number.isInteger(y) && Number.isInteger(m) && m! >= 1 && m! <= 12 ? { year: y!, month: m! } : PROTOTYPE_MONTH;
 }
 
 export function CalendarView({ highlight }: { highlight?: string }) {
@@ -34,6 +35,7 @@ export function CalendarView({ highlight }: { highlight?: string }) {
   const [draft, setDraft] = useState({ title: "", date: isoDate(PROTOTYPE_MONTH.year, PROTOTYPE_MONTH.month, 16), start: "10:00", end: "11:00", type: "session" as EventType });
   const [recent, setRecent] = useState<string | null>(highlight ?? null);
   const titleRef = useRef<HTMLInputElement>(null);
+  const addRef = useRef<HTMLButtonElement>(null);
   const formId = useId();
 
   const weeks = monthGrid(ym.year, ym.month);
@@ -41,8 +43,16 @@ export function CalendarView({ highlight }: { highlight?: string }) {
   const inMonth = state.events
     .filter((e) => e.date.startsWith(`${ym.year}-${String(ym.month).padStart(2, "0")}`))
     .sort((a, b) => (a.date + a.start).localeCompare(b.date + b.start));
-  const byDate = (date: string) => inMonth.filter((e) => e.date === date);
-  const shown = selectedDate ? byDate(selectedDate) : inMonth;
+  const shown = selectedDate ? state.events.filter((e) => e.date === selectedDate).sort((a, b) => a.start.localeCompare(b.start)) : inMonth;
+  const changeMonth = (delta: number) => {
+    setYm((v) => addMonths(v, delta));
+    setSelectedDate(null);
+  };
+  const closeForm = () => {
+    setFormOpen(false);
+    setError(null);
+    window.requestAnimationFrame(() => addRef.current?.focus());
+  };
 
   const openForm = (date?: string) => {
     setDraft((d) => ({ ...d, date: date ?? selectedDate ?? d.date }));
@@ -66,8 +76,8 @@ export function CalendarView({ highlight }: { highlight?: string }) {
     setYm(monthOf(draft.date));
     setSelectedDate(draft.date);
     setRecent(id);
-    setFormOpen(false);
     setDraft((d) => ({ ...d, title: "" }));
+    closeForm();
   };
 
   const eventLabel = (e: CalendarEvent) => `${e.start}–${e.end} · ${text(e.title)} · ${t(`calendar.types.${e.type}`)}`;
@@ -80,17 +90,17 @@ export function CalendarView({ highlight }: { highlight?: string }) {
         actions={
           <>
             <div className={styles.monthNav}>
-              <button type="button" className={styles.navButton} onClick={() => setYm((v) => addMonths(v, -1))} aria-label={t("calendar.prev")} data-testid="cal-prev">
+              <button type="button" className={styles.navButton} onClick={() => changeMonth(-1)} aria-label={t("calendar.prev")} data-testid="cal-prev">
                 <ChevronLeft size={16} aria-hidden="true" />
               </button>
               <h2 className={styles.monthLabel} aria-live="polite" data-testid="cal-month">
                 {formatMonth(ym.year, ym.month, locale)}
               </h2>
-              <button type="button" className={styles.navButton} onClick={() => setYm((v) => addMonths(v, 1))} aria-label={t("calendar.next")} data-testid="cal-next">
+              <button type="button" className={styles.navButton} onClick={() => changeMonth(1)} aria-label={t("calendar.next")} data-testid="cal-next">
                 <ChevronRight size={16} aria-hidden="true" />
               </button>
             </div>
-            <Button variant="primary" icon={<Plus size={16} aria-hidden="true" />} onClick={() => (formOpen ? setFormOpen(false) : openForm())} aria-expanded={formOpen} aria-controls={formId} data-testid="cal-add">
+            <Button ref={addRef} variant="primary" icon={<Plus size={16} aria-hidden="true" />} onClick={() => (formOpen ? closeForm() : openForm())} aria-expanded={formOpen} aria-controls={formId} data-testid="cal-add">
               {t("calendar.addEvent")}
             </Button>
           </>
@@ -129,10 +139,11 @@ export function CalendarView({ highlight }: { highlight?: string }) {
                           {events.map((e) => {
                             const Icon = TYPE_ICON[e.type];
                             return (
-                              <span key={e.id} className={`${styles.chip} ${styles[`type_${e.type}`]}`} data-recent={recent === e.id ? "true" : undefined} data-testid="cal-event">
+                              <span key={e.id} className={`${styles.chip} ${styles[`type_${e.type}`]}`} title={eventLabel(e)} data-recent={recent === e.id ? "true" : undefined} data-testid="cal-event">
                                 <Icon size={11} aria-hidden="true" />
                                 <span className={styles.chipText}>
-                                  {e.start} {text(e.title)}
+                                  <span className={styles.chipTime}>{e.start} </span>
+                                  {text(e.title)}
                                 </span>
                               </span>
                             );
@@ -169,7 +180,7 @@ export function CalendarView({ highlight }: { highlight?: string }) {
               </label>
               <label className={styles.field}>
                 <span>{t("calendar.date")}</span>
-                <input type="date" value={draft.date} onChange={(e) => setDraft({ ...draft, date: e.target.value })} required data-testid="cal-date" />
+                <input type="date" value={draft.date} onChange={(e) => setDraft({ ...draft, date: e.target.value })} required aria-invalid={error === "calendar.dateRequired" ? true : undefined} data-testid="cal-date" />
               </label>
               <div className={styles.row2}>
                 <label className={styles.field}>
@@ -201,7 +212,7 @@ export function CalendarView({ highlight }: { highlight?: string }) {
                 <Button type="submit" variant="primary" data-testid="cal-submit">
                   {t("calendar.addEvent")}
                 </Button>
-                <Button variant="quiet" onClick={() => setFormOpen(false)}>
+                <Button variant="quiet" onClick={closeForm}>
                   {t("common.cancel")}
                 </Button>
               </div>
@@ -211,8 +222,9 @@ export function CalendarView({ highlight }: { highlight?: string }) {
           <section className={`glass ${styles.agenda}`} data-testid="cal-agenda">
             <h2 className={styles.agendaTitle}>
               <CalendarDays size={15} aria-hidden="true" />
-              {selectedDate ? formatDate(selectedDate, locale, { weekday: "long", day: "numeric", month: "long" }) : t("calendar.upcoming")}
+              <span>{selectedDate ? formatDate(selectedDate, locale, { weekday: "long", day: "numeric", month: "long" }) : t("calendar.upcoming")}</span>
             </h2>
+            <StatusChip tone="prototype">{t("common.fictional")}</StatusChip>
             {shown.length === 0 ? <p className={styles.empty}>{t("calendar.noEvents")}</p> : null}
             <ul className={styles.agendaList}>
               {shown.map((e) => {

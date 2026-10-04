@@ -28,6 +28,8 @@ Other commands (repository root, or `npm run <x>` inside `apps/dashboard`):
 Inside `apps/dashboard`: `npm test` (Vitest), `npx vitest run src/lib/search.test.ts` (one file),
 `npx playwright test e2e/journeys.spec.ts -g "Brain"` (one journey), `npm run e2e:install` (Chromium for Playwright).
 `EVIDENCE_DIR=<dir> npx playwright test e2e/visual.spec.ts` writes the 1440/1280/1024 screenshot set to `<dir>`.
+`E2E_BASE_URL=http://localhost:3000 npx playwright test` reuses an already running server instead of building one.
+Interaction checklist and evidence: `docs/evidence/ANA-4/`.
 
 ### Structure
 

@@ -72,8 +72,17 @@ export function validateIdea(title: string): MessageKey | null {
   return title.trim().length === 0 ? "backlog.ideaRequired" : null;
 }
 
+function isRealDate(value: string): boolean {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const [y, m, d] = value.split("-").map(Number);
+  const date = new Date(Date.UTC(y!, m! - 1, d!));
+  return date.getUTCFullYear() === y && date.getUTCMonth() === m! - 1 && date.getUTCDate() === d;
+}
+
 export function validateEvent(event: EventDraft): MessageKey | null {
   if (event.title.trim().length === 0) return "calendar.titleRequired";
+  if (!isRealDate(event.date)) return "calendar.dateRequired";
+  if (!/^\d{2}:\d{2}$/.test(event.start) || !/^\d{2}:\d{2}$/.test(event.end)) return "calendar.timeRequired";
   if (event.end <= event.start) return "calendar.endBeforeStart";
   return null;
 }

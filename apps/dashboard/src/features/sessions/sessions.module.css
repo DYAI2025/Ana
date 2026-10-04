@@ -69,10 +69,6 @@
   border-radius: 26px 31px 24px 29px;
 }
 
-.event:not([data-first]) .slab {
-  opacity: 0.88;
-}
-
 .slabTitle {
   font-size: 18px;
   font-weight: 540;

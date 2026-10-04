@@ -68,7 +68,7 @@ export function BacklogView() {
               ref={openerRef}
               variant="primary"
               icon={<Plus size={16} aria-hidden="true" />}
-              onClick={formOpen ? close : open}
+              onClick={open}
               aria-expanded={formOpen}
               aria-controls={formId}
               data-testid="add-idea"
@@ -140,10 +140,10 @@ export function BacklogView() {
 
           <p className={styles.count}>{t("backlog.count", { count: state.backlog.length })}</p>
           <ol className={styles.list} data-testid="backlog-list">
-            {state.backlog.map((item, index) => (
+            {state.backlog.map((item) => (
               <li key={item.id} className={styles.row} data-kind={item.kind} data-testid="backlog-item">
                 <span className={styles.index} aria-hidden="true">
-                  {item.kind === "idea" ? <Lightbulb size={15} /> : String(index + 1).padStart(2, "0")}
+                  {item.kind === "idea" ? <Lightbulb size={15} /> : String(state.backlog.filter((b) => b.kind === "backlog").indexOf(item) + 1).padStart(2, "0")}
                 </span>
                 <span className={styles.rowMain}>
                   <span className={styles.rowTitle}>{text(item.title)}</span>

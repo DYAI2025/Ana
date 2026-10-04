@@ -1,14 +1,14 @@
 "use client";
 
 import { Plus, Type } from "lucide-react";
-import { useRef, useState, type KeyboardEvent, type PointerEvent } from "react";
+import { useEffect, useRef, useState, type KeyboardEvent, type PointerEvent } from "react";
 import { useI18n } from "@/components/providers/I18nProvider";
 import { usePrototype } from "@/components/providers/PrototypeProvider";
 import { useToast } from "@/components/providers/ToastProvider";
 import { Button } from "@/components/ui/Button";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { StatusChip } from "@/components/ui/StatusChip";
-import type { Bounds, NoteColor, WhiteboardNote } from "@/state/prototype";
+import { NOTE_GRAB_MARGIN, type Bounds, type NoteColor, type WhiteboardNote } from "@/state/prototype";
 import styles from "./whiteboard.module.css";
 
 const COLORS: readonly NoteColor[] = ["blush", "lilac", "sand"];
@@ -25,6 +25,18 @@ export function WhiteboardView() {
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const board = useRef<HTMLDivElement>(null);
   const drag = useRef<{ id: string; dx: number; dy: number } | null>(null);
+  const addRef = useRef<HTMLButtonElement>(null);
+  const [size, setSize] = useState<Bounds | null>(null);
+
+  // track the board size so notes stay reachable when the window shrinks
+  useEffect(() => {
+    const el = board.current;
+    if (!el) return;
+    const observer = new ResizeObserver(() => setSize({ width: el.clientWidth, height: el.clientHeight }));
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+  const place = (value: number, extent: number | undefined) => (extent ? Math.min(value, Math.max(0, extent - NOTE_GRAB_MARGIN)) : value);
 
   const bounds = (): Bounds => ({ width: board.current?.clientWidth ?? 1000, height: board.current?.clientHeight ?? 600 });
   const focusNote = (id: string) => window.requestAnimationFrame(() => document.querySelector<HTMLElement>(`[data-note-id="${id}"]`)?.focus());
@@ -50,10 +62,11 @@ export function WhiteboardView() {
     setDraft(text(note.text));
   };
 
-  const commitEdit = (id: string) => {
+  /** refocus only for keyboard commits; a blur caused by clicking elsewhere must not steal focus back */
+  const commitEdit = (id: string, refocus: boolean) => {
     if (draft.trim()) dispatch({ type: "editNote", id, text: draft.trim() });
     setEditing(null);
-    focusNote(id);
+    if (refocus) focusNote(id);
   };
 
   const onPointerDown = (event: PointerEvent<HTMLDivElement>, note: WhiteboardNote) => {
@@ -89,9 +102,12 @@ export function WhiteboardView() {
       startEdit(note);
     } else if (event.key === "Delete" || event.key === "Backspace") {
       event.preventDefault();
+      const index = state.notes.findIndex((n) => n.id === note.id);
+      const neighbour = state.notes[index + 1] ?? state.notes[index - 1];
       dispatch({ type: "removeNote", id: note.id });
       notify(t("whiteboard.removed"));
-      board.current?.focus();
+      if (neighbour) focusNote(neighbour.id);
+      else window.requestAnimationFrame(() => addRef.current?.focus());
     }
   };
 
@@ -102,21 +118,16 @@ export function WhiteboardView() {
         subtitle={t("whiteboard.subtitle")}
         actions={
           <>
-            <div className={styles.colors} role="radiogroup" aria-label={t("whiteboard.colorLabel")}>
+            <fieldset className={styles.colors}>
+              <legend className="visually-hidden">{t("whiteboard.colorLabel")}</legend>
               {COLORS.map((c) => (
-                <button
-                  key={c}
-                  type="button"
-                  role="radio"
-                  aria-checked={color === c}
-                  className={`${styles.color} ${styles[`color_${c}`]}`}
-                  onClick={() => setColor(c)}
-                  aria-label={t(`whiteboard.colors.${c}`)}
-                  title={t(`whiteboard.colors.${c}`)}
-                />
+                <label key={c} className={`${styles.color} ${styles[`color_${c}`]}`} title={t(`whiteboard.colors.${c}`)}>
+                  <input type="radio" name="sticky-colour" value={c} checked={color === c} onChange={() => setColor(c)} className="visually-hidden" />
+                  <span className="visually-hidden">{t(`whiteboard.colors.${c}`)}</span>
+                </label>
               ))}
-            </div>
-            <Button variant="primary" icon={<Plus size={16} aria-hidden="true" />} onClick={() => add("sticky")} data-testid="wb-add-sticky">
+            </fieldset>
+            <Button ref={addRef} variant="primary" icon={<Plus size={16} aria-hidden="true" />} onClick={() => add("sticky")} data-testid="wb-add-sticky">
               {t("whiteboard.addSticky")}
             </Button>
             <Button icon={<Type size={15} aria-hidden="true" />} onClick={() => add("text")} data-testid="wb-add-text">
@@ -137,7 +148,7 @@ export function WhiteboardView() {
             <div
               key={note.id}
               className={`${styles.note} ${styles[`note_${note.kind}`]} ${note.kind === "sticky" ? styles[`color_${note.color}`] : ""}`}
-              style={{ left: note.x, top: note.y }}
+              style={{ left: place(note.x, size?.width), top: place(note.y, size?.height) }}
               tabIndex={0}
               role="group"
               aria-roledescription={kindLabel}
@@ -159,12 +170,12 @@ export function WhiteboardView() {
                   autoFocus
                   aria-label={kindLabel}
                   onChange={(e) => setDraft(e.target.value)}
-                  onBlur={() => commitEdit(note.id)}
+                  onBlur={() => commitEdit(note.id, false)}
                   onKeyDown={(e) => {
                     e.stopPropagation();
                     if (e.key === "Escape" || (e.key === "Enter" && !e.shiftKey)) {
                       e.preventDefault();
-                      commitEdit(note.id);
+                      commitEdit(note.id, true);
                     }
                   }}
                 />

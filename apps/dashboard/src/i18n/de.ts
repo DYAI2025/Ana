@@ -185,7 +185,7 @@ export const de: Messages = {
   },
   calendar: {
     title: "Kalender",
-    subtitle: "Lokaler gemeinsamer Kalender · keine Google- oder Apple-Synchronisierung",
+    subtitle: "Lokaler Prototyp-Kalender · nur in diesem Browser-Tab · keine Google- oder Apple-Synchronisierung",
     prev: "Vorheriger Monat",
     next: "Nächster Monat",
     today: "Prototyp-Monat",
@@ -201,6 +201,8 @@ export const de: Messages = {
     eventAdded: "Termin lokal hinzugefügt · nicht synchronisiert",
     titleRequired: "Gib dem Termin einen Titel.",
     endBeforeStart: "Das Ende muss nach dem Beginn liegen.",
+    dateRequired: "Wähle ein gültiges Datum.",
+    timeRequired: "Wähle Beginn und Ende.",
     upcoming: "In diesem Monat",
     noEvents: "Keine Termine in diesem Monat.",
     weekdays: "Mo,Di,Mi,Do,Fr,Sa,So",

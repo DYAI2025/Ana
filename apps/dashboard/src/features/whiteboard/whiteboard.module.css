@@ -17,6 +17,7 @@
 .colors {
   display: inline-flex;
   gap: 6px;
+  margin: 0;
   padding: 4px;
   border-radius: 12px;
   border: 1px solid rgba(255, 255, 255, 0.11);
@@ -30,9 +31,19 @@
   border: 2px solid transparent;
 }
 
-.color[aria-checked="true"] {
+.color {
+  display: block;
+  cursor: pointer;
+}
+
+.color:has(input:checked) {
   border-color: var(--pearl);
   box-shadow: 0 0 0 2px var(--canvas) inset;
+}
+
+.color:has(input:focus-visible) {
+  outline: 2px solid var(--accent-bright);
+  outline-offset: 2px;
 }
 
 .color_blush {

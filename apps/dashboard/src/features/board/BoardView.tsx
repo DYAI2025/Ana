@@ -122,8 +122,9 @@ export function BoardView({ highlight }: { highlight?: string }) {
                 <h2 id={headingId} className={styles.columnTitle}>
                   {t(`board.columns.${column}`)}
                 </h2>
-                <span className={styles.count} aria-label={t("board.columnCount", { count: tickets.length })}>
-                  {String(tickets.length).padStart(2, "0")}
+                <span className={styles.count}>
+                  <span aria-hidden="true">{String(tickets.length).padStart(2, "0")}</span>
+                  <span className="visually-hidden">{t("board.columnCount", { count: tickets.length })}</span>
                 </span>
               </header>
               <ul className={styles.tickets}>

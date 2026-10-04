@@ -3,16 +3,38 @@ import type { BrainEdge, BrainNode, NodeType } from "@/fixtures/brain";
 import { project, type Camera, type HitTarget, type Viewport } from "./projection";
 
 /** Pastel per type; shape also differs per type so meaning is not colour-only. */
-export const TYPE_STYLE: Readonly<Record<NodeType, { color: string; shape: "circle" | "diamond" | "ring" | "double" }>> = {
+export type NodeShape = "double" | "circle" | "square" | "triangle" | "diamond" | "hexagon" | "pentagon" | "ring";
+
+/** Every type has its own shape (mirrored in the legend), so colour is never the only cue. */
+export const TYPE_STYLE: Readonly<Record<NodeType, { color: string; shape: NodeShape }>> = {
   goal: { color: "#ffb7a8", shape: "double" },
   resource: { color: "#e5d3be", shape: "circle" },
-  session: { color: "#bbb4d5", shape: "circle" },
-  workshop: { color: "#ddbbc2", shape: "circle" },
+  session: { color: "#bbb4d5", shape: "square" },
+  workshop: { color: "#ddbbc2", shape: "triangle" },
   decision: { color: "#f5ede4", shape: "diamond" },
-  tool: { color: "#c9a3ad", shape: "circle" },
-  source: { color: "#d6c6ea", shape: "circle" },
+  tool: { color: "#c9a3ad", shape: "hexagon" },
+  source: { color: "#d6c6ea", shape: "pentagon" },
   hypothesis: { color: "#f1d7a6", shape: "ring" },
 };
+
+const POLYGON: Partial<Record<NodeShape, { sides: number; rotation: number; scale: number }>> = {
+  square: { sides: 4, rotation: Math.PI / 4, scale: 1.25 },
+  triangle: { sides: 3, rotation: -Math.PI / 2, scale: 1.45 },
+  diamond: { sides: 4, rotation: 0, scale: 1.3 },
+  hexagon: { sides: 6, rotation: 0, scale: 1.18 },
+  pentagon: { sides: 5, rotation: -Math.PI / 2, scale: 1.2 },
+};
+
+function polygon(ctx: CanvasRenderingContext2D, x: number, y: number, radius: number, sides: number, rotation: number) {
+  for (let i = 0; i < sides; i += 1) {
+    const angle = rotation + (i / sides) * Math.PI * 2;
+    const px = x + Math.cos(angle) * radius;
+    const py = y + Math.sin(angle) * radius;
+    if (i === 0) ctx.moveTo(px, py);
+    else ctx.lineTo(px, py);
+  }
+  ctx.closePath();
+}
 
 export interface DrawInput {
   nodes: readonly BrainNode[];
@@ -80,12 +102,9 @@ export function drawBrain(ctx: CanvasRenderingContext2D, input: DrawInput): HitT
     ctx.strokeStyle = hexToRgba("#ffffff", 0.55 * alpha);
     ctx.lineWidth = 1;
     ctx.beginPath();
-    if (style.shape === "diamond") {
-      ctx.moveTo(p.x, p.y - radius * 1.25);
-      ctx.lineTo(p.x + radius * 1.25, p.y);
-      ctx.lineTo(p.x, p.y + radius * 1.25);
-      ctx.lineTo(p.x - radius * 1.25, p.y);
-      ctx.closePath();
+    const poly = POLYGON[style.shape];
+    if (poly) {
+      polygon(ctx, p.x, p.y, radius * poly.scale, poly.sides, poly.rotation);
       ctx.fill();
       ctx.stroke();
     } else if (style.shape === "ring") {

@@ -185,7 +185,7 @@ export const it: Messages = {
   },
   calendar: {
     title: "Calendario",
-    subtitle: "Calendario condiviso locale · nessuna sincronizzazione Google o Apple",
+    subtitle: "Calendario prototipo locale · solo in questa scheda · nessuna sincronizzazione Google o Apple",
     prev: "Mese precedente",
     next: "Mese successivo",
     today: "Mese prototipo",
@@ -201,6 +201,8 @@ export const it: Messages = {
     eventAdded: "Evento aggiunto in locale · non sincronizzato",
     titleRequired: "Dai un titolo all'evento.",
     endBeforeStart: "La fine deve essere dopo l'inizio.",
+    dateRequired: "Scegli una data valida.",
+    timeRequired: "Scegli inizio e fine.",
     upcoming: "In questo mese",
     noEvents: "Nessun evento questo mese.",
     weekdays: "Lun,Mar,Mer,Gio,Ven,Sab,Dom",

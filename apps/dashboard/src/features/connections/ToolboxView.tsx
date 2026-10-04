@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronDown, ExternalLink } from "lucide-react";
+import { ChevronDown } from "lucide-react";
 import { useState } from "react";
 import { useI18n } from "@/components/providers/I18nProvider";
 import { useToast } from "@/components/providers/ToastProvider";
@@ -23,7 +23,7 @@ export function ToolboxView({ highlight }: { highlight?: string }) {
           return (
             <li key={tool.id} className={`glass ${styles.tool}`} data-highlight={highlight === tool.id ? "true" : undefined} data-testid={`tool-${tool.id}`}>
               <div className={styles.toolHead}>
-                <h2 className={styles.toolName}>{tool.name}</h2>
+                <h2 className={styles.toolName}>{text(tool.name)}</h2>
                 <StatusChip tone="not-connected">{t("toolbox.linkMissing")}</StatusChip>
               </div>
               <p className={styles.toolPurpose}>{text(tool.purpose)}</p>
@@ -36,7 +36,7 @@ export function ToolboxView({ highlight }: { highlight?: string }) {
                 <Button variant="quiet" aria-expanded={expanded} aria-controls={`how-${tool.id}`} onClick={() => setOpen(expanded ? null : tool.id)} trailingIcon={<ChevronDown size={14} aria-hidden="true" className={expanded ? styles.flip : undefined} />}>
                   {t("toolbox.howTo")}
                 </Button>
-                <Button variant="secondary" aria-disabled="true" onClick={() => notify(t("toolbox.linkMissingToast"))} trailingIcon={<ExternalLink size={14} aria-hidden="true" />}>
+                <Button variant="secondary" aria-disabled="true" onClick={() => notify(t("toolbox.linkMissingToast"))}>
                   {t("common.open")}
                 </Button>
               </div>

@@ -193,9 +193,9 @@ function LensBody({ lens, titleId, onClose }: { lens: LensId; titleId: string; o
         <h3 className={styles.sectionLabel}>{t("lens.potentialSources")}</h3>
         <ul className={styles.rows}>
           {group.sources.map((source) => (
-            <li key={source} className={styles.row}>
+            <li key={typeof source === "string" ? source : source.en} className={styles.row}>
               <span className={styles.rowMain}>
-                <span className={styles.rowTitle}>{source}</span>
+                <span className={styles.rowTitle}>{text(source)}</span>
               </span>
               <StatusChip tone="not-connected">{t("common.notConnected")}</StatusChip>
             </li>

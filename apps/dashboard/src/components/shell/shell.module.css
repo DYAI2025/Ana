@@ -140,6 +140,10 @@
   transform: translate(0, -50%);
 }
 
+.rail[data-tips="off"] .navItem::after {
+  opacity: 0;
+}
+
 /* ---------- workspace ---------- */
 .workspace {
   position: relative;

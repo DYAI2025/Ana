@@ -32,6 +32,22 @@
   transform: none;
 }
 
+/* unavailable but still focusable (explains itself on click): reads as inert without losing legibility */
+.button[aria-disabled="true"] {
+  cursor: not-allowed;
+  transform: none;
+  color: var(--text-secondary);
+  border-style: dashed;
+  border-color: rgba(245, 237, 228, 0.28);
+  background: rgba(32, 26, 31, 0.35);
+  box-shadow: none;
+}
+
+.button[aria-disabled="true"]:hover {
+  background: rgba(32, 26, 31, 0.35);
+  border-color: rgba(245, 237, 228, 0.28);
+}
+
 .primary {
   color: var(--accent-ink);
   border-color: rgba(255, 192, 177, 0.35);
@@ -134,7 +150,8 @@
   white-space: nowrap;
   border: 1px dashed rgba(245, 237, 228, 0.3);
   color: var(--text-secondary);
-  background: rgba(255, 255, 255, 0.04);
+  /* own dark backing: chips carry honesty statements and must read on any glass */
+  background: rgba(32, 26, 31, 0.55);
 }
 
 .chip_prototype {
@@ -146,5 +163,5 @@
 .chip_local {
   border-style: solid;
   border-color: rgba(187, 180, 213, 0.38);
-  color: var(--lilac);
+  color: #dcd7ee;
 }

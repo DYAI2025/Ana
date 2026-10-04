@@ -99,11 +99,23 @@ function Player({ duration }: { duration: number }) {
   const [playing, setPlaying] = useState(false);
   const [position, setPosition] = useState(0);
 
+  // playback stops by itself at the end; Play at the end restarts from 00:00:00
+  const running = playing && position < duration;
+
   useEffect(() => {
-    if (!playing) return;
+    if (!running) return;
     const timer = window.setInterval(() => setPosition((p) => Math.min(duration, p + 60)), 250);
     return () => window.clearInterval(timer);
-  }, [playing, duration]);
+  }, [running, duration]);
+
+  const toggle = () => {
+    if (running) {
+      setPlaying(false);
+      return;
+    }
+    if (position >= duration) setPosition(0);
+    setPlaying(true);
+  };
 
   const progress = duration ? (position / duration) * 100 : 0;
   return (
@@ -112,8 +124,8 @@ function Player({ duration }: { duration: number }) {
         <span className={styles.mediaGlow} />
       </div>
       <div className={styles.controls}>
-        <Button variant="secondary" onClick={() => setPlaying((p) => !p)} icon={playing ? <Pause size={15} aria-hidden="true" /> : <Play size={15} aria-hidden="true" />} data-testid="player-toggle">
-          {playing ? t("sessions.pause") : t("sessions.play")}
+        <Button variant="secondary" onClick={toggle} icon={running ? <Pause size={15} aria-hidden="true" /> : <Play size={15} aria-hidden="true" />} data-testid="player-toggle">
+          {running ? t("sessions.pause") : t("sessions.play")}
         </Button>
         <div className={styles.track} role="progressbar" aria-label={t("sessions.mediaNote")} aria-valuemin={0} aria-valuemax={duration} aria-valuenow={position} aria-valuetext={`${clock(position)} / ${clock(duration)}`}>
           <span className={styles.fill} style={{ width: `${progress}%` }} />
@@ -208,7 +220,7 @@ function JsonExport({ session }: { session: Session }) {
           {t("sessions.copyJson")}
         </Button>
       </div>
-      <pre className={styles.json} data-testid="session-json">
+      <pre className={styles.json} tabIndex={0} role="region" aria-label={t("sessions.jsonNote")} data-testid="session-json">
         <code>{json}</code>
       </pre>
     </div>

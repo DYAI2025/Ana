@@ -102,3 +102,31 @@ test("prototype state resets on reload (nothing is persisted except language)", 
   const stored = await page.evaluate(() => Object.keys(window.localStorage));
   expect(stored.filter((k) => k !== "ana.locale")).toEqual([]);
 });
+
+const OVERLAY_STATES: { label: string; route: string; prepare: (page: import("@playwright/test").Page) => Promise<unknown> }[] = [
+  { label: "lens work", route: "/", prepare: (p) => p.getByTestId("context-work").click() },
+  { label: "lens session", route: "/", prepare: (p) => p.getByTestId("context-session").click() },
+  { label: "search with results", route: "/", prepare: async (p) => { await p.getByTestId("search-open").click(); await p.getByTestId("search-input").fill("workshop"); } },
+  { label: "search without results", route: "/", prepare: async (p) => { await p.getByTestId("search-open").click(); await p.getByTestId("search-input").fill("zzzz"); } },
+  { label: "backlog form with error", route: "/backlog", prepare: async (p) => { await p.getByTestId("add-idea").click(); await p.getByTestId("idea-submit").click(); } },
+  { label: "calendar form", route: "/calendar", prepare: (p) => p.getByTestId("cal-add").click() },
+  { label: "session summary", route: "/sessions/working-session-01?tab=summary", prepare: async () => undefined },
+  { label: "session transcript", route: "/sessions/working-session-01?tab=transcript", prepare: async () => undefined },
+  { label: "session json", route: "/sessions/working-session-01?tab=json", prepare: async () => undefined },
+  { label: "brain selected", route: "/brain?node=workshop-02", prepare: async () => undefined },
+];
+
+for (const state of OVERLAY_STATES) {
+  test(`axe (interactive state): ${state.label}`, async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await page.goto(state.route);
+    await page.waitForLoadState("networkidle");
+    await state.prepare(page);
+    await page.waitForTimeout(300);
+    const results = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"]).analyze();
+    const blocking = results.violations
+      .filter((v) => v.impact === "serious" || v.impact === "critical")
+      .map((v) => `${v.id} (${v.impact}): ${v.nodes.length} node(s) — ${v.nodes.slice(0, 3).map((n) => n.target.join(" ")).join(" | ")}`);
+    expect(blocking).toEqual([]);
+  });
+}

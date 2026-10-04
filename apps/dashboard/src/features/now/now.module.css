@@ -235,8 +235,8 @@
   min-height: 104px;
   border-radius: 28px 38px 30px 33px;
   background:
-    radial-gradient(circle at var(--pointer-x) var(--pointer-y), rgba(255, 255, 255, 0.18), transparent 43%),
-    linear-gradient(145deg, rgba(187, 180, 213, 0.22), rgba(255, 255, 255, 0.08) 47%, rgba(255, 255, 255, 0.04));
+    radial-gradient(circle at var(--pointer-x) var(--pointer-y), rgba(255, 255, 255, 0.08), transparent 43%),
+    linear-gradient(145deg, rgba(187, 180, 213, 0.15), rgba(255, 255, 255, 0.05) 47%, rgba(255, 255, 255, 0.03));
 }
 
 .object_work {
@@ -248,8 +248,8 @@
   padding: 18px 21px 15px;
   border-radius: 29px 39px 28px 34px;
   background:
-    radial-gradient(circle at var(--pointer-x) var(--pointer-y), rgba(255, 255, 255, 0.18), transparent 43%),
-    linear-gradient(142deg, rgba(245, 237, 228, 0.25), rgba(255, 255, 255, 0.085) 43%, rgba(255, 255, 255, 0.045));
+    radial-gradient(circle at var(--pointer-x) var(--pointer-y), rgba(255, 255, 255, 0.08), transparent 43%),
+    linear-gradient(142deg, rgba(245, 237, 228, 0.16), rgba(255, 255, 255, 0.06) 43%, rgba(255, 255, 255, 0.035));
   box-shadow: var(--glass-shadow-raised);
 }
 
@@ -266,8 +266,8 @@
   min-height: 112px;
   border-radius: 34px 28px 38px 26px;
   background:
-    radial-gradient(circle at var(--pointer-x) var(--pointer-y), rgba(229, 211, 190, 0.15), transparent 45%),
-    linear-gradient(145deg, rgba(229, 211, 190, 0.14), rgba(255, 255, 255, 0.065) 48%, rgba(255, 255, 255, 0.03));
+    radial-gradient(circle at var(--pointer-x) var(--pointer-y), rgba(229, 211, 190, 0.08), transparent 45%),
+    linear-gradient(145deg, rgba(229, 211, 190, 0.1), rgba(255, 255, 255, 0.045) 48%, rgba(255, 255, 255, 0.025));
 }
 
 .object_knowledge {
@@ -278,8 +278,8 @@
   min-height: 96px;
   border-radius: 26px 34px 28px 31px;
   background:
-    radial-gradient(circle at var(--pointer-x) var(--pointer-y), rgba(221, 187, 194, 0.15), transparent 45%),
-    linear-gradient(145deg, rgba(221, 187, 194, 0.14), rgba(255, 255, 255, 0.06) 48%, rgba(255, 255, 255, 0.027));
+    radial-gradient(circle at var(--pointer-x) var(--pointer-y), rgba(221, 187, 194, 0.08), transparent 45%),
+    linear-gradient(145deg, rgba(221, 187, 194, 0.1), rgba(255, 255, 255, 0.045) 48%, rgba(255, 255, 255, 0.025));
 }
 
 .object_community {
@@ -289,7 +289,7 @@
   max-width: 250px;
   min-height: 92px;
   border-radius: 32px 29px 26px 35px;
-  background: linear-gradient(145deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.05) 56%, rgba(255, 255, 255, 0.025));
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.085), rgba(255, 255, 255, 0.04) 56%, rgba(255, 255, 255, 0.02));
 }
 
 .object[data-tier="secondary"] .objectStatus {

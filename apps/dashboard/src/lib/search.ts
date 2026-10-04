@@ -79,12 +79,13 @@ export function buildSearchIndex(state: PrototypeState, locale: Locale): SearchE
   }
 
   for (const tool of TOOLS) {
-    entries.push(entry("tool", tool.id, tool.name, show(tool.purpose, locale), `/toolbox?tool=${tool.id}`, allLanguages(tool.purpose)));
+    entries.push(entry("tool", tool.id, show(tool.name, locale), show(tool.purpose, locale), `/toolbox?tool=${tool.id}`, [...allLanguages(tool.name), ...allLanguages(tool.purpose)]));
   }
 
   for (const group of SOURCE_GROUPS) {
     for (const source of group.sources) {
-      entries.push(entry("source", `${group.id}-${source}`, source, `${t(`pulse.${group.id}`)} · ${t("common.notConnected")}`, "/pulse"));
+      const key = typeof source === "string" ? source : source.en;
+      entries.push(entry("source", `${group.id}-${key}`, show(source, locale), `${t(`pulse.${group.id}`)} · ${t("common.notConnected")}`, "/pulse", allLanguages(source)));
     }
   }
 

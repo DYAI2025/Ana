@@ -16,6 +16,6 @@ export function sessionExport(session: Session, locale: Locale) {
     key_points: session.keyPoints.map((k) => pick(k, locale)),
     decisions: session.decisions.map((d) => pick(d, locale)),
     actions: session.actions.map((a) => ({ owner: TEAM[a.owner].name, task: pick(a.task, locale) })),
-    evidence_refs: [{ type: "drive", status: "not_connected", label: "Shared Drive source" }],
+    evidence_refs: [{ type: "drive", status: "not_connected" }],
   };
 }

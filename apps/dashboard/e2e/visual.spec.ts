@@ -12,7 +12,7 @@ const VIEWPORTS = [
   { width: 1024, height: 768 },
 ];
 
-const SHOTS: { name: string; route: string; prepare?: (page: Page) => Promise<void> }[] = [
+const SHOTS: { name: string; route: string; locale?: "de" | "it"; prepare?: (page: Page) => Promise<void> }[] = [
   { name: "now", route: "/" },
   { name: "now-lens-work", route: "/", prepare: async (page) => page.getByTestId("context-work").click() },
   { name: "board", route: "/board" },
@@ -25,7 +25,11 @@ const SHOTS: { name: string; route: string; prepare?: (page: Page) => Promise<vo
   { name: "whiteboard", route: "/whiteboard" },
   { name: "calendar", route: "/calendar" },
   { name: "pulse", route: "/pulse" },
+  { name: "vault", route: "/vault" },
+  { name: "sessions", route: "/sessions" },
   { name: "toolbox", route: "/toolbox" },
+  { name: "de-now", route: "/", locale: "de" },
+  { name: "it-board", route: "/board", locale: "it" },
 ];
 
 interface Rect {
@@ -80,6 +84,7 @@ for (const viewport of VIEWPORTS) {
     for (const shot of SHOTS) {
       test(`${shot.name}: no overlap, no horizontal scroll, rail visible`, async ({ page }, info) => {
         await page.emulateMedia({ reducedMotion: "reduce" });
+        if (shot.locale) await page.addInitScript((locale) => window.localStorage.setItem("ana.locale", locale), shot.locale);
         await page.goto(shot.route);
         await page.waitForLoadState("networkidle");
         if (shot.prepare) await shot.prepare(page);

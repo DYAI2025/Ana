@@ -81,6 +81,9 @@ describe("calendar events", () => {
     expect(validateEvent(draft)).toBeNull();
     expect(validateEvent({ ...draft, title: "  " })).toBe("calendar.titleRequired");
     expect(validateEvent({ ...draft, end: "09:00" })).toBe("calendar.endBeforeStart");
+    expect(validateEvent({ ...draft, date: "" })).toBe("calendar.dateRequired");
+    expect(validateEvent({ ...draft, date: "2026-13-40" })).toBe("calendar.dateRequired");
+    expect(validateEvent({ ...draft, start: "" })).toBe("calendar.timeRequired");
   });
 
   it("adds a local event", () => {

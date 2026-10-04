@@ -12,7 +12,7 @@ import styles from "./connections.module.css";
 const ICONS: Readonly<Record<SourceGroup["id"], LucideIcon>> = { community: Users, sales: ShoppingBag, inbox: Inbox, drive: FolderOpen };
 
 export function PulseView() {
-  const { t } = useI18n();
+  const { t, text } = useI18n();
   const { notify } = useToast();
   return (
     <div className={styles.page}>
@@ -34,8 +34,8 @@ export function PulseView() {
               </div>
               <ul className={styles.sources} aria-label={t(`pulse.${group.id}`)}>
                 {group.sources.map((source) => (
-                  <li key={source} className={styles.source}>
-                    {source}
+                  <li key={typeof source === "string" ? source : source.en} className={styles.source}>
+                    {text(source)}
                   </li>
                 ))}
               </ul>

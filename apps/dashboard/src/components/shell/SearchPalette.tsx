@@ -73,7 +73,7 @@ export function SearchPalette({ open, onClose }: { open: boolean; onClose: () =>
             data-autofocus
             className={styles.input}
             role="combobox"
-            aria-expanded="true"
+            aria-expanded={ordered.length > 0}
             aria-controls={listId}
             aria-autocomplete="list"
             aria-activedescendant={ordered.length ? `${listId}-${active}` : undefined}
@@ -91,11 +91,11 @@ export function SearchPalette({ open, onClose }: { open: boolean; onClose: () =>
             <X size={16} aria-hidden="true" />
           </button>
         </div>
+        {ordered.length === 0 ? <p className={styles.empty}>{t("search.empty")}</p> : null}
         <p className="visually-hidden" aria-live="polite">
           {t("search.results", { count: ordered.length })}
         </p>
         <div className={styles.results} id={listId} role="listbox" aria-label={t("search.label")}>
-          {ordered.length === 0 ? <p className={styles.empty}>{t("search.empty")}</p> : null}
           {grouped.map(({ group, items, start }) => (
             <div key={group} role="group" aria-label={t(`search.groups.${group}`)} className={styles.group}>
               <p className={styles.groupLabel} aria-hidden="true">

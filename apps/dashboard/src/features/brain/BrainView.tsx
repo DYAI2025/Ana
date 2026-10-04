@@ -1,6 +1,6 @@
 "use client";
 
-import { Info, Pause, Play, RotateCcw, RotateCw, Search, Undo2, ZoomIn, ZoomOut } from "lucide-react";
+import { Info, LocateFixed, Pause, Play, RotateCcw, RotateCw, Search, ZoomIn, ZoomOut } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
 import { useI18n } from "@/components/providers/I18nProvider";
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -97,6 +97,15 @@ export function BrainView({ initialNode }: { initialNode?: string }) {
     resize();
     const observer = new ResizeObserver(resize);
     observer.observe(canvas);
+    // moving the window to a screen with another pixel density re-sizes the backing store
+    let dprQuery = window.matchMedia(`(resolution: ${window.devicePixelRatio}dppx)`);
+    const onDpr = () => {
+      resize();
+      dprQuery.removeEventListener("change", onDpr);
+      dprQuery = window.matchMedia(`(resolution: ${window.devicePixelRatio}dppx)`);
+      dprQuery.addEventListener("change", onDpr);
+    };
+    dprQuery.addEventListener("change", onDpr);
 
     const tick = () => {
       const { selected: sel, rotating: spin, text: label } = live.current;
@@ -142,6 +151,7 @@ export function BrainView({ initialNode }: { initialNode?: string }) {
     return () => {
       window.cancelAnimationFrame(frame);
       observer.disconnect();
+      dprQuery.removeEventListener("change", onDpr);
     };
   }, []);
 
@@ -244,17 +254,28 @@ export function BrainView({ initialNode }: { initialNode?: string }) {
             onKeyDown={onCanvasKey}
             data-testid="brain-canvas"
           />
-          <div className={styles.controls} role="toolbar" aria-label={t("brain.title")}>
-            <button type="button" className={styles.control} onClick={() => nudge("left")} aria-label={t("brain.rotateLeft")} data-testid="brain-rotate-left">
+          <div
+            className={styles.controls}
+            role="toolbar"
+            aria-label={t("brain.title")}
+            onKeyDown={(event) => {
+              if (event.key === "Escape") event.currentTarget.dataset.tips = "off";
+            }}
+            onMouseLeave={(event) => delete event.currentTarget.dataset.tips}
+            onBlur={(event) => {
+              if (!event.currentTarget.contains(event.relatedTarget as Node | null)) delete event.currentTarget.dataset.tips;
+            }}
+          >
+            <button type="button" className={styles.control} onClick={() => nudge("left")} aria-label={t("brain.rotateLeft")} data-label={t("brain.rotateLeft")} data-testid="brain-rotate-left">
               <RotateCcw size={16} aria-hidden="true" />
             </button>
-            <button type="button" className={styles.control} onClick={() => nudge("right")} aria-label={t("brain.rotateRight")} data-testid="brain-rotate-right">
+            <button type="button" className={styles.control} onClick={() => nudge("right")} aria-label={t("brain.rotateRight")} data-label={t("brain.rotateRight")} data-testid="brain-rotate-right">
               <RotateCw size={16} aria-hidden="true" />
             </button>
-            <button type="button" className={styles.control} onClick={() => nudge("in")} aria-label={t("brain.zoomIn")} data-testid="brain-zoom-in">
+            <button type="button" className={styles.control} onClick={() => nudge("in")} aria-label={t("brain.zoomIn")} data-label={t("brain.zoomIn")} data-testid="brain-zoom-in">
               <ZoomIn size={16} aria-hidden="true" />
             </button>
-            <button type="button" className={styles.control} onClick={() => nudge("out")} aria-label={t("brain.zoomOut")} data-testid="brain-zoom-out">
+            <button type="button" className={styles.control} onClick={() => nudge("out")} aria-label={t("brain.zoomOut")} data-label={t("brain.zoomOut")} data-testid="brain-zoom-out">
               <ZoomOut size={16} aria-hidden="true" />
             </button>
             <button
@@ -262,13 +283,20 @@ export function BrainView({ initialNode }: { initialNode?: string }) {
               className={styles.control}
               onClick={() => {
                 setSelected(null);
-                steer(DEFAULT_CAMERA);
+                const base = target.current ?? camera.current;
+                // shortest way back: never spin through every accumulated revolution
+                const delta = ((((DEFAULT_CAMERA.yaw - base.yaw + Math.PI) % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI)) - Math.PI;
+                steer({ ...DEFAULT_CAMERA, yaw: base.yaw + delta });
               }}
-              aria-label={t("brain.reset")}
+              aria-label={t("brain.reset")} data-label={t("brain.reset")}
             >
-              <Undo2 size={16} aria-hidden="true" />
+              <LocateFixed size={16} aria-hidden="true" />
             </button>
-            <button type="button" className={styles.control} aria-pressed={rotating} onClick={() => setAutoRotate(!rotating)} aria-label={t("brain.autoRotate")} data-testid="brain-auto-rotate">
+            <button type="button" className={styles.control} aria-pressed={rotating} onClick={() => {
+                // turning rotation on releases the focused node, otherwise the toggle would appear dead
+                if (!rotating) setSelected(null);
+                setAutoRotate(!rotating);
+              }} aria-label={t("brain.autoRotate")} data-label={t("brain.autoRotate")} data-testid="brain-auto-rotate">
               {rotating ? <Pause size={16} aria-hidden="true" /> : <Play size={16} aria-hidden="true" />}
             </button>
           </div>

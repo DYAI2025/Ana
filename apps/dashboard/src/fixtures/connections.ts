@@ -8,7 +8,8 @@ export type ConnectionState = "not-connected";
 
 export interface Tool {
   id: string;
-  name: string;
+  /** brand names stay as-is; generic names are localized */
+  name: Localized | string;
   purpose: Localized;
   howTo: Localized;
   /** null = link intentionally not configured in the prototype */
@@ -73,7 +74,7 @@ export const TOOLS: readonly Tool[] = [
   },
   {
     id: "assistant",
-    name: "AI assistant",
+    name: l("AI assistant", "KI-Assistent", "Assistente IA"),
     purpose: l("Drafting, synthesis and exploration.", "Entwürfe, Synthese und Erkundung.", "Bozze, sintesi ed esplorazione."),
     howTo: l(
       "A project tool, not a source of truth. Keep evidence and decisions linked to their original sources.",
@@ -86,15 +87,15 @@ export const TOOLS: readonly Tool[] = [
 
 export interface SourceGroup {
   id: "community" | "sales" | "inbox" | "drive";
-  sources: readonly string[];
+  sources: readonly (Localized | string)[];
   state: ConnectionState;
 }
 
 export const SOURCE_GROUPS: readonly SourceGroup[] = [
   { id: "community", sources: ["Instagram", "TikTok", "YouTube", "Facebook"], state: "not-connected" },
-  { id: "sales", sources: ["Shop", "Partnerships", "Affiliates"], state: "not-connected" },
-  { id: "inbox", sources: ["Business inbox"], state: "not-connected" },
-  { id: "drive", sources: ["Shared Drive"], state: "not-connected" },
+  { id: "sales", sources: [l("Shop", "Shop", "Negozio"), l("Partnerships", "Partnerschaften", "Partnership"), l("Affiliates", "Affiliates", "Affiliazioni")], state: "not-connected" },
+  { id: "inbox", sources: [l("Business inbox", "Geschäftspostfach", "Posta aziendale")], state: "not-connected" },
+  { id: "drive", sources: [l("Shared Drive", "Geteiltes Drive", "Drive condiviso")], state: "not-connected" },
 ];
 
 export const FOCUS = {

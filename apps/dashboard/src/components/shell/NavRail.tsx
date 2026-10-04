@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useState } from "react";
 import { usePathname } from "next/navigation";
 import { useI18n } from "@/components/providers/I18nProvider";
 import { activeViewFor, PRIMARY_VIEWS, VIEW_HREF } from "@/lib/views";
@@ -11,9 +12,22 @@ export function NavRail() {
   const pathname = usePathname();
   const { t } = useI18n();
   const active = activeViewFor(pathname);
+  // WCAG 1.4.13: Escape hides the hover/focus labels until the pointer or focus leaves the rail
+  const [tipsOff, setTipsOff] = useState(false);
 
   return (
-    <nav className={styles.rail} aria-label={t("nav.label")}>
+    <nav
+      className={styles.rail}
+      aria-label={t("nav.label")}
+      data-tips={tipsOff ? "off" : undefined}
+      onKeyDown={(event) => {
+        if (event.key === "Escape") setTipsOff(true);
+      }}
+      onMouseLeave={() => setTipsOff(false)}
+      onBlur={(event) => {
+        if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setTipsOff(false);
+      }}
+    >
       <Link href="/" className={styles.mark} aria-label={`${t("app.title")} — ${t("nav.now")}`}>
         <svg viewBox="0 0 32 32" width="26" height="26" aria-hidden="true">
           <path d="M7 25 15.5 6h1L25 25" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />

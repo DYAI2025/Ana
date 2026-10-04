@@ -188,7 +188,7 @@ export const en = {
   },
   calendar: {
     title: "Calendar",
-    subtitle: "Local shared calendar · no Google or Apple sync",
+    subtitle: "Local prototype calendar · only in this browser tab · no Google or Apple sync",
     prev: "Previous month",
     next: "Next month",
     today: "Prototype month",
@@ -204,6 +204,8 @@ export const en = {
     eventAdded: "Event added locally · not synced",
     titleRequired: "Give the event a title.",
     endBeforeStart: "End must be after start.",
+    dateRequired: "Pick a valid date.",
+    timeRequired: "Pick a start and end time.",
     upcoming: "In this month",
     noEvents: "No events this month.",
     weekdays: "Mon,Tue,Wed,Thu,Fri,Sat,Sun",
