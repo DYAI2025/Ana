@@ -1,0 +1,276 @@
+.layer {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-lens);
+}
+
+.backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(23, 17, 21, 0.3);
+  -webkit-backdrop-filter: blur(2px);
+  backdrop-filter: blur(2px);
+  animation: fade-in 0.3s var(--ease) both;
+}
+
+.lens {
+  position: absolute;
+  top: 22px;
+  right: 24px;
+  max-height: calc(100vh - 44px);
+  width: min(450px, calc(100vw - 32px));
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border-radius: 29px;
+  border-color: rgba(255, 255, 255, 0.24);
+  background:
+    radial-gradient(circle at 22% 6%, rgba(255, 255, 255, 0.07), transparent 40%),
+    radial-gradient(ellipse at 92% 83%, rgba(187, 180, 213, 0.12), transparent 47%),
+    linear-gradient(145deg, rgba(80, 68, 77, 0.88), rgba(62, 53, 60, 0.9) 43%, rgba(52, 45, 51, 0.92));
+  -webkit-backdrop-filter: blur(32px) saturate(135%);
+  backdrop-filter: blur(32px) saturate(135%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.42), inset 0 -1px 0 rgba(255, 255, 255, 0.06), -22px 24px 70px rgba(17, 12, 15, 0.4);
+  animation: lens-in 0.36s var(--ease) both;
+}
+
+.layer[data-state="closing"] .lens {
+  animation: lens-out 0.28s var(--ease) both;
+}
+
+.layer[data-state="closing"] .backdrop {
+  animation: fade-out 0.28s var(--ease) both;
+}
+
+/* one-shot specular sweep across the glass */
+.sweep {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: -70%;
+  width: 34%;
+  transform: skewX(-18deg);
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.09), transparent);
+  pointer-events: none;
+  animation: sweep 0.7s 0.1s ease-out both;
+}
+
+.header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 26px 26px 16px 28px;
+}
+
+.title {
+  margin-top: 8px;
+  font-size: 21px;
+  line-height: 1.25;
+  font-weight: 560;
+  letter-spacing: -0.02em;
+}
+
+.close {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.06);
+  transition:
+    background 0.2s var(--ease),
+    transform 0.2s var(--ease);
+}
+
+.close:hover {
+  background: rgba(255, 255, 255, 0.13);
+  transform: rotate(3deg);
+}
+
+.body {
+  flex: 1;
+  overflow: auto;
+  padding: 0 28px 28px;
+}
+
+.intro {
+  margin: 4px 0 14px;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.stateLine {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: 15px;
+  font-size: 13px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+
+.sectionLabel {
+  margin: 22px 0 8px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.rows {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 11px 2px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.rowLink {
+  border-radius: 10px;
+  transition: background 0.2s var(--ease);
+}
+
+.rowLink:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.rowIcon {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.rowMain {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.rowTitle {
+  font-size: 13.5px;
+}
+
+.rowMeta {
+  font-size: 11.5px;
+  color: var(--text-muted);
+}
+
+.rowTag {
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+
+.people {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin-top: 14px;
+}
+
+.tiles {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.tile {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-height: 80px;
+  padding: 14px;
+  border-radius: 17px;
+  font-size: 13px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.11), rgba(255, 255, 255, 0.035));
+  transition:
+    background 0.2s var(--ease),
+    transform 0.2s var(--ease);
+}
+
+.tile:hover {
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.17), rgba(255, 255, 255, 0.06));
+  transform: translateY(-1px);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 22px;
+}
+
+.note {
+  margin-top: 18px;
+}
+
+@keyframes lens-in {
+  from {
+    opacity: 0;
+    transform: translateX(22px);
+  }
+}
+
+@keyframes lens-out {
+  to {
+    opacity: 0;
+    transform: translateX(18px);
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes fade-out {
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes sweep {
+  from {
+    left: -70%;
+  }
+  to {
+    left: 135%;
+  }
+}
+
+@media (max-width: 760px) {
+  .lens {
+    top: 10px;
+    right: 10px;
+    left: 10px;
+    bottom: 76px;
+    width: auto;
+  }
+}

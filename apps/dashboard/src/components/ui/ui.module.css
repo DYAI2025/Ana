@@ -1,0 +1,151 @@
+/* ---------- buttons ---------- */
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 40px;
+  padding: 0 15px;
+  border-radius: 13px 12px 13px 12px;
+  border: 1px solid transparent;
+  font-size: 13px;
+  font-weight: 560;
+  white-space: nowrap;
+  transition:
+    transform 0.2s var(--ease),
+    background 0.2s var(--ease),
+    border-color 0.2s var(--ease),
+    box-shadow 0.2s var(--ease);
+}
+
+.button:hover {
+  transform: translateY(-1px);
+}
+
+.button:active {
+  transform: translateY(0) scale(0.985);
+}
+
+.button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.primary {
+  color: var(--accent-ink);
+  border-color: rgba(255, 192, 177, 0.35);
+  background: linear-gradient(145deg, var(--accent-bright), var(--accent));
+  box-shadow: 0 7px 20px rgba(255, 113, 91, 0.16), inset 0 1px 0 rgba(255, 255, 255, 0.34);
+}
+
+.primary:hover {
+  background: var(--accent-bright);
+  box-shadow: 0 9px 23px rgba(255, 113, 91, 0.24), inset 0 1px 0 rgba(255, 255, 255, 0.4);
+}
+
+.secondary {
+  color: var(--text);
+  border-color: rgba(255, 255, 255, 0.17);
+  background: rgba(255, 255, 255, 0.085);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.13);
+}
+
+.secondary:hover {
+  background: rgba(255, 255, 255, 0.14);
+  border-color: rgba(255, 255, 255, 0.26);
+}
+
+.quiet {
+  min-height: 34px;
+  padding: 0 10px;
+  color: var(--text-secondary);
+  background: transparent;
+}
+
+.quiet:hover {
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.07);
+}
+
+/* ---------- people ---------- */
+.person {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.avatar {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  border-radius: 50%;
+  font-weight: 650;
+  color: #392f34;
+  border: 1.5px solid rgba(51, 44, 50, 0.9);
+  box-shadow: 0 2px 8px rgba(18, 13, 17, 0.18);
+}
+
+.avatar_ana {
+  background: var(--person-ana);
+}
+
+.avatar_ben {
+  background: var(--person-ben);
+}
+
+.avatar_vince {
+  background: var(--person-vince);
+}
+
+.personName {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+/* ---------- page header ---------- */
+.pageHeader {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 24px;
+  flex-wrap: wrap;
+  margin-bottom: 26px;
+}
+
+.pageActions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+/* ---------- status chips ---------- */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 9px 4px 7px;
+  border-radius: 999px;
+  font-size: 11.5px;
+  font-weight: 520;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+  border: 1px dashed rgba(245, 237, 228, 0.3);
+  color: var(--text-secondary);
+  /* own dark backing: chips carry honesty statements and must read on any glass */
+  background: rgba(32, 26, 31, 0.55);
+}
+
+.chip_prototype {
+  border-style: solid;
+  border-color: rgba(229, 211, 190, 0.35);
+  color: var(--sand);
+}
+
+.chip_local {
+  border-style: solid;
+  border-color: rgba(187, 180, 213, 0.38);
+  color: #dcd7ee;
+}
