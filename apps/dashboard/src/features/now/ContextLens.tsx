@@ -2,7 +2,7 @@
 
 import { ArrowRight, BookOpenText, FileJson, FileText, PlayCircle, ScrollText, X } from "lucide-react";
 import Link from "next/link";
-import { useCallback, useId, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { useI18n } from "@/components/providers/I18nProvider";
 import { usePrototype } from "@/components/providers/PrototypeProvider";
 import { Avatar } from "@/components/ui/Avatar";
@@ -22,24 +22,37 @@ export type LensId = "work" | "session" | "business" | "knowledge" | "community"
 const CLOSE_MS = 280;
 
 export function ContextLens({ lens, onClose }: { lens: LensId | null; onClose: () => void }) {
+  // `closing` is visual only (exit animation). Modal ownership — focus trap, Escape, focus return —
+  // lasts for the whole time the dialog is mounted and ends only when the lens is removed.
   const [closing, setClosing] = useState(false);
   const reduced = useReducedMotion();
   const panel = useRef<HTMLElement>(null);
+  const closeTimer = useRef<number | null>(null);
   const titleId = useId();
 
   const requestClose = useCallback(() => {
+    if (closeTimer.current !== null) return; // already closing: no second timer, no second cleanup
     if (reduced) {
       onClose();
       return;
     }
     setClosing(true);
-    window.setTimeout(() => {
+    closeTimer.current = window.setTimeout(() => {
+      closeTimer.current = null;
       setClosing(false);
       onClose();
     }, CLOSE_MS);
   }, [onClose, reduced]);
 
-  useFocusTrap(panel, lens !== null && !closing, requestClose);
+  // leaving the page mid-animation must not fire a stale close later
+  useEffect(
+    () => () => {
+      if (closeTimer.current !== null) window.clearTimeout(closeTimer.current);
+    },
+    [],
+  );
+
+  useFocusTrap(panel, lens !== null, requestClose);
 
   if (!lens) return null;
   const shown = lens;

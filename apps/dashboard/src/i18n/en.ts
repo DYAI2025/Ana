@@ -239,6 +239,7 @@ export const en = {
     subtitle: "The tools we use — one place, no hunting.",
     howTo: "How to use",
     linkMissing: "Link not configured",
+    whyUnavailable: "Why unavailable",
     linkMissingToast: "Tool link is not configured in this prototype",
   },
   search: {

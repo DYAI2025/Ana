@@ -43,6 +43,7 @@ npm run dev            # repository root; Node >= 22.12; first run installs deps
 | axe WCAG 2.1 A/AA: no serious/critical issue on 11 routes and 15 open states (all lenses, search, search over a lens, forms, tabs, note editing) | `@axe-core/playwright` | `quality.spec.ts` |
 | Visible focus, rail current-page marking, reduced motion (no auto-rotation, near-zero transitions), meaning not colour-only, state resets on reload | browser checks | `quality.spec.ts` |
 | Regressions from review rounds 1 and 2 — fail-first runs recorded in [`RED-RUNS.md`](RED-RUNS.md) | — | `regressions.spec.ts` |
+| Code-review regressions: modal lens focus lifecycle (ANA-19), truthful Toolbox action (ANA-20), combobox expanded state (ANA-21) | — | `review-fixes.spec.ts` |
 | Unit: reducer, search, i18n key/placeholder parity, Brain projection, calendar grid, fixture honesty | Vitest | `src/**/*.test.ts(x)` |
 
 Run everything: `npm run check && npm run e2e` (in `apps/dashboard`). Regenerate screenshots:

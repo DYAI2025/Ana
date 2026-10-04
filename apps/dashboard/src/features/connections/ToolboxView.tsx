@@ -36,8 +36,9 @@ export function ToolboxView({ highlight }: { highlight?: string }) {
                 <Button variant="quiet" aria-expanded={expanded} aria-controls={`how-${tool.id}`} onClick={() => setOpen(expanded ? null : tool.id)} trailingIcon={<ChevronDown size={14} aria-hidden="true" className={expanded ? styles.flip : undefined} />}>
                   {t("toolbox.howTo")}
                 </Button>
-                <Button variant="secondary" aria-disabled="true" onClick={() => notify(t("toolbox.linkMissingToast"))}>
-                  {t("common.open")}
+                {/* a real, operable action that says what it does: explain why the tool cannot be opened yet */}
+                <Button variant="secondary" onClick={() => notify(t("toolbox.linkMissingToast"))}>
+                  {t("toolbox.whyUnavailable")}
                 </Button>
               </div>
             </li>

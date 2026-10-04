@@ -84,7 +84,8 @@ export function SearchPalette({ open, onClose }: { open: boolean; onClose: () =>
             data-autofocus
             className={styles.input}
             role="combobox"
-            aria-expanded={ordered.length > 0}
+            // the listbox popup is shown whenever the palette is open, even with zero options
+            aria-expanded="true"
             aria-controls={listId}
             aria-autocomplete="list"
             aria-activedescendant={ordered.length ? `${listId}-${active}` : undefined}

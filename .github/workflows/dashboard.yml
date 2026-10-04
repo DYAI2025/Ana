@@ -1,11 +1,24 @@
 name: dashboard
 
+# Every root-level input that changes how the dashboard is built or tested must be listed here:
+# the app itself, the root package.json + scripts behind `npm run dev/check/e2e`, the Node
+# version (.nvmrc, read by setup-node below) and this workflow. Keep the push and pull_request lists identical.
 on:
   push:
     branches: [main]
-    paths: ["apps/dashboard/**", "package.json", "scripts/**", ".github/workflows/dashboard.yml"]
+    paths:
+      - "apps/dashboard/**"
+      - "package.json"
+      - "scripts/**"
+      - ".nvmrc"
+      - ".github/workflows/dashboard.yml"
   pull_request:
-    paths: ["apps/dashboard/**", "package.json", "scripts/**", ".github/workflows/dashboard.yml"]
+    paths:
+      - "apps/dashboard/**"
+      - "package.json"
+      - "scripts/**"
+      - ".nvmrc"
+      - ".github/workflows/dashboard.yml"
 
 permissions:
   contents: read

@@ -32,22 +32,6 @@
   transform: none;
 }
 
-/* unavailable but still focusable (explains itself on click): reads as inert without losing legibility */
-.button[aria-disabled="true"] {
-  cursor: not-allowed;
-  transform: none;
-  color: var(--text-secondary);
-  border-style: dashed;
-  border-color: rgba(245, 237, 228, 0.28);
-  background: rgba(32, 26, 31, 0.35);
-  box-shadow: none;
-}
-
-.button[aria-disabled="true"]:hover {
-  background: rgba(32, 26, 31, 0.35);
-  border-color: rgba(245, 237, 228, 0.28);
-}
-
 .primary {
   color: var(--accent-ink);
   border-color: rgba(255, 192, 177, 0.35);

@@ -236,6 +236,7 @@ export const de: Messages = {
     subtitle: "Die Werkzeuge, die wir nutzen — an einem Ort, ohne Suchen.",
     howTo: "So nutzt du es",
     linkMissing: "Link nicht eingerichtet",
+    whyUnavailable: "Warum nicht verfügbar",
     linkMissingToast: "Der Werkzeug-Link ist in diesem Prototyp nicht eingerichtet",
   },
   search: {
