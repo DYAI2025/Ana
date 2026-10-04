@@ -36,6 +36,11 @@ export function CalendarView({ highlight }: { highlight?: string }) {
   const [recent, setRecent] = useState<string | null>(highlight ?? null);
   const titleRef = useRef<HTMLInputElement>(null);
   const addRef = useRef<HTMLButtonElement>(null);
+  const dateRef = useRef<HTMLInputElement>(null);
+  const startRef = useRef<HTMLInputElement>(null);
+  const endRef = useRef<HTMLInputElement>(null);
+  /** whatever opened the form (header button or agenda button) gets focus back when it closes */
+  const openerRef = useRef<HTMLElement | null>(null);
   const formId = useId();
 
   const weeks = monthGrid(ym.year, ym.month);
@@ -51,10 +56,12 @@ export function CalendarView({ highlight }: { highlight?: string }) {
   const closeForm = () => {
     setFormOpen(false);
     setError(null);
-    window.requestAnimationFrame(() => addRef.current?.focus());
+    const opener = openerRef.current;
+    window.requestAnimationFrame(() => (opener && document.contains(opener) ? opener : addRef.current)?.focus());
   };
 
   const openForm = (date?: string) => {
+    openerRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     setDraft((d) => ({ ...d, date: date ?? selectedDate ?? d.date }));
     setFormOpen(true);
     setError(null);
@@ -67,7 +74,10 @@ export function CalendarView({ highlight }: { highlight?: string }) {
     const problem = validateEvent(candidate);
     if (problem) {
       setError(problem);
-      titleRef.current?.focus();
+      // focus the field the message is about
+      const field =
+        problem === "calendar.dateRequired" ? dateRef : problem === "calendar.endBeforeStart" ? endRef : problem === "calendar.timeRequired" ? (/^\d{2}:\d{2}$/.test(draft.start) ? endRef : startRef) : titleRef;
+      field.current?.focus();
       return;
     }
     const id = `event-${state.seq + 1}`;
@@ -135,7 +145,7 @@ export function CalendarView({ highlight }: { highlight?: string }) {
                           onClick={() => setSelectedDate(isSelected ? null : day.date)}
                           data-date={day.date}
                         >
-                          <span className={styles.dayNumber}>{Number(day.date.slice(8))}</span>
+                          <span className={styles.dayNumber}>{day.inMonth ? Number(day.date.slice(8)) : formatDate(day.date, locale, { day: "numeric", month: "short" })}</span>
                           {events.map((e) => {
                             const Icon = TYPE_ICON[e.type];
                             return (
@@ -180,16 +190,16 @@ export function CalendarView({ highlight }: { highlight?: string }) {
               </label>
               <label className={styles.field}>
                 <span>{t("calendar.date")}</span>
-                <input type="date" value={draft.date} onChange={(e) => setDraft({ ...draft, date: e.target.value })} required aria-invalid={error === "calendar.dateRequired" ? true : undefined} data-testid="cal-date" />
+                <input ref={dateRef} type="date" value={draft.date} onChange={(e) => setDraft({ ...draft, date: e.target.value })} required aria-invalid={error === "calendar.dateRequired" ? true : undefined} data-testid="cal-date" />
               </label>
               <div className={styles.row2}>
                 <label className={styles.field}>
                   <span>{t("calendar.start")}</span>
-                  <input type="time" value={draft.start} onChange={(e) => setDraft({ ...draft, start: e.target.value })} data-testid="cal-start" />
+                  <input ref={startRef} type="time" value={draft.start} onChange={(e) => setDraft({ ...draft, start: e.target.value })} aria-invalid={error === "calendar.timeRequired" && !/^\d{2}:\d{2}$/.test(draft.start) ? true : undefined} data-testid="cal-start" />
                 </label>
                 <label className={styles.field}>
                   <span>{t("calendar.end")}</span>
-                  <input type="time" value={draft.end} onChange={(e) => setDraft({ ...draft, end: e.target.value })} aria-invalid={error === "calendar.endBeforeStart" ? true : undefined} data-testid="cal-end" />
+                  <input ref={endRef} type="time" value={draft.end} onChange={(e) => setDraft({ ...draft, end: e.target.value })} aria-invalid={error === "calendar.endBeforeStart" || (error === "calendar.timeRequired" && !/^\d{2}:\d{2}$/.test(draft.end)) ? true : undefined} data-testid="cal-end" />
                 </label>
               </div>
               <label className={styles.field}>

@@ -21,11 +21,11 @@ npm run dev            # repository root; Node >= 22.12; first run installs deps
 | 1 | Open `/` | Current Focus statement first; Work and Last Session larger/brighter; Business, Knowledge, Community smaller | journeys `1 ·` | `*-now.jpg` |
 | 2 | Click **Work**, then Esc; click **Last session**, close ×; click **Community**, click outside | Side lens opens with focus inside, Tab stays in it, closes three ways, focus returns to the card | journeys `2 ·` | `*-now-lens-work.jpg` |
 | 3 | Rail → **Board** | Kanban NEXT / DOING / REVIEW / DONE, tickets show Ana / Ben / Vince by name | journeys `3–5` | `*-board.jpg` |
-| 4 | Filter **Ana**, **Ben**, **Vince**, **All** | Only that person's tickets; empty columns say so | journeys `3–5` | `*-it-board.jpg` |
+| 4 | Filter **Ana**, **Ben**, **Vince**, **All** | Only that person's tickets; empty columns say so | journeys `3–5` | — (`*-it-board.jpg` shows the board in Italian) |
 | 5 | Drag a ticket to another column; or focus it and press Shift+→ | Ticket moves, toast says "local only"; keyboard keeps focus on the ticket | journeys `3–5`, regressions | — |
 | 6 | **Backlog · 6** (Board header) | Separate Backlog page | journeys `6–7` | `*-backlog-add-idea.jpg` |
 | 7 | **Add idea**, submit empty, then type and submit | Error first; then idea on top with "New · local", nothing sent to Jira | journeys `6–7`, regressions | `*-backlog-add-idea.jpg` |
-| 8 | Rail → **Sessions** → "Current focus and first loop" | Session detail opens | journeys `8–9` | `*-sessions.jpg` |
+| 8 | Rail → **Sessions** → "Current focus and first loop" | Session list, then the session detail | journeys `8–9` | `*-sessions.jpg` (list), `*-session-transcript.jpg` (detail) |
 | 9 | Tabs **Watch / Summary / Transcript / JSON** (also ←/→) | Each view renders; transcript and JSON marked fictional | journeys `8–9`, SessionDetail.test | `*-session-transcript.jpg` |
 | 10 | Rail → **Brain**: drag, scroll, click a node, use the list | Rotates, zooms, selected node is focused and its illustrative links highlighted; banner: no sources, no embeddings | journeys `10 ·`, regressions | `*-brain-selected.jpg` |
 | 11 | Rail → **Whiteboard**: Add sticky, drag a note, Enter to edit, Delete | Note added/moved/edited/removed, arrow keys move a focused note | journeys `11 ·`, regressions | `*-whiteboard.jpg` |
@@ -39,10 +39,10 @@ npm run dev            # repository root; Node >= 22.12; first run installs deps
 | Check | How | Spec |
 |---|---|---|
 | No overlap, no horizontal scroll, rail inside viewport, dialog not clipped — 14 views × 1440×900, 1280×800, 1024×768 | DOM geometry on the production build | `visual.spec.ts` |
-| Text contrast ≥ 4.5:1 (3:1 large) measured on rendered pixels, 19 states × 2 viewports | text hidden, worst-case background pixel per text run | `contrast.spec.ts` |
-| axe WCAG 2.1 A/AA: no serious/critical issue on 11 routes and 10 open states (lens, search, forms, tabs) | `@axe-core/playwright` | `quality.spec.ts` |
+| Text contrast ≥ 4.5:1 (3:1 large) measured on rendered pixels, 19 states × 3 viewports (axe cannot judge text on glass, so this replaces its colour-contrast check) | text hidden, worst-case background pixel per text run | `contrast.spec.ts` |
+| axe WCAG 2.1 A/AA: no serious/critical issue on 11 routes and 15 open states (all lenses, search, search over a lens, forms, tabs, note editing) | `@axe-core/playwright` | `quality.spec.ts` |
 | Visible focus, rail current-page marking, reduced motion (no auto-rotation, near-zero transitions), meaning not colour-only, state resets on reload | browser checks | `quality.spec.ts` |
-| Regressions from review round 1 (each test was shown to fail on the code before its fix) | — | `regressions.spec.ts` |
+| Regressions from review rounds 1 and 2 — fail-first runs recorded in [`RED-RUNS.md`](RED-RUNS.md) | — | `regressions.spec.ts` |
 | Unit: reducer, search, i18n key/placeholder parity, Brain projection, calendar grid, fixture honesty | Vitest | `src/**/*.test.ts(x)` |
 
 Run everything: `npm run check && npm run e2e` (in `apps/dashboard`). Regenerate screenshots:

@@ -131,7 +131,7 @@ const STATES: { label: string; route: string; prepare?: (page: Page) => Promise<
   { label: "toolbox", route: "/toolbox?tool=jira" },
 ];
 
-for (const viewport of [{ width: 1440, height: 900 }, { width: 1024, height: 768 }]) {
+for (const viewport of [{ width: 1440, height: 900 }, { width: 1280, height: 800 }, { width: 1024, height: 768 }]) {
   test.describe(`contrast ${viewport.width}`, () => {
     test.use({ viewport });
     for (const state of STATES) {

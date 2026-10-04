@@ -7,6 +7,7 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { StatusChip } from "@/components/ui/StatusChip";
 import { BRAIN_EDGES, BRAIN_NODES, neighbours, NODE_TYPES, type BrainNode } from "@/fixtures/brain";
 import { normalize } from "@/lib/search";
+import { useDismissibleTooltips } from "@/lib/hooks/useDismissibleTooltips";
 import { useReducedMotion } from "@/lib/hooks/useReducedMotion";
 import { drawBrain, TYPE_STYLE } from "./draw";
 import { clampCamera, DEFAULT_CAMERA, hitTest, type Camera, type HitTarget } from "./projection";
@@ -37,6 +38,8 @@ export function BrainView({ initialNode }: { initialNode?: string }) {
   const rotating = (autoRotate ?? !reduced) && selected === null;
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const toolbar = useRef<HTMLDivElement>(null);
+  useDismissibleTooltips(toolbar);
   // a node passed in (e.g. from search) starts already focused
   const camera = useRef<Camera>(initialCamera(valid));
   const target = useRef<Camera | null>(null);
@@ -254,18 +257,7 @@ export function BrainView({ initialNode }: { initialNode?: string }) {
             onKeyDown={onCanvasKey}
             data-testid="brain-canvas"
           />
-          <div
-            className={styles.controls}
-            role="toolbar"
-            aria-label={t("brain.title")}
-            onKeyDown={(event) => {
-              if (event.key === "Escape") event.currentTarget.dataset.tips = "off";
-            }}
-            onMouseLeave={(event) => delete event.currentTarget.dataset.tips}
-            onBlur={(event) => {
-              if (!event.currentTarget.contains(event.relatedTarget as Node | null)) delete event.currentTarget.dataset.tips;
-            }}
-          >
+          <div ref={toolbar} className={styles.controls} role="toolbar" aria-label={t("brain.title")}>
             <button type="button" className={styles.control} onClick={() => nudge("left")} aria-label={t("brain.rotateLeft")} data-label={t("brain.rotateLeft")} data-testid="brain-rotate-left">
               <RotateCcw size={16} aria-hidden="true" />
             </button>

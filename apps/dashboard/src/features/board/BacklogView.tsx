@@ -69,8 +69,6 @@ export function BacklogView() {
               variant="primary"
               icon={<Plus size={16} aria-hidden="true" />}
               onClick={open}
-              aria-expanded={formOpen}
-              aria-controls={formId}
               data-testid="add-idea"
             >
               {t("backlog.addIdea")}

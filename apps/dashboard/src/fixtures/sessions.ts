@@ -78,7 +78,10 @@ export const SESSIONS: readonly Session[] = [
     id: "workshop-02",
     kind: l("Workshop 02", "Workshop 02", "Workshop 02"),
     title: l("Friction and what can be removed", "Reibung und was wegfallen kann", "Attriti e cosa si può eliminare"),
-    date: null,
+    // planned (also in the calendar on the same date); nothing recorded yet
+    date: "2026-10-14",
+    start: "10:00",
+    end: "13:00",
     participants: ["ana", "ben", "vince"],
     attached: false,
     keyPoints: [],

@@ -114,6 +114,11 @@ const OVERLAY_STATES: { label: string; route: string; prepare: (page: import("@p
   { label: "session transcript", route: "/sessions/working-session-01?tab=transcript", prepare: async () => undefined },
   { label: "session json", route: "/sessions/working-session-01?tab=json", prepare: async () => undefined },
   { label: "brain selected", route: "/brain?node=workshop-02", prepare: async () => undefined },
+  { label: "lens knowledge", route: "/", prepare: (p) => p.getByTestId("context-knowledge").click() },
+  { label: "lens business", route: "/", prepare: (p) => p.getByTestId("context-business").click() },
+  { label: "lens community", route: "/", prepare: (p) => p.getByTestId("context-community").click() },
+  { label: "search over lens", route: "/", prepare: async (p) => { await p.getByTestId("context-work").click(); await p.keyboard.press("ControlOrMeta+k"); await p.getByTestId("search-input").fill("loop"); } },
+  { label: "whiteboard editing a note", route: "/whiteboard", prepare: async (p) => { await p.getByTestId("wb-note").first().focus(); await p.keyboard.press("Enter"); } },
 ];
 
 for (const state of OVERLAY_STATES) {

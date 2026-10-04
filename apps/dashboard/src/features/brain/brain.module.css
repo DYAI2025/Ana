@@ -29,7 +29,7 @@
 .stage {
   position: relative;
   min-height: 380px;
-  height: clamp(380px, calc(100vh - 250px), 760px);
+  height: clamp(380px, calc(100vh - 268px), 760px);
   border-radius: 28px 34px 28px 32px;
   overflow: hidden;
   background:
@@ -112,7 +112,7 @@
   transform: translate(-50%, 0);
 }
 
-.controls[data-tips="off"] .control::after {
+.control[data-tip-off]::after {
   opacity: 0;
 }
 
@@ -133,7 +133,6 @@
   border: 1px solid rgba(255, 255, 255, 0.1);
   list-style: none;
   margin: 0;
-  padding: 0;
   display: flex;
   flex-wrap: wrap;
   gap: 6px 14px;
@@ -195,7 +194,7 @@
   flex-direction: column;
   gap: 14px;
   min-height: 0;
-  height: clamp(380px, calc(100vh - 250px), 760px);
+  height: clamp(380px, calc(100vh - 268px), 760px);
 }
 
 .card {
@@ -203,9 +202,16 @@
   border-radius: 22px 26px 22px 24px;
 }
 
+/* the selection card gives up height first (scrolling inside) so the column never outgrows the canvas */
+.side > .card:first-child {
+  flex: 0 1 auto;
+  min-height: 0;
+  overflow: auto;
+}
+
 .listCard {
-  flex: 1;
-  min-height: 210px;
+  flex: 1 1 0;
+  min-height: 280px;
   display: flex;
   flex-direction: column;
 }
@@ -300,11 +306,12 @@
 .list {
   list-style: none;
   margin: 0;
-  padding: 4px 0 0;
+  padding: 8px 0 14px;
   overflow: auto;
-  /* soft top edge so a partly scrolled item does not read as a stray mark */
-  -webkit-mask-image: linear-gradient(180deg, transparent 0, #000 10px);
-  mask-image: linear-gradient(180deg, transparent 0, #000 10px);
+  scroll-padding: 12px 0 16px;
+  /* soft edges: a partly scrolled row never reads as a stray mark, and the bottom fade signals "more below" */
+  -webkit-mask-image: linear-gradient(180deg, transparent 0, #000 14px, #000 calc(100% - 22px), transparent);
+  mask-image: linear-gradient(180deg, transparent 0, #000 14px, #000 calc(100% - 22px), transparent);
   flex: 1;
   min-height: 0;
 }

@@ -9,6 +9,14 @@ import { useFocusTrap } from "@/lib/hooks/useFocusTrap";
 import { buildSearchIndex, groupResults, searchEntries, type SearchEntry } from "@/lib/search";
 import styles from "./search.module.css";
 
+/** Each pick from search gets a fresh `nav` value so the target page re-applies it even if that URL is already open. */
+let navCounter = 0;
+export function withNavNonce(href: string): string {
+  if (!href.includes("?")) return href;
+  navCounter += 1;
+  return `${href}&nav=${navCounter}`;
+}
+
 export function isEditableTarget(target: EventTarget | null): boolean {
   if (!(target instanceof HTMLElement)) return false;
   return target.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName);
@@ -47,7 +55,7 @@ export function SearchPalette({ open, onClose }: { open: boolean; onClose: () =>
   const go = (entry: SearchEntry | undefined) => {
     if (!entry) return;
     close();
-    router.push(entry.href);
+    router.push(withNavNonce(entry.href));
   };
 
   const onKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {

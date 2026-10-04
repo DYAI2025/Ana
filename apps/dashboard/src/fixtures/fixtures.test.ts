@@ -50,3 +50,14 @@ describe("prototype honesty", () => {
     expect(corpus).not.toMatch(/\+\d{2}|\d{9,}/); // international prefix or long digit runs (ISO dates stay allowed)
   });
 });
+
+describe("cross-module consistency", () => {
+  it("a session that also appears in the calendar has the same date there", async () => {
+    const { SESSIONS } = await import("./sessions");
+    const { EVENTS } = await import("./calendar");
+    const workshop02 = SESSIONS.find((s) => s.id === "workshop-02")!;
+    const event = EVENTS.find((e) => e.id === "e-workshop-02")!;
+    expect(workshop02.date).toBe(event.date);
+    expect(workshop02.start).toBe(event.start);
+  });
+});

@@ -115,10 +115,23 @@
   color: #2f272c;
 }
 
+/* title first, up to two lines, so similar events stay distinguishable */
 .chipText {
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-height: 1.25;
+  word-break: break-word;
+}
+
+.chip {
+  align-items: flex-start;
+}
+
+.chip > svg {
+  flex: none;
+  margin-top: 2px;
 }
 
 .chip[data-recent],
@@ -275,14 +288,16 @@
   color: var(--text-secondary);
 }
 
+/* the title matters more than the time in narrow cells (time stays in the agenda and tooltip) */
+@media (max-width: 1360px) {
+  .chipTime {
+    display: none;
+  }
+}
+
 @media (max-width: 1160px) {
   .layout {
     grid-template-columns: minmax(0, 1fr) 260px;
-  }
-
-  /* narrow cells: the title matters more than the time (time stays in the agenda and tooltip) */
-  .chipTime {
-    display: none;
   }
 
   .day {

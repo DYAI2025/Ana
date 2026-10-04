@@ -46,7 +46,8 @@ export type PrototypeAction =
   | { type: "moveNote"; id: string; x: number; y: number; bounds: Bounds }
   | { type: "nudgeNote"; id: string; dx: number; dy: number; bounds: Bounds }
   | { type: "editNote"; id: string; text: string }
-  | { type: "removeNote"; id: string };
+  | { type: "removeNote"; id: string }
+  | { type: "clampNotes"; bounds: Bounds };
 
 /** Notes keep this much of themselves inside the board so they can always be grabbed again. */
 export const NOTE_GRAB_MARGIN = 48;
@@ -156,6 +157,17 @@ export function prototypeReducer(state: PrototypeState, action: PrototypeAction)
       return { ...state, notes: state.notes.map((n) => (n.id === action.id ? { ...n, text: action.text } : n)) };
     case "removeNote":
       return { ...state, notes: state.notes.filter((n) => n.id !== action.id) };
+    case "clampNotes": {
+      // the board shrank: move stored positions (not just the drawing) so drag/nudge start where the note is shown
+      let changed = false;
+      const notes = state.notes.map((n) => {
+        const placed = placeNote(n, n.x, n.y, action.bounds);
+        if (placed.x === n.x && placed.y === n.y) return n;
+        changed = true;
+        return placed;
+      });
+      return changed ? { ...state, notes } : state;
+    }
   }
 }
 

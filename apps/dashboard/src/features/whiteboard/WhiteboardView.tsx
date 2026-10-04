@@ -8,7 +8,7 @@ import { useToast } from "@/components/providers/ToastProvider";
 import { Button } from "@/components/ui/Button";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { StatusChip } from "@/components/ui/StatusChip";
-import { NOTE_GRAB_MARGIN, type Bounds, type NoteColor, type WhiteboardNote } from "@/state/prototype";
+import type { Bounds, NoteColor, WhiteboardNote } from "@/state/prototype";
 import styles from "./whiteboard.module.css";
 
 const COLORS: readonly NoteColor[] = ["blush", "lilac", "sand"];
@@ -26,17 +26,14 @@ export function WhiteboardView() {
   const board = useRef<HTMLDivElement>(null);
   const drag = useRef<{ id: string; dx: number; dy: number } | null>(null);
   const addRef = useRef<HTMLButtonElement>(null);
-  const [size, setSize] = useState<Bounds | null>(null);
-
-  // track the board size so notes stay reachable when the window shrinks
+  // when the board shrinks, stored positions are clamped so notes stay reachable and drags start where they are drawn
   useEffect(() => {
     const el = board.current;
     if (!el) return;
-    const observer = new ResizeObserver(() => setSize({ width: el.clientWidth, height: el.clientHeight }));
+    const observer = new ResizeObserver(() => dispatch({ type: "clampNotes", bounds: { width: el.clientWidth, height: el.clientHeight } }));
     observer.observe(el);
     return () => observer.disconnect();
-  }, []);
-  const place = (value: number, extent: number | undefined) => (extent ? Math.min(value, Math.max(0, extent - NOTE_GRAB_MARGIN)) : value);
+  }, [dispatch]);
 
   const bounds = (): Bounds => ({ width: board.current?.clientWidth ?? 1000, height: board.current?.clientHeight ?? 600 });
   const focusNote = (id: string) => window.requestAnimationFrame(() => document.querySelector<HTMLElement>(`[data-note-id="${id}"]`)?.focus());
@@ -148,7 +145,7 @@ export function WhiteboardView() {
             <div
               key={note.id}
               className={`${styles.note} ${styles[`note_${note.kind}`]} ${note.kind === "sticky" ? styles[`color_${note.color}`] : ""}`}
-              style={{ left: place(note.x, size?.width), top: place(note.y, size?.height) }}
+              style={{ left: note.x, top: note.y }}
               tabIndex={0}
               role="group"
               aria-roledescription={kindLabel}

@@ -30,7 +30,8 @@ export function AppShell({ children }: { children: ReactNode }) {
         event.preventDefault();
         if (openRef.current) setSearchOpen(false);
         else openSearch();
-      } else if (event.key === "/" && !isEditableTarget(event.target)) {
+      } else if (event.key === "/" && !isEditableTarget(event.target) && !openRef.current) {
+        // only opens a closed palette; inside an open one "/" must not wipe the query
         event.preventDefault();
         openSearch();
       }

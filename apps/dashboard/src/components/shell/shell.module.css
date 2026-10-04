@@ -140,7 +140,7 @@
   transform: translate(0, -50%);
 }
 
-.rail[data-tips="off"] .navItem::after {
+.navItem[data-tip-off]::after {
   opacity: 0;
 }
 
