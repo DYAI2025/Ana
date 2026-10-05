@@ -3,7 +3,6 @@ import { BRAIN_EDGES, BRAIN_NODES, neighbours } from "./brain";
 import { EVENTS } from "./calendar";
 import { SOURCE_GROUPS, TOOLS } from "./connections";
 import { SESSIONS } from "./sessions";
-import { BACKLOG, TICKETS } from "./work";
 
 describe("brain fixture", () => {
   it("has unique node ids and only edges between existing nodes", () => {
@@ -44,7 +43,7 @@ describe("prototype honesty", () => {
   });
 
   it("contains no URLs, e-mail addresses or phone-like numbers in fixture text", () => {
-    const corpus = JSON.stringify({ TICKETS, BACKLOG, SESSIONS, EVENTS, TOOLS, BRAIN_NODES });
+    const corpus = JSON.stringify({ SESSIONS, EVENTS, TOOLS, BRAIN_NODES });
     expect(corpus).not.toMatch(/https?:\/\//);
     expect(corpus).not.toMatch(/[\w.+-]+@[\w-]+\.[\w.]+/);
     expect(corpus).not.toMatch(/\+\d{2}|\d{9,}/); // international prefix or long digit runs (ISO dates stay allowed)

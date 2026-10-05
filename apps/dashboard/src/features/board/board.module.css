@@ -51,13 +51,16 @@
 
 .board {
   display: grid;
-  grid-template-columns: repeat(4, minmax(200px, 1fr));
+  grid-template-columns: repeat(var(--columns, 5), minmax(184px, 1fr));
   gap: 14px;
   overflow-x: auto;
   padding-bottom: 6px;
 }
 
 .column {
+  /* positioned: visually-hidden text inside stays clipped by the board's own horizontal scroll */
+  position: relative;
+  min-width: 0;
   display: flex;
   flex-direction: column;
   min-height: 470px;
@@ -133,6 +136,16 @@
   cursor: grabbing;
 }
 
+.ticket[data-pending] {
+  cursor: progress;
+  border-style: dashed;
+  border-color: rgba(245, 237, 228, 0.42);
+}
+
+.ticket[data-idea] .category {
+  color: var(--sand);
+}
+
 .ticket[data-highlight] {
   border-color: rgba(255, 128, 108, 0.6);
 }
@@ -170,10 +183,20 @@
   font-weight: 500;
 }
 
+.status {
+  font-size: 11.5px;
+  color: var(--text-secondary);
+}
+
+.ticket[data-pending] .status {
+  font-style: italic;
+}
+
 .ticketFoot {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 8px;
   margin-top: auto;
 }
 
@@ -181,6 +204,14 @@
   font-family: var(--mono);
   font-size: 10.5px;
   color: var(--text-muted);
+  /* underline in currentColor, thin and offset — the key reads as a link without a second colour */
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+}
+
+.key:hover {
+  color: var(--text);
 }
 
 .empty {
@@ -220,13 +251,13 @@
 
 @media (max-width: 1160px) {
   .board {
-    grid-template-columns: repeat(4, minmax(190px, 1fr));
+    grid-template-columns: repeat(var(--columns, 5), minmax(150px, 1fr));
   }
 }
 
 @media (max-width: 760px) {
   .board {
-    grid-template-columns: repeat(4, minmax(240px, 82vw));
+    grid-template-columns: repeat(var(--columns, 5), minmax(240px, 82vw));
   }
 }
 

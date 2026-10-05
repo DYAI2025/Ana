@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import { useI18n } from "@/components/providers/I18nProvider";
 import { usePrototype } from "@/components/providers/PrototypeProvider";
+import { snapshotOf, useWork } from "@/features/work/WorkProvider";
 import { useFocusTrap } from "@/lib/hooks/useFocusTrap";
 import { buildSearchIndex, groupResults, searchEntries, type SearchEntry } from "@/lib/search";
 import styles from "./search.module.css";
@@ -28,13 +29,15 @@ export function isEditableTarget(target: EventTarget | null): boolean {
 export function SearchPalette({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { t, locale } = useI18n();
   const { state } = usePrototype();
+  const { state: work } = useWork();
+  const snapshot = snapshotOf(work);
   const router = useRouter();
   const panel = useRef<HTMLDivElement>(null);
   const [query, setQuery] = useState("");
   const [active, setActive] = useState(0);
   const listId = useId();
 
-  const index = useMemo(() => buildSearchIndex(state, locale), [state, locale]);
+  const index = useMemo(() => buildSearchIndex(state, locale, snapshot), [state, locale, snapshot]);
   const results = useMemo(() => searchEntries(index, query), [index, query]);
   const grouped = useMemo(() => groupResults(results), [results]);
   const ordered = useMemo(() => grouped.flatMap((g) => g.items), [grouped]);

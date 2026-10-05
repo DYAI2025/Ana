@@ -10,7 +10,7 @@ type Paths<T> = {
   [K in keyof T & string]: T[K] extends string ? K : Join<K, Paths<T[K]>>;
 }[keyof T & string];
 
-/** Every dot-path in the dictionary, e.g. "nav.now" or "board.columns.next". */
+/** Every dot-path in the dictionary, e.g. "nav.now" or "work.failures.stale". */
 export type MessageKey = Paths<Messages>;
 export type MessageParams = Readonly<Record<string, string | number>>;
 

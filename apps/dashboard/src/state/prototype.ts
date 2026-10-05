@@ -1,10 +1,9 @@
 /**
- * Local-only prototype state. Lives in memory for the browser tab and resets on reload —
- * deliberately no persistence, no network, no Jira writes (ANA-4 scope).
+ * Local-only prototype state for Calendar and Whiteboard. Lives in memory for the browser tab and resets on
+ * reload — deliberately no persistence and no network. Work (Board, Backlog, ideas) is not here: it is a
+ * projection of Jira (src/features/work), so no local ticket or backlog copy can exist (ANA-5).
  */
 import { EVENTS, type CalendarEvent, type EventType } from "@/fixtures/calendar";
-import type { PersonId } from "@/fixtures/team";
-import { BACKLOG, COLUMNS, TICKETS, type BacklogItem, type ColumnId, type Ticket } from "@/fixtures/work";
 import type { MessageKey } from "@/i18n/translate";
 import { l } from "@/lib/locale";
 
@@ -29,18 +28,12 @@ export interface Bounds {
 export type EventDraft = Omit<CalendarEvent, "id" | "local" | "title"> & { title: string };
 
 export interface PrototypeState {
-  tickets: Ticket[];
-  backlog: BacklogItem[];
   events: CalendarEvent[];
   notes: WhiteboardNote[];
-  lastMove: { id: string; from: ColumnId; to: ColumnId } | null;
   seq: number;
 }
 
 export type PrototypeAction =
-  | { type: "moveTicket"; id: string; column: ColumnId }
-  | { type: "shiftTicket"; id: string; direction: -1 | 1 }
-  | { type: "addIdea"; title: string; owner: PersonId }
   | { type: "addEvent"; event: EventDraft }
   | { type: "addNote"; kind: NoteKind; color: NoteColor; text: string; x: number; y: number }
   | { type: "moveNote"; id: string; x: number; y: number; bounds: Bounds }
@@ -59,17 +52,10 @@ const INITIAL_NOTES: readonly WhiteboardNote[] = [
 
 export function createInitialState(): PrototypeState {
   return {
-    tickets: TICKETS.map((t) => ({ ...t })),
-    backlog: BACKLOG.map((b) => ({ ...b })),
     events: EVENTS.map((e) => ({ ...e })),
     notes: INITIAL_NOTES.map((n) => ({ ...n })),
-    lastMove: null,
     seq: 0,
   };
-}
-
-export function validateIdea(title: string): MessageKey | null {
-  return title.trim().length === 0 ? "backlog.ideaRequired" : null;
 }
 
 function isRealDate(value: string): boolean {
@@ -87,16 +73,6 @@ export function validateEvent(event: EventDraft): MessageKey | null {
   return null;
 }
 
-export function filterTickets(tickets: readonly Ticket[], owner: PersonId | "all"): Ticket[] {
-  return owner === "all" ? [...tickets] : tickets.filter((t) => t.owner === owner);
-}
-
-export function columnCounts(tickets: readonly Ticket[]): Record<ColumnId, number> {
-  const counts = { next: 0, doing: 0, review: 0, done: 0 };
-  for (const t of tickets) counts[t.column] += 1;
-  return counts;
-}
-
 const clamp = (value: number, min: number, max: number) => Math.min(Math.max(value, min), max);
 
 function placeNote(note: WhiteboardNote, x: number, y: number, bounds: Bounds): WhiteboardNote {
@@ -107,32 +83,8 @@ function placeNote(note: WhiteboardNote, x: number, y: number, bounds: Bounds): 
   };
 }
 
-function moveTo(state: PrototypeState, id: string, column: ColumnId): PrototypeState {
-  const current = state.tickets.find((t) => t.id === id);
-  if (!current || current.column === column) return state;
-  return {
-    ...state,
-    tickets: state.tickets.map((t) => (t.id === id ? { ...t, column } : t)),
-    lastMove: { id, from: current.column, to: column },
-  };
-}
-
 export function prototypeReducer(state: PrototypeState, action: PrototypeAction): PrototypeState {
   switch (action.type) {
-    case "moveTicket":
-      return moveTo(state, action.id, action.column);
-    case "shiftTicket": {
-      const current = state.tickets.find((t) => t.id === action.id);
-      if (!current) return state;
-      const target = COLUMNS[COLUMNS.indexOf(current.column) + action.direction];
-      return target ? moveTo(state, action.id, target) : state;
-    }
-    case "addIdea": {
-      if (validateIdea(action.title)) return state;
-      const seq = state.seq + 1;
-      const idea: BacklogItem = { id: `idea-${seq}`, title: action.title.trim(), owner: action.owner, kind: "idea", local: true };
-      return { ...state, seq, backlog: [idea, ...state.backlog] };
-    }
     case "addEvent": {
       if (validateEvent(action.event)) return state;
       const seq = state.seq + 1;

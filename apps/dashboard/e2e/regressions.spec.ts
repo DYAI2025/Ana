@@ -1,5 +1,5 @@
 /** Regression tests for defects found in review rounds 1 and 2 (see docs/evidence/ANA-4/RED-RUNS.md). */
-import { expect, test } from "./fixtures";
+import { expect, test, workReady } from "./fixtures";
 
 test("calendar: clearing the date is rejected instead of crashing the view", async ({ page }) => {
   await page.goto("/calendar");
@@ -68,13 +68,15 @@ test("search reopens empty after closing with Cmd/Ctrl+K", async ({ page }) => {
   await expect(page.getByTestId("search-input")).toHaveValue("");
 });
 
-test("search result for a ticket is visible even when an owner filter was active", async ({ page }) => {
+test("search result for an issue is visible even when an owner filter was active", async ({ page }) => {
   await page.goto("/board");
-  await page.getByTestId("filter-ana").click();
+  await workReady(page);
+  await page.getByRole("button", { name: "Avery Example" }).click();
+  await expect(page.locator('[data-ticket-id="ANA-908"]')).toHaveCount(0);
   await page.getByTestId("search-open").click();
   await page.getByTestId("search-input").fill("approved source links");
   await page.keyboard.press("Enter");
-  await expect(page.locator('[data-ticket-id="t-source-links"]')).toBeFocused();
+  await expect(page.locator('[data-ticket-id="ANA-908"]')).toBeFocused();
   await expect(page.getByTestId("filter-all")).toHaveAttribute("aria-pressed", "true");
 });
 
@@ -86,14 +88,12 @@ test("brain: turning auto-rotate on while a node is selected releases the node a
   await expect(page.getByTestId("brain-selected-title")).toHaveCount(0);
 });
 
-test("backlog numbering stays stable when ideas are added", async ({ page }) => {
+test("backlog rows follow Jira rank; ideas are marked with an icon instead of a number", async ({ page }) => {
   await page.goto("/backlog");
-  await page.getByTestId("add-idea").click();
-  await page.getByTestId("idea-input").fill("Numbering check");
-  await page.getByTestId("idea-submit").click();
   const backlogRows = page.locator('[data-testid="backlog-item"][data-kind="backlog"]');
   await expect(backlogRows.first()).toContainText("01");
-  await expect(backlogRows.last()).toContainText("06");
+  await expect(backlogRows.last()).toContainText("02");
+  await expect(page.locator('[data-testid="backlog-item"][data-kind="idea"]')).toHaveAttribute("data-backlog-key", "ANA-907");
 });
 
 test("backlog: pressing Add idea while the form is open keeps the draft", async ({ page }) => {
@@ -147,13 +147,14 @@ test("calendar padding days name their month", async ({ page }) => {
 
 test("search: picking the same ticket again after hiding it with a filter shows it again", async ({ page }) => {
   await page.goto("/");
+  await workReady(page);
   for (const round of [1, 2]) {
     await page.keyboard.press("ControlOrMeta+k");
     await page.getByTestId("search-input").fill("approved source links");
     await page.keyboard.press("Enter");
-    await expect(page.locator('[data-ticket-id="t-source-links"]'), `round ${round}`).toBeFocused();
-    await page.getByTestId("filter-ana").click();
-    await expect(page.locator('[data-ticket-id="t-source-links"]')).toHaveCount(0);
+    await expect(page.locator('[data-ticket-id="ANA-908"]'), `round ${round}`).toBeFocused();
+    await page.getByRole("button", { name: "Avery Example" }).click();
+    await expect(page.locator('[data-ticket-id="ANA-908"]')).toHaveCount(0);
   }
 });
 
@@ -221,17 +222,18 @@ test("backlog 'Add idea' does not announce an expanded state it cannot toggle", 
 
 test("search pick still re-applies after a reload (nav value never repeats)", async ({ page }) => {
   await page.goto("/");
+  await workReady(page);
   await page.keyboard.press("ControlOrMeta+k");
   await page.getByTestId("search-input").fill("approved source links");
   await page.keyboard.press("Enter");
-  await expect(page.locator('[data-ticket-id="t-source-links"]')).toBeFocused();
+  await expect(page.locator('[data-ticket-id="ANA-908"]')).toBeFocused();
   await page.reload();
-  await page.getByTestId("filter-ana").click();
-  await expect(page.locator('[data-ticket-id="t-source-links"]')).toHaveCount(0);
+  await page.getByRole("button", { name: "Avery Example" }).click();
+  await expect(page.locator('[data-ticket-id="ANA-908"]')).toHaveCount(0);
   await page.keyboard.press("ControlOrMeta+k");
   await page.getByTestId("search-input").fill("approved source links");
   await page.keyboard.press("Enter");
-  await expect(page.locator('[data-ticket-id="t-source-links"]')).toBeFocused();
+  await expect(page.locator('[data-ticket-id="ANA-908"]')).toBeFocused();
 });
 
 test("whiteboard: a temporary shrink does not rearrange notes; widening restores them", async ({ page }) => {

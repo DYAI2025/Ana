@@ -2,7 +2,7 @@
  * ANA-4 main journeys (handoff "Browser interaction proof" 1–15), run against the production build.
  */
 import type { Page } from "@playwright/test";
-import { expect, test } from "./fixtures";
+import { expect, test, workReady, workSettled } from "./fixtures";
 
 const area = async (page: Page, testId: string) => {
   const box = await page.getByTestId(testId).boundingBox();
@@ -51,46 +51,47 @@ test("2 · a context lens opens, traps focus and closes (Escape, close button, b
   await expect(page.getByRole("dialog")).toBeHidden();
 });
 
-test("3–5 · Board: navigate, filter by owner, move a ticket by drag and by keyboard", async ({ page }) => {
+test("3–5 · Board: navigate, filter by assignee, move an issue by drag and by keyboard (through Jira)", async ({ page }) => {
   await page.goto("/");
   await page.getByTestId("nav-board").click();
   await expect(page).toHaveURL(/\/board$/);
   await expect(page.getByRole("heading", { level: 1, name: "Board" })).toBeVisible();
+  await workSettled(page);
 
-  for (const owner of ["ana", "ben", "vince"]) {
-    await page.getByTestId(`filter-${owner}`).click();
+  for (const person of await page.getByTestId("filter-person").all()) {
+    const owner = await person.getAttribute("data-owner");
+    await person.click();
     const owners = await page.getByTestId("ticket").evaluateAll((els) => els.map((el) => el.getAttribute("data-owner")));
-    expect(owners.length, `${owner} has tickets`).toBeGreaterThan(0);
+    expect(owners.length, `${owner} has issues`).toBeGreaterThan(0);
     expect(new Set(owners)).toEqual(new Set([owner]));
   }
   await page.getByTestId("filter-all").click();
 
-  const ticket = page.locator('[data-ticket-id="t-resource-map"]');
-  await ticket.dragTo(page.getByTestId("column-doing"));
-  await expect(page.getByTestId("column-doing").locator('[data-ticket-id="t-resource-map"]')).toBeVisible();
-  await expect(page.getByTestId("toast")).toContainText("Doing");
-  await expect(page.getByTestId("toast")).toContainText("local only");
+  await page.locator('[data-ticket-id="ANA-901"]').dragTo(page.locator('[data-column-name="Zur Entwicklung ausgewählt"]'));
+  await expect(page.locator('[data-column-name="Zur Entwicklung ausgewählt"] [data-ticket-id="ANA-901"]')).toBeVisible();
+  await expect(page.getByTestId("toast")).toContainText("confirmed by Jira");
 
-  await page.locator('[data-ticket-id="t-session-agenda"]').focus();
+  await page.locator('[data-ticket-id="ANA-905"]').focus();
   await page.keyboard.press("Shift+ArrowRight");
-  await expect(page.getByTestId("column-done").locator('[data-ticket-id="t-session-agenda"]')).toBeVisible();
-  await expect(page.locator('[data-ticket-id="t-session-agenda"]')).toBeFocused();
+  await expect(page.locator('[data-column-name="Erledigt"] [data-ticket-id="ANA-905"]')).toBeVisible();
+  await expect(page.locator('[data-ticket-id="ANA-905"]')).toBeFocused();
 });
 
-test("6–7 · Backlog is a separate view and Add Idea works locally with validation", async ({ page }) => {
+test("6–7 · Backlog is a separate view and Add idea creates a Jira item, with validation", async ({ page }) => {
   await page.goto("/board");
   await page.getByTestId("open-backlog").click();
   await expect(page).toHaveURL(/\/backlog$/);
+  await workSettled(page);
   const before = await page.getByTestId("backlog-item").count();
   await page.getByTestId("add-idea").click();
-  await expect(page.getByTestId("idea-form")).toContainText("not sent to Jira");
+  await expect(page.getByTestId("idea-form")).toContainText("Creates one Jira task in Backlog");
   await page.getByTestId("idea-submit").click();
   await expect(page.getByTestId("idea-form").getByRole("alert")).toBeVisible();
   await page.getByTestId("idea-input").fill("Try a calmer weekly review");
   await page.getByTestId("idea-submit").click();
+  await expect(page.getByTestId("idea-created")).toContainText("confirmed by readback");
   await expect(page.getByTestId("backlog-item")).toHaveCount(before + 1);
   await expect(page.getByTestId("backlog-item").first()).toContainText("Try a calmer weekly review");
-  await expect(page.getByTestId("backlog-item").first()).toContainText("New · local");
   await expect(page.getByTestId("add-idea")).toBeFocused();
 });
 
@@ -242,8 +243,10 @@ test("14 · EN / DE / IT switching translates chrome and content and persists", 
   await page.getByTestId("lang-de").click();
   await expect(page.locator("html")).toHaveAttribute("lang", "de");
   await expect(page.getByTestId("nav-now")).toHaveAttribute("aria-label", "Jetzt");
-  await expect(page.getByTestId("column-doing")).toContainText("In Arbeit");
-  await expect(page.locator('[data-ticket-id="t-choose-loop"]')).toContainText("Einen Kreislauf wählen");
+  await expect(page.getByText("Jira-ANA-Board · jede Verschiebung wird in Jira geschrieben und zurückgelesen")).toBeVisible();
+  // Jira data stays as Jira holds it; only the interface is translated
+  await expect(page.locator('[data-column-name="In Arbeit"]')).toBeVisible();
+  await expect(page.locator('[data-ticket-id="ANA-901"]')).toContainText("Nicht zugewiesen");
   await page.reload();
   await expect(page.getByTestId("nav-now")).toHaveAttribute("aria-label", "Jetzt");
 
@@ -256,13 +259,14 @@ test("14 · EN / DE / IT switching translates chrome and content and persists", 
 
 test("15 · global search finds content across modules and navigates", async ({ page }) => {
   await page.goto("/");
+  await workReady(page);
   await page.keyboard.press("ControlOrMeta+k");
   await expect(page.getByTestId("search-panel")).toBeVisible();
   await expect(page.getByTestId("search-input")).toBeFocused();
   await page.getByTestId("search-input").fill("workshop 02");
   await expect(page.getByTestId("search-result").first()).toBeVisible();
   const labels = await page.getByTestId("search-result").allTextContents();
-  expect(labels.join(" | ")).toMatch(/Prepare Workshop 02 materials/);
+  expect(labels.join(" | ")).toMatch(/Workshop 02/);
   await page.keyboard.press("Enter");
   await expect(page.getByTestId("search-panel")).toBeHidden();
   await expect(page).not.toHaveURL(/\/$/);
@@ -270,8 +274,8 @@ test("15 · global search finds content across modules and navigates", async ({ 
   await page.getByTestId("search-open").click();
   await page.getByTestId("search-input").fill("approved source links");
   await page.getByTestId("search-result").first().click();
-  await expect(page).toHaveURL(/\/board\?ticket=t-source-links/);
-  await expect(page.locator('[data-ticket-id="t-source-links"]')).toBeFocused();
+  await expect(page).toHaveURL(/\/board\?ticket=ANA-908/);
+  await expect(page.locator('[data-ticket-id="ANA-908"]')).toBeFocused();
 
   await page.keyboard.press("/");
   await page.getByTestId("search-input").fill("lavagna");

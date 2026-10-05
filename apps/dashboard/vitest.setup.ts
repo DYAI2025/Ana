@@ -2,12 +2,16 @@ import "@testing-library/jest-dom/vitest";
 import { cleanup } from "@testing-library/react";
 import { afterEach } from "vitest";
 
+// server-side suites run in the node environment (no DOM)
+const hasDom = typeof window !== "undefined";
+
 afterEach(() => {
+  if (!hasDom) return;
   cleanup();
   window.localStorage.clear();
 });
 
-if (!window.matchMedia) {
+if (hasDom && !window.matchMedia) {
   window.matchMedia = (query: string) =>
     ({
       matches: false,

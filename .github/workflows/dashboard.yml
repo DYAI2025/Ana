@@ -42,6 +42,8 @@ jobs:
       - run: npm run typecheck
       - run: npm run test
       - run: npm run build
+      # ANA-5 AC9: the browser bundle must not contain a Jira credential, its variable names or a Basic auth header
+      - run: npm run scan:bundle
       - run: npx playwright install --with-deps chromium
       - run: npm run e2e
       - if: failure()

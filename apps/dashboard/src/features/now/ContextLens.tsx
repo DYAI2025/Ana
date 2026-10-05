@@ -4,17 +4,18 @@ import { ArrowRight, BookOpenText, FileJson, FileText, PlayCircle, ScrollText, X
 import Link from "next/link";
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { useI18n } from "@/components/providers/I18nProvider";
-import { usePrototype } from "@/components/providers/PrototypeProvider";
 import { Avatar } from "@/components/ui/Avatar";
 import { ButtonLink } from "@/components/ui/Button";
 import { StatusChip } from "@/components/ui/StatusChip";
 import { RECENT_KNOWLEDGE, SOURCE_GROUPS } from "@/fixtures/connections";
 import { getSession, LAST_SESSION_ID } from "@/fixtures/sessions";
-import { TEAM } from "@/fixtures/team";
 import { formatDate } from "@/lib/format";
 import { useFocusTrap } from "@/lib/hooks/useFocusTrap";
 import { useReducedMotion } from "@/lib/hooks/useReducedMotion";
-import { columnCounts } from "@/state/prototype";
+import { PersonBadge } from "@/components/ui/PersonBadge";
+import { columnForStatus, isReviewColumn, workCounts } from "@/features/work/model";
+import { snapshotOf, useWork } from "@/features/work/WorkProvider";
+import { FailureNotice, LoadingLine } from "@/features/work/WorkStatus";
 import styles from "./lens.module.css";
 
 export type LensId = "work" | "session" | "business" | "knowledge" | "community";
@@ -87,37 +88,51 @@ function LensHeader({ eyebrow, title, titleId, onClose }: { eyebrow: string; tit
 
 function LensBody({ lens, titleId, onClose }: { lens: LensId; titleId: string; onClose: () => void }) {
   const { t, text, locale } = useI18n();
-  const { state } = usePrototype();
-  const counts = columnCounts(state.tickets);
+  const { state: work } = useWork();
+  const snapshot = snapshotOf(work);
 
   if (lens === "work") {
-    const moving = state.tickets.filter((ticket) => ticket.column === "doing" || ticket.column === "review");
+    const counts = snapshot ? workCounts(snapshot) : null;
+    // what is moving: issues in a column that is neither Backlog nor done
+    const moving = snapshot
+      ? snapshot.issues
+          .map((issue) => ({ issue, column: columnForStatus(snapshot.columns, issue.status.id) }))
+          .filter(({ issue, column }) => column && !column.isBacklog && (isReviewColumn(column) || issue.status.category !== "done"))
+      : [];
     return (
       <>
         <LensHeader eyebrow={t("now.work")} title={t("lens.workIntro")} titleId={titleId} onClose={onClose} />
         <div className={styles.body}>
-          <p className={styles.stateLine}>
-            <span className={styles.dot} aria-hidden="true" />
-            {t("lens.workState", { active: counts.doing, review: counts.review, done: counts.done })}
-          </p>
-          <h3 className={styles.sectionLabel}>{t("lens.currentWork")}</h3>
-          <ul className={styles.rows}>
-            {moving.map((ticket) => (
-              <li key={ticket.id} className={styles.row}>
-                <Avatar person={ticket.owner} size={28} />
-                <span className={styles.rowMain}>
-                  <span className={styles.rowTitle}>{text(ticket.title)}</span>
-                  <span className={styles.rowMeta}>{TEAM[ticket.owner].name}</span>
-                </span>
-                <span className={styles.rowTag}>{t(`board.columns.${ticket.column}`)}</span>
-              </li>
-            ))}
-          </ul>
+          {work.phase === "loading" ? <LoadingLine /> : null}
+          {work.phase === "failed" ? <FailureNotice failure={work.failure} subject={t("lens.workUnavailable")} /> : null}
+          {counts ? (
+            <>
+              <p className={styles.stateLine}>
+                <span className={styles.dot} aria-hidden="true" />
+                {t("lens.workState", { active: counts.active, review: counts.review, done: counts.done })}
+              </p>
+              <h3 className={styles.sectionLabel}>{t("lens.currentWork")}</h3>
+              <ul className={styles.rows}>
+                {moving.map(({ issue, column }) => (
+                  <li key={issue.key} className={styles.row}>
+                    <PersonBadge person={issue.assignee} unassignedLabel={t("work.unassigned")} size={28} />
+                    <span className={styles.rowMain}>
+                      <span className={styles.rowTitle}>{issue.summary}</span>
+                      <span className={styles.rowMeta}>
+                        {issue.key} · {issue.assignee?.displayName ?? t("work.unassigned")}
+                      </span>
+                    </span>
+                    <span className={styles.rowTag}>{column!.name}</span>
+                  </li>
+                ))}
+              </ul>
+            </>
+          ) : null}
           <div className={styles.actions}>
             <ButtonLink href="/board" variant="primary" trailingIcon={<ArrowRight size={15} aria-hidden="true" />}>
               {t("lens.openBoard")}
             </ButtonLink>
-            <ButtonLink href="/backlog">{t("lens.backlogCount", { count: state.backlog.length })}</ButtonLink>
+            {counts ? <ButtonLink href="/backlog">{t("lens.backlogCount", { count: counts.backlog })}</ButtonLink> : null}
           </div>
         </div>
       </>
