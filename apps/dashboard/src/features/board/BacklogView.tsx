@@ -22,6 +22,8 @@ export function BacklogView({ highlight }: { highlight?: string }) {
   const [formOpen, setFormOpen] = useState(unresolved !== null);
   const [title, setTitle] = useState(unresolved?.summary ?? "");
   const [error, setError] = useState<MessageKey | null>(null);
+  /** The request this form belongs to — also after this page was left and opened again mid-request. */
+  const [draftRequestId, setDraftRequestId] = useState<string | null>(unresolved?.requestId ?? null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const openerRef = useRef<HTMLButtonElement>(null);
   const formId = useId();
@@ -31,13 +33,20 @@ export function BacklogView({ highlight }: { highlight?: string }) {
   const busy = idea?.phase === "pending";
   /** Unconfirmed by Jira: the text is fixed and only "Check Jira again" (same request id) is possible. */
   const locked = ideaLocked(idea);
+  // the form's request was answered by Jira with an item (possibly while this page was away): the form is done
+  const consumed = idea?.phase === "created" && draftRequestId !== null && idea.requestId === draftRequestId;
+  const formShown = formOpen && !consumed;
 
   useEffect(() => {
     if (highlight && loaded) window.requestAnimationFrame(() => document.querySelector<HTMLElement>(`[data-backlog-key="${attr(highlight)}"]`)?.focus());
   }, [highlight, loaded]);
 
   const open = () => {
-    if (unresolved) setTitle(unresolved.summary);
+    // an open form keeps its draft; a fresh form starts empty; an unresolved idea reopens with its own text and request
+    if (!formShown) {
+      setTitle(unresolved?.summary ?? "");
+      setDraftRequestId(unresolved?.requestId ?? null);
+    }
     setFormOpen(true);
     window.requestAnimationFrame(() => inputRef.current?.focus());
   };
@@ -49,6 +58,7 @@ export function BacklogView({ highlight }: { highlight?: string }) {
     // an unconfirmed idea is kept (and shown below) until Jira answers; anything else is discarded
     if (!locked) {
       setTitle("");
+      setDraftRequestId(null);
       clearIdea();
     }
     window.requestAnimationFrame(() => openerRef.current?.focus());
@@ -67,6 +77,7 @@ export function BacklogView({ highlight }: { highlight?: string }) {
     // the same idea keeps its request id across retries, so Jira can never receive it twice
     const requestId = unresolved && unresolved.summary === summary ? unresolved.requestId : crypto.randomUUID();
     setError(null);
+    setDraftRequestId(requestId);
     const result = await createIdea(requestId, summary);
     if (result.ok) {
       notify(t("backlog.created", { key: result.issue.key }));
@@ -114,7 +125,8 @@ export function BacklogView({ highlight }: { highlight?: string }) {
   }
 
   const items = backlogIssues(state.snapshot);
-  const created = idea?.phase === "created" ? idea.issue : null;
+  const created = idea?.phase === "created" && !idea.problem ? idea.issue : null;
+  const createdWithProblem = idea?.phase === "created" && idea.problem ? idea : null;
   const failed = idea?.phase === "failed" ? idea : null;
 
   return (
@@ -145,7 +157,20 @@ export function BacklogView({ highlight }: { highlight?: string }) {
             </p>
           ) : null}
 
-          {locked && unresolved && !formOpen ? (
+          {createdWithProblem ? (
+            <FailureNotice
+              failure={createdWithProblem.problem!}
+              subject={createdWithProblem.issue.key}
+              testId="idea-mismatch"
+              actions={
+                <a href={createdWithProblem.issue.url} target="_blank" rel="noreferrer">
+                  {t("work.openInJira", { key: createdWithProblem.issue.key })}
+                </a>
+              }
+            />
+          ) : null}
+
+          {locked && unresolved && !formShown ? (
             <div className={styles.created} data-testid="idea-unresolved">
               <span>{t("backlog.unresolved", { summary: unresolved.summary })}</span>
               <Button variant="quiet" onClick={open} data-testid="idea-reopen">
@@ -154,7 +179,7 @@ export function BacklogView({ highlight }: { highlight?: string }) {
             </div>
           ) : null}
 
-          {formOpen ? (
+          {formShown ? (
             <form id={formId} className={`glass ${styles.form}`} onSubmit={submit} noValidate data-testid="idea-form" aria-busy={busy ? true : undefined}>
               <div className={styles.formHead}>
                 <h2 className={styles.formTitle}>{t("backlog.addIdeaTitle")}</h2>
@@ -217,7 +242,7 @@ export function BacklogView({ highlight }: { highlight?: string }) {
                 className={styles.row}
                 data-kind={item.isIdea ? "idea" : "backlog"}
                 data-backlog-key={item.key}
-                data-highlight={created?.key === item.key || highlight === item.key ? "true" : undefined}
+                data-highlight={idea?.phase === "created" && idea.issue.key === item.key ? "true" : highlight === item.key ? "true" : undefined}
                 tabIndex={highlight === item.key ? -1 : undefined}
                 data-testid="backlog-item"
               >

@@ -25,9 +25,11 @@ npm run dev          # installs apps/dashboard deps on first run, then serves ht
                      # (if 3000 is busy, Next picks the next free port and prints it; or set PORT=3005)
 ```
 
-The server binds to **127.0.0.1 only**, and the work API refuses requests that are not addressed to this machine
-(DNS-rebinding guard). There is no sign-in yet, so other machines must not reach the server's Jira credential;
-`DASHBOARD_ALLOWED_HOSTS` exists only for the later authentication slice.
+The server binds to **127.0.0.1 only** when started through the npm scripts, and the work API refuses requests that
+are not addressed to this machine (DNS-rebinding guard). There is no sign-in yet, so other machines must not reach
+the server's Jira credential: do not start it with a bare `npx next start`/`next dev` (those listen on every
+interface, and a non-browser client on the network can forge the Host header). `DASHBOARD_ALLOWED_HOSTS` exists
+only for the later authentication slice.
 
 Without Jira credentials the Board and Backlog show **BLOCKED — the Jira connection is not configured**; the rest of
 the app works. To connect Jira, give the **server** process these variables (see `.env.example`; real values go

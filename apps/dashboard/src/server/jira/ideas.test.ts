@@ -145,6 +145,20 @@ describe("Add idea creates exactly one Jira item in Backlog, confirmed by readba
     expect(fake.creates).toBe(1);
   });
 
+  it("a kept key that no longer exists in Jira settles the request (ERROR) and is never re-created", async () => {
+    const { fake, client, options, advance } = setup();
+    fake.setSearchLag(10 * 60_000);
+    fake.addFault({ op: "issue", mode: "network", times: 1 }); // readback after the create fails: key kept
+    await createIdea(client, { requestId: REQUEST, summary: "Vanishes" }, options);
+    fake.addFault({ op: "issue", mode: "status", status: 404 }); // someone deleted it in Jira meanwhile
+    advance(UNCONFIRMED_HOLD_MS + 1);
+    const retry = await createIdea(client, { requestId: REQUEST, summary: "Vanishes" }, options);
+    expect(retry).toMatchObject({ ok: false, failure: { state: "ERROR", code: "readback-mismatch" } });
+    expect(!retry.ok && retry.failure.detail).toContain("no longer exists");
+    expect(await createIdea(client, { requestId: REQUEST, summary: "Vanishes" }, options)).toMatchObject({ ok: false, failure: { code: "readback-mismatch" } });
+    expect(fake.creates).toBe(1);
+  });
+
   it("the hold restarts after every unanswered create, so a quick third attempt cannot create again", async () => {
     const { fake, client, options, advance } = setup();
     fake.setSearchLag(10 * 60_000);

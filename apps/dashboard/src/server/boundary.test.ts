@@ -1,5 +1,7 @@
 // @vitest-environment node
-import { describe, expect, it } from "vitest";
+import { readFileSync } from "node:fs";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { GET } from "@/app/api/work/route";
 import { readWriteRequest, refuseNonLocal } from "./http";
 import { createJiraClient, jiraErrorDetail } from "./jira/client";
 import { readJiraConfig } from "./jira/config";
@@ -63,6 +65,27 @@ describe("work API answers only requests addressed to this machine", () => {
 
   it.each(["192.168.1.20:3000", "evil.example", "rebind.attacker.test:3000"])("refuses %s (LAN peer, DNS rebinding)", (host) => {
     expect(refuseNonLocal(get(host))?.status).toBe(403);
+  });
+
+  it("the GET /api/work route itself refuses a foreign Host before any Jira call", async () => {
+    const response = await GET(get("rebind.attacker.test:3000"));
+    expect(response.status).toBe(403);
+    expect(await response.json()).toMatchObject({ ok: false, failure: { code: "invalid-request" } });
+  });
+
+  it("the npm scripts bind the server to 127.0.0.1", () => {
+    const scripts = JSON.parse(readFileSync(new URL("../../package.json", import.meta.url), "utf8")).scripts as Record<string, string>;
+    expect(scripts.dev).toContain("--hostname 127.0.0.1");
+    expect(scripts.start).toContain("--hostname 127.0.0.1");
+  });
+
+  describe("DASHBOARD_ALLOWED_HOSTS", () => {
+    afterEach(() => vi.unstubAllEnvs());
+    it("is normalised like the Host header (case and port)", () => {
+      vi.stubEnv("DASHBOARD_ALLOWED_HOSTS", " Dash.Example:3000 , ");
+      expect(refuseNonLocal(get("dash.example:4000"))).toBeNull();
+      expect(refuseNonLocal(get("other.example"))?.status).toBe(403);
+    });
   });
 
   it("refuses a write addressed to another host even when Origin matches it", async () => {

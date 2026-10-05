@@ -83,6 +83,10 @@ async function findByRequestId(client: JiraClient, requestId: string): Promise<{
 /** Independent readback: the created issue must exist, carry this request and summary, and sit in the Backlog. */
 async function verifyCreated(client: JiraClient, key: string, request: IdeaRequest, backlogStatusIds: ReadonlySet<string>, now: () => number): Promise<WriteResult> {
   const readback = await readIssue(client, key, [REQUEST_PROPERTY]);
+  if (!readback.ok && readback.failure.code === "not-found") {
+    // Jira named this issue for the request, but it is gone (deleted or moved away): settled, never re-created
+    return { ok: false, failure: failure("readback-mismatch", { requestId: request.requestId, detail: `Jira named ${key} for this request, but it no longer exists` }) };
+  }
   if (!readback.ok) {
     return { ok: false, failure: failure("write-unconfirmed", { requestId: request.requestId, detail: `Jira answered with ${key}, but reading it back failed (${readback.failure.code})` }) };
   }

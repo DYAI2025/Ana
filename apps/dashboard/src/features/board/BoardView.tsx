@@ -8,7 +8,7 @@ import { Button, ButtonLink } from "@/components/ui/Button";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { PersonBadge } from "@/components/ui/PersonBadge";
 import { attr, backlogIssues, columnForStatus, filterByOwner, ownersOf, type OwnerFilter } from "@/features/work/model";
-import type { WorkColumn, WorkFailure, WorkIssue } from "@/features/work/types";
+import type { WorkColumn, WorkIssue } from "@/features/work/types";
 import { snapshotOf, useWork } from "@/features/work/WorkProvider";
 import { FailureNotice, formatTime, LoadingLine, SourceLine } from "@/features/work/WorkStatus";
 import workStyles from "@/features/work/work.module.css";
@@ -35,12 +35,11 @@ const sameOwner = (a: OwnerFilter, b: OwnerFilter) =>
 export function BoardView({ highlight }: { highlight?: string }) {
   const { t, locale } = useI18n();
   const { notify } = useToast();
-  const { state, refreshing, pending, refresh, move } = useWork();
+  const { state, refreshing, pending, refresh, move, moveNotice: notice, dismissMoveNotice } = useWork();
   const [owner, setOwner] = useState<OwnerFilter>("all");
   const [dragging, setDragging] = useState<string | null>(null);
   const [over, setOver] = useState<string | null>(null);
   const [settled, setSettled] = useState<{ key: string; done: boolean } | null>(null);
-  const [notice, setNotice] = useState<{ failure: WorkFailure; key: string } | null>(null);
   const hintId = useId();
   const snapshot = snapshotOf(state);
   const loaded = snapshot !== null;
@@ -96,14 +95,11 @@ export function BoardView({ highlight }: { highlight?: string }) {
   const moveTo = async (issue: WorkIssue, target: WorkColumn, viaKeyboard: boolean) => {
     const from = columns.find((column) => column.id === shownColumnId(issue));
     if (!from || from.id === target.id || !canWrite || pending[issue.key]) return;
-    setNotice(null);
     const result = await move(issue, from, target);
     if (result.ok) {
       notify(t("board.moved", { key: issue.key, column: target.name }));
       setSettled({ key: issue.key, done: result.issue.status.category === "done" });
       window.setTimeout(() => setSettled((s) => (s?.key === issue.key ? null : s)), 900);
-    } else {
-      setNotice({ failure: result.failure, key: issue.key });
     }
     if (viaKeyboard) restoreFocus(issue.key);
   };
@@ -151,7 +147,7 @@ export function BoardView({ highlight }: { highlight?: string }) {
           subject={notice.key}
           testId="move-failure"
           actions={
-            <Button variant="quiet" onClick={() => setNotice(null)} icon={<X size={14} aria-hidden="true" />}>
+            <Button variant="quiet" onClick={dismissMoveNotice} icon={<X size={14} aria-hidden="true" />}>
               {t("work.dismiss")}
             </Button>
           }

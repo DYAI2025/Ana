@@ -91,7 +91,9 @@ test.describe("Board — projection of Jira Board 734 / filter 10733", () => {
 
   test("AC8 · reload rebuilds the board from Jira (a change made in Jira appears, nothing local survives)", async ({ page, jira }) => {
     await openBoard(page);
-    await expect(column(page, "Backlog").locator('[data-ticket-id="ANA-901"]')).toBeVisible();
+    // a local, confirmed move first — then Jira changes the same issue behind the page's back
+    await card(page, "ANA-901").dragTo(column(page, "Zur Entwicklung ausgewählt"));
+    await expect(page.getByTestId("toast")).toContainText("ANA-901 → Zur Entwicklung ausgewählt · confirmed by Jira");
     await jira.setStatus("ANA-901", "10216"); // someone moves it to Review directly in Jira
     await page.reload();
     await workSettled(page);
@@ -277,12 +279,15 @@ test.describe("Backlog — Add idea writes one Jira item, confirmed by readback 
   });
 
   test("a double submit (Enter twice) creates one item", async ({ page, jira }) => {
+    // keep the first create in flight (Jira answers after 0.8 s) so the second Enter really lands during it
+    await jira.fault({ op: "create", mode: "commit-then-delay", ms: 800, times: 1 });
     await page.goto("/backlog");
     await workSettled(page);
     await page.getByTestId("add-idea").click();
     await page.getByTestId("idea-input").fill("Pressed twice");
     await page.getByTestId("idea-input").press("Enter");
-    await page.getByTestId("idea-input").press("Enter").catch(() => undefined);
+    await expect(page.getByTestId("idea-submit")).toHaveText("Creating in Jira…");
+    await page.getByTestId("idea-input").press("Enter", { timeout: 2_000 });
     await expect(page.getByTestId("idea-created")).toBeVisible();
     expect((await jira.state()).creates).toBe(1);
   });
@@ -295,10 +300,16 @@ test.describe("AC9 · Jira credentials never reach the browser", () => {
     page.on("request", (request) => hosts.add(new URL(request.url()).host));
     page.on("response", async (response) => {
       const type = response.headers()["content-type"] ?? "";
-      if (/javascript|json|html/.test(type)) bodies.push(await response.text().catch(() => ""));
+      if (/javascript|json|html|x-component|text\//.test(type)) bodies.push(await response.text().catch(() => ""));
     });
-    await openBoard(page);
-    await page.goto("/backlog");
+    for (const route of ["/", "/board", "/backlog", "/sessions", "/sessions/working-session-01", "/brain", "/whiteboard", "/calendar", "/pulse", "/vault", "/toolbox"]) {
+      await page.goto(route);
+      await page.waitForLoadState("networkidle");
+    }
+    // client-side navigation fetches React Server Component payloads (text/x-component) too
+    await page.getByTestId("nav-board").click();
+    await workSettled(page);
+    await page.getByTestId("open-backlog").click();
     await workSettled(page);
     expect([...hosts]).toEqual([new URL(page.url()).host]);
     const all = bodies.join("\n");

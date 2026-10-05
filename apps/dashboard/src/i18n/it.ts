@@ -20,7 +20,7 @@ export const it: Messages = {
     toolbox: "Strumenti",
   },
   top: {
-    prototypeFlag: "Dati prototipo",
+    prototypeFlag: "In parte prototipo",
     prototypeFlagDetail: "Board e Backlog leggono e scrivono in Jira; tutti gli altri moduli sono dati prototipo locali",
     language: "Lingua",
     languageChanged: "Lingua cambiata in italiano",
@@ -114,7 +114,7 @@ export const it: Messages = {
     creating: "Creazione in Jira…",
     created: "{key} creato nel Backlog di Jira · confermato dalla rilettura",
     unresolved: "Un'idea attende la conferma di Jira: «{summary}».",
-    lockedNote: "Jira non ha ancora confermato questa idea. Il testo resta fisso perché un nuovo tentativo non la crei mai due volte — ricontrolla per avere la risposta di Jira.",
+    lockedNote: "Jira non ha ancora confermato questa idea. Testo e richiesta restano fissi, così un nuovo tentativo viene associato alla stessa richiesta: prima viene cercata in Jira, e viene inviata di nuovo solo se la ricerca di Jira non mostra alcun elemento.",
     count: "{count} elementi",
     empty: "Il Backlog di Jira è vuoto.",
   },
@@ -130,6 +130,7 @@ export const it: Messages = {
     idea: "Idea",
     openInJira: "Apri {key} in Jira",
     staleNote: "Mostra Jira come letto alle {time}. Spostamenti e nuove idee sono in pausa finché Jira non risponde di nuovo.",
+    staleShort: "letto alle {time} · Jira non raggiungibile",
     unmapped: "{count} elementi hanno stati Jira senza colonna sul Board {boardId} ({statuses}). Anche Jira li nasconde su quel board: {keys}.",
     truncated: "Il board contiene più elementi di quanti ne restituisca una lettura; sono mostrati solo i primi {count}.",
     failures: {

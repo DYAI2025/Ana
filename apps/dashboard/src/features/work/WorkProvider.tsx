@@ -26,13 +26,25 @@ export interface PendingMove {
  * unresolved request: an UNKNOWN outcome keeps its request id and text until Jira answers either way.
  */
 export type IdeaSubmission =
-  | { phase: "pending"; requestId: string; summary: string }
-  | { phase: "failed"; requestId: string; summary: string; failure: WorkFailure }
-  | { phase: "created"; issue: WorkIssue; replayed: boolean };
+  | { phase: "pending"; requestId: string; summary: string; everUnknown: boolean }
+  /** `everUnknown`: some attempt for this request got no answer — the item may exist in Jira until Jira says otherwise. */
+  | { phase: "failed"; requestId: string; summary: string; failure: WorkFailure; everUnknown: boolean }
+  /** The item exists in Jira; `problem` carries a readback mismatch (ERROR) when it is not exactly what was asked. */
+  | { phase: "created"; requestId: string; issue: WorkIssue; replayed: boolean; problem?: WorkFailure };
 
-/** An idea whose outcome Jira has not confirmed: its text cannot change and it cannot be dropped. */
+/**
+ * An idea Jira has not resolved: its text cannot change and it cannot be dropped. Once any attempt went unanswered
+ * the request stays locked until Jira shows the item (created) — a later error from a different step (for example a
+ * board read) does not prove the earlier create never happened.
+ */
 export function ideaLocked(idea: IdeaSubmission | null): idea is Extract<IdeaSubmission, { phase: "pending" | "failed" }> {
-  return idea !== null && (idea.phase === "pending" || (idea.phase === "failed" && idea.failure.state === "UNKNOWN"));
+  if (idea === null || idea.phase === "created") return false;
+  return idea.phase === "pending" || idea.failure.state === "UNKNOWN" || idea.everUnknown;
+}
+
+export interface MoveNotice {
+  key: string;
+  failure: WorkFailure;
 }
 
 interface WorkValue {
@@ -40,6 +52,9 @@ interface WorkValue {
   refreshing: boolean;
   /** Moves sent to Jira and not yet confirmed, by issue key. */
   pending: Readonly<Record<string, PendingMove>>;
+  /** The last refused or unconfirmed move; kept here so leaving the Board cannot lose it. */
+  moveNotice: MoveNotice | null;
+  dismissMoveNotice: () => void;
   idea: IdeaSubmission | null;
   refresh: (reconcileIssueIds?: readonly string[]) => Promise<void>;
   move: (issue: WorkIssue, from: WorkColumn, to: WorkColumn) => Promise<WriteResult>;
@@ -65,12 +80,15 @@ export function WorkProvider({ children }: { children: ReactNode }) {
   const [refreshing, setRefreshing] = useState(false);
   const [pending, setPending] = useState<Record<string, PendingMove>>({});
   const [idea, setIdea] = useState<IdeaSubmission | null>(null);
+  const [moveNotice, setMoveNotice] = useState<MoveNotice | null>(null);
   const stateRef = useRef(state);
   const pendingRef = useRef(pending);
   const ideaRef = useRef(idea);
   const readSeq = useRef(0);
   const writeSeq = useRef(0);
   const written = useRef(new Map<string, Written>());
+  /** Issues written from this tab (even when no readback came back), by Jira issue id, with the write time. */
+  const touched = useRef(new Map<string, number>());
 
   useEffect(() => {
     stateRef.current = state;
@@ -91,7 +109,7 @@ export function WorkProvider({ children }: { children: ReactNode }) {
     const seq = ++readSeq.current;
     const writesBefore = writeSeq.current;
     const now = Date.now();
-    const recent = [...written.current.values()].filter((w) => now - w.at < RECONCILE_WINDOW_MS).map((w) => w.issue.id);
+    const recent = [...touched.current.entries()].filter(([, at]) => now - at < RECONCILE_WINDOW_MS).map(([id]) => id);
     const result = await fetchSnapshot([...new Set([...reconcileIssueIds, ...recent])].slice(0, 50));
     if (seq !== readSeq.current) return; // a newer read superseded this one
     setRefreshing(false);
@@ -119,6 +137,7 @@ export function WorkProvider({ children }: { children: ReactNode }) {
     if (!issue) return;
     writeSeq.current += 1;
     written.current.set(issue.key, { issue, seq: writeSeq.current, at: Date.now() });
+    touched.current.set(issue.id, Date.now());
     setState((current) => (current.phase === "ready" || current.phase === "stale" ? { ...current, snapshot: withIssue(current.snapshot, issue) } : current));
   }, []);
 
@@ -126,8 +145,11 @@ export function WorkProvider({ children }: { children: ReactNode }) {
     async (issue: WorkIssue, from: WorkColumn, to: WorkColumn): Promise<WriteResult> => {
       if (stateRef.current.phase !== "ready" || pendingRef.current[issue.key]) return notReady;
       setPending((current) => ({ ...current, [issue.key]: { fromColumnId: from.id, toColumnId: to.id } }));
+      setMoveNotice(null);
+      touched.current.set(issue.id, Date.now()); // reconciled by later reads even if no readback comes back
       const result = await postMove(issue.key, { fromStatusId: issue.status.id, toStatusIds: to.statuses.map((status) => status.id) });
       applyTruth(result.ok ? result.issue : result.failure.issue);
+      if (!result.ok) setMoveNotice({ key: issue.key, failure: result.failure });
       setPending((current) => {
         const next = { ...current };
         delete next[issue.key];
@@ -143,14 +165,22 @@ export function WorkProvider({ children }: { children: ReactNode }) {
   const createIdea = useCallback(
     async (requestId: string, summary: string): Promise<WriteResult> => {
       if (stateRef.current.phase !== "ready") return notReady;
-      if (ideaRef.current?.phase === "pending") return { ok: false, failure: { state: "UNKNOWN", code: "duplicate-in-flight", requestId: ideaRef.current.requestId } };
-      setIdea({ phase: "pending", requestId, summary });
+      const before = ideaRef.current;
+      if (before?.phase === "pending") return { ok: false, failure: { state: "UNKNOWN", code: "duplicate-in-flight", requestId: before.requestId } };
+      const everUnknown = before !== null && before.phase !== "created" && before.requestId === requestId && before.everUnknown;
+      setIdea({ phase: "pending", requestId, summary, everUnknown });
       const result = await postIdea({ requestId, summary });
       const truth = result.ok ? result.issue : result.failure.issue;
       applyTruth(truth);
+      if (result.ok) setIdea({ phase: "created", requestId, issue: result.issue, replayed: Boolean(result.replayed) });
+      // the item exists but is not exactly what was asked: resolved, shown with its ERROR
+      else if (result.failure.code === "readback-mismatch" && truth) setIdea({ phase: "created", requestId, issue: truth, replayed: false, problem: result.failure });
       // the server may answer with an earlier, still unresolved request for the same idea: continue with that one
-      if (result.ok) setIdea({ phase: "created", issue: result.issue, replayed: Boolean(result.replayed) });
-      else setIdea({ phase: "failed", requestId: result.failure.requestId ?? requestId, summary, failure: result.failure });
+      else {
+        const unknownNow = result.failure.state === "UNKNOWN";
+        const adopted = result.failure.requestId ?? requestId;
+        setIdea({ phase: "failed", requestId: adopted, summary, failure: result.failure, everUnknown: everUnknown || unknownNow || adopted !== requestId });
+      }
       // read-after-write: Jira reconciles the new issue into the board search
       void refresh(truth ? [truth.id] : []);
       return result;
@@ -159,6 +189,7 @@ export function WorkProvider({ children }: { children: ReactNode }) {
   );
 
   const clearIdea = useCallback(() => setIdea((current) => (ideaLocked(current) ? current : null)), []);
+  const dismissMoveNotice = useCallback(() => setMoveNotice(null), []);
 
   // every page load reads Jira again; a returning network connection does too
   useEffect(() => {
@@ -169,8 +200,8 @@ export function WorkProvider({ children }: { children: ReactNode }) {
   }, [read, refresh]);
 
   const value = useMemo<WorkValue>(
-    () => ({ state, refreshing, pending, idea, refresh, move, createIdea, clearIdea }),
-    [state, refreshing, pending, idea, refresh, move, createIdea, clearIdea],
+    () => ({ state, refreshing, pending, moveNotice, dismissMoveNotice, idea, refresh, move, createIdea, clearIdea }),
+    [state, refreshing, pending, moveNotice, dismissMoveNotice, idea, refresh, move, createIdea, clearIdea],
   );
   return <WorkContext.Provider value={value}>{children}</WorkContext.Provider>;
 }

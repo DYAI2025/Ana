@@ -60,6 +60,13 @@ describe("searchEntries", () => {
     expect(searchEntries(entries, "calmer friday")[0]!.detail).toContain("Idea");
   });
 
+  it("a stale Jira read stays searchable but every work entry says it is not current", () => {
+    const entries = buildSearchIndex(createInitialState(), "en", makeSnapshot(), "10:42");
+    const work = entries.filter((e) => e.group === "ticket" || e.group === "idea");
+    expect(work.length).toBeGreaterThan(0);
+    for (const entry of work) expect(entry.detail).toContain("as read 10:42 · Jira not reachable");
+  });
+
   it("offers no work entries without a Jira snapshot — never fixture tickets", () => {
     const entries = buildSearchIndex(createInitialState(), "en", null);
     expect(entries.filter((e) => e.group === "ticket" || e.group === "idea")).toEqual([]);

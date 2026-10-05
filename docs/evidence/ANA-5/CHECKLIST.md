@@ -67,5 +67,9 @@ curl -X POST localhost:3199/__fake/reset
   a new create for 60 s after each unanswered attempt, and the browser keeps the request id and text locked until
   Jira answers. If Jira's search index lags by more than that minute, a later retry could still create a second
   item. The process-local ledger does not survive a server restart; after a restart only the marker search protects.
-- **Localhost only.** The server binds to 127.0.0.1 and the work API answers only loopback hosts; there is no
-  sign-in, so the dashboard must not be exposed before the authentication slice.
+- **Localhost only.** The npm scripts bind to 127.0.0.1 and the work API answers only loopback hosts; there is no
+  sign-in, so the dashboard must not be exposed before the authentication slice. A server started by hand without
+  `--hostname 127.0.0.1` listens on every interface, where a non-browser client can forge the Host header.
+- **Read-after-write after a reload.** Issues written from a tab are reconciled by Jira in that tab's reads for ten
+  minutes; a full page reload forgets that list, so for a few seconds Jira's search may still show the previous
+  state of an issue moved just before the reload.

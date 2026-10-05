@@ -44,7 +44,9 @@ function hostnameOf(host: string | null): string | null {
  * The npm scripts bind the server to 127.0.0.1, so other machines cannot connect in the first place.
  */
 export function refuseNonLocal(request: Request): Response | null {
-  const allowed = new Set([...LOOPBACK, ...(process.env.DASHBOARD_ALLOWED_HOSTS ?? "").split(",").map((h) => h.trim()).filter(Boolean)]);
+  // configured entries are normalised the same way as the Host header (port and case dropped)
+  const extra = (process.env.DASHBOARD_ALLOWED_HOSTS ?? "").split(",").map((h) => hostnameOf(h.trim())).filter((h): h is string => Boolean(h));
+  const allowed = new Set([...LOOPBACK, ...extra]);
   const hostname = hostnameOf(request.headers.get("host"));
   if (!hostname || !allowed.has(hostname)) return invalid("the work API answers only requests addressed to this machine", 403);
   return null;

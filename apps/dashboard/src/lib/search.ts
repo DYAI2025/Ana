@@ -37,7 +37,7 @@ function entry(group: SearchGroup, id: string, label: string, detail: string, hr
 const VIEW_ORDER: readonly ViewId[] = ["now", "board", "backlog", "sessions", "brain", "whiteboard", "calendar", "pulse", "vault", "toolbox"];
 
 /** `work` is the latest Jira snapshot; without one, no work entries are offered (never fixture tickets). */
-export function buildSearchIndex(state: PrototypeState, locale: Locale, work: WorkSnapshot | null = null): SearchEntry[] {
+export function buildSearchIndex(state: PrototypeState, locale: Locale, work: WorkSnapshot | null = null, staleSince: string | null = null): SearchEntry[] {
   const t = (key: MessageKey) => translate(locale, key);
   const entries: SearchEntry[] = [];
 
@@ -46,15 +46,17 @@ export function buildSearchIndex(state: PrototypeState, locale: Locale, work: Wo
   }
 
   if (work) {
+    // a stale read stays searchable, but every work entry says it is not current
+    const stale = staleSince ? ` · ${translate(locale, "work.staleShort", { time: staleSince })}` : "";
     const backlog = new Set(backlogIssues(work).map((issue) => issue.key));
     for (const issue of work.issues) {
       const owner = issue.assignee?.displayName ?? t("work.unassigned");
       const key = encodeURIComponent(issue.key);
       if (backlog.has(issue.key)) {
         const kind = issue.isIdea ? ` · ${t("work.idea")}` : "";
-        entries.push(entry("idea", issue.key, issue.summary, `${issue.key} · ${owner}${kind}`, `/backlog?ticket=${key}`, [issue.key]));
+        entries.push(entry("idea", issue.key, issue.summary, `${issue.key} · ${owner}${kind}${stale}`, `/backlog?ticket=${key}`, [issue.key]));
       } else {
-        entries.push(entry("ticket", issue.key, issue.summary, `${issue.key} · ${owner} · ${issue.status.name}`, `/board?ticket=${key}`, [issue.key, issue.status.name]));
+        entries.push(entry("ticket", issue.key, issue.summary, `${issue.key} · ${owner} · ${issue.status.name}${stale}`, `/board?ticket=${key}`, [issue.key, issue.status.name]));
       }
     }
   }

@@ -29,8 +29,9 @@ re-read open, so only the failure's own Jira truth can move the card.
 
 ## Review round 1 fixes — new tests run against the pre-fix code
 
-After the first independent review, each new test was run against the production files of the previous commit
-(isolated copy). All of them failed there and pass on the fix:
+After the first independent review, each new test was run against the files of the previous commit (isolated copy):
+the production files for every row except the transition-id row, where the previous **fake Jira** is what made the
+test unable to fail. All of them failed there and pass on the fix:
 
 | Test | Pre-fix defect it catches |
 |---|---|
@@ -39,10 +40,29 @@ After the first independent review, each new test was run against the production
 | `ideas.test.ts` "the same idea under a new request id … joins the unresolved earlier request" | reload/second tab could create the same idea twice |
 | `board.test.tsx` "a read that started before a confirmed move cannot put the card back…" | a slow refresh overwrote a confirmed move; later reads did not ask Jira to reconcile it |
 | `board.test.tsx` "an unconfirmed idea stays locked after Cancel…" and "…continues with that request" | Cancel or editing after UNKNOWN minted a new request id |
-| `work.test.ts` "uses the transition id Jira offers…" (with issue-specific ids in the fake) | the old fake used the same ids for every issue, so an assumed id could not fail |
+| `work.test.ts` "uses the transition id Jira offers…" (run against the previous fake Jira, not previous production code) | the old fake used the same ids for every issue, so an adapter that assumed ids could not fail |
 | `e2e/work.spec.ts` "AC8 · reconnect…" | the Now view showed "3 active · 1 in review" while Jira was unreachable |
+
+## Review round 2 fixes — new tests run against the round-1 code
+
+Run against the production files of commit be12586 (isolated copy): all six behaviour tests failed there.
+
+| Test | Defect it catches |
+|---|---|
+| `boundary.test.ts` "DASHBOARD_ALLOWED_HOSTS is normalised like the Host header" | allowlist entries with a port or capitals never matched |
+| `search.test.ts` "a stale Jira read stays searchable but every work entry says it is not current" | search offered a stale read as current |
+| `ideas.test.ts` "a kept key that no longer exists in Jira settles the request…" | a deleted issue left the request UNKNOWN for an hour |
+| `board.test.tsx` "a refused move is still reported after leaving the Board…" | move outcomes lived in the Board page and were lost on a remount |
+| `board.test.tsx` "leaving the Backlog during a create…" | coming back mid-create left an open, prefilled, unlocked form after Jira confirmed |
+| `board.test.tsx` "once an attempt went unanswered, a later error from another step keeps the idea locked" | an upstream error after an UNKNOWN unlocked the text, so a new request id could duplicate |
+
+Two guard tests protect behaviour that already existed; their canaries removed it instead: deleting the
+`refuseNonLocal` call from `GET /api/work` and the `--hostname 127.0.0.1` from the npm scripts made
+"the GET /api/work route itself refuses a foreign Host…" and "the npm scripts bind the server to 127.0.0.1" fail.
 
 ## Bundle secret scan (`npm run scan:bundle`)
 
-Recorded with the build it ran on in the pull request: a planted file under `.next/static` that contains the token
-variable name makes the scan exit 1; without it the scan exits 0.
+- A planted file under `.next/static` containing the token variable name: exit 1; without it: exit 0.
+- Token-value rule: with `JIRA_API_TOKEN=planted-canary-token-value-123` and a planted file containing that value:
+  exit 1 (`HIT configured JIRA_API_TOKEN value`); without the file: exit 0.
+- An empty or missing build directory: exit 2 (the gate cannot pass vacuously).

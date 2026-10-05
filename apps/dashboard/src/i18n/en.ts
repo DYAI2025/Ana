@@ -23,7 +23,7 @@ export const en = {
     toolbox: "Toolbox",
   },
   top: {
-    prototypeFlag: "Prototype data",
+    prototypeFlag: "Partly prototype",
     prototypeFlagDetail: "Board and Backlog read and write Jira; all other modules are local prototype data",
     language: "Language",
     languageChanged: "Language changed to English",
@@ -117,7 +117,7 @@ export const en = {
     creating: "Creating in Jira…",
     created: "{key} created in Jira Backlog · confirmed by readback",
     unresolved: "An idea is waiting for Jira's confirmation: “{summary}”.",
-    lockedNote: "Jira has not confirmed this idea yet. Its text stays fixed so a retry can never create it twice — check again to get Jira's answer.",
+    lockedNote: "Jira has not confirmed this idea yet. Its text and request stay fixed, so a retry is matched to this same request: Jira is searched for it first, and it is only sent again when Jira's search shows no such item.",
     count: "{count} items",
     empty: "The Jira Backlog is empty.",
   },
@@ -133,6 +133,7 @@ export const en = {
     idea: "Idea",
     openInJira: "Open {key} in Jira",
     staleNote: "Showing Jira as read at {time}. Moves and new ideas are paused until Jira answers again.",
+    staleShort: "as read {time} · Jira not reachable",
     unmapped: "{count} issues are in Jira statuses without a column on Board {boardId} ({statuses}). Jira hides them on that board too: {keys}.",
     truncated: "The board holds more issues than one read returns; only the first {count} are shown.",
     failures: {

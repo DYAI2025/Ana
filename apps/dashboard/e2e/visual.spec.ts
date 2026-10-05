@@ -54,7 +54,7 @@ const SHOTS: { name: string; route: string; locale?: "de" | "it"; jira?: (jira: 
     route: "/backlog",
     prepare: async (page) => {
       await page.getByTestId("add-idea").click();
-      await page.getByTestId("idea-input").fill("Try a shared weekly review");
+      await page.getByTestId("idea-input").fill(`Try a shared weekly review (${page.viewportSize()!.width})`);
       await page.getByTestId("idea-submit").click();
       await expect(page.getByTestId("idea-created")).toBeVisible();
     },
@@ -68,7 +68,8 @@ const SHOTS: { name: string; route: string; locale?: "de" | "it"; jira?: (jira: 
     },
     prepare: async (page) => {
       await page.getByTestId("add-idea").click();
-      await page.getByTestId("idea-input").fill("Outcome not confirmed by Jira");
+      // each viewport has its own idea: the server's ledger outlives the per-test fake reset
+      await page.getByTestId("idea-input").fill(`Outcome not confirmed by Jira (${page.viewportSize()!.width})`);
       await page.getByTestId("idea-submit").click();
       await expect(page.getByTestId("idea-failure")).toBeVisible({ timeout: 15_000 });
     },

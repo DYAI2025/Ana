@@ -1,6 +1,6 @@
 import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { I18nProvider } from "@/components/providers/I18nProvider";
 import { ToastProvider } from "@/components/providers/ToastProvider";
@@ -35,6 +35,19 @@ const wrap = (node: ReactNode) => (
 );
 
 const serve = (snapshot: WorkSnapshot) => (): SnapshotResult => ({ ok: true, snapshot });
+
+/** Lets a test leave a view and come back to it while the WorkProvider (and any request) stays alive. */
+function Toggle({ children }: { children: ReactNode }) {
+  const [shown, setShown] = useState(true);
+  return (
+    <>
+      <button type="button" onClick={() => setShown((s) => !s)}>
+        toggle-view
+      </button>
+      {shown ? children : null}
+    </>
+  );
+}
 const column = (name: string) => screen.getByRole("region", { name });
 
 describe("Board — Jira projection", () => {
@@ -154,6 +167,23 @@ describe("Board — Jira projection", () => {
     await waitFor(() => expect(requests.map((r) => r.url)).toContain(`/api/work?reconcile=${snapshot.issues[4]!.id}`));
   });
 
+  it("a refused move is still reported after leaving the Board and coming back during the write", async () => {
+    const snapshot = makeSnapshot();
+    let release!: (value: WriteResult) => void;
+    handler = (url) => (url.includes("/transition") ? new Promise<WriteResult>((resolve) => (release = resolve)) : serve(snapshot)());
+    const user = userEvent.setup();
+    render(wrap(<Toggle><BoardView /></Toggle>));
+    const card = await screen.findByText("Prepare the shared resource map");
+    act(() => card.closest("article")!.focus());
+    await user.keyboard("{Shift>}{ArrowRight}{/Shift}");
+    await user.click(screen.getByRole("button", { name: "toggle-view" })); // leave the Board mid-write
+    await act(async () => release({ ok: false, failure: { state: "BLOCKED", code: "unsupported-transition", issue: snapshot.issues[4] } }));
+    await user.click(screen.getByRole("button", { name: "toggle-view" })); // come back
+    const notice = await screen.findByTestId("move-failure");
+    expect(notice).toHaveAttribute("data-state", "BLOCKED");
+    expect(notice).toHaveTextContent("ANA-904");
+  });
+
   it("a failed refresh keeps the last Jira read visible but dated, marked UNKNOWN, and pauses moves", async () => {
     let calls = 0;
     handler = () => (++calls === 1 ? serve(makeSnapshot())() : { ok: false, failure: { state: "UNKNOWN", code: "unavailable" } });
@@ -254,6 +284,48 @@ describe("Backlog — same Jira items, Add idea through Jira", () => {
     await user.click(screen.getByTestId("idea-submit"));
     await waitFor(() => expect(requests.filter((r) => r.url === "/api/work/ideas")).toHaveLength(2));
     expect((requests.filter((r) => r.url === "/api/work/ideas")[1]!.body as { requestId: string }).requestId).toBe(EARLIER);
+  });
+
+  it("leaving the Backlog during a create: on return the form is still the pending request, and it closes once Jira confirms", async () => {
+    const created = issue("ANA-951", "Away and back", STATUS.backlog, null, { isIdea: true });
+    let release!: (value: WriteResult) => void;
+    handler = (url) => (url === "/api/work/ideas" ? new Promise<WriteResult>((resolve) => (release = resolve)) : serve(makeSnapshot())());
+    const user = userEvent.setup();
+    render(wrap(<Toggle><BacklogView /></Toggle>));
+    await user.click(await screen.findByTestId("add-idea"));
+    await user.type(screen.getByTestId("idea-input"), "Away and back");
+    await user.click(screen.getByTestId("idea-submit"));
+    await user.click(screen.getByRole("button", { name: "toggle-view" }));
+    await user.click(screen.getByRole("button", { name: "toggle-view" }));
+    expect(await screen.findByTestId("idea-input")).toHaveValue("Away and back");
+    expect(screen.getByTestId("idea-input")).toHaveAttribute("readonly");
+    expect(screen.getByTestId("idea-submit")).toHaveTextContent("Creating in Jira…");
+    await act(async () => release({ ok: true, issue: created, verifiedAt: "2026-10-05T08:04:00.000Z" }));
+    expect(await screen.findByTestId("idea-created")).toHaveTextContent("ANA-951 created in Jira Backlog");
+    expect(screen.queryByTestId("idea-form")).toBeNull();
+  });
+
+  it("once an attempt went unanswered, a later error from another step keeps the idea locked", async () => {
+    let calls = 0;
+    handler = (url, init) => {
+      if (url !== "/api/work/ideas") return serve(makeSnapshot())();
+      const requestId = JSON.parse(String(init?.body)).requestId;
+      return ++calls === 1
+        ? { ok: false, failure: { state: "UNKNOWN", code: "write-unconfirmed", requestId } }
+        : { ok: false, failure: { state: "ERROR", code: "upstream", requestId, detail: "board read failed" } };
+    };
+    const user = userEvent.setup();
+    render(wrap(<BacklogView />));
+    await user.click(await screen.findByTestId("add-idea"));
+    await user.type(screen.getByTestId("idea-input"), "Still possibly in Jira");
+    await user.click(screen.getByTestId("idea-submit"));
+    await screen.findByTestId("idea-failure");
+    await user.click(screen.getByTestId("idea-submit"));
+    await waitFor(() => expect(screen.getByTestId("idea-failure")).toHaveAttribute("data-state", "ERROR"));
+    expect(screen.getByTestId("idea-input")).toHaveAttribute("readonly");
+    expect(screen.getByTestId("idea-submit")).toHaveTextContent("Check Jira again");
+    await user.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(screen.getByTestId("idea-unresolved")).toHaveTextContent("Still possibly in Jira");
   });
 
   it("an empty idea is refused locally and nothing is sent to Jira", async () => {

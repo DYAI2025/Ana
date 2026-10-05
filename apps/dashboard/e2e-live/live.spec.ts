@@ -85,22 +85,38 @@ test("live: Board and Backlog read Jira, one idea is created and moved through e
   log.push({ step: "moved-back", key, to: columns[columns.length - 2] });
   await shots(page, "live-board-move-confirmed");
 
-  // 4 · forced failure paths through the dashboard API — refused before any Jira write
+  // 4a · a visible UNKNOWN on the real Jira: the verification issue changes in Jira behind the page (through the
+  //      dashboard's own API, confirmed by readback); the page still shows the old column and its next move is refused
+  const before = await (await request.get("/api/work")).json();
+  const live = before.snapshot.issues.find((i: { key: string }) => i.key === key);
+  const backlogStatus = before.snapshot.columns[0].statuses[0].id;
+  const behind = await (await request.post(`/api/work/issues/${key}/transition`, { data: { fromStatusId: live.status.id, toStatusIds: [backlogStatus] }, headers: { origin: new URL(page.url()).origin } })).json();
+  expect(behind).toMatchObject({ ok: true });
+  await card.focus();
+  await page.keyboard.press("Shift+ArrowLeft");
+  const notice = page.getByTestId("move-failure");
+  await expect(notice).toHaveAttribute("data-state", "UNKNOWN", { timeout: 30_000 });
+  await expect(page.locator('[data-backlog="true"]').locator(`[data-ticket-id="${key}"]`)).toBeVisible();
+  log.push({ step: "visible-unknown", key, text: await notice.textContent() });
+  await shots(page, "live-board-stale-unknown");
+
+  // 4b · forced failure paths through the dashboard API — refused before any Jira write
   const origin = new URL(page.url()).origin;
   const post = (url: string, data: unknown) => request.post(url, { data, headers: { origin } });
   const state = await (await request.get("/api/work")).json();
   const issue = state.snapshot.issues.find((i: { key: string }) => i.key === key);
-  const stale = await (await post(`/api/work/issues/${key}/transition`, { fromStatusId: "1", toStatusIds: [state.snapshot.columns[0].statuses[0].id] })).json();
+  // (the issue is in Backlog now: aim at the next column, claiming a source status it does not have)
+  const stale = await (await post(`/api/work/issues/${key}/transition`, { fromStatusId: "1", toStatusIds: [state.snapshot.columns[1].statuses[0].id] })).json();
   const offBoard = await (await post(`/api/work/issues/${key}/transition`, { fromStatusId: issue.status.id, toStatusIds: ["1"] })).json();
   log.push({ step: "forced-failures", stale: stale.failure, offBoard: offBoard.failure });
   expect(stale).toMatchObject({ ok: false, failure: { state: "UNKNOWN", code: "stale" } });
   expect(offBoard).toMatchObject({ ok: false, failure: { state: "BLOCKED", code: "unsupported-transition" } });
 
-  // 5 · reload rebuilds from Jira: the verification issue is where Jira has it
+  // 5 · reload rebuilds from Jira: the verification issue is where Jira has it (Backlog, after step 4a)
   await page.reload();
   await page.locator('[data-work-phase="ready"]').waitFor();
-  await expect(page.locator(`[data-column-name="${columns[columns.length - 2]}"]`).locator(`[data-ticket-id="${key}"]`)).toBeVisible();
-  log.push({ step: "reload", key, column: columns[columns.length - 2] });
+  await expect(page.locator('[data-backlog="true"]').locator(`[data-ticket-id="${key}"]`)).toBeVisible();
+  log.push({ step: "reload", key, column: columns[0] });
 
   writeFileSync(path.join(DIR, "live-result.json"), JSON.stringify({ at: new Date().toISOString(), log }, null, 2));
 });
