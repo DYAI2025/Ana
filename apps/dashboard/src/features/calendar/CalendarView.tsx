@@ -251,7 +251,7 @@ export function CalendarView({ highlight }: { highlight?: string }) {
                         {formatDate(e.date, locale, { day: "2-digit", month: "short" })} · {e.start}–{e.end} · {t(`calendar.types.${e.type}`)}
                       </span>
                     </span>
-                    {e.local ? <StatusChip tone="local">{t("backlog.newBadge")}</StatusChip> : null}
+                    {e.local ? <StatusChip tone="local">{t("common.newLocal")}</StatusChip> : null}
                   </li>
                 );
               })}

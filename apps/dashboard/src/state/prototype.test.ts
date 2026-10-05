@@ -1,76 +1,11 @@
 import { describe, expect, it } from "vitest";
-import {
-  columnCounts,
-  createInitialState,
-  filterTickets,
-  prototypeReducer,
-  validateEvent,
-  validateIdea,
-  type PrototypeState,
-} from "./prototype";
+import { createInitialState, prototypeReducer, validateEvent, type PrototypeState } from "./prototype";
 
 const initial = (): PrototypeState => createInitialState();
-const ticket = (state: PrototypeState, id: string) => state.tickets.find((t) => t.id === id)!;
 
-describe("tickets", () => {
-  it("moves a ticket to another column without touching the others", () => {
-    const before = initial();
-    const after = prototypeReducer(before, { type: "moveTicket", id: "t-resource-map", column: "doing" });
-    expect(ticket(after, "t-resource-map").column).toBe("doing");
-    expect(after.tickets.filter((t) => t.id !== "t-resource-map")).toEqual(
-      before.tickets.filter((t) => t.id !== "t-resource-map"),
-    );
-    expect(after.lastMove).toEqual({ id: "t-resource-map", from: "next", to: "doing" });
-  });
-
-  it("ignores a move to the same column and unknown tickets", () => {
-    const before = initial();
-    expect(prototypeReducer(before, { type: "moveTicket", id: "t-resource-map", column: "next" })).toBe(before);
-    expect(prototypeReducer(before, { type: "moveTicket", id: "nope", column: "done" })).toBe(before);
-  });
-
-  it("shifts a ticket one column left/right and stops at the edges", () => {
-    let state = initial();
-    state = prototypeReducer(state, { type: "shiftTicket", id: "t-session-agenda", direction: 1 });
-    expect(ticket(state, "t-session-agenda").column).toBe("done");
-    const atEdge = prototypeReducer(state, { type: "shiftTicket", id: "t-session-agenda", direction: 1 });
-    expect(atEdge).toBe(state);
-    state = prototypeReducer(state, { type: "shiftTicket", id: "t-resource-map", direction: -1 });
-    expect(ticket(state, "t-resource-map").column).toBe("next");
-  });
-
-  it("filters by owner and counts per column", () => {
-    const state = initial();
-    const anas = filterTickets(state.tickets, "ana");
-    expect(anas.length).toBeGreaterThan(0);
-    expect(anas.every((t) => t.owner === "ana")).toBe(true);
-    expect(filterTickets(state.tickets, "all")).toHaveLength(state.tickets.length);
-    const counts = columnCounts(state.tickets);
-    expect(counts.next + counts.doing + counts.review + counts.done).toBe(state.tickets.length);
-  });
-
-  it("every team member owns at least one fixture ticket", () => {
-    const owners = new Set(initial().tickets.map((t) => t.owner));
-    expect([...owners].sort()).toEqual(["ana", "ben", "vince"]);
-  });
-});
-
-describe("ideas", () => {
-  it("validates idea text", () => {
-    expect(validateIdea("   ")).toBe("backlog.ideaRequired");
-    expect(validateIdea("Try a calmer weekly review")).toBeNull();
-  });
-
-  it("adds a trimmed local idea at the top of the backlog", () => {
-    const before = initial();
-    const after = prototypeReducer(before, { type: "addIdea", title: "  Try a calmer weekly review ", owner: "vince" });
-    expect(after.backlog).toHaveLength(before.backlog.length + 1);
-    expect(after.backlog[0]).toMatchObject({ title: "Try a calmer weekly review", owner: "vince", kind: "idea", local: true });
-  });
-
-  it("refuses an empty idea", () => {
-    const before = initial();
-    expect(prototypeReducer(before, { type: "addIdea", title: " ", owner: "ana" })).toBe(before);
+describe("work is not prototype state (ANA-5)", () => {
+  it("holds no tickets, backlog or ideas — Board and Backlog are a Jira projection", () => {
+    expect(Object.keys(initial()).sort()).toEqual(["events", "notes", "seq"]);
   });
 });
 

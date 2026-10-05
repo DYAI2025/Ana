@@ -6,8 +6,8 @@ import { Providers } from "@/components/providers/Providers";
 import { AppShell } from "@/components/shell/AppShell";
 
 export const metadata: Metadata = {
-  title: "ANA LUMEN — local prototype",
-  description: "Clickable ANA LUMEN prototype (ANA-4). All content is local prototype data; nothing is connected.",
+  title: "ANA LUMEN",
+  description: "ANA LUMEN: Board and Backlog are a projection of Jira; the other modules are local prototype data.",
   robots: { index: false, follow: false },
 };
 

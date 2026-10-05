@@ -44,9 +44,9 @@ export const TOOLS: readonly Tool[] = [
     name: "Jira",
     purpose: l("The source of truth for active work.", "Die Quelle der Wahrheit für aktive Arbeit.", "La fonte di verità per il lavoro attivo."),
     howTo: l(
-      "Create and move work in Jira. In production the ANA Board will be a calm view of Jira tasks.",
-      "Arbeit in Jira anlegen und verschieben. Im Betrieb wird das ANA-Board eine ruhige Sicht auf Jira-Aufgaben.",
-      "Crea e sposta il lavoro in Jira. In produzione il Board ANA sarà una vista tranquilla delle attività Jira.",
+      "Create and move work in Jira. The ANA Board and Backlog show the same Jira work and write back to it.",
+      "Arbeit in Jira anlegen und verschieben. ANA-Board und Backlog zeigen dieselbe Jira-Arbeit und schreiben in Jira zurück.",
+      "Crea e sposta il lavoro in Jira. Il Board e il Backlog ANA mostrano lo stesso lavoro di Jira e scrivono in Jira.",
     ),
     url: null,
   },

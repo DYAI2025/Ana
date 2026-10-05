@@ -3,11 +3,11 @@
 import { ArrowRight, BookOpenText, BriefcaseBusiness, Columns3, Users, Video, type LucideIcon } from "lucide-react";
 import { useState, type CSSProperties, type PointerEvent } from "react";
 import { useI18n } from "@/components/providers/I18nProvider";
-import { usePrototype } from "@/components/providers/PrototypeProvider";
 import { FOCUS, RECENT_KNOWLEDGE, STAGES } from "@/fixtures/connections";
 import { getSession, LAST_SESSION_ID } from "@/fixtures/sessions";
 import { formatDate } from "@/lib/format";
-import { columnCounts } from "@/state/prototype";
+import { workCounts } from "@/features/work/model";
+import { useWork } from "@/features/work/WorkProvider";
 import { ContextLens, type LensId } from "./ContextLens";
 import styles from "./now.module.css";
 
@@ -29,10 +29,11 @@ function trackPointer(event: PointerEvent<HTMLElement>) {
 
 export function NowView() {
   const { t, text, locale } = useI18n();
-  const { state } = usePrototype();
+  const { state: work } = useWork();
   const [lens, setLens] = useState<LensId | null>(null);
 
-  const counts = columnCounts(state.tickets);
+  // work counts come from a current Jira read; while Jira is not readable (or the read is stale) they are unknown
+  const counts = work.phase === "ready" ? workCounts(work.snapshot) : null;
   const session = getSession(LAST_SESSION_ID)!;
   const activeStage = STAGES.indexOf(FOCUS.stage);
 
@@ -45,7 +46,13 @@ export function NowView() {
       subtitle: text(session.title),
       tier: "primary",
     },
-    { id: "work", icon: Columns3, title: t("now.work"), status: t("now.workStatus", { active: counts.doing, review: counts.review }), tier: "primary" },
+    {
+      id: "work",
+      icon: Columns3,
+      title: t("now.work"),
+      status: counts ? t("now.workStatus", { active: counts.active, review: counts.review }) : t("now.workStatusUnknown"),
+      tier: "primary",
+    },
     { id: "business", icon: BriefcaseBusiness, title: t("now.business"), status: t("now.businessStatus"), tier: "secondary" },
     { id: "knowledge", icon: BookOpenText, title: t("now.knowledge"), status: t("now.knowledgeStatus", { count: RECENT_KNOWLEDGE.length }), tier: "secondary" },
     { id: "community", icon: Users, title: t("now.community"), status: t("now.communityStatus"), tier: "secondary" },
@@ -103,7 +110,7 @@ export function NowView() {
                 <span className={styles.objectTitle}>{object.title}</span>
               </span>
               <span className={styles.objectStatus}>
-                {object.id === "work" ? <span className={styles.liveDot} aria-hidden="true" /> : null}
+                {object.id === "work" && work.phase === "ready" ? <span className={styles.liveDot} aria-hidden="true" /> : null}
                 {object.status}
               </span>
               {object.subtitle ? <span className={styles.objectSubtitle}>{object.subtitle}</span> : null}
@@ -118,7 +125,7 @@ export function NowView() {
       <p className={styles.statusRail}>
         <span>{t("now.statusPeople")}</span>
         <span className={styles.statusSep} aria-hidden="true" />
-        <span>{t("now.statusTasks", { count: counts.doing })}</span>
+        <span>{counts ? t("now.statusTasks", { count: counts.active }) : t("now.statusTasksUnknown")}</span>
         <span className={styles.statusSep} aria-hidden="true" />
         <span>{t("now.statusFocus")}</span>
       </p>

@@ -1,0 +1,37 @@
+name: drs
+
+# Validates the DRS v1.0 delivery contracts in .drs/ with the validator shipped in the pinned DRS package
+# (docs/delivery/DRS.md). The package is downloaded at a fixed commit and checked against its sha256.
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".drs/**"
+      - ".github/workflows/drs.yml"
+  pull_request:
+    paths:
+      - ".drs/**"
+      - ".github/workflows/drs.yml"
+
+permissions:
+  contents: read
+
+env:
+  DRS_COMMIT: c4efb97931c6171563191afb74d61507e13bc6d4
+  DRS_TARBALL_SHA256: 7d1b5856ff5635cc7fdb76ba9ec0132e008c47d4b1de8050eb2cb03080253daf
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fetch pinned DRS v1.0 package
+        run: |
+          curl -fsSL -o "$RUNNER_TEMP/drs.tar.gz" "https://raw.githubusercontent.com/DYAI2025/DRS/${DRS_COMMIT}/DRS-v1.0.tar.gz"
+          echo "${DRS_TARBALL_SHA256}  $RUNNER_TEMP/drs.tar.gz" | sha256sum --check
+          tar -xzf "$RUNNER_TEMP/drs.tar.gz" -C "$RUNNER_TEMP"
+      - name: Validate .drs contracts
+        env:
+          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: python3 "$RUNNER_TEMP/DRS/drs/validate.py" --dir .drs --head "$HEAD_SHA"

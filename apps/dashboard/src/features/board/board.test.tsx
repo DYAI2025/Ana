@@ -1,0 +1,612 @@
+import { act, render, screen, waitFor, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { useState, type ReactNode } from "react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { I18nProvider } from "@/components/providers/I18nProvider";
+import { ToastProvider } from "@/components/providers/ToastProvider";
+import type { SnapshotResult, WorkSnapshot, WriteResult } from "@/features/work/types";
+import { WorkProvider } from "@/features/work/WorkProvider";
+import { AVERY, BLAKE, issue, makeSnapshot, STATUS } from "@/test/work-fixture";
+import { BacklogView } from "./BacklogView";
+import { BoardView } from "./BoardView";
+
+type Handler = (url: string, init?: RequestInit) => SnapshotResult | WriteResult | Promise<SnapshotResult | WriteResult>;
+
+let handler: Handler;
+const requests: { url: string; body?: unknown }[] = [];
+
+beforeEach(() => {
+  requests.length = 0;
+  vi.stubGlobal("fetch", async (input: RequestInfo | URL, init?: RequestInit) => {
+    const url = String(input);
+    requests.push({ url, body: typeof init?.body === "string" ? JSON.parse(init.body) : undefined });
+    return new Response(JSON.stringify(await handler(url, init)), { status: 200, headers: { "content-type": "application/json" } });
+  });
+});
+
+afterEach(() => vi.unstubAllGlobals());
+
+const wrap = (node: ReactNode) => (
+  <I18nProvider>
+    <ToastProvider>
+      <WorkProvider>{node}</WorkProvider>
+    </ToastProvider>
+  </I18nProvider>
+);
+
+const serve = (snapshot: WorkSnapshot) => (): SnapshotResult => ({ ok: true, snapshot });
+
+/** Lets a test leave a view and come back to it while the WorkProvider (and any request) stays alive. */
+function Toggle({ children }: { children: ReactNode }) {
+  const [shown, setShown] = useState(true);
+  return (
+    <>
+      <button type="button" onClick={() => setShown((s) => !s)}>
+        toggle-view
+      </button>
+      {shown ? children : null}
+    </>
+  );
+}
+const column = (name: string) => screen.getByRole("region", { name });
+
+describe("Board — Jira projection", () => {
+  it("renders the five Jira states with each issue's real key, summary, status and assignee", async () => {
+    handler = serve(makeSnapshot());
+    render(wrap(<BoardView />));
+    await screen.findByTestId("work-source");
+    const names = screen.getAllByRole("heading", { level: 2 }).map((h) => h.textContent);
+    expect(names).toEqual(["Backlog", "Zur Entwicklung ausgewählt", "In Arbeit", "Review", "Erledigt"]);
+    const card = within(column("In Arbeit")).getByText("Prepare the shared resource map").closest("article")!;
+    expect(card).toHaveAttribute("data-ticket-id", "ANA-904");
+    expect(within(card).getByText("ANA-904")).toHaveAttribute("href", "https://jira.example.invalid/browse/ANA-904");
+    expect(within(card).getByTestId("ticket-status")).toHaveTextContent("In Arbeit");
+    expect(within(card).getByText("Avery Example")).toBeInTheDocument();
+    expect(within(column("Backlog")).getAllByText("Unassigned")).toHaveLength(2);
+    expect(screen.getByTestId("work-source")).toHaveTextContent("Jira · ANA board (734) · filter 10733");
+  });
+
+  it("shows a BLOCKED connector state with the reason and no work at all", async () => {
+    handler = () => ({ ok: false, failure: { state: "BLOCKED", code: "not-configured" } });
+    render(wrap(<BoardView />));
+    const alert = await screen.findByTestId("work-failure");
+    expect(alert).toHaveAttribute("data-state", "BLOCKED");
+    expect(alert).toHaveTextContent("BLOCKED");
+    expect(alert).toHaveTextContent("The Jira connection is not configured");
+    expect(screen.queryAllByTestId("ticket")).toEqual([]);
+  });
+
+  it("a keyboard move is written through Jira and shown only as confirmed after Jira's answer", async () => {
+    const snapshot = makeSnapshot();
+    let release!: (value: WriteResult) => void;
+    handler = (url) => (url.includes("/transition") ? new Promise<WriteResult>((resolve) => (release = resolve)) : serve(snapshot)());
+    const user = userEvent.setup();
+    render(wrap(<BoardView />));
+    const card = await screen.findByText("Prepare the shared resource map");
+    act(() => card.closest("article")!.focus());
+    await user.keyboard("{Shift>}{ArrowRight}{/Shift}");
+
+    // pending: shown in the requested column, marked as being written
+    const pending = await within(column("Review")).findByText("Prepare the shared resource map");
+    expect(pending.closest("article")).toHaveAttribute("data-pending", "true");
+    expect(within(pending.closest("article")!).getByTestId("ticket-status")).toHaveTextContent("Writing to Jira…");
+    expect(requests.find((r) => r.url.includes("/transition"))).toEqual({
+      url: "/api/work/issues/ANA-904/transition",
+      body: { fromStatusId: STATUS.doing.id, toStatusIds: [STATUS.review.id] },
+    });
+
+    await act(async () => release({ ok: true, issue: { ...snapshot.issues[4]!, status: STATUS.review }, verifiedAt: "2026-10-05T08:01:00.000Z" }));
+    const confirmed = within(column("Review")).getByText("Prepare the shared resource map").closest("article")!;
+    expect(confirmed).not.toHaveAttribute("data-pending");
+    expect(within(confirmed).getByTestId("ticket-status")).toHaveTextContent("Review");
+    expect(await screen.findByTestId("toast")).toHaveTextContent("ANA-904 → Review · confirmed by Jira");
+  });
+
+  it("a refused move returns the issue to Jira's truth and shows BLOCKED, then re-reads the board", async () => {
+    const snapshot = makeSnapshot();
+    handler = (url) =>
+      url.includes("/transition")
+        ? { ok: false, failure: { state: "BLOCKED", code: "unsupported-transition", issue: snapshot.issues[4], detail: "Jira offers no transition" } }
+        : serve(snapshot)();
+    const user = userEvent.setup();
+    render(wrap(<BoardView />));
+    const card = await screen.findByText("Prepare the shared resource map");
+    act(() => card.closest("article")!.focus());
+    await user.keyboard("{Shift>}{ArrowRight}{/Shift}");
+    const notice = await screen.findByTestId("move-failure");
+    expect(notice).toHaveAttribute("data-state", "BLOCKED");
+    expect(notice).toHaveTextContent("ANA-904");
+    expect(within(column("In Arbeit")).getByText("Prepare the shared resource map")).toBeInTheDocument();
+    // the board is read again, asking Jira to reconcile the issue whose truth the failure carried
+    await waitFor(() => expect(requests.map((r) => r.url)).toContain("/api/work?reconcile=904"));
+  });
+
+  it("a refused move is marked on the card itself, and the card leads to the full notice (long boards)", async () => {
+    const snapshot = makeSnapshot();
+    handler = (url) =>
+      url.includes("/transition")
+        ? { ok: false, failure: { state: "BLOCKED", code: "unsupported-transition", issue: snapshot.issues[4], detail: "Jira offers no transition" } }
+        : serve(snapshot)();
+    const user = userEvent.setup();
+    render(wrap(<BoardView />));
+    const title = await screen.findByText("Prepare the shared resource map");
+    act(() => title.closest("article")!.focus());
+    await user.keyboard("{Shift>}{ArrowRight}{/Shift}");
+    const chip = await within(screen.getByText("Prepare the shared resource map").closest("article")!).findByTestId("ticket-failure");
+    expect(chip).toHaveAttribute("data-state", "BLOCKED");
+    expect(chip).toHaveTextContent("BLOCKED");
+    await user.click(chip);
+    expect(screen.getByTestId("move-failure")).toHaveFocus();
+    // dismissing the notice clears the mark on the card too
+    await user.click(within(screen.getByTestId("move-failure")).getByRole("button", { name: /Dismiss/ }));
+    expect(within(screen.getByText("Prepare the shared resource map").closest("article")!).queryByTestId("ticket-failure")).toBeNull();
+  });
+
+  it("a failed move shows Jira's truth from the failure at once, before the board is re-read", async () => {
+    const snapshot = makeSnapshot();
+    let reads = 0;
+    handler = (url) => {
+      if (url.includes("/transition")) {
+        // someone finished the issue in Jira meanwhile: the readback says Erledigt
+        return { ok: false, failure: { state: "UNKNOWN", code: "stale", issue: { ...snapshot.issues[4]!, status: STATUS.done } } };
+      }
+      // the follow-up re-read never answers here, so only the failure's own truth can move the card
+      return ++reads === 1 ? serve(snapshot)() : new Promise<SnapshotResult>(() => undefined);
+    };
+    const user = userEvent.setup();
+    render(wrap(<BoardView />));
+    const card = await screen.findByText("Prepare the shared resource map");
+    act(() => card.closest("article")!.focus());
+    await user.keyboard("{Shift>}{ArrowRight}{/Shift}");
+    expect(await screen.findByTestId("move-failure")).toHaveAttribute("data-state", "UNKNOWN");
+    expect(within(column("Erledigt")).getByText("Prepare the shared resource map")).toBeInTheDocument();
+    expect(within(column("In Arbeit")).queryByText("Prepare the shared resource map")).toBeNull();
+  });
+
+  it("a read that started before a confirmed move cannot put the card back; later reads ask Jira to reconcile it", async () => {
+    const snapshot = makeSnapshot();
+    let reads = 0;
+    let releaseRead!: (value: SnapshotResult) => void;
+    handler = (url) => {
+      if (url.includes("/transition")) return { ok: true, issue: { ...snapshot.issues[4]!, status: STATUS.review }, verifiedAt: "2026-10-05T08:03:00.000Z" };
+      if (++reads === 2) return new Promise<SnapshotResult>((resolve) => (releaseRead = resolve)); // a slow refresh
+      return serve(snapshot)();
+    };
+    const user = userEvent.setup();
+    render(wrap(<BoardView />));
+    await screen.findByTestId("work-source");
+    await user.click(screen.getByTestId("work-refresh")); // read #2 starts and hangs
+    const card = screen.getByText("Prepare the shared resource map");
+    act(() => card.closest("article")!.focus());
+    await user.keyboard("{Shift>}{ArrowRight}{/Shift}");
+    expect(await screen.findByTestId("toast")).toHaveTextContent("ANA-904 → Review · confirmed by Jira");
+    // the slow read answers with what Jira's search returned before the move
+    await act(async () => releaseRead(serve(snapshot)()));
+    expect(within(column("Review")).getByText("Prepare the shared resource map")).toBeInTheDocument();
+    // the next read asks Jira to reconcile the moved issue
+    await user.click(screen.getByTestId("work-refresh"));
+    await waitFor(() => expect(requests.map((r) => r.url)).toContain(`/api/work?reconcile=${snapshot.issues[4]!.id}`));
+  });
+
+  it("a refused move is still reported after leaving the Board and coming back during the write", async () => {
+    const snapshot = makeSnapshot();
+    let release!: (value: WriteResult) => void;
+    handler = (url) => (url.includes("/transition") ? new Promise<WriteResult>((resolve) => (release = resolve)) : serve(snapshot)());
+    const user = userEvent.setup();
+    render(wrap(<Toggle><BoardView /></Toggle>));
+    const card = await screen.findByText("Prepare the shared resource map");
+    act(() => card.closest("article")!.focus());
+    await user.keyboard("{Shift>}{ArrowRight}{/Shift}");
+    await user.click(screen.getByRole("button", { name: "toggle-view" })); // leave the Board mid-write
+    await act(async () => release({ ok: false, failure: { state: "BLOCKED", code: "unsupported-transition", issue: snapshot.issues[4] } }));
+    await user.click(screen.getByRole("button", { name: "toggle-view" })); // come back
+    const notice = await screen.findByTestId("move-failure");
+    expect(notice).toHaveAttribute("data-state", "BLOCKED");
+    expect(notice).toHaveTextContent("ANA-904");
+  });
+
+  it("a move that got no readback is marked 'not confirmed' and the next reads ask Jira to reconcile it", async () => {
+    const snapshot = makeSnapshot();
+    handler = (url) => (url.includes("/transition") ? { ok: false, failure: { state: "UNKNOWN", code: "write-unconfirmed", detail: "no readback" } } : serve(snapshot)());
+    let releaseRead!: (value: SnapshotResult) => void;
+    const user = userEvent.setup();
+    render(wrap(<BoardView />));
+    const card = await screen.findByText("Prepare the shared resource map");
+    // hold the follow-up re-read so the marker is visible before Jira answers
+    handler = (url) => (url.includes("/transition") ? { ok: false, failure: { state: "UNKNOWN", code: "write-unconfirmed", detail: "no readback" } } : new Promise<SnapshotResult>((resolve) => (releaseRead = resolve)));
+    act(() => card.closest("article")!.focus());
+    await user.keyboard("{Shift>}{ArrowRight}{/Shift}");
+    const article = (await screen.findByTestId("move-failure")) && screen.getByText("Prepare the shared resource map").closest("article")!;
+    expect(article).toHaveAttribute("data-unconfirmed", "true");
+    expect(within(article).getByTestId("ticket-status")).toHaveTextContent("Not confirmed by Jira");
+    await waitFor(() => expect(requests.map((r) => r.url)).toContain("/api/work?reconcile=904"));
+    await act(async () => releaseRead(serve(snapshot)()));
+    expect(screen.getByText("Prepare the shared resource map").closest("article")).not.toHaveAttribute("data-unconfirmed");
+  });
+
+  it("two refused moves keep two notices, and a failure while away from the Board is announced at once", async () => {
+    const snapshot = makeSnapshot();
+    let release!: (value: WriteResult) => void;
+    handler = (url) => {
+      if (url.includes("ANA-904")) return new Promise<WriteResult>((resolve) => (release = resolve));
+      if (url.includes("/transition")) return { ok: false, failure: { state: "BLOCKED", code: "unsupported-transition", issue: snapshot.issues[3] } };
+      return serve(snapshot)();
+    };
+    const user = userEvent.setup();
+    render(wrap(<Toggle><BoardView /></Toggle>));
+    const first = await screen.findByText("Close one feedback loop this week");
+    act(() => first.closest("article")!.focus());
+    await user.keyboard("{Shift>}{ArrowRight}{/Shift}");
+    await screen.findByTestId("move-failure");
+    await waitFor(() => expect(screen.getByTestId("work-refresh")).not.toBeDisabled()); // the follow-up re-read is done
+    // keyboard focus first returns to the refused card (it re-rendered in its Jira column) …
+    await waitFor(() => expect(screen.getByText("Close one feedback loop this week").closest("article")).toHaveFocus());
+    // … then the person moves on to another issue
+    const second = screen.getByText("Prepare the shared resource map").closest("article")!;
+    act(() => second.focus());
+    expect(second).toHaveFocus();
+    await user.keyboard("{Shift>}{ArrowRight}{/Shift}");
+    await user.click(screen.getByRole("button", { name: "toggle-view" })); // away from the Board
+    await act(async () => release({ ok: false, failure: { state: "ERROR", code: "write-failed", issue: snapshot.issues[4] } }));
+    expect(await screen.findByTestId("toast")).toHaveTextContent("ANA-904: move not confirmed by Jira (ERROR)");
+    await user.click(screen.getByRole("button", { name: "toggle-view" }));
+    expect((await screen.findAllByTestId("move-failure")).map((n) => n.getAttribute("data-state"))).toEqual(["ERROR", "BLOCKED"]);
+    // the first failure happened while the Board was on screen: no extra toast for it
+    expect(screen.queryByText(/ANA-903: move not confirmed/)).toBeNull();
+  });
+
+  it("a card without readback stays 'not confirmed' when the follow-up Jira read fails too", async () => {
+    let reads = 0;
+    handler = (url) => {
+      if (url.includes("/transition")) return { ok: false, failure: { state: "UNKNOWN", code: "write-unconfirmed", detail: "no readback" } };
+      reads += 1;
+      return reads === 1 ? serve(makeSnapshot())() : { ok: false, failure: { state: "UNKNOWN", code: "unavailable" } };
+    };
+    const user = userEvent.setup();
+    render(wrap(<BoardView />));
+    const card = await screen.findByText("Prepare the shared resource map");
+    act(() => card.closest("article")!.focus());
+    await user.keyboard("{Shift>}{ArrowRight}{/Shift}");
+    await screen.findByTestId("work-stale");
+    expect(screen.getByText("Prepare the shared resource map").closest("article")).toHaveAttribute("data-unconfirmed", "true");
+  });
+
+  it("an owner filter whose person left the board is dropped, so a later read cannot bring it back unasked", async () => {
+    const withoutAvery = makeSnapshot({ issues: makeSnapshot().issues.map((i) => (i.assignee?.accountId === AVERY.accountId ? { ...i, assignee: BLAKE } : i)) });
+    const reads = [makeSnapshot(), withoutAvery, makeSnapshot()];
+    let n = 0;
+    handler = () => serve(reads[Math.min(n++, reads.length - 1)]!)();
+    const user = userEvent.setup();
+    render(wrap(<BoardView />));
+    await user.click((await screen.findAllByRole("button", { name: /Avery Example/ }))[0]!);
+    expect(screen.queryByText("Close one feedback loop this week")).toBeNull(); // Blake's issue is filtered out
+    await user.click(screen.getByTestId("work-refresh"));
+    await waitFor(() => expect(screen.getByText("Close one feedback loop this week")).toBeInTheDocument());
+    await user.click(screen.getByTestId("work-refresh"));
+    await waitFor(() => expect(n).toBe(3));
+    await waitFor(() => expect(screen.getByTestId("work-refresh")).not.toBeDisabled());
+    expect(screen.getByText("Close one feedback loop this week")).toBeInTheDocument(); // still every owner
+  });
+
+  it("a card being moved stays visible under an owner filter even if a read meanwhile shows another assignee", async () => {
+    const reassigned = makeSnapshot({ issues: makeSnapshot().issues.map((i) => (i.key === "ANA-904" ? { ...i, assignee: BLAKE } : i)) });
+    let n = 0;
+    handler = (url) => (url.includes("/transition") ? new Promise<WriteResult>(() => undefined) : serve(n++ === 0 ? makeSnapshot() : reassigned)());
+    const user = userEvent.setup();
+    render(wrap(<BoardView />));
+    await user.click((await screen.findAllByRole("button", { name: /Avery Example/ }))[0]!);
+    act(() => screen.getByText("Prepare the shared resource map").closest("article")!.focus());
+    await user.keyboard("{Shift>}{ArrowRight}{/Shift}");
+    await user.click(screen.getByTestId("work-refresh"));
+    await waitFor(() => expect(n).toBe(2));
+    await waitFor(() => expect(screen.getByTestId("work-refresh")).not.toBeDisabled());
+    expect(screen.getByText("Prepare the shared resource map").closest("article")).toHaveAttribute("data-pending", "true");
+  });
+
+  it("a failed refresh keeps the last Jira read visible but dated, marked UNKNOWN, and pauses moves", async () => {
+    let calls = 0;
+    handler = () => (++calls === 1 ? serve(makeSnapshot())() : { ok: false, failure: { state: "UNKNOWN", code: "unavailable" } });
+    const user = userEvent.setup();
+    render(wrap(<BoardView />));
+    await screen.findByTestId("work-source");
+    await user.click(screen.getByTestId("work-refresh"));
+    const stale = await screen.findByTestId("work-stale");
+    expect(stale).toHaveAttribute("data-state", "UNKNOWN");
+    expect(stale).toHaveTextContent("Moves and new ideas are paused");
+    expect(screen.getAllByTestId("ticket")[0]).toHaveAttribute("draggable", "false");
+  });
+});
+
+describe("Backlog — same Jira items, Add idea through Jira", () => {
+  const REQUEST_RE = /^[0-9a-f-]{36}$/;
+
+  it("lists exactly the Board's Backlog column items", async () => {
+    handler = serve(makeSnapshot());
+    render(wrap(<BacklogView />));
+    await screen.findByTestId("work-source");
+    expect(screen.getAllByTestId("backlog-item").map((row) => row.getAttribute("data-backlog-key"))).toEqual(["ANA-901", "ANA-902", "ANA-907"]);
+  });
+
+  it("shows the durable key only after Jira confirmed the new idea", async () => {
+    const created = issue("ANA-950", "Try a shared weekly review", STATUS.backlog, null, { isIdea: true });
+    handler = (url) =>
+      url === "/api/work/ideas"
+        ? { ok: true, issue: created, verifiedAt: "2026-10-05T08:02:00.000Z" }
+        : serve(url.includes("reconcile") ? { ...makeSnapshot(), issues: [...makeSnapshot().issues, created] } : makeSnapshot())();
+    const user = userEvent.setup();
+    render(wrap(<BacklogView />));
+    await user.click(await screen.findByTestId("add-idea"));
+    await user.type(screen.getByTestId("idea-input"), "Try a shared weekly review");
+    await user.click(screen.getByTestId("idea-submit"));
+    expect(await screen.findByTestId("idea-created")).toHaveTextContent("ANA-950 created in Jira Backlog · confirmed by readback");
+    const post = requests.find((r) => r.url === "/api/work/ideas")!;
+    expect(post.body).toMatchObject({ summary: "Try a shared weekly review" });
+    expect((post.body as { requestId: string }).requestId).toMatch(REQUEST_RE);
+    await waitFor(() => expect(requests.some((r) => r.url === "/api/work?reconcile=950")).toBe(true));
+    // ranked last, like Jira ranks a new issue
+    expect(screen.getAllByTestId("backlog-item").at(-1)).toHaveAttribute("data-backlog-key", "ANA-950");
+  });
+
+  it("an unconfirmed create stays UNKNOWN, keeps the draft, and a check reuses the same request id", async () => {
+    handler = (url, init) =>
+      url === "/api/work/ideas"
+        ? { ok: false, failure: { state: "UNKNOWN", code: "write-unconfirmed", requestId: JSON.parse(String(init?.body)).requestId } }
+        : serve(makeSnapshot())();
+    const user = userEvent.setup();
+    render(wrap(<BacklogView />));
+    await user.click(await screen.findByTestId("add-idea"));
+    await user.type(screen.getByTestId("idea-input"), "Unclear outcome");
+    await user.click(screen.getByTestId("idea-submit"));
+    const failure = await screen.findByTestId("idea-failure");
+    expect(failure).toHaveAttribute("data-state", "UNKNOWN");
+    expect(screen.queryByTestId("idea-created")).toBeNull();
+    expect(screen.getByTestId("idea-input")).toHaveValue("Unclear outcome");
+    expect(screen.getByTestId("idea-submit")).toHaveTextContent("Check Jira again");
+    await user.click(screen.getByTestId("idea-submit"));
+    await waitFor(() => expect(requests.filter((r) => r.url === "/api/work/ideas")).toHaveLength(2));
+    const [first, second] = requests.filter((r) => r.url === "/api/work/ideas").map((r) => (r.body as { requestId: string }).requestId);
+    expect(second).toBe(first);
+  });
+
+  it("an unconfirmed idea stays locked after Cancel: same text, read-only, same request id on the next check", async () => {
+    handler = (url, init) =>
+      url === "/api/work/ideas"
+        ? { ok: false, failure: { state: "UNKNOWN", code: "write-unconfirmed", requestId: JSON.parse(String(init?.body)).requestId } }
+        : serve(makeSnapshot())();
+    const user = userEvent.setup();
+    render(wrap(<BacklogView />));
+    await user.click(await screen.findByTestId("add-idea"));
+    await user.type(screen.getByTestId("idea-input"), "Keep this request");
+    await user.click(screen.getByTestId("idea-submit"));
+    await screen.findByTestId("idea-failure");
+    await user.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(screen.queryByTestId("idea-form")).toBeNull();
+    expect(screen.getByTestId("idea-unresolved")).toHaveTextContent("Keep this request");
+    await user.click(screen.getByTestId("idea-reopen"));
+    expect(screen.getByTestId("idea-input")).toHaveValue("Keep this request");
+    expect(screen.getByTestId("idea-input")).toHaveAttribute("readonly");
+    await user.click(screen.getByTestId("idea-submit"));
+    await waitFor(() => expect(requests.filter((r) => r.url === "/api/work/ideas")).toHaveLength(2));
+    const ids = requests.filter((r) => r.url === "/api/work/ideas").map((r) => (r.body as { requestId: string }).requestId);
+    expect(ids[1]).toBe(ids[0]);
+  });
+
+  it("when the server names an earlier unresolved request for the same idea, the next check continues with that request", async () => {
+    const EARLIER = "3f2b8c1e-4d5a-4b6c-8d7e-9f0a1b2c3d4e";
+    handler = (url) => (url === "/api/work/ideas" ? { ok: false, failure: { state: "UNKNOWN", code: "write-unconfirmed", requestId: EARLIER } } : serve(makeSnapshot())());
+    const user = userEvent.setup();
+    render(wrap(<BacklogView />));
+    await user.click(await screen.findByTestId("add-idea"));
+    await user.type(screen.getByTestId("idea-input"), "Typed again after reload");
+    await user.click(screen.getByTestId("idea-submit"));
+    await screen.findByTestId("idea-failure");
+    await user.click(screen.getByTestId("idea-submit"));
+    await waitFor(() => expect(requests.filter((r) => r.url === "/api/work/ideas")).toHaveLength(2));
+    expect((requests.filter((r) => r.url === "/api/work/ideas")[1]!.body as { requestId: string }).requestId).toBe(EARLIER);
+  });
+
+  it("leaving the Backlog during a create: on return the form is still the pending request, and it closes once Jira confirms", async () => {
+    const created = issue("ANA-951", "Away and back", STATUS.backlog, null, { isIdea: true });
+    let release!: (value: WriteResult) => void;
+    handler = (url) => (url === "/api/work/ideas" ? new Promise<WriteResult>((resolve) => (release = resolve)) : serve(makeSnapshot())());
+    const user = userEvent.setup();
+    render(wrap(<Toggle><BacklogView /></Toggle>));
+    await user.click(await screen.findByTestId("add-idea"));
+    await user.type(screen.getByTestId("idea-input"), "Away and back");
+    await user.click(screen.getByTestId("idea-submit"));
+    await user.click(screen.getByRole("button", { name: "toggle-view" }));
+    await user.click(screen.getByRole("button", { name: "toggle-view" }));
+    expect(await screen.findByTestId("idea-input")).toHaveValue("Away and back");
+    expect(screen.getByTestId("idea-input")).toHaveAttribute("readonly");
+    expect(screen.getByTestId("idea-submit")).toHaveTextContent("Creating in Jira…");
+    await act(async () => release({ ok: true, issue: created, verifiedAt: "2026-10-05T08:04:00.000Z" }));
+    expect(await screen.findByTestId("idea-created")).toHaveTextContent("ANA-951 created in Jira Backlog");
+    expect(screen.queryByTestId("idea-form")).toBeNull();
+  });
+
+  it("once an attempt went unanswered, a later error from another step keeps the idea locked", async () => {
+    let calls = 0;
+    handler = (url, init) => {
+      if (url !== "/api/work/ideas") return serve(makeSnapshot())();
+      const requestId = JSON.parse(String(init?.body)).requestId;
+      return ++calls === 1
+        ? { ok: false, failure: { state: "UNKNOWN", code: "write-unconfirmed", requestId } }
+        : { ok: false, failure: { state: "ERROR", code: "upstream", requestId, detail: "board read failed" } };
+    };
+    const user = userEvent.setup();
+    render(wrap(<BacklogView />));
+    await user.click(await screen.findByTestId("add-idea"));
+    await user.type(screen.getByTestId("idea-input"), "Still possibly in Jira");
+    await user.click(screen.getByTestId("idea-submit"));
+    await screen.findByTestId("idea-failure");
+    await user.click(screen.getByTestId("idea-submit"));
+    await waitFor(() => expect(screen.getByTestId("idea-failure")).toHaveAttribute("data-state", "ERROR"));
+    expect(screen.getByTestId("idea-input")).toHaveAttribute("readonly");
+    expect(screen.getByTestId("idea-submit")).toHaveTextContent("Check Jira again");
+    await user.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(screen.getByTestId("idea-unresolved")).toHaveTextContent("Still possibly in Jira");
+  });
+
+  it("a locked request whose named item no longer exists is resolved: the text can be edited again", async () => {
+    let calls = 0;
+    handler = (url, init) => {
+      if (url !== "/api/work/ideas") return serve(makeSnapshot())();
+      const requestId = JSON.parse(String(init?.body)).requestId;
+      return ++calls === 1
+        ? { ok: false, failure: { state: "UNKNOWN", code: "write-unconfirmed", requestId, detail: "Jira answered with ANA-950, but reading it back failed" } }
+        : { ok: false, failure: { state: "ERROR", code: "readback-mismatch", requestId, detail: "Jira named ANA-950 for this request, but it no longer exists" } };
+    };
+    const user = userEvent.setup();
+    render(wrap(<BacklogView />));
+    await user.click(await screen.findByTestId("add-idea"));
+    await user.type(screen.getByTestId("idea-input"), "Gone meanwhile");
+    await user.click(screen.getByTestId("idea-submit"));
+    await screen.findByTestId("idea-failure");
+    expect(screen.getByTestId("idea-input")).toHaveAttribute("readonly"); // locked: a create may exist
+    await user.click(screen.getByTestId("idea-submit"));
+    await waitFor(() => expect(screen.getByTestId("idea-failure")).toHaveAttribute("data-state", "ERROR"));
+    expect(screen.getByTestId("idea-input")).not.toHaveAttribute("readonly");
+  });
+
+  it("a failed read before any create does not lock the idea for good: a later definitive answer unlocks it", async () => {
+    let calls = 0;
+    handler = (url, init) => {
+      if (url !== "/api/work/ideas") return serve(makeSnapshot())();
+      const requestId = JSON.parse(String(init?.body)).requestId;
+      return ++calls === 1
+        ? { ok: false, failure: { state: "UNKNOWN", code: "unavailable", requestId } }
+        : { ok: false, failure: { state: "ERROR", code: "rejected", requestId, detail: "summary: invalid" } };
+    };
+    const user = userEvent.setup();
+    render(wrap(<BacklogView />));
+    await user.click(await screen.findByTestId("add-idea"));
+    await user.type(screen.getByTestId("idea-input"), "Board read failed");
+    await user.click(screen.getByTestId("idea-submit"));
+    await screen.findByTestId("idea-failure");
+    await user.click(screen.getByTestId("idea-submit"));
+    await waitFor(() => expect(screen.getByTestId("idea-failure")).toHaveAttribute("data-state", "ERROR"));
+    expect(screen.getByTestId("idea-input")).not.toHaveAttribute("readonly");
+  });
+
+  it("after the hold, 'Create it again' is a separate, explained choice that resends the same request explicitly", async () => {
+    handler = (url, init) =>
+      url === "/api/work/ideas"
+        ? { ok: false, failure: { state: "UNKNOWN", code: "write-unconfirmed", requestId: JSON.parse(String(init?.body)).requestId, recreatable: true } }
+        : serve(makeSnapshot())();
+    const user = userEvent.setup();
+    render(wrap(<BacklogView />));
+    await user.click(await screen.findByTestId("add-idea"));
+    await user.type(screen.getByTestId("idea-input"), "Still not visible");
+    await user.click(screen.getByTestId("idea-submit"));
+    expect(await screen.findByTestId("idea-recreate-hint")).toHaveTextContent("could create a second item");
+    await user.click(screen.getByTestId("idea-recreate"));
+    await waitFor(() => expect(requests.filter((r) => r.url === "/api/work/ideas")).toHaveLength(2));
+    const [first, second] = requests.filter((r) => r.url === "/api/work/ideas").map((r) => r.body as { requestId: string; confirmRecreate?: boolean });
+    expect(second!.requestId).toBe(first!.requestId);
+    expect(first!.confirmRecreate).toBeUndefined();
+    expect(second!.confirmRecreate).toBe(true);
+  });
+
+  it("the same idea already in Jira is shown as 'already in Jira', not as newly created", async () => {
+    const existing = issue("ANA-907", "Try a calmer Friday review", STATUS.backlog, null, { isIdea: true });
+    handler = (url) => (url === "/api/work/ideas" ? { ok: true, issue: existing, verifiedAt: "2026-10-05T08:05:00.000Z", replayed: true, matchedBy: "same-text" } : serve(makeSnapshot())());
+    const user = userEvent.setup();
+    render(wrap(<BacklogView />));
+    await user.click(await screen.findByTestId("add-idea"));
+    await user.type(screen.getByTestId("idea-input"), "Try a calmer Friday review");
+    await user.click(screen.getByTestId("idea-submit"));
+    expect(await screen.findByTestId("idea-created")).toHaveTextContent("Already in Jira as ANA-907 · Backlog");
+    // the announcement says the same: nothing was created by this request
+    const toasts = (await screen.findAllByTestId("toast")).map((node) => node.textContent ?? "");
+    expect(toasts.join(" | ")).toContain("Already in Jira as ANA-907");
+    expect(toasts.join(" | ")).not.toContain("created in Jira");
+  });
+
+  it("checking again after an unanswered create tells the server this request may exist (a server restart cannot drop the hold)", async () => {
+    handler = (url, init) =>
+      url === "/api/work/ideas"
+        ? { ok: false, failure: { state: "UNKNOWN", code: "write-unconfirmed", requestId: JSON.parse(String(init?.body)).requestId, recreatable: false } }
+        : serve(makeSnapshot())();
+    const user = userEvent.setup();
+    render(wrap(<BacklogView />));
+    await user.click(await screen.findByTestId("add-idea"));
+    await user.type(screen.getByTestId("idea-input"), "No answer yet");
+    await user.click(screen.getByTestId("idea-submit"));
+    await screen.findByTestId("idea-failure");
+    await waitFor(() => expect(screen.getByTestId("idea-submit")).not.toBeDisabled());
+    await user.click(screen.getByTestId("idea-submit"));
+    await waitFor(() => expect(requests.filter((r) => r.url === "/api/work/ideas")).toHaveLength(2));
+    const [first, second] = requests.filter((r) => r.url === "/api/work/ideas").map((r) => r.body as { requestId: string; knownUnconfirmed?: boolean });
+    expect(second!.requestId).toBe(first!.requestId);
+    expect(first!.knownUnconfirmed).toBeUndefined();
+    expect(second!.knownUnconfirmed).toBe(true);
+  });
+
+  it("'Create it again' is unavailable while the board is not current, like every other write", async () => {
+    let reads = 0;
+    handler = (url, init) => {
+      if (url === "/api/work/ideas") return { ok: false, failure: { state: "UNKNOWN", code: "write-unconfirmed", requestId: JSON.parse(String(init?.body)).requestId, recreatable: true } };
+      reads += 1;
+      return reads === 1 ? serve(makeSnapshot())() : { ok: false, failure: { state: "UNKNOWN", code: "unavailable" } };
+    };
+    const user = userEvent.setup();
+    render(wrap(<BacklogView />));
+    await user.click(await screen.findByTestId("add-idea"));
+    await user.type(screen.getByTestId("idea-input"), "Flaky Jira");
+    await user.click(screen.getByTestId("idea-submit"));
+    await screen.findByTestId("work-stale");
+    expect(screen.getByTestId("idea-recreate")).toBeDisabled();
+  });
+
+  it("when the explicitly re-sent idea is refused by Jira, the text can be corrected (no dead end)", async () => {
+    handler = (url, init) => {
+      if (url !== "/api/work/ideas") return serve(makeSnapshot())();
+      const body = JSON.parse(String(init?.body)) as { requestId: string; confirmRecreate?: boolean };
+      return body.confirmRecreate
+        ? { ok: false, failure: { state: "ERROR", code: "rejected", requestId: body.requestId, detail: "HTTP 400: summary: invalid" } }
+        : { ok: false, failure: { state: "UNKNOWN", code: "write-unconfirmed", requestId: body.requestId, recreatable: true } };
+    };
+    const user = userEvent.setup();
+    render(wrap(<BacklogView />));
+    await user.click(await screen.findByTestId("add-idea"));
+    await user.type(screen.getByTestId("idea-input"), "Refused on resend");
+    await user.click(screen.getByTestId("idea-submit"));
+    await user.click(await screen.findByTestId("idea-recreate"));
+    await waitFor(() => expect(screen.getByTestId("idea-failure")).toHaveAttribute("data-state", "ERROR"));
+    expect(screen.getByTestId("idea-input")).not.toHaveAttribute("readonly");
+  });
+
+  it("a created item that is not exactly what was asked is shown with its ERROR, and the request is done", async () => {
+    const misplaced = issue("ANA-950", "Wrong column", STATUS.doing, null, { isIdea: true });
+    handler = (url, init) =>
+      url === "/api/work/ideas"
+        ? { ok: false, failure: { state: "ERROR", code: "readback-mismatch", requestId: JSON.parse(String(init?.body)).requestId, issue: misplaced, detail: "ANA-950: status In Arbeit is not Backlog" } }
+        : serve(makeSnapshot())();
+    const user = userEvent.setup();
+    render(wrap(<BacklogView />));
+    await user.click(await screen.findByTestId("add-idea"));
+    await user.type(screen.getByTestId("idea-input"), "Wrong column");
+    await user.click(screen.getByTestId("idea-submit"));
+    const notice = await screen.findByTestId("idea-mismatch");
+    expect(notice).toHaveAttribute("data-state", "ERROR");
+    expect(notice).toHaveTextContent("ANA-950");
+    expect(screen.queryByTestId("idea-form")).toBeNull();
+  });
+
+  it("an empty idea is refused locally and nothing is sent to Jira", async () => {
+    handler = serve(makeSnapshot());
+    const user = userEvent.setup();
+    render(wrap(<BacklogView />));
+    await user.click(await screen.findByTestId("add-idea"));
+    await user.click(screen.getByTestId("idea-submit"));
+    expect(await screen.findByRole("alert")).toHaveTextContent("Write a short idea first.");
+    expect(requests.some((r) => r.url === "/api/work/ideas")).toBe(false);
+  });
+
+  it("Add idea is unavailable while Jira cannot be read", async () => {
+    handler = () => ({ ok: false, failure: { state: "BLOCKED", code: "auth" } });
+    render(wrap(<BacklogView />));
+    expect(await screen.findByTestId("work-failure")).toHaveTextContent("Jira rejected the dashboard's credentials.");
+    expect(screen.getByTestId("add-idea")).toBeDisabled();
+  });
+});

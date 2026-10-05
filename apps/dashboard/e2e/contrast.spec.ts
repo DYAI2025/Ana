@@ -109,7 +109,7 @@ async function measure(page: Page, label: string): Promise<string[]> {
   return failures;
 }
 
-const STATES: { label: string; route: string; prepare?: (page: Page) => Promise<unknown> }[] = [
+const STATES: { label: string; route: string; jira?: Record<string, unknown>; prepare?: (page: Page) => Promise<unknown> }[] = [
   { label: "now", route: "/" },
   { label: "lens work", route: "/", prepare: (p) => p.getByTestId("context-work").click() },
   { label: "lens session", route: "/", prepare: (p) => p.getByTestId("context-session").click() },
@@ -118,6 +118,10 @@ const STATES: { label: string; route: string; prepare?: (page: Page) => Promise<
   { label: "search", route: "/", prepare: async (p) => { await p.getByTestId("search-open").click(); await p.getByTestId("search-input").fill("workshop"); } },
   { label: "board", route: "/board" },
   { label: "backlog form", route: "/backlog", prepare: (p) => p.getByTestId("add-idea").click() },
+  { label: "backlog idea created", route: "/backlog", prepare: async (p) => { await p.getByTestId("add-idea").click(); await p.getByTestId("idea-input").fill("Contrast check idea"); await p.getByTestId("idea-submit").click(); await p.getByTestId("idea-created").waitFor(); } },
+  { label: "backlog idea rejected", route: "/backlog", jira: { op: "create", mode: "status", status: 400 }, prepare: async (p) => { await p.getByTestId("add-idea").click(); await p.getByTestId("idea-input").fill("Rejected"); await p.getByTestId("idea-submit").click(); await p.getByTestId("idea-failure").waitFor(); } },
+  { label: "board move blocked", route: "/board", jira: { op: "transitions", mode: "drop-transition", toStatusId: "10216" }, prepare: async (p) => { await p.locator('[data-ticket-id="ANA-904"]').focus(); await p.keyboard.press("Shift+ArrowRight"); await p.getByTestId("move-failure").waitFor(); } },
+  { label: "board connector unknown", route: "/board", jira: { op: "board", mode: "network" }, prepare: (p) => p.getByTestId("work-failure").waitFor() },
   { label: "sessions", route: "/sessions" },
   { label: "session watch", route: "/sessions/working-session-01" },
   { label: "session summary", route: "/sessions/working-session-01?tab=summary" },
@@ -135,7 +139,8 @@ for (const viewport of [{ width: 1440, height: 900 }, { width: 1280, height: 800
   test.describe(`contrast ${viewport.width}`, () => {
     test.use({ viewport });
     for (const state of STATES) {
-      test(`text contrast >= WCAG AA: ${state.label}`, async ({ page }) => {
+      test(`text contrast >= WCAG AA: ${state.label}`, async ({ page, jira }) => {
+        if (state.jira) await jira.fault(state.jira);
         await page.emulateMedia({ reducedMotion: "reduce" });
         await page.goto(state.route);
         await page.waitForLoadState("networkidle");

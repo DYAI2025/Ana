@@ -1,8 +1,9 @@
-/** Local prototype search over fixture + in-session content. No server, no external index. */
+/** Client-side search over fixture content, in-session prototype content and the current Jira work snapshot. */
 import { BRAIN_NODES } from "@/fixtures/brain";
 import { SOURCE_GROUPS, TOOLS } from "@/fixtures/connections";
 import { SESSIONS } from "@/fixtures/sessions";
-import { TEAM } from "@/fixtures/team";
+import { backlogIssues } from "@/features/work/model";
+import type { WorkSnapshot } from "@/features/work/types";
 import { translate, type MessageKey } from "@/i18n/translate";
 import { LOCALES, pick, type Locale, type Localized } from "@/lib/locale";
 import type { PrototypeState } from "@/state/prototype";
@@ -35,7 +36,8 @@ function entry(group: SearchGroup, id: string, label: string, detail: string, hr
 
 const VIEW_ORDER: readonly ViewId[] = ["now", "board", "backlog", "sessions", "brain", "whiteboard", "calendar", "pulse", "vault", "toolbox"];
 
-export function buildSearchIndex(state: PrototypeState, locale: Locale): SearchEntry[] {
+/** `work` is the latest Jira snapshot; without one, no work entries are offered (never fixture tickets). */
+export function buildSearchIndex(state: PrototypeState, locale: Locale, work: WorkSnapshot | null = null, staleSince: string | null = null): SearchEntry[] {
   const t = (key: MessageKey) => translate(locale, key);
   const entries: SearchEntry[] = [];
 
@@ -43,20 +45,20 @@ export function buildSearchIndex(state: PrototypeState, locale: Locale): SearchE
     entries.push(entry("view", view, t(`nav.${view}`), t("search.groups.view"), VIEW_HREF[view], allTranslations(`nav.${view}`)));
   }
 
-  for (const ticket of state.tickets) {
-    const owner = TEAM[ticket.owner].name;
-    entries.push(
-      entry("ticket", ticket.id, show(ticket.title, locale), `${ticket.key} · ${owner} · ${t(`board.columns.${ticket.column}`)}`, `/board?ticket=${ticket.id}`, [
-        ...allLanguages(ticket.title),
-        ...allLanguages(ticket.category),
-      ]),
-    );
-  }
-
-  for (const item of state.backlog) {
-    const kind = t(item.kind === "idea" ? "backlog.kindIdea" : "backlog.kindBacklog");
-    const owner = item.owner ? ` · ${TEAM[item.owner].name}` : "";
-    entries.push(entry("idea", item.id, show(item.title, locale), `${kind}${owner}`, "/backlog", allLanguages(item.title)));
+  if (work) {
+    // a stale read stays searchable, but every work entry says it is not current
+    const stale = staleSince ? ` · ${translate(locale, "work.staleShort", { time: staleSince })}` : "";
+    const backlog = new Set(backlogIssues(work).map((issue) => issue.key));
+    for (const issue of work.issues) {
+      const owner = issue.assignee?.displayName ?? t("work.unassigned");
+      const key = encodeURIComponent(issue.key);
+      if (backlog.has(issue.key)) {
+        const kind = issue.isIdea ? ` · ${t("work.idea")}` : "";
+        entries.push(entry("idea", issue.key, issue.summary, `${issue.key} · ${owner}${kind}${stale}`, `/backlog?ticket=${key}`, [issue.key]));
+      } else {
+        entries.push(entry("ticket", issue.key, issue.summary, `${issue.key} · ${owner} · ${issue.status.name}${stale}`, `/board?ticket=${key}`, [issue.key, issue.status.name]));
+      }
+    }
   }
 
   for (const session of SESSIONS) {

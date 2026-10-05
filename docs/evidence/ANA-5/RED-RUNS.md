@@ -1,0 +1,134 @@
+# ANA-5 — Fail-first evidence for the added gates
+
+A gate is only trusted after it has been seen failing on code that has the defect. Each row below is a measured run:
+one deliberate defect is put into an isolated copy of `apps/dashboard` (the working tree is never mutated), the
+suite runs, and the copy is restored. The unmutated suite was green before and after each run.
+
+## Unit suite (`npx vitest run`) — mutation canaries
+
+| Canary | Defect injected | Result | Caught by |
+|---|---|---|---|
+| M1 | `moveIssue` reports success whatever the readback says | 3 failed | `src/server/jira/work.test.ts` (readback mismatch, rejected write, unconfirmed write) |
+| M2 | Add idea never finds the request marker in Jira | 3 failed | `src/server/jira/ideas.test.ts` (replay after restart, timeout after commit, lagging index) |
+| M3 | Board columns without statuses are kept | 11 failed | `work.test.ts`, `ideas.test.ts` (five-state projection, Backlog detection) |
+| M4 | Jira credentials allowed over plain http to a remote host | 1 failed | `src/server/boundary.test.ts` |
+| M5 | an unsupported transition is labelled ERROR instead of BLOCKED | 2 failed | `work.test.ts` |
+| M6 | write endpoints accept cross-origin requests | 1 failed | `boundary.test.ts` |
+| M7 | a failed move ignores the Jira truth carried by the failure | 1 failed (after a test was added for it; it first survived) | `src/features/board/board.test.tsx` "a failed move shows Jira's truth … at once" |
+| M8 | after an unanswered create, a retry creates again without the hold | 1 failed | `ideas.test.ts` (lagging index) |
+| M9 | a move from a stale source status is written anyway | 1 failed | `work.test.ts` (stale source) |
+
+M7 survived its first run: the board's follow-up re-read hid the defect. The test that now catches it holds that
+re-read open, so only the failure's own Jira truth can move the card.
+
+## Browser suite (`npx playwright test`)
+
+| Gate | Defect | Result |
+|---|---|---|
+| `e2e/work.spec.ts` "a slow Jira confirmation never takes keyboard focus away…" | the pre-fix `moveTo` that refocused the moved card unconditionally after Jira answered | failed at `toBeFocused` on the card the person had moved on to (the real defect found in the first full run, where a later Shift+→ moved the wrong issue) |
+
+## Review round 1 fixes — new tests run against the pre-fix code
+
+After the first independent review, each new test was run against the files of the previous commit (isolated copy):
+the production files for every row except the transition-id row, where the previous **fake Jira** is what made the
+test unable to fail. All of them failed there and pass on the fix:
+
+| Test | Pre-fix defect it catches |
+|---|---|
+| `ideas.test.ts` "a key Jira returned is kept when the readback fails…" | the key from a 201 was dropped; the retry depended on Jira's lagging search |
+| `ideas.test.ts` "the hold restarts after every unanswered create…" | the duplicate hold kept its first timestamp, so a quick third attempt created again |
+| `ideas.test.ts` "the same idea under a new request id … joins the unresolved earlier request" | reload/second tab could create the same idea twice |
+| `board.test.tsx` "a read that started before a confirmed move cannot put the card back…" | a slow refresh overwrote a confirmed move; later reads did not ask Jira to reconcile it |
+| `board.test.tsx` "an unconfirmed idea stays locked after Cancel…" and "…continues with that request" | Cancel or editing after UNKNOWN minted a new request id |
+| `work.test.ts` "uses the transition id Jira offers…" (run against the previous fake Jira, not previous production code) | the old fake used the same ids for every issue, so an adapter that assumed ids could not fail |
+| `e2e/work.spec.ts` "AC8 · reconnect…" | the Now view showed "3 active · 1 in review" while Jira was unreachable |
+
+## Review round 2 fixes — new tests run against the round-1 code
+
+Run against the production files of commit be12586 (isolated copy): all six behaviour tests failed there.
+
+| Test | Defect it catches |
+|---|---|
+| `boundary.test.ts` "DASHBOARD_ALLOWED_HOSTS is normalised like the Host header" | allowlist entries with a port or capitals never matched |
+| `search.test.ts` "a stale Jira read stays searchable but every work entry says it is not current" | search offered a stale read as current |
+| `ideas.test.ts` "a kept key that no longer exists in Jira settles the request…" | a deleted issue left the request UNKNOWN for an hour |
+| `board.test.tsx` "a refused move is still reported after leaving the Board…" | move outcomes lived in the Board page and were lost on a remount |
+| `board.test.tsx` "leaving the Backlog during a create…" | coming back mid-create left an open, prefilled, unlocked form after Jira confirmed |
+| `board.test.tsx` "once an attempt went unanswered, a later error from another step keeps the idea locked" | an upstream error after an UNKNOWN unlocked the text, so a new request id could duplicate |
+
+Two guard tests protect behaviour that already existed; their canaries removed it instead: deleting the
+`refuseNonLocal` call from `GET /api/work` and the `--hostname 127.0.0.1` from the npm scripts made
+"the GET /api/work route itself refuses a foreign Host…" and "the npm scripts bind the server to 127.0.0.1" fail.
+
+## Review round 3 — changed strategy (structural recovery)
+
+Round 3 audited the write-outcome state machines exhaustively instead of hunting scenarios; its violations led to a
+structural change (Jira as the durable dedup record, no implicit re-create, provider-owned move outcomes). The new
+tests were run against the production files of commit 19dd2ca (isolated copy); each failed there:
+
+| Test | Defect it catches |
+|---|---|
+| `ideas.test.ts` "after an unanswered create, checking again never re-sends it…" | after the hold, "Check Jira again" sent the create again |
+| `ideas.test.ts` "the same idea text under a new request id finds the item already in Jira, even with an empty ledger" | reload, second tab or restart could create the same idea twice |
+| `ideas.test.ts` "an unexpected error after the request started is held as UNKNOWN…" | an exception after the POST forgot the request |
+| `board.test.tsx` "a move that got no readback is marked 'not confirmed'…" | a card without readback looked settled |
+| `board.test.tsx` "two refused moves keep two notices, and a failure while away … is announced" | one notice slot dropped outcomes; failures off the Board were silent |
+| `board.test.tsx` "a locked request whose named item no longer exists is resolved…" | a vanished item kept the idea locked for good |
+| `board.test.tsx` "a failed read before any create does not lock the idea for good…" | a board-read timeout made the lock permanent |
+| `board.test.tsx` "after the hold, 'Create it again' is a separate, explained choice…" | no explicit re-create path existed |
+| `board.test.tsx` "the same idea already in Jira is shown as 'already in Jira'…" | a match was presented as newly created |
+
+Corrections to this table (round-4 review): row 2's defect is "a reload, second tab or restart, after the earlier
+item became visible in Jira's search, created the same idea again" — inside the search lag the case is G1/G6 below.
+The browser test `e2e/work.spec.ts` "reload and type the same idea again…" was added in this round as coverage and
+was **not** run against 19dd2ca. In round 1, `ideas.test.ts` "a readback whose summary differs…" and "a readback
+without this request's marker…" are added coverage: their production checks already existed before them.
+
+## Review round 4 — guarantee matrix as the oracle
+
+Round 4 found the duplicate class again in new cells (restart, ledger expiry, search lag after a settled request), so
+the scenario space was enumerated as a table-driven test and the documentation carries the same table (CHECKLIST.md
+"Add idea — duplicate guarantees"). Run against the production files of 7ce8799 (isolated copy), these failed there:
+
+| Test | Defect it catches |
+|---|---|
+| `ideas.test.ts` G1 "same text again, earlier request confirmed on this server, Jira's search not caught up…" | a settled request was not joined; a second item was created inside the search lag |
+| `ideas.test.ts` G2 "unanswered create, then the server restarts…" | after a restart, "Check Jira again" sent the create again |
+| `ideas.test.ts` G3 "the server forgot an unanswered request after an hour…" | after the ledger expired, "Check Jira again" sent the create again |
+| `ideas.test.ts` G5 "the same text added more than an hour ago is a new idea" | the one-hour window failed open (missing creation time counted as recent; wall clock instead of the injected clock) |
+| `ideas.test.ts` "a same-text item that no longer exists in Jira…" | a vanished twin locked the idea as UNKNOWN although nothing was sent |
+| `ideas.test.ts` "a same-text item that cannot be read (Jira 5xx)…" | a failed twin read was held as an unanswered create |
+| `ideas.test.ts` "an empty answer from Jira's search…" | an empty 2xx search body counted as "nothing found" and a create was sent |
+| `work.test.ts` "an empty answer from Jira's board search is a failure…" | an empty 2xx body showed an empty board as Jira's state |
+| `boundary.test.ts` "a request budget bounds the whole call sequence…" | no total time bound: the server could answer after the browser gave up |
+| `boundary.test.ts` "the server always answers before the browser gives up…" | budgets and browser deadlines were not related |
+| `board.test.tsx` "checking again after an unanswered create tells the server…" | the tab did not repeat what it knew, so a restart dropped the hold |
+| `board.test.tsx` "the same idea already in Jira…" (toast assertion) | the toast said "created … confirmed by readback" for an existing item |
+| `board.test.tsx` "'Create it again' is unavailable while the board is not current…" | the button stayed enabled and silently did nothing |
+| `board.test.tsx` "when the explicitly re-sent idea is refused by Jira…" | a refusal after the explicit choice left the text locked (dead end) |
+| `board.test.tsx` "a card being moved stays visible under an owner filter…" | a pending card vanished when a read showed another assignee |
+| `model.test.ts` "reconcileIds…" | (new function extracted from the provider) |
+
+Guard tests for behaviour that already existed at 7ce8799, each seen failing on one deliberate defect (isolated copy):
+"a card without readback stays 'not confirmed' when the follow-up Jira read fails too" (marker cleared by any read),
+"an owner filter whose person left the board is dropped…" (reset line removed), "a created item that is not exactly
+what was asked…" (mismatch-with-issue branch disabled), "reconcileIds…" (newest-first sort removed), "the server
+always answers before the browser gives up…" (a route built without its budget). G4, G6 and G7 pass on 7ce8799: G4
+is an existing guarantee, G6 and G7 pin the documented residual rows.
+
+## Live run finding — a failure notice out of view
+
+The first live runtime proof (build of b99e0d2 against Jira Board 734, verification issue ANA-30) passed every
+assertion, but its screenshots showed a gap the fake board could not: on the real board (17 Backlog issues) a refused
+move's notice sits above the columns, out of view, while focus and scroll stay at the card far below. The state was in
+the DOM (role="alert") but not visible. Fix: the card itself carries the state and leads to the notice.
+`board.test.tsx` "a refused move is marked on the card itself, and the card leads to the full notice (long boards)"
+failed on b99e0d2 and passes on the fix; `e2e/work.spec.ts` AC7 and the live spec now require the card mark and the
+notice to be in the viewport.
+
+## Bundle secret scan (`npm run scan:bundle`)
+
+- A planted file under `.next/static` containing the token variable name: exit 1; without it: exit 0.
+- Token-value rule: with `JIRA_API_TOKEN=planted-canary-token-value-123` and a planted file containing that value:
+  exit 1 (`HIT configured JIRA_API_TOKEN value`); without the file: exit 0.
+- An empty or missing build directory: exit 2 (the gate cannot pass vacuously).
