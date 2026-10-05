@@ -1,10 +1,14 @@
 import "server-only";
 import type { JiraConfig } from "./config";
 
-/** What went wrong talking to Jira. `timeout` and `network` leave the outcome of a write unknown. */
+/**
+ * What went wrong talking to Jira. `timeout` and `network` leave the outcome of a write unknown; `budget` means the
+ * call was never sent because the request's time budget was already spent.
+ */
 export type JiraCallError =
   | { kind: "http"; status: number; detail: string }
   | { kind: "timeout" }
+  | { kind: "budget" }
   | { kind: "network"; detail: string }
   | { kind: "invalid-json" };
 
@@ -38,10 +42,18 @@ function isTimeout(error: unknown): boolean {
   return error instanceof Error && (error.name === "TimeoutError" || error.name === "AbortError");
 }
 
-export function createJiraClient(config: JiraConfig, fetchImpl: typeof fetch = fetch): JiraClient {
+export interface ClientOptions {
+  /** Total time for every Jira call made through this client (one dashboard request); each call gets what is left. */
+  budgetMs?: number;
+}
+
+export function createJiraClient(config: JiraConfig, fetchImpl: typeof fetch = fetch, options: ClientOptions = {}): JiraClient {
   const authorization = `Basic ${Buffer.from(`${config.email}:${config.token}`).toString("base64")}`;
+  const deadline = options.budgetMs === undefined ? Infinity : Date.now() + options.budgetMs;
 
   async function call<T>(method: "GET" | "POST", path: string, body?: unknown): Promise<JiraResponse<T>> {
+    const remaining = deadline - Date.now();
+    if (remaining <= 0) return { ok: false, error: { kind: "budget" } };
     let response: Response;
     let text: string;
     try {
@@ -53,7 +65,7 @@ export function createJiraClient(config: JiraConfig, fetchImpl: typeof fetch = f
           ...(body === undefined ? {} : { "Content-Type": "application/json" }),
         },
         body: body === undefined ? undefined : JSON.stringify(body),
-        signal: AbortSignal.timeout(config.timeoutMs),
+        signal: AbortSignal.timeout(Math.min(config.timeoutMs, remaining)),
         cache: "no-store",
       });
       text = await response.text();

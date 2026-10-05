@@ -80,7 +80,11 @@ export function BacklogView({ highlight }: { highlight?: string }) {
     setDraftRequestId(requestId);
     const result = await createIdea(requestId, summary, { confirmRecreate });
     if (result.ok) {
-      notify(t("backlog.created", { key: result.issue.key }));
+      notify(
+        result.matchedBy === "same-text"
+          ? t("backlog.alreadyInJira", { key: result.issue.key, status: result.issue.status.name })
+          : t("backlog.created", { key: result.issue.key }),
+      );
       setTitle("");
       setFormOpen(false);
       window.requestAnimationFrame(() => openerRef.current?.focus());
@@ -149,7 +153,7 @@ export function BacklogView({ highlight }: { highlight?: string }) {
             <p className={styles.created} role="status" data-testid="idea-created">
               <CircleCheck size={16} aria-hidden="true" />
               <span>
-                {idea?.phase === "created" && idea.replayed ? t("backlog.alreadyInJira", { key: created.key }) : t("backlog.created", { key: created.key })}{" "}
+                {idea?.phase === "created" && idea.sameText ? t("backlog.alreadyInJira", { key: created.key, status: created.status.name }) : t("backlog.created", { key: created.key })}{" "}
                 <a href={created.url} target="_blank" rel="noreferrer">
                   {t("work.openInJira", { key: created.key })}
                 </a>
@@ -227,7 +231,7 @@ export function BacklogView({ highlight }: { highlight?: string }) {
                   {busy ? t("backlog.creating") : locked ? t("work.checkAgain") : failed ? t("work.retry") : t("backlog.addIdea")}
                 </Button>
                 {failed?.failure.recreatable && !busy ? (
-                  <Button onClick={(event) => void submit(event, true)} data-testid="idea-recreate">
+                  <Button onClick={(event) => void submit(event, true)} disabled={!canWrite} data-testid="idea-recreate">
                     {t("backlog.recreate")}
                   </Button>
                 ) : null}

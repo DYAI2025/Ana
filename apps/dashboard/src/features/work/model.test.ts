@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { AVERY, issue, makeSnapshot, STATUS } from "@/test/work-fixture";
-import { backlogIssues, FAILURE_STATE, filterByOwner, normalizeSummary, ownersOf, validateIdeaSummary, withIssue, workCounts } from "./model";
+import { backlogIssues, FAILURE_STATE, filterByOwner, normalizeSummary, ownersOf, reconcileIds, validateIdeaSummary, withIssue, workCounts } from "./model";
 import { FAILURE_CODES } from "./types";
 
 describe("failure labelling", () => {
@@ -39,6 +39,21 @@ describe("withIssue — placing Jira's confirmed truth", () => {
     const hidden = withIssue(snap, { ...snap.issues[0]!, status: { id: "99999", name: "Archived", category: "done" } });
     expect(hidden.issues.map((i) => i.key)).not.toContain("ANA-901");
     expect(hidden.unmapped.map((i) => i.key)).toEqual(["ANA-901"]);
+  });
+});
+
+describe("reconcileIds — which written issues a read asks Jira to reconcile", () => {
+  it("asks for the requested ids first, then the most recently written ones, at most 50, none older than the window", () => {
+    const touched = new Map<string, number>();
+    for (let i = 0; i < 60; i += 1) touched.set(String(1000 + i), 10_000 + i); // id 1059 written last
+    touched.set("1", 0); // outside the window
+    const ids = reconcileIds(["7"], touched, 20_000, 15_000);
+    expect(ids).toHaveLength(50);
+    expect(ids[0]).toBe("7");
+    expect(ids[1]).toBe("1059");
+    expect(ids).toContain("1011");
+    expect(ids).not.toContain("1010"); // the oldest writes drop out first
+    expect(ids).not.toContain("1");
   });
 });
 

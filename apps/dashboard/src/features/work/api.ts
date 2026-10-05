@@ -9,9 +9,12 @@ function isResult(body: unknown): body is SnapshotResult | WriteResult {
   return (body as { ok: boolean }).ok || typeof (body as { failure?: { code?: unknown } }).failure?.code === "string";
 }
 
-/** The dashboard server bounds every Jira call; these deadlines only catch a server that stopped answering. */
-const READ_DEADLINE_MS = 45_000;
-const WRITE_DEADLINE_MS = 90_000;
+/**
+ * The dashboard server bounds all Jira calls of a request by a time budget below these deadlines (READ_BUDGET_MS /
+ * WRITE_BUDGET_MS in src/server/http.ts), so these only catch a server that stopped answering.
+ */
+export const READ_DEADLINE_MS = 45_000;
+export const WRITE_DEADLINE_MS = 90_000;
 
 async function call<T extends SnapshotResult | WriteResult>(input: string, init: RequestInit, onUnreachable: WorkFailure, deadlineMs: number): Promise<T> {
   try {

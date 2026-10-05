@@ -1,4 +1,4 @@
-import { invalid, jiraClientFromEnv, json, notConfigured, readWriteRequest } from "@/server/http";
+import { invalid, jiraClientFromEnv, json, notConfigured, readWriteRequest, WRITE_BUDGET_MS } from "@/server/http";
 import { moveIssue, validateMove } from "@/server/jira/work";
 
 export const dynamic = "force-dynamic";
@@ -10,7 +10,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ key
   if (!read.ok) return read.response;
   const move = validateMove(key, read.body);
   if (!move) return invalid("an ANA issue key, fromStatusId and toStatusIds are required");
-  const client = jiraClientFromEnv();
+  const client = jiraClientFromEnv(WRITE_BUDGET_MS);
   if (!client) return notConfigured();
   return json(await moveIssue(client, key, move));
 }

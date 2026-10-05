@@ -78,6 +78,44 @@ tests were run against the production files of commit 19dd2ca (isolated copy); e
 | `board.test.tsx` "after the hold, 'Create it again' is a separate, explained choice…" | no explicit re-create path existed |
 | `board.test.tsx` "the same idea already in Jira is shown as 'already in Jira'…" | a match was presented as newly created |
 
+Corrections to this table (round-4 review): row 2's defect is "a reload, second tab or restart, after the earlier
+item became visible in Jira's search, created the same idea again" — inside the search lag the case is G1/G6 below.
+The browser test `e2e/work.spec.ts` "reload and type the same idea again…" was added in this round as coverage and
+was **not** run against 19dd2ca. In round 1, `ideas.test.ts` "a readback whose summary differs…" and "a readback
+without this request's marker…" are added coverage: their production checks already existed before them.
+
+## Review round 4 — guarantee matrix as the oracle
+
+Round 4 found the duplicate class again in new cells (restart, ledger expiry, search lag after a settled request), so
+the scenario space was enumerated as a table-driven test and the documentation carries the same table (CHECKLIST.md
+"Add idea — duplicate guarantees"). Run against the production files of 7ce8799 (isolated copy), these failed there:
+
+| Test | Defect it catches |
+|---|---|
+| `ideas.test.ts` G1 "same text again, earlier request confirmed on this server, Jira's search not caught up…" | a settled request was not joined; a second item was created inside the search lag |
+| `ideas.test.ts` G2 "unanswered create, then the server restarts…" | after a restart, "Check Jira again" sent the create again |
+| `ideas.test.ts` G3 "the server forgot an unanswered request after an hour…" | after the ledger expired, "Check Jira again" sent the create again |
+| `ideas.test.ts` G5 "the same text added more than an hour ago is a new idea" | the one-hour window failed open (missing creation time counted as recent; wall clock instead of the injected clock) |
+| `ideas.test.ts` "a same-text item that no longer exists in Jira…" | a vanished twin locked the idea as UNKNOWN although nothing was sent |
+| `ideas.test.ts` "a same-text item that cannot be read (Jira 5xx)…" | a failed twin read was held as an unanswered create |
+| `ideas.test.ts` "an empty answer from Jira's search…" | an empty 2xx search body counted as "nothing found" and a create was sent |
+| `work.test.ts` "an empty answer from Jira's board search is a failure…" | an empty 2xx body showed an empty board as Jira's state |
+| `boundary.test.ts` "a request budget bounds the whole call sequence…" | no total time bound: the server could answer after the browser gave up |
+| `boundary.test.ts` "the server always answers before the browser gives up…" | budgets and browser deadlines were not related |
+| `board.test.tsx` "checking again after an unanswered create tells the server…" | the tab did not repeat what it knew, so a restart dropped the hold |
+| `board.test.tsx` "the same idea already in Jira…" (toast assertion) | the toast said "created … confirmed by readback" for an existing item |
+| `board.test.tsx` "'Create it again' is unavailable while the board is not current…" | the button stayed enabled and silently did nothing |
+| `board.test.tsx` "when the explicitly re-sent idea is refused by Jira…" | a refusal after the explicit choice left the text locked (dead end) |
+| `board.test.tsx` "a card being moved stays visible under an owner filter…" | a pending card vanished when a read showed another assignee |
+| `model.test.ts` "reconcileIds…" | (new function extracted from the provider) |
+
+Guard tests for behaviour that already existed at 7ce8799, each seen failing on one deliberate defect (isolated copy):
+"a card without readback stays 'not confirmed' when the follow-up Jira read fails too" (marker cleared by any read),
+"an owner filter whose person left the board is dropped…" (reset line removed), "a created item that is not exactly
+what was asked…" (mismatch-with-issue branch disabled), "reconcileIds…" (newest-first sort removed), "the server
+always answers before the browser gives up…" (a route built without its budget). G4, G6 and G7 pass on 7ce8799: G4
+is an existing guarantee, G6 and G7 pin the documented residual rows.
+
 ## Bundle secret scan (`npm run scan:bundle`)
 
 - A planted file under `.next/static` containing the token variable name: exit 1; without it: exit 0.

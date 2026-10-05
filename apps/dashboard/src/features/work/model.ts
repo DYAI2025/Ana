@@ -100,6 +100,18 @@ export function ownersOf(issues: readonly WorkIssue[]): { people: WorkPerson[]; 
   return { people, hasUnassigned };
 }
 
+/**
+ * The issue ids a read asks Jira to reconcile (read-after-write): the requested ids first, then issues written from
+ * this tab within `windowMs`, newest first — Jira accepts at most `limit`, so the oldest writes drop out first.
+ */
+export function reconcileIds(requested: readonly string[], touched: ReadonlyMap<string, number>, now: number, windowMs: number, limit = 50): string[] {
+  const recent = [...touched.entries()]
+    .filter(([, at]) => now - at < windowMs)
+    .sort((a, b) => b[1] - a[1])
+    .map(([id]) => id);
+  return [...new Set([...requested, ...recent])].slice(0, limit);
+}
+
 export function filterByOwner(issues: readonly WorkIssue[], owner: OwnerFilter): WorkIssue[] {
   if (owner === "all") return [...issues];
   if (owner === "unassigned") return issues.filter((issue) => issue.assignee === null);

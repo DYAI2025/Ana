@@ -122,7 +122,8 @@ export function createFakeJira() {
   const view = (issue, propertyKeys = []) => ({
     id: issue.id,
     key: issue.key,
-    fields: structuredClone(issue.fields),
+    // Jira returns the creation time as a field; the fake keeps it outside `fields` and adds it here
+    fields: { ...structuredClone(issue.fields), created: new Date(issue.createdAt).toISOString() },
     properties: Object.fromEntries(propertyKeys.filter((k) => k in issue.properties).map((k) => [k, structuredClone(issue.properties[k])])),
   });
 
@@ -132,7 +133,12 @@ export function createFakeJira() {
     const visible = state.issues.filter((issue) => reconcile.has(issue.id) || now() - issue.createdAt >= state.searchLagMs);
     let matches;
     if (/^filter = 10733\b/.test(jql)) matches = visible;
-    else if (/labels = "ana-dashboard"/.test(jql)) matches = visible.filter((issue) => issue.fields.labels.includes("ana-dashboard")).sort((a, b) => b.createdAt - a.createdAt);
+    else if (/labels = "ana-dashboard"/.test(jql)) {
+      const sinceDay = /created >= -1d/.test(jql);
+      matches = visible
+        .filter((issue) => issue.fields.labels.includes("ana-dashboard") && (!sinceDay || now() - issue.createdAt <= 24 * 60 * 60_000))
+        .sort((a, b) => b.createdAt - a.createdAt);
+    }
     else return json(400, errorBody(`Fake Jira does not understand JQL: ${jql}`));
     const start = Number(body.nextPageToken ?? 0);
     const size = Math.min(Number(body.maxResults ?? 50), 100);
@@ -193,6 +199,7 @@ export function createFakeJira() {
     const fault = takeFault(op, key);
     if (fault?.mode === "status") return { ...json(fault.status, errorBody(fault.message ?? `Injected ${fault.status}`)), delayMs: fault.delayMs ?? 0 };
     if (fault?.mode === "network") return { status: 0, body: null, network: true };
+    if (fault?.mode === "empty") return { status: 200, body: null }; // a 2xx answer without a body
     const delayMs = fault?.mode === "delay" || fault?.mode === "commit-then-delay" ? fault.ms : 0;
     if (fault?.mode === "delay") return { status: 0, body: null, delayMs, hang: true };
 
@@ -241,7 +248,7 @@ export function createFakeJira() {
   return {
     handle,
     reset,
-    /** fault: { op, mode: "status"|"delay"|"commit-then-delay"|"network"|"ignore"|"drop-transition"|"misplace", ... } */
+    /** fault: { op, mode: "status"|"delay"|"commit-then-delay"|"network"|"empty"|"ignore"|"drop-transition"|"misplace", ... } */
     addFault: (fault) => state.faults.push({ ...fault }),
     setBoard: (patch) => Object.assign(state.board, patch),
     setSearchLag: (ms) => (state.searchLagMs = ms),

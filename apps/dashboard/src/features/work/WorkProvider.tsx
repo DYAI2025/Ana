@@ -4,7 +4,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { useI18n } from "@/components/providers/I18nProvider";
 import { useToast } from "@/components/providers/ToastProvider";
 import { fetchSnapshot, postIdea, postMove } from "./api";
-import { withIssue } from "./model";
+import { reconcileIds, withIssue } from "./model";
 import type { WorkColumn, WorkFailure, WorkIssue, WorkSnapshot, WriteResult } from "./types";
 
 /**
@@ -32,7 +32,8 @@ export type IdeaSubmission =
   /** `everUnknown`: some attempt for this request got no answer — the item may exist in Jira until Jira says otherwise. */
   | { phase: "failed"; requestId: string; summary: string; failure: WorkFailure; everUnknown: boolean }
   /** The item exists in Jira; `problem` carries a readback mismatch (ERROR) when it is not exactly what was asked. */
-  | { phase: "created"; requestId: string; issue: WorkIssue; replayed: boolean; problem?: WorkFailure };
+  /** `sameText`: nothing was created for this request — Jira already had the same idea, added earlier. */
+  | { phase: "created"; requestId: string; issue: WorkIssue; replayed: boolean; sameText?: boolean; problem?: WorkFailure };
 
 /**
  * An idea Jira has not resolved: its text cannot change and it cannot be dropped. Once any attempt went unanswered
@@ -118,13 +119,7 @@ export function WorkProvider({ children }: { children: ReactNode }) {
   const read = useCallback(async (reconcileIssueIds: readonly string[]) => {
     const seq = ++readSeq.current;
     const writesBefore = writeSeq.current;
-    const now = Date.now();
-    // newest first: when more than 50 issues were touched, the most recent writes are the ones reconciled
-    const recent = [...touched.current.entries()]
-      .filter(([, at]) => now - at < RECONCILE_WINDOW_MS)
-      .sort((a, b) => b[1] - a[1])
-      .map(([id]) => id);
-    const result = await fetchSnapshot([...new Set([...reconcileIssueIds, ...recent])].slice(0, 50));
+    const result = await fetchSnapshot(reconcileIds(reconcileIssueIds, touched.current, Date.now(), RECONCILE_WINDOW_MS));
     if (seq !== readSeq.current) return; // a newer read superseded this one
     setRefreshing(false);
     // a successful Jira read shows every issue as Jira has it now: nothing is "not confirmed" any more
@@ -195,10 +190,16 @@ export function WorkProvider({ children }: { children: ReactNode }) {
       if (before?.phase === "pending") return { ok: false, failure: { state: "UNKNOWN", code: "duplicate-in-flight", requestId: before.requestId } };
       const everUnknown = before !== null && before.phase !== "created" && before.requestId === requestId && before.everUnknown;
       setIdea({ phase: "pending", requestId, summary, everUnknown });
-      const result = await postIdea({ requestId, summary, ...(options.confirmRecreate ? { confirmRecreate: true } : {}) });
+      const result = await postIdea({
+        requestId,
+        summary,
+        ...(options.confirmRecreate ? { confirmRecreate: true } : {}),
+        // the server's memory of an unanswered attempt can be gone (restart); the browser's knowledge keeps the hold
+        ...(everUnknown ? { knownUnconfirmed: true } : {}),
+      });
       const truth = result.ok ? result.issue : result.failure.issue;
       applyTruth(truth);
-      if (result.ok) setIdea({ phase: "created", requestId, issue: result.issue, replayed: Boolean(result.replayed) });
+      if (result.ok) setIdea({ phase: "created", requestId, issue: result.issue, replayed: Boolean(result.replayed), sameText: result.matchedBy === "same-text" });
       // the item exists but is not exactly what was asked: resolved, shown with its ERROR
       else if (result.failure.code === "readback-mismatch" && truth) setIdea({ phase: "created", requestId, issue: truth, replayed: false, problem: result.failure });
       // Jira named an item for this request that no longer exists: resolved (ERROR), nothing is waiting any more
@@ -208,7 +209,10 @@ export function WorkProvider({ children }: { children: ReactNode }) {
         // only outcomes where a create may have reached Jira lock the idea; a failed read before any create does not
         const createMaybeSent = result.failure.code === "write-unconfirmed" || result.failure.code === "duplicate-in-flight";
         const adopted = result.failure.requestId ?? requestId;
-        setIdea({ phase: "failed", requestId: adopted, summary, failure: result.failure, everUnknown: everUnknown || createMaybeSent || adopted !== requestId });
+        // the person chose to send it again and Jira answered definitively: they decided to accept that an earlier
+        // unanswered create may exist, so the text may be corrected now (otherwise a refusal would be a dead end)
+        const decided = Boolean(options.confirmRecreate) && !createMaybeSent && adopted === requestId;
+        setIdea({ phase: "failed", requestId: adopted, summary, failure: result.failure, everUnknown: decided ? false : everUnknown || createMaybeSent || adopted !== requestId });
       }
       // read-after-write: Jira reconciles the new issue into the board search
       void refresh(truth ? [truth.id] : []);
@@ -245,6 +249,11 @@ export function useWork(): WorkValue {
   const value = useContext(WorkContext);
   if (!value) throw new Error("useWork must be used inside <WorkProvider>");
   return value;
+}
+
+/** The phase of the Jira read, or null outside a WorkProvider (shell parts that also render without one). */
+export function useWorkPhase(): WorkState["phase"] | null {
+  return useContext(WorkContext)?.state.phase ?? null;
 }
 
 /** The snapshot to render, if any (the stale one stays visible but is marked). */

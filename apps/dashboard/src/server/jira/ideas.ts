@@ -8,19 +8,22 @@ import type { RawIssue } from "./mapping";
 import { readBoardContext, readIssue } from "./work";
 
 /**
- * Duplicate protection for Add idea.
+ * Duplicate protection for Add idea. The guarantees, scenario by scenario, are the matrix in ideas.test.ts and
+ * docs/evidence/ANA-5/CHECKLIST.md.
  *
  * Every submission carries a client-generated request id. Jira gets that id as an issue property, and before any
- * create the server searches recent dashboard ideas for it — so a retry after a timeout finds the issue Jira did
- * create instead of creating a second one. The ledger below is only a disposable, process-local memory of
- * outcomes (no work state):
+ * create the server searches Jira for it and for a dashboard idea with the same text added within the last hour —
+ * so a retry, a reload or a second tab finds the item instead of creating a second one. Jira's search is
+ * eventually consistent, so the ledger below — a disposable, process-local memory of outcomes, no work state —
+ * covers the seconds before an item shows up there:
  * - it answers repeats quickly;
- * - after a create that got no answer it holds back the next create for UNCONFIRMED_HOLD_MS, counted from the end
- *   of that unanswered attempt, because Jira's search index may lag behind it;
+ * - after a create that got no answer it never creates again implicitly: retries only check, and only an explicit
+ *   request (`confirmRecreate`) after UNCONFIRMED_HOLD_MS may send it again;
  * - when Jira did return a key but the readback failed, it keeps that key and re-reads the issue directly
  *   (strongly consistent) instead of ever creating again;
- * - a new request with the same idea text while an earlier one is still unresolved joins that earlier request
- *   (reload and retype, a second tab) instead of creating a second item.
+ * - the same idea text under a new request id joins an earlier request that is unresolved, or answers with the item
+ *   an earlier request created (read directly by its key).
+ * The browser repeats what it knows (`knownUnconfirmed`), so a hold survives a server restart or the ledger's expiry.
  */
 type LedgerEntry =
   | { status: "pending"; at: number; summary: string }
@@ -51,11 +54,17 @@ interface RawSearch {
 
 export function validateIdeaRequest(body: unknown): IdeaRequest | null {
   if (typeof body !== "object" || body === null) return null;
-  const { requestId, summary, confirmRecreate } = body as Record<string, unknown>;
+  const { requestId, summary, confirmRecreate, knownUnconfirmed } = body as Record<string, unknown>;
   if (typeof requestId !== "string" || !REQUEST_ID_RE.test(requestId)) return null;
   if (typeof summary !== "string" || validateIdeaSummary(summary)) return null;
   if (confirmRecreate !== undefined && typeof confirmRecreate !== "boolean") return null;
-  return { requestId, summary: normalizeSummary(summary), ...(confirmRecreate ? { confirmRecreate: true } : {}) };
+  if (knownUnconfirmed !== undefined && typeof knownUnconfirmed !== "boolean") return null;
+  return {
+    requestId,
+    summary: normalizeSummary(summary),
+    ...(confirmRecreate ? { confirmRecreate: true } : {}),
+    ...(knownUnconfirmed ? { knownUnconfirmed: true } : {}),
+  };
 }
 
 function requestIdOf(raw: RawIssue): string | undefined {
@@ -71,6 +80,7 @@ function requestIdOf(raw: RawIssue): string | undefined {
 async function findExisting(
   client: JiraClient,
   request: IdeaRequest,
+  now: () => number,
 ): Promise<{ ok: true; byRequest: string | null; byText: string | null } | { ok: false; result: WriteResult }> {
   const { requestId } = request;
   let byText: string | null = null;
@@ -84,18 +94,21 @@ async function findExisting(
       ...(nextPageToken ? { nextPageToken } : {}),
     });
     if (!response.ok) return { ok: false, result: { ok: false, failure: { ...readFailure(response.error), requestId } } };
-    const issues = response.data?.issues ?? [];
+    // a 2xx answer without a body cannot prove that nothing exists
+    if (!response.data) return { ok: false, result: { ok: false, failure: failure("upstream", { requestId, detail: "Jira returned an empty search result" }) } };
+    const issues = response.data.issues ?? [];
     const byRequest = issues.find((raw) => requestIdOf(raw) === requestId)?.key;
     if (byRequest) return { ok: true, byRequest, byText: null };
     if (!byText) {
-      const cutoff = Date.now() - SAME_TEXT_WINDOW_MS;
+      const cutoff = now() - SAME_TEXT_WINDOW_MS;
       const twin = issues.find((raw) => {
+        // only an item whose creation time Jira states, inside the window, counts as the same idea
         const created = Date.parse(String((raw.fields as { created?: string } | undefined)?.created ?? ""));
-        return normalizeSummary(raw.fields?.summary ?? "") === request.summary && (Number.isNaN(created) || created >= cutoff);
+        return normalizeSummary(raw.fields?.summary ?? "") === request.summary && !Number.isNaN(created) && created >= cutoff;
       });
       byText = twin?.key ?? null;
     }
-    if (response.data?.isLast === true || !response.data?.nextPageToken) return { ok: true, byRequest: null, byText };
+    if (response.data.isLast === true || !response.data.nextPageToken) return { ok: true, byRequest: null, byText };
     nextPageToken = response.data.nextPageToken;
   }
   return { ok: true, byRequest: null, byText };
@@ -170,7 +183,7 @@ async function createOnce(client: JiraClient, request: IdeaRequest, previous: Le
   }
 
   // a create that already happened (earlier timeout, restarted server) is found and verified, never repeated
-  const existing = await findExisting(client, request);
+  const existing = await findExisting(client, request, options.now);
   if (!existing.ok) return done(existing.result);
   if (existing.byRequest) {
     const verified = await verifyCreated(client, existing.byRequest, request, backlogStatusIds, options.now);
@@ -180,8 +193,10 @@ async function createOnce(client: JiraClient, request: IdeaRequest, previous: Le
   if (existing.byText) {
     // the same idea is already in Jira (added from another tab, before a reload or before a restart): that is the item
     const twin = await readIssue(client, existing.byText);
-    if (!twin.ok) return done({ ok: false, failure: failure("write-unconfirmed", { requestId, recreatable: false, detail: `The same idea seems to exist as ${existing.byText}, but reading it failed (${twin.failure.code})` }) });
-    return done({ ok: true, issue: twin.value.issue, verifiedAt: new Date(options.now()).toISOString(), replayed: true, matchedBy: "same-text" });
+    if (twin.ok) return done({ ok: true, issue: twin.value.issue, verifiedAt: new Date(options.now()).toISOString(), replayed: true, matchedBy: "same-text" });
+    // reading it failed: that failure is the answer — nothing was sent, so nothing is held
+    if (twin.failure.code !== "not-found") return done({ ok: false, failure: { ...twin.failure, requestId } });
+    // gone from Jira meanwhile: it is not the same idea any more
   }
   // an unanswered earlier create is never sent again implicitly; after the hold only an explicit request may
   if (previous?.status === "unconfirmed") {
@@ -205,7 +220,7 @@ async function createOnce(client: JiraClient, request: IdeaRequest, previous: Le
     if (!isAmbiguous(created.error)) return done({ ok: false, failure: { ...readFailure(created.error), requestId } });
     for (let attempt = 0; attempt < SEARCH_ATTEMPTS; attempt += 1) {
       await options.sleep(SEARCH_INTERVAL_MS);
-      const found = await findExisting(client, request);
+      const found = await findExisting(client, request, options.now);
       if (found.ok && found.byRequest) {
         const verified = await verifyCreated(client, found.byRequest, request, backlogStatusIds, options.now);
         if (!verified.ok && verified.failure.code === "write-unconfirmed") return { result: verified, unansweredCreate: true, key: found.byRequest };
@@ -225,6 +240,12 @@ async function createOnce(client: JiraClient, request: IdeaRequest, previous: Le
   return done(verified);
 }
 
+/** The issue a settled request ended with, if any (created, or created but not exactly as asked). */
+function settledKey(result: WriteResult): string | undefined {
+  if (result.ok) return result.issue.key;
+  return result.failure.code === "readback-mismatch" ? result.failure.issue?.key : undefined;
+}
+
 export async function createIdea(client: JiraClient, request: IdeaRequest, options: IdeaOptions = {}): Promise<WriteResult> {
   const resolved: Required<IdeaOptions> = {
     ledger: options.ledger ?? SHARED_LEDGER,
@@ -235,21 +256,36 @@ export async function createIdea(client: JiraClient, request: IdeaRequest, optio
   const started = resolved.now();
   for (const [id, entry] of ledger) if (started - entry.at > LEDGER_TTL_MS) ledger.delete(id);
 
-  const previous = ledger.get(request.requestId);
+  let previous = ledger.get(request.requestId);
   if (previous?.status === "settled") return previous.result.ok ? { ...previous.result, replayed: true } : previous.result;
   if (previous?.status === "pending") return { ok: false, failure: failure("duplicate-in-flight", { requestId: request.requestId }) };
   if (!previous) {
-    // the same idea is still unresolved under an earlier request (page reloaded and retyped, second tab): join it
     for (const [otherId, entry] of ledger) {
-      if (entry.summary !== request.summary || entry.status === "settled") continue;
+      if (entry.summary !== request.summary) continue;
+      if (entry.status === "settled") {
+        // an earlier request created this idea; Jira's search may not show it yet, so read it directly by its key
+        const key = settledKey(entry.result);
+        if (!key || started - entry.at > SAME_TEXT_WINDOW_MS) continue;
+        const twin = await readIssue(client, key);
+        if (!twin.ok && twin.failure.code === "not-found") continue; // gone from Jira: not the same item any more
+        if (!twin.ok) return { ok: false, failure: { ...twin.failure, requestId: request.requestId } };
+        const result: WriteResult = { ok: true, issue: twin.value.issue, verifiedAt: new Date(started).toISOString(), replayed: true, matchedBy: "same-text" };
+        ledger.set(request.requestId, { status: "settled", at: started, summary: request.summary, result });
+        return result;
+      }
+      // the same idea is still unresolved under an earlier request (page reloaded and retyped, second tab): join it
       return {
         ok: false,
         failure: failure(entry.status === "pending" ? "duplicate-in-flight" : "write-unconfirmed", {
           requestId: otherId,
+          recreatable: false,
           detail: "The same idea is already waiting for Jira's confirmation under an earlier request",
         }),
       };
     }
+    // the browser knows an attempt of this request went unanswered, but this server has no record of it (restart,
+    // expiry): hold it as if it had just gone unanswered — checking again must never send it implicitly
+    if (request.knownUnconfirmed) previous = { status: "unconfirmed", at: started, summary: request.summary };
   }
 
   ledger.set(request.requestId, { status: "pending", at: started, summary: request.summary });

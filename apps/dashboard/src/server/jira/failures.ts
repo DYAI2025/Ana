@@ -14,6 +14,8 @@ export function readFailure(error: JiraCallError, issue?: WorkIssue): WorkFailur
       return failure("unavailable", { detail: "Jira did not answer in time", issue });
     case "network":
       return failure("unavailable", { detail: error.detail, issue });
+    case "budget":
+      return failure("unavailable", { detail: "Jira answered too slowly; the dashboard stopped before asking again", issue });
     case "invalid-json":
       return failure("upstream", { detail: "Jira returned an unreadable response", issue });
     case "http":
@@ -30,6 +32,7 @@ export function readFailure(error: JiraCallError, issue?: WorkIssue): WorkFailur
  * was refused. Such outcomes are resolved by reading Jira back, never by assuming.
  */
 export function isAmbiguous(error: JiraCallError): boolean {
+  if (error.kind === "budget") return false; // never sent
   if (error.kind !== "http") return true;
   return error.status >= 500 || error.status === 429;
 }

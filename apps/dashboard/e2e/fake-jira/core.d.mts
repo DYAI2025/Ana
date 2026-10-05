@@ -8,6 +8,7 @@ export type FakeFault =
   | { op: FakeOp; mode: "status"; status: number; message?: string; times?: number; key?: string; delayMs?: number }
   | { op: FakeOp; mode: "delay" | "commit-then-delay"; ms: number; times?: number; key?: string }
   | { op: FakeOp; mode: "network"; times?: number; key?: string }
+  | { op: FakeOp; mode: "empty"; times?: number; key?: string }
   | { op: "transition"; mode: "ignore"; times?: number; key?: string }
   | { op: "transitions"; mode: "drop-transition"; toStatusId: string; times?: number; key?: string }
   | { op: "create"; mode: "misplace"; statusId: string; times?: number }

@@ -16,10 +16,17 @@ export function invalid(detail: string, status = 400): Response {
   return json({ ok: false, failure: failure("invalid-request", { detail }) }, status);
 }
 
+/**
+ * Time budgets for all Jira calls of one dashboard request. They stay below the browser's deadlines
+ * (src/features/work/api.ts), so the server always answers with an outcome before the browser gives up.
+ */
+export const READ_BUDGET_MS = 40_000;
+export const WRITE_BUDGET_MS = 80_000;
+
 /** The Jira client built from server-side environment variables, or null when the connection is not configured. */
-export function jiraClientFromEnv(): JiraClient | null {
+export function jiraClientFromEnv(budgetMs: number): JiraClient | null {
   const config = readJiraConfig();
-  return config ? createJiraClient(config) : null;
+  return config ? createJiraClient(config, fetch, { budgetMs }) : null;
 }
 
 export function notConfigured(): Response {

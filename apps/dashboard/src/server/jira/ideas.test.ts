@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { describe, expect, it } from "vitest";
 import { fakeJiraClient } from "@/test/fake-jira-fetch";
-import { createIdea, UNCONFIRMED_HOLD_MS, validateIdeaRequest, type IdeaLedger } from "./ideas";
+import { createIdea, SAME_TEXT_WINDOW_MS, UNCONFIRMED_HOLD_MS, validateIdeaRequest, type IdeaLedger } from "./ideas";
 
 const REQUEST = "3f2b8c1e-4d5a-4b6c-8d7e-9f0a1b2c3d4e";
 const OTHER = "7a1c2e3f-5b6d-4e8f-9a0b-1c2d3e4f5a6b";
@@ -234,6 +234,125 @@ describe("Add idea creates exactly one Jira item in Backlog, confirmed by readba
     const { fake, client, options } = setup();
     fake.setBoard({ filterId: "99999" });
     expect(await createIdea(client, { requestId: REQUEST, summary: "Nowhere" }, options)).toMatchObject({ ok: false, failure: { state: "BLOCKED", code: "board-drift" } });
+    expect(fake.creates).toBe(0);
+  });
+});
+
+/**
+ * The duplicate guarantees of Add idea, one row per scenario. The same table, with the mechanism behind each row and
+ * the rows where a second item remains possible, is in docs/evidence/ANA-5/CHECKLIST.md ("Add idea — duplicate
+ * guarantees"). Clocks are linked: the fake Jira and the server see the same time.
+ */
+describe("Add idea — duplicate guarantee matrix", () => {
+  function linked(timeoutMs = 200) {
+    const { fake, client } = fakeJiraClient({ timeoutMs });
+    const ledger: IdeaLedger = new Map();
+    let offset = 0;
+    const options = { ledger, now: () => Date.now() + offset, sleep: noSleep };
+    const advance = (ms: number) => {
+      offset += ms;
+      fake.advanceClock(ms);
+    };
+    return { fake, client, ledger, options, advance };
+  }
+  const LAG = 10 * 60_000; // Jira's search index far behind its writes
+
+  it("G1 same text again, earlier request confirmed on this server, Jira's search not caught up → that item, no second create", async () => {
+    const { fake, client, options } = linked();
+    fake.setSearchLag(LAG);
+    expect((await createIdea(client, { requestId: REQUEST, summary: "Weekly review" }, options)).ok).toBe(true);
+    const again = await createIdea(client, { requestId: OTHER, summary: "Weekly review" }, options);
+    expect(again).toMatchObject({ ok: true, replayed: true, matchedBy: "same-text", issue: { key: "ANA-920" } });
+    expect(fake.creates).toBe(1);
+  });
+
+  it("G2 unanswered create, then the server restarts; the open tab checks again → nothing is sent, the request is held", async () => {
+    const { fake, client, options, advance } = linked();
+    fake.setSearchLag(LAG);
+    fake.addFault({ op: "create", mode: "commit-then-delay", ms: 1_000 }); // Jira commits, the answer is lost
+    const first = await createIdea(client, { requestId: REQUEST, summary: "Lost answer" }, options);
+    expect(first).toMatchObject({ ok: false, failure: { code: "write-unconfirmed" } });
+    expect(fake.creates).toBe(1);
+    const restarted = { ...options, ledger: new Map() as IdeaLedger };
+    const check = await createIdea(client, { requestId: REQUEST, summary: "Lost answer", knownUnconfirmed: true }, restarted);
+    expect(check).toMatchObject({ ok: false, failure: { code: "write-unconfirmed", recreatable: false } });
+    advance(UNCONFIRMED_HOLD_MS + 1);
+    const later = await createIdea(client, { requestId: REQUEST, summary: "Lost answer", knownUnconfirmed: true }, restarted);
+    expect(later).toMatchObject({ ok: false, failure: { code: "write-unconfirmed", recreatable: true } });
+    expect(fake.creates).toBe(1);
+  });
+
+  it("G3 the server forgot an unanswered request after an hour; the open tab checks again → nothing is sent", async () => {
+    const { fake, client, options, advance } = linked();
+    fake.setSearchLag(3 * 60 * 60_000);
+    fake.addFault({ op: "create", mode: "commit-then-delay", ms: 1_000 });
+    await createIdea(client, { requestId: REQUEST, summary: "Long wait" }, options);
+    advance(61 * 60_000); // past the ledger's one-hour memory
+    const check = await createIdea(client, { requestId: REQUEST, summary: "Long wait", knownUnconfirmed: true }, options);
+    expect(check).toMatchObject({ ok: false, failure: { code: "write-unconfirmed", recreatable: false } });
+    expect(fake.creates).toBe(1);
+  });
+
+  it("G4 a request id the browser knows as unanswered is found by its marker once Jira's search shows it", async () => {
+    const { fake, client, options } = linked();
+    fake.addFault({ op: "create", mode: "commit-then-delay", ms: 1_000 });
+    await createIdea(client, { requestId: REQUEST, summary: "Found later" }, options);
+    const check = await createIdea(client, { requestId: REQUEST, summary: "Found later", knownUnconfirmed: true }, { ...options, ledger: new Map() });
+    expect(check).toMatchObject({ ok: true, replayed: true, matchedBy: "request" });
+    expect(fake.creates).toBe(1);
+  });
+
+  it("G5 the same text added more than an hour ago is a new idea: it is created", async () => {
+    const { fake, client, options, advance } = linked();
+    await createIdea(client, { requestId: REQUEST, summary: "Recurring topic" }, options);
+    advance(SAME_TEXT_WINDOW_MS + 60_000);
+    const later = await createIdea(client, { requestId: OTHER, summary: "Recurring topic" }, options);
+    expect(later).toMatchObject({ ok: true });
+    expect(later.ok && later.replayed).toBeFalsy();
+    expect(fake.creates).toBe(2);
+  });
+
+  it("G6 residual (documented): confirmed item, server restart, same text before Jira's search shows the item → a second item", async () => {
+    const { fake, client, options } = linked();
+    fake.setSearchLag(LAG);
+    await createIdea(client, { requestId: REQUEST, summary: "Restart in the window" }, options);
+    await createIdea(client, { requestId: OTHER, summary: "Restart in the window" }, { ...options, ledger: new Map() });
+    expect(fake.creates).toBe(2);
+  });
+
+  it("G7 residual (by design): an edited text is a different idea and is created", async () => {
+    const { fake, client, options } = linked();
+    fake.setSearchLag(LAG);
+    await createIdea(client, { requestId: REQUEST, summary: "Plan the review" }, options);
+    await createIdea(client, { requestId: OTHER, summary: "Plan the weekly review" }, options);
+    expect(fake.creates).toBe(2);
+  });
+
+  it("a same-text item that no longer exists in Jira is not the same idea: the new one is created once", async () => {
+    const { fake, client, options } = linked();
+    await createIdea(client, { requestId: REQUEST, summary: "Vanishing twin" }, options);
+    fake.addFault({ op: "issue", mode: "status", status: 404, key: "ANA-920", times: 1 });
+    const result = await createIdea(client, { requestId: OTHER, summary: "Vanishing twin" }, { ...options, ledger: new Map() });
+    expect(result).toMatchObject({ ok: true, issue: { key: "ANA-921" } });
+    expect(fake.creates).toBe(2);
+  });
+
+  it("a same-text item that cannot be read (Jira 5xx) is that failure: nothing is sent and nothing is held", async () => {
+    const { fake, client, options } = linked();
+    await createIdea(client, { requestId: REQUEST, summary: "Unreadable twin" }, options);
+    fake.addFault({ op: "issue", mode: "status", status: 503, key: "ANA-920", times: 1 });
+    const restarted = new Map() as IdeaLedger;
+    const result = await createIdea(client, { requestId: OTHER, summary: "Unreadable twin" }, { ...options, ledger: restarted });
+    expect(result).toMatchObject({ ok: false, failure: { state: "ERROR", code: "upstream" } });
+    expect(restarted.has(OTHER)).toBe(false);
+    expect(fake.creates).toBe(1);
+  });
+
+  it("an empty answer from Jira's search is a failure, never 'nothing found': no create is sent", async () => {
+    const { fake, client, options } = linked();
+    fake.addFault({ op: "search", mode: "empty", times: 1 });
+    const result = await createIdea(client, { requestId: REQUEST, summary: "Empty search" }, options);
+    expect(result).toMatchObject({ ok: false, failure: { code: "upstream" } });
     expect(fake.creates).toBe(0);
   });
 });

@@ -97,6 +97,12 @@ describe("readSnapshot — Board 734 / filter 10733 projection", () => {
     const result = await readSnapshot(client, { reconcileIssueIds: [id] });
     expect(result.ok && result.snapshot.issues.map((i) => i.key)).toContain(fresh.key);
   });
+
+  it("an empty answer from Jira's board search is a failure, never an empty board", async () => {
+    const { fake, client } = fakeJiraClient();
+    fake.addFault({ op: "search", mode: "empty", times: 1 });
+    expect(await readSnapshot(client)).toMatchObject({ ok: false, failure: { state: "ERROR", code: "upstream" } });
+  });
 });
 
 describe("moveIssue — Jira transitions with mandatory readback", () => {

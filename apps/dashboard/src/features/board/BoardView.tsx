@@ -91,7 +91,9 @@ export function BoardView({ highlight }: { highlight?: string }) {
   const activeOwner: OwnerFilter = options.some((option) => sameOwner(option, owner)) ? owner : "all";
   // that person is gone from the board: the choice is dropped, so it cannot silently come back with a later read
   if (activeOwner === "all" && owner !== "all") setOwner("all");
-  const visible = filterByOwner(issues, activeOwner);
+  // a card being moved stays in view even if a read meanwhile shows another assignee
+  const shownByFilter = new Set(filterByOwner(issues, activeOwner).map((issue) => issue.key));
+  const visible = issues.filter((issue) => shownByFilter.has(issue.key) || pending[issue.key] !== undefined);
 
   /** Where an issue is shown: its Jira column, or — while a move is being written — the requested column. */
   const shownColumnId = (issue: WorkIssue) => pending[issue.key]?.toColumnId ?? columnForStatus(columns, issue.status.id)?.id;

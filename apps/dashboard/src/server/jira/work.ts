@@ -88,14 +88,16 @@ export async function readSnapshot(client: JiraClient, options: { reconcileIssue
       ...(reconcile.length > 0 ? { reconcileIssues: reconcile } : {}),
     });
     if (!page.ok) return { ok: false, failure: readFailure(page.error) };
-    for (const raw of page.data?.issues ?? []) {
+    // a 2xx answer without a body says nothing about the board: never shown as an empty board
+    if (!page.data) return { ok: false, failure: failure("upstream", { detail: "Jira returned an empty search result" }) };
+    for (const raw of page.data.issues ?? []) {
       const issue = mapIssue(raw, client.siteOrigin);
       if (issue.key && !seen.has(issue.key)) {
         seen.add(issue.key);
         all.push(issue);
       }
     }
-    if (page.data?.isLast === true || !page.data?.nextPageToken) break;
+    if (page.data.isLast === true || !page.data.nextPageToken) break;
     if (all.length >= MAX_ISSUES) {
       truncated = true;
       break;

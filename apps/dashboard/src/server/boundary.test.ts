@@ -2,8 +2,10 @@
 import { readFileSync } from "node:fs";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { GET } from "@/app/api/work/route";
-import { readWriteRequest, refuseNonLocal } from "./http";
+import { READ_DEADLINE_MS, WRITE_DEADLINE_MS } from "@/features/work/api";
+import { READ_BUDGET_MS, readWriteRequest, refuseNonLocal, WRITE_BUDGET_MS } from "./http";
 import { createJiraClient, jiraErrorDetail } from "./jira/client";
+import { isAmbiguous, readFailure } from "./jira/failures";
 import { readJiraConfig } from "./jira/config";
 
 describe("readJiraConfig — credentials stay server-side and only travel encrypted", () => {
@@ -48,6 +50,39 @@ describe("Jira client", () => {
       throw new TypeError("fetch failed");
     });
     expect(await down.get("/x")).toEqual({ ok: false, error: { kind: "network", detail: "fetch failed" } });
+  });
+
+  it("a request budget bounds the whole call sequence: once spent, no further Jira call is made", async () => {
+    let calls = 0;
+    const client = createJiraClient(
+      { baseUrl: "https://x.invalid", email: "a", token: "b", timeoutMs: 1_000 },
+      (_input, init) => {
+        calls += 1;
+        return new Promise((resolve, reject) => {
+          const timer = setTimeout(() => resolve(new Response("{}", { status: 200 })), 30);
+          init?.signal?.addEventListener("abort", () => {
+            clearTimeout(timer);
+            reject(init.signal!.reason);
+          });
+        });
+      },
+      { budgetMs: 50 },
+    );
+    expect(await client.get("/a")).toMatchObject({ ok: true });
+    expect(await client.get("/b")).toEqual({ ok: false, error: { kind: "timeout" } }); // cut at the budget, not at 1 s
+    expect(await client.get("/c")).toEqual({ ok: false, error: { kind: "budget" } });
+    expect(calls).toBe(2);
+    // a call never sent cannot have reached Jira
+    expect(isAmbiguous({ kind: "budget" })).toBe(false);
+    expect(readFailure({ kind: "budget" })).toMatchObject({ state: "UNKNOWN", code: "unavailable" });
+  });
+
+  it("the server always answers before the browser gives up: each route's budget is below the browser deadline", () => {
+    expect(READ_BUDGET_MS + 5_000).toBeLessThanOrEqual(READ_DEADLINE_MS);
+    expect(WRITE_BUDGET_MS + 5_000).toBeLessThanOrEqual(WRITE_DEADLINE_MS);
+    for (const route of ["src/app/api/work/route.ts", "src/app/api/work/ideas/route.ts", "src/app/api/work/issues/[key]/transition/route.ts"]) {
+      expect(readFileSync(route, "utf8")).toMatch(/jiraClientFromEnv\((READ|WRITE)_BUDGET_MS\)/);
+    }
   });
 
   it("shortens Jira error bodies to their messages", () => {

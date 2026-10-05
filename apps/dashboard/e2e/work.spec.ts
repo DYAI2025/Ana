@@ -18,6 +18,7 @@ async function openBoard(page: Page) {
 test.describe("Board — projection of Jira Board 734 / filter 10733", () => {
   test("AC1/AC2 · five Jira states with real keys, summaries, statuses and assignees; empty Kanban-backlog column not rendered", async ({ page }) => {
     await openBoard(page);
+    await expect(page.getByTestId("prototype-flag")).toContainText("Jira live");
     await expect(page.locator("[data-column-name]")).toHaveCount(5);
     expect(await page.locator("[data-column-name]").evaluateAll((els) => els.map((el) => el.getAttribute("data-column-name")))).toEqual(STATES);
     const issue = card(page, "ANA-904");
@@ -185,9 +186,12 @@ test.describe("Connector failures stay visible (AC7)", () => {
       await expect(page.getByTestId("work-failure")).toHaveAttribute("data-state", state);
       await expect(page.getByTestId("work-failure")).toContainText(text);
       await expect(page.getByTestId("ticket")).toHaveCount(0);
+      // the top bar never claims a live Jira connection while there is none
+      await expect(page.getByTestId("prototype-flag")).toContainText("Jira not connected");
       await page.goto("/backlog");
       await workSettled(page);
       await expect(page.getByTestId("work-failure")).toHaveAttribute("data-state", state);
+      await expect(page.getByTestId("prototype-flag")).toContainText("Jira not connected");
       await expect(page.getByTestId("add-idea")).toBeDisabled();
       await expect(page.getByTestId("backlog-item")).toHaveCount(0);
     });

@@ -117,4 +117,9 @@ export interface IdeaRequest {
   summary: string;
   /** The person explicitly chose to send an unconfirmed request again after the hold (see `recreatable`). */
   confirmRecreate?: boolean;
+  /**
+   * The browser saw an earlier attempt of this request go unanswered. The server then holds it even when its own
+   * memory of that attempt is gone (restart, expiry), so checking again never sends it implicitly.
+   */
+  knownUnconfirmed?: boolean;
 }
