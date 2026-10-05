@@ -90,7 +90,7 @@ describe("readSnapshot — Board 734 / filter 10733 projection", () => {
     fake.handle("POST", "/rest/api/3/issue", { authorization: (await import("../../../e2e/fake-jira/core.mjs")).FAKE_AUTH_HEADER }, {
       fields: { project: { key: "ANA" }, issuetype: { name: "Task" }, summary: "Fresh idea", labels: [] },
     });
-    const fresh = fake.summary().issues[0]!;
+    const fresh = fake.summary().issues.at(-1)!;
     const id = fake.issue(fresh.key)!.id;
     const without = await snapshot(client);
     expect(without.issues.map((i) => i.key)).not.toContain(fresh.key);
@@ -119,9 +119,13 @@ describe("moveIssue — Jira transitions with mandatory readback", () => {
 
   it("uses the transition id Jira offers for the issue, not an assumed one", async () => {
     const { fake, client } = fakeJiraClient();
-    await moveIssue(client, "ANA-904", { fromStatusId: S.doing, toStatusIds: [S.review] });
-    expect(fake.calls).toContain("GET /rest/api/3/issue/ANA-904/transitions");
-    expect(fake.calls).toContain("POST /rest/api/3/issue/ANA-904/transitions");
+    const auth = (await import("../../../e2e/fake-jira/core.mjs")).FAKE_AUTH_HEADER;
+    const offered = fake.handle("GET", "/rest/api/3/issue/ANA-904/transitions", { authorization: auth }).body as { transitions: { id: string; to: { id: string } }[] };
+    const toReview = offered.transitions.find((t) => t.to.id === S.review)!;
+    expect(toReview.id).not.toBe("51"); // the fake hands out issue-specific ids, so an assumed id would be refused
+    expect(fake.handle("POST", "/rest/api/3/issue/ANA-904/transitions", { authorization: auth }, { transition: { id: "51" } }).status).toBe(400);
+    const result = await moveIssue(client, "ANA-904", { fromStatusId: S.doing, toStatusIds: [S.review] });
+    expect(result).toMatchObject({ ok: true, issue: { status: { id: S.review } } });
   });
 
   it("an issue already in the target status is confirmed by reading it, without a write", async () => {
@@ -200,6 +204,12 @@ describe("moveIssue — Jira transitions with mandatory readback", () => {
     const result = await moveIssue(client, "ANA-904", { fromStatusId: S.selected, toStatusIds: [S.review] });
     expect(result).toMatchObject({ ok: false, failure: { state: "UNKNOWN", code: "stale", issue: { status: { id: S.doing } } } });
     expect(fake.calls.some((c) => c.startsWith("POST"))).toBe(false);
+  });
+
+  it("a board or project Jira will not show (404) is BLOCKED as an unreadable source, not 'issue not found'", async () => {
+    const { fake, client } = fakeJiraClient();
+    fake.addFault({ op: "board", mode: "status", status: 404 });
+    expect(await readSnapshot(client)).toMatchObject({ ok: false, failure: { state: "BLOCKED", code: "source-missing" } });
   });
 
   it("an unknown issue is an ERROR", async () => {

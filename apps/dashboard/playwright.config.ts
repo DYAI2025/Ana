@@ -16,7 +16,7 @@ export default defineConfig({
   retries: 0,
   reporter: [["list"]],
   use: {
-    baseURL: external ?? `http://localhost:${PORT}`,
+    baseURL: external ?? `http://127.0.0.1:${PORT}`,
     trace: "retain-on-failure",
     ...devices["Desktop Chrome"],
     viewport: { width: 1440, height: 900 },
@@ -32,8 +32,8 @@ export default defineConfig({
           timeout: 20_000,
         },
         {
-          command: `npm run build && npx next start --port ${PORT}`,
-          url: `http://localhost:${PORT}`,
+          command: `npm run build && npx next start --hostname 127.0.0.1 --port ${PORT}`,
+          url: `http://127.0.0.1:${PORT}`,
           env: {
             JIRA_BASE_URL: `http://127.0.0.1:${FAKE_JIRA_PORT}`,
             JIRA_EMAIL: "e2e@example.invalid",

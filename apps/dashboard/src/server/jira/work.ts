@@ -1,7 +1,7 @@
 import "server-only";
 import type { MoveRequest, SnapshotResult, WorkColumn, WorkFailure, WorkIssue, WorkSource, WriteResult } from "@/features/work/types";
 import { columnForStatus } from "@/features/work/model";
-import type { JiraClient } from "./client";
+import type { JiraCallError, JiraClient } from "./client";
 import { CANONICAL_SOURCE } from "./config";
 import { failure, isAmbiguous, readFailure } from "./failures";
 import { boardJql, ISSUE_FIELDS, mapColumns, mapIssue, statusIndex, type RawBoardConfig, type RawIssue, type RawProjectStatuses, type RawTransition } from "./mapping";
@@ -27,8 +27,11 @@ export async function readBoardContext(client: JiraClient): Promise<Outcome<Boar
     client.get<RawBoardConfig>(`/rest/agile/1.0/board/${CANONICAL_SOURCE.boardId}/configuration`),
     client.get<RawProjectStatuses>(`/rest/api/3/project/${CANONICAL_SOURCE.projectKey}/statuses`),
   ]);
-  if (!board.ok) return { ok: false, failure: readFailure(board.error) };
-  if (!statuses.ok) return { ok: false, failure: readFailure(statuses.error) };
+  // a 404 here means the board or project is gone or hidden from the integration account — not a missing issue
+  const sourceFailure = (error: JiraCallError) =>
+    error.kind === "http" && error.status === 404 ? failure("source-missing", { detail: error.detail }) : readFailure(error);
+  if (!board.ok) return { ok: false, failure: sourceFailure(board.error) };
+  if (!statuses.ok) return { ok: false, failure: sourceFailure(statuses.error) };
   const filterId = String(board.data.filter?.id ?? "");
   const projectKey = board.data.location?.key ?? board.data.location?.projectKey;
   if (filterId !== CANONICAL_SOURCE.filterId || (projectKey !== undefined && projectKey !== CANONICAL_SOURCE.projectKey)) {

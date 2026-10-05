@@ -46,6 +46,10 @@ jobs:
       - run: npm run scan:bundle
       - run: npx playwright install --with-deps chromium
       - run: npm run e2e
+      # the e2e build ran with the fake Jira token in its environment: that value must not appear in the browser bundle
+      - run: npm run scan:bundle
+        env:
+          JIRA_API_TOKEN: e2e-fake-token
       - if: failure()
         uses: actions/upload-artifact@v4
         with:

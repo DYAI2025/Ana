@@ -77,16 +77,18 @@ export function BoardView({ highlight }: { highlight?: string }) {
     return (
       <div className={styles.page} data-work-phase="failed">
         {header}
-        <FailureNotice failure={state.failure} actions={<Button onClick={() => void refresh()} data-testid="work-retry">{t("work.retry")}</Button>} />
+        <FailureNotice failure={state.failure} actions={<Button onClick={() => void refresh()} disabled={refreshing} data-testid="work-retry">{refreshing ? t("work.refreshing") : t("work.retry")}</Button>} />
       </div>
     );
   }
 
   const { columns } = state.snapshot;
   const issues = state.snapshot.issues;
-  const visible = filterByOwner(issues, owner);
   const { people, hasUnassigned } = ownersOf(issues);
   const options: OwnerFilter[] = ["all", ...people.map((person) => ({ accountId: person.accountId })), ...(hasUnassigned ? (["unassigned"] as const) : [])];
+  // a filter for someone who is no longer on the board (after a refresh) falls back to everyone
+  const activeOwner: OwnerFilter = options.some((option) => sameOwner(option, owner)) ? owner : "all";
+  const visible = filterByOwner(issues, activeOwner);
 
   /** Where an issue is shown: its Jira column, or — while a move is being written — the requested column. */
   const shownColumnId = (issue: WorkIssue) => pending[issue.key]?.toColumnId ?? columnForStatus(columns, issue.status.id)?.id;
@@ -139,7 +141,7 @@ export function BoardView({ highlight }: { highlight?: string }) {
           failure={state.failure}
           testId="work-stale"
           subject={t("work.staleNote", { time: formatTime(state.snapshot.fetchedAt, locale) })}
-          actions={<Button onClick={() => void refresh()} data-testid="work-retry">{t("work.retry")}</Button>}
+          actions={<Button onClick={() => void refresh()} disabled={refreshing} data-testid="work-retry">{refreshing ? t("work.refreshing") : t("work.retry")}</Button>}
         />
       ) : null}
 
@@ -181,7 +183,7 @@ export function BoardView({ highlight }: { highlight?: string }) {
                 key={id}
                 type="button"
                 className={styles.filterButton}
-                aria-pressed={sameOwner(owner, option)}
+                aria-pressed={sameOwner(activeOwner, option)}
                 onClick={() => setOwner(option)}
                 data-testid={`filter-${typeof option === "string" ? option : "person"}`}
                 data-owner={id}
@@ -291,7 +293,7 @@ export function BoardView({ highlight }: { highlight?: string }) {
                 })}
               </ul>
               {shown.length === 0 ? (
-                <p className={styles.empty}>{owner === "all" ? t("board.emptyColumn") : t("board.emptyFiltered", { owner: ownerName(owner) })}</p>
+                <p className={styles.empty}>{activeOwner === "all" ? t("board.emptyColumn") : t("board.emptyFiltered", { owner: ownerName(activeOwner) })}</p>
               ) : null}
               <p className={styles.dropHint} aria-hidden="true">
                 {t("board.dropHere")}

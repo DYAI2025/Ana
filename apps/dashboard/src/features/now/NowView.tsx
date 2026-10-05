@@ -7,7 +7,7 @@ import { FOCUS, RECENT_KNOWLEDGE, STAGES } from "@/fixtures/connections";
 import { getSession, LAST_SESSION_ID } from "@/fixtures/sessions";
 import { formatDate } from "@/lib/format";
 import { workCounts } from "@/features/work/model";
-import { snapshotOf, useWork } from "@/features/work/WorkProvider";
+import { useWork } from "@/features/work/WorkProvider";
 import { ContextLens, type LensId } from "./ContextLens";
 import styles from "./now.module.css";
 
@@ -32,9 +32,8 @@ export function NowView() {
   const { state: work } = useWork();
   const [lens, setLens] = useState<LensId | null>(null);
 
-  // work counts come from the Jira board; while Jira is not readable they are unknown, never invented
-  const snapshot = snapshotOf(work);
-  const counts = snapshot ? workCounts(snapshot) : null;
+  // work counts come from a current Jira read; while Jira is not readable (or the read is stale) they are unknown
+  const counts = work.phase === "ready" ? workCounts(work.snapshot) : null;
   const session = getSession(LAST_SESSION_ID)!;
   const activeStage = STAGES.indexOf(FOCUS.stage);
 

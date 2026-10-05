@@ -32,10 +32,10 @@ describe("withIssue — placing Jira's confirmed truth", () => {
     expect(next.issues[3]!.status).toEqual(STATUS.review);
   });
 
-  it("a new issue appears at the top; an issue in an unmapped status leaves the board", () => {
+  it("a new issue is ranked last, as Jira ranks new issues; an issue in an unmapped status leaves the board", () => {
     const snap = makeSnapshot();
     const added = withIssue(snap, issue("ANA-950", "New idea", STATUS.backlog, null, { isIdea: true }));
-    expect(backlogIssues(added).map((i) => i.key)[0]).toBe("ANA-950");
+    expect(backlogIssues(added).map((i) => i.key).at(-1)).toBe("ANA-950");
     const hidden = withIssue(snap, { ...snap.issues[0]!, status: { id: "99999", name: "Archived", category: "done" } });
     expect(hidden.issues.map((i) => i.key)).not.toContain("ANA-901");
     expect(hidden.unmapped.map((i) => i.key)).toEqual(["ANA-901"]);

@@ -15,7 +15,7 @@ import { useReducedMotion } from "@/lib/hooks/useReducedMotion";
 import { PersonBadge } from "@/components/ui/PersonBadge";
 import { columnForStatus, isReviewColumn, workCounts } from "@/features/work/model";
 import { snapshotOf, useWork } from "@/features/work/WorkProvider";
-import { FailureNotice, LoadingLine } from "@/features/work/WorkStatus";
+import { FailureNotice, formatTime, LoadingLine } from "@/features/work/WorkStatus";
 import styles from "./lens.module.css";
 
 export type LensId = "work" | "session" | "business" | "knowledge" | "community";
@@ -105,6 +105,7 @@ function LensBody({ lens, titleId, onClose }: { lens: LensId; titleId: string; o
         <div className={styles.body}>
           {work.phase === "loading" ? <LoadingLine /> : null}
           {work.phase === "failed" ? <FailureNotice failure={work.failure} subject={t("lens.workUnavailable")} /> : null}
+          {work.phase === "stale" ? <FailureNotice failure={work.failure} testId="work-stale" subject={t("work.staleNote", { time: formatTime(work.snapshot.fetchedAt, locale) })} /> : null}
           {counts ? (
             <>
               <p className={styles.stateLine}>

@@ -12,7 +12,7 @@ decisions; those live in Jira (ANA-5, ANA-29) and Confluence (pages 07 and 08).
 | Pinned commit | `c4efb97931c6171563191afb74d61507e13bc6d4` (only commit; `origin/main` at binding time) |
 | Package carrier used | `DRS-v1.0.tar.gz`, sha256 `7d1b5856ff5635cc7fdb76ba9ec0132e008c47d4b1de8050eb2cb03080253daf` |
 | Second carrier | `DRS-v1.0.bundle`, sha256 `c7aa984540895b0d0152a84614b154bea72740f27d001873b094018d47e567ae` (git bundle, head `5011fb4c99b22da8fa58a852635239324baec34e`) |
-| Carrier agreement | both hold the same 26 files with identical git blob hashes; the tar adds one empty `DRS/schema/` directory |
+| Carrier agreement | both hold the same 27 files with identical git blob hashes; the tar adds one empty `DRS/schema/` directory |
 | Normative text | `docs/drs-v1.0.md` inside the package |
 | Validator | `drs/validate.py` inside the package, run by `.github/workflows/drs.yml` |
 

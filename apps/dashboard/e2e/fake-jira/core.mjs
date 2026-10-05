@@ -23,7 +23,10 @@ const STATUSES = {
   10115: { id: "10115", name: "Erledigt", statusCategory: { key: "done" } },
 };
 
-/** Global transitions, one per status — the shape of the ANA simplified workflow. */
+/**
+ * Global transitions, one per status — the shape of the ANA simplified workflow. The ids Jira hands out are made
+ * issue-specific here (see transitionsFor) so that an adapter that assumes ids instead of discovering them fails.
+ */
 const TRANSITIONS = [
   { id: "11", name: "Backlog", to: "10040" },
   { id: "21", name: "Zur Entwicklung ausgewählt", to: "10182" },
@@ -50,6 +53,9 @@ const SEED = [
 ];
 
 const json = (status, body) => ({ status, body });
+
+/** Transition ids differ per issue in this fake; real Jira ids depend on the workflow, never on a guess. */
+const transitionsFor = (issue) => TRANSITIONS.map((t) => ({ ...t, id: String(Number(t.id) + ((Number(issue.id) % 5) + 1) * 100) }));
 const errorBody = (message) => ({ errorMessages: [message], errors: {} });
 
 export function createFakeJira() {
@@ -142,14 +148,17 @@ export function createFakeJira() {
     if (typeof fields.summary !== "string" || fields.summary.trim() === "" || fields.summary.length > 255) return json(400, errorBody("summary: You must specify a summary"));
     const number = state.nextNumber++;
     const statusId = fault?.mode === "misplace" ? fault.statusId : "10040";
+    const storedSummary = fault?.mode === "rewrite" ? fault.summary : fields.summary;
+    const storedProperties = fault?.mode === "drop-properties" ? [] : (body.properties ?? []);
     const issue = {
       id: String(16000 + number),
       key: `ANA-${number}`,
-      fields: { summary: fields.summary, status: { ...STATUSES[statusId] }, assignee: null, issuetype: { name: "Task" }, labels: [...(fields.labels ?? [])], project: { key: "ANA" } },
-      properties: Object.fromEntries((body.properties ?? []).map((p) => [p.key, structuredClone(p.value)])),
+      fields: { summary: storedSummary, status: { ...STATUSES[statusId] }, assignee: null, issuetype: { name: "Task" }, labels: [...(fields.labels ?? [])], project: { key: "ANA" } },
+      properties: Object.fromEntries(storedProperties.map((p) => [p.key, structuredClone(p.value)])),
       createdAt: now(),
     };
-    state.issues.unshift(issue);
+    // like Jira, a new issue is ranked last
+    state.issues.push(issue);
     state.creates += 1;
     return json(201, { id: issue.id, key: issue.key, self: `/rest/api/3/issue/${issue.id}` });
   }
@@ -210,7 +219,7 @@ export function createFakeJira() {
       case "transitions": {
         const issue = state.issues.find((i) => i.key === key);
         if (!issue) return json(404, errorBody("Issue does not exist"));
-        const offered = TRANSITIONS.filter((t) => !(fault?.mode === "drop-transition" && fault.toStatusId === t.to));
+        const offered = transitionsFor(issue).filter((t) => !(fault?.mode === "drop-transition" && fault.toStatusId === t.to));
         result = json(200, {
           transitions: offered.map((t) => ({ id: t.id, name: t.name, to: STATUSES[t.to], isAvailable: true, isGlobal: true, hasScreen: false })),
         });
@@ -219,7 +228,7 @@ export function createFakeJira() {
       case "transition": {
         const issue = state.issues.find((i) => i.key === key);
         if (!issue) return json(404, errorBody("Issue does not exist"));
-        const transition = TRANSITIONS.find((t) => t.id === String(body?.transition?.id));
+        const transition = transitionsFor(issue).find((t) => t.id === String(body?.transition?.id));
         if (!transition) return json(400, errorBody("Transition id is not valid for this issue."));
         if (fault?.mode !== "ignore") issue.fields.status = { ...STATUSES[transition.to] };
         result = { status: 204, body: null };

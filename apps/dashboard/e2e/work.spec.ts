@@ -100,6 +100,28 @@ test.describe("Board — projection of Jira Board 734 / filter 10733", () => {
     expect(stored.filter((key) => key !== "ana.locale")).toEqual([]);
   });
 
+  test("AC8 · reconnect: when the network returns the board is read from Jira again; while Jira is unreadable nothing is shown as current", async ({ page, jira, context }) => {
+    await openBoard(page);
+    await page.getByTestId("nav-now").click(); // in-app navigation keeps the current Jira read
+    await page.locator('html[data-work="ready"]').waitFor({ state: "attached" });
+    await jira.fault({ op: "board", mode: "network" }); // Jira becomes unreachable
+    await context.setOffline(true);
+    await context.setOffline(false); // the browser reports "online": the app re-reads Jira, which now fails
+    await page.locator('html[data-work="stale"]').waitFor({ state: "attached" });
+    await expect(page.getByTestId("context-work")).toContainText("Jira state unknown");
+    await page.getByTestId("context-work").click();
+    await expect(page.getByTestId("work-stale")).toHaveAttribute("data-state", "UNKNOWN");
+    await page.keyboard.press("Escape");
+    await page.request.post(`${FAKE_JIRA}/__fake/reset`); // Jira reachable again
+    await jira.setStatus("ANA-901", "10113"); // and meanwhile someone moved an issue in Jira
+    await context.setOffline(true);
+    await context.setOffline(false);
+    await page.locator('html[data-work="ready"]').waitFor({ state: "attached" });
+    await page.goto("/board");
+    await workSettled(page);
+    await expect(column(page, "In Arbeit").locator('[data-ticket-id="ANA-901"]')).toBeVisible();
+  });
+
   test("AC7 · an unsupported transition is BLOCKED, the issue stays where Jira has it", async ({ page, jira }) => {
     await jira.fault({ op: "transitions", mode: "drop-transition", toStatusId: "10216" });
     await openBoard(page);
@@ -224,6 +246,24 @@ test.describe("Backlog — Add idea writes one Jira item, confirmed by readback 
     await expect(page.getByTestId("idea-submit")).toHaveText("Check Jira again");
     await page.getByTestId("idea-submit").click();
     await expect(failure).toHaveAttribute("data-state", "UNKNOWN", { timeout: 15_000 });
+    expect((await jira.state()).creates).toBe(1);
+  });
+
+  test("an UNKNOWN idea survives leaving the page: same text, read-only, and checking again never creates a second item", async ({ page, jira }) => {
+    await jira.searchLag(600_000);
+    await jira.fault({ op: "create", mode: "commit-then-delay", ms: 2_500 });
+    await addIdea(page, "Do not lose me");
+    await expect(page.getByTestId("idea-failure")).toHaveAttribute("data-state", "UNKNOWN", { timeout: 15_000 });
+    await page.getByRole("button", { name: "Cancel" }).click();
+    await expect(page.getByTestId("idea-unresolved")).toContainText("Do not lose me");
+    await page.getByRole("link", { name: "Back to Board" }).click();
+    await workSettled(page);
+    await page.getByTestId("open-backlog").click();
+    await workSettled(page);
+    await expect(page.getByTestId("idea-input")).toHaveValue("Do not lose me");
+    await expect(page.getByTestId("idea-input")).toHaveAttribute("readonly", "");
+    await page.getByTestId("idea-submit").click();
+    await expect(page.getByTestId("idea-failure")).toHaveAttribute("data-state", "UNKNOWN", { timeout: 15_000 });
     expect((await jira.state()).creates).toBe(1);
   });
 

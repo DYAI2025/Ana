@@ -91,7 +91,8 @@ test("6–7 · Backlog is a separate view and Add idea creates a Jira item, with
   await page.getByTestId("idea-submit").click();
   await expect(page.getByTestId("idea-created")).toContainText("confirmed by readback");
   await expect(page.getByTestId("backlog-item")).toHaveCount(before + 1);
-  await expect(page.getByTestId("backlog-item").first()).toContainText("Try a calmer weekly review");
+  // Jira ranks a new issue last
+  await expect(page.getByTestId("backlog-item").last()).toContainText("Try a calmer weekly review");
   await expect(page.getByTestId("add-idea")).toBeFocused();
 });
 

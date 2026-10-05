@@ -8,6 +8,7 @@ export const FAILURE_STATE: Readonly<Record<FailureCode, FailureState>> = {
   auth: "BLOCKED",
   forbidden: "BLOCKED",
   "board-drift": "BLOCKED",
+  "source-missing": "BLOCKED",
   "unsupported-transition": "BLOCKED",
   unavailable: "UNKNOWN",
   stale: "UNKNOWN",
@@ -115,6 +116,7 @@ export function withIssue(snapshot: WorkSnapshot, issue: WorkIssue): WorkSnapsho
   const unmapped = snapshot.unmapped.filter((existing) => existing.key !== issue.key);
   const position = snapshot.issues.findIndex((existing) => existing.key === issue.key);
   if (!mapped) return { ...snapshot, issues: others, unmapped: [...unmapped, issue] };
-  const issues = position === -1 ? [issue, ...others] : [...others.slice(0, position), issue, ...others.slice(position)];
+  // a new issue goes last, where Jira ranks newly created issues; a known one keeps its rank position
+  const issues = position === -1 ? [...others, issue] : [...others.slice(0, position), issue, ...others.slice(position)];
   return { ...snapshot, issues, unmapped };
 }

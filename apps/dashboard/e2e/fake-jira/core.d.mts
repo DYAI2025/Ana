@@ -10,7 +10,9 @@ export type FakeFault =
   | { op: FakeOp; mode: "network"; times?: number; key?: string }
   | { op: "transition"; mode: "ignore"; times?: number; key?: string }
   | { op: "transitions"; mode: "drop-transition"; toStatusId: string; times?: number; key?: string }
-  | { op: "create"; mode: "misplace"; statusId: string; times?: number };
+  | { op: "create"; mode: "misplace"; statusId: string; times?: number }
+  | { op: "create"; mode: "rewrite"; summary: string; times?: number }
+  | { op: "create"; mode: "drop-properties"; times?: number };
 
 export interface FakeResult {
   status: number;

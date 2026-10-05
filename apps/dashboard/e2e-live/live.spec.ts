@@ -39,6 +39,8 @@ test("live: Board and Backlog read Jira, one idea is created and moved through e
   await page.locator('[data-work-phase]:not([data-work-phase="loading"])').waitFor();
   await expect(page.getByTestId("work-source")).toContainText("(734) · filter 10733");
   const columns = await page.locator("[data-column-name]").evaluateAll((els) => els.map((el) => el.getAttribute("data-column-name")));
+  // ANA-5 AC2: the live board must expose exactly the five target states, Review included
+  expect(columns).toEqual(["Backlog", "Zur Entwicklung ausgewählt", "In Arbeit", "Review", "Erledigt"]);
   const tickets = await page.getByTestId("ticket").count();
   const unmapped = (await page.getByTestId("work-unmapped").count()) ? await page.getByTestId("work-unmapped").textContent() : null;
   log.push({ step: "board-read", columns, tickets, unmapped });

@@ -133,6 +133,58 @@ describe("Add idea creates exactly one Jira item in Backlog, confirmed by readba
     expect(fake.creates).toBe(1);
   });
 
+  it("a key Jira returned is kept when the readback fails; the retry reads that key directly and never creates again", async () => {
+    const { fake, client, options } = setup();
+    fake.setSearchLag(10 * 60_000); // search cannot help here
+    fake.addFault({ op: "issue", mode: "network", times: 1 }); // the readback right after the create fails
+    const first = await createIdea(client, { requestId: REQUEST, summary: "Readback lost" }, options);
+    expect(first).toMatchObject({ ok: false, failure: { state: "UNKNOWN", code: "write-unconfirmed", requestId: REQUEST } });
+    expect(first.ok || first.failure.detail).toContain("ANA-920");
+    const retry = await createIdea(client, { requestId: REQUEST, summary: "Readback lost" }, options);
+    expect(retry).toMatchObject({ ok: true, replayed: true, issue: { key: "ANA-920" } });
+    expect(fake.creates).toBe(1);
+  });
+
+  it("the hold restarts after every unanswered create, so a quick third attempt cannot create again", async () => {
+    const { fake, client, options, advance } = setup();
+    fake.setSearchLag(10 * 60_000);
+    fake.addFault({ op: "create", mode: "commit-then-delay", ms: 1_000, times: 2 });
+    await createIdea(client, { requestId: REQUEST, summary: "Degraded Jira" }, options);
+    advance(UNCONFIRMED_HOLD_MS + 1);
+    await createIdea(client, { requestId: REQUEST, summary: "Degraded Jira" }, options); // hold expired: a second create goes out, unanswered
+    expect(fake.creates).toBe(2);
+    advance(5_000);
+    const third = await createIdea(client, { requestId: REQUEST, summary: "Degraded Jira" }, options);
+    expect(third).toMatchObject({ ok: false, failure: { state: "UNKNOWN", code: "write-unconfirmed" } });
+    expect(fake.creates).toBe(2);
+  });
+
+  it("the same idea under a new request id (reload, second tab) joins the unresolved earlier request instead of creating", async () => {
+    const { fake, client, options } = setup();
+    fake.setSearchLag(10 * 60_000);
+    fake.addFault({ op: "create", mode: "commit-then-delay", ms: 1_000, times: 1 });
+    await createIdea(client, { requestId: REQUEST, summary: "Typed twice" }, options);
+    const again = await createIdea(client, { requestId: OTHER, summary: "Typed twice" }, options);
+    expect(again).toMatchObject({ ok: false, failure: { state: "UNKNOWN", code: "write-unconfirmed", requestId: REQUEST } });
+    expect(fake.creates).toBe(1);
+  });
+
+  it("a readback whose summary differs from the request is an ERROR (readback mismatch)", async () => {
+    const { fake, client, options } = setup();
+    fake.addFault({ op: "create", mode: "rewrite", summary: "Something else" });
+    const result = await createIdea(client, { requestId: REQUEST, summary: "What I typed" }, options);
+    expect(result).toMatchObject({ ok: false, failure: { state: "ERROR", code: "readback-mismatch" } });
+    expect(!result.ok && result.failure.detail).toContain("summary differs");
+  });
+
+  it("a readback without this request's marker is an ERROR (readback mismatch)", async () => {
+    const { fake, client, options } = setup();
+    fake.addFault({ op: "create", mode: "drop-properties" });
+    const result = await createIdea(client, { requestId: REQUEST, summary: "Marker lost" }, options);
+    expect(result).toMatchObject({ ok: false, failure: { state: "ERROR", code: "readback-mismatch" } });
+    expect(!result.ok && result.failure.detail).toContain("request marker missing");
+  });
+
   it("different request ids create different issues", async () => {
     const { fake, client, options } = setup();
     await createIdea(client, { requestId: REQUEST, summary: "First" }, options);

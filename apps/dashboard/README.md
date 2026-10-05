@@ -21,9 +21,13 @@ The app in this folder is **ANA LUMEN** (Jira ANA-4 visual shell, ANA-5 Jira wor
 Requires Node.js ≥ 22.12 (see `/.nvmrc`). From a clean checkout, at the repository root:
 
 ```bash
-npm run dev          # installs apps/dashboard deps on first run, then serves http://localhost:3000
+npm run dev          # installs apps/dashboard deps on first run, then serves http://127.0.0.1:3000
                      # (if 3000 is busy, Next picks the next free port and prints it; or set PORT=3005)
 ```
+
+The server binds to **127.0.0.1 only**, and the work API refuses requests that are not addressed to this machine
+(DNS-rebinding guard). There is no sign-in yet, so other machines must not reach the server's Jira credential;
+`DASHBOARD_ALLOWED_HOSTS` exists only for the later authentication slice.
 
 Without Jira credentials the Board and Backlog show **BLOCKED — the Jira connection is not configured**; the rest of
 the app works. To connect Jira, give the **server** process these variables (see `.env.example`; real values go
@@ -43,14 +47,14 @@ Other commands (repository root, or `npm run <x>` inside `apps/dashboard`):
 | Command | What it does |
 |---|---|
 | `npm run check` | lint + typecheck + unit tests + production build |
-| `npm run e2e` | Playwright journeys, accessibility (axe), contrast and viewport checks against a production build on port 3100, wired to a local **fake Jira** on 127.0.0.1:3199 |
-| `npm start` | production build served on http://localhost:3000 (or `PORT`) |
+| `npm run e2e` | Playwright journeys, accessibility (axe), contrast and viewport checks against a production build on 127.0.0.1:3100, wired to a local **fake Jira** on 127.0.0.1:3199 |
+| `npm start` | production build served on http://127.0.0.1:3000 (or `PORT`) |
 | `npm run scan:bundle` (in `apps/dashboard`, after a build) | fails if the browser bundle contains a Jira credential, its variable names or a Basic auth header |
 
 Inside `apps/dashboard`: `npm test` (Vitest), `npx vitest run src/server/jira/work.test.ts` (one file),
 `npx playwright test e2e/work.spec.ts` (the ANA-5 Jira journeys), `npm run e2e:install` (Chromium for Playwright).
 `EVIDENCE_DIR=<dir> npx playwright test e2e/visual.spec.ts` writes the 1440/1280/1024 screenshot set to `<dir>`.
-`E2E_BASE_URL=http://localhost:3000 npx playwright test` reuses an already running server instead of building one
+`E2E_BASE_URL=http://127.0.0.1:3000 npx playwright test` reuses an already running server instead of building one
 (start `node e2e/fake-jira/server.mjs` too, and point that server's `JIRA_BASE_URL` at it).
 Evidence: `docs/evidence/ANA-4/` (visual shell), `docs/evidence/ANA-5/` (Jira work loop).
 
@@ -62,14 +66,14 @@ browser. Contract:
 | Aspect | Behaviour |
 |---|---|
 | Reads | `GET /api/work` — Board 734 configuration (columns, filter, sub-query), project statuses, and the board's issue set via `filter = 10733 AND (<board sub-query>) ORDER BY Rank ASC`. Columns without statuses (e.g. a disabled Kanban-backlog area) are not workflow states and are dropped. `?reconcile=<issue ids>` asks Jira for read-after-write consistency. |
-| Pinned source | Board 734 must use filter 10733 in project ANA; anything else is BLOCKED (`board-drift`). Board 735 (sprints) is never used. |
+| Pinned source | Board 734 must use filter 10733 in project ANA; anything else is BLOCKED (`board-drift`); a board or project Jira will not show is BLOCKED (`source-missing`). Board 735 (sprints) is never used. |
 | Writes | `POST /api/work/issues/:key/transition` — the transition id is discovered from Jira for that issue; `POST /api/work/ideas` — one Task in Backlog, labels `ana-dashboard` + `ana-idea`, issue property `ana.dashboard.request`. Same-origin JSON requests only. |
-| Readback | Every write is followed by a strongly consistent `GET issue`; only a matching readback is success. |
-| Idempotency | Add idea carries a client request id. Before creating, the server searches recent dashboard ideas for that id, so a retry after a timeout finds the item Jira already created. After an unanswered create the server does not create again for 60 s. |
+| Readback | Every write is followed by a strongly consistent `GET issue`; only a matching readback is success. Issues written from the browser tab are reconciled by Jira in every later board read for ten minutes, and a read that started before a confirmed write cannot undo it. |
+| Idempotency | Add idea carries a client request id. Before creating, the server searches recent dashboard ideas for that id, so a retry after a timeout finds the item Jira already created. After an unanswered create the server does not create again for 60 s, counted from the end of that attempt; when Jira returned a key but the readback failed, the retry re-reads that key and never creates again; the same idea text under a new request id joins the unresolved earlier request. In the browser an unconfirmed idea keeps its text and request id until Jira answers, also across page changes. |
 | Failure | `ERROR` (Jira refused or disagrees), `BLOCKED` (configuration, credential, permission, workflow, board drift), `UNKNOWN` (no answer; Jira's state is not known). The UI then shows Jira's current truth for the issue and re-reads the board. |
 | Provenance | The source line names board, filter and read time; every issue links to Jira. |
 | Audit | Jira's own issue history records each transition and creation (by the integration account). The dashboard keeps no audit store of its own. |
-| Secrets | Read only from server environment variables; never sent to the browser or written to logs or responses. |
+| Secrets | Read only from server environment variables; never sent to the browser or written to logs or responses. The work API answers only loopback hosts. |
 
 ### Structure
 

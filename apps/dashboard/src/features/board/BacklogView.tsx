@@ -9,38 +9,35 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { PersonBadge } from "@/components/ui/PersonBadge";
 import type { MessageKey } from "@/i18n/translate";
 import { attr, backlogIssues, normalizeSummary, SUMMARY_MAX, validateIdeaSummary } from "@/features/work/model";
-import type { WorkFailure, WorkIssue } from "@/features/work/types";
-import { snapshotOf, useWork } from "@/features/work/WorkProvider";
+import { ideaLocked, snapshotOf, useWork } from "@/features/work/WorkProvider";
 import { FailureNotice, formatTime, LoadingLine, SourceLine } from "@/features/work/WorkStatus";
 import styles from "./backlog.module.css";
-
-type Submission =
-  | { phase: "idle" }
-  | { phase: "pending"; requestId: string; summary: string }
-  | { phase: "failed"; requestId: string; summary: string; failure: WorkFailure }
-  | { phase: "created"; issue: WorkIssue; replayed: boolean };
 
 export function BacklogView({ highlight }: { highlight?: string }) {
   const { t, locale } = useI18n();
   const { notify } = useToast();
-  const { state, refreshing, refresh, createIdea } = useWork();
-  const [formOpen, setFormOpen] = useState(false);
-  const [title, setTitle] = useState("");
+  const { state, refreshing, refresh, createIdea, idea, clearIdea } = useWork();
+  // an idea still waiting for Jira (also after leaving this page) reopens with its text
+  const unresolved = idea && idea.phase !== "created" ? idea : null;
+  const [formOpen, setFormOpen] = useState(unresolved !== null);
+  const [title, setTitle] = useState(unresolved?.summary ?? "");
   const [error, setError] = useState<MessageKey | null>(null);
-  const [submission, setSubmission] = useState<Submission>({ phase: "idle" });
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const openerRef = useRef<HTMLButtonElement>(null);
   const formId = useId();
   const snapshot = snapshotOf(state);
   const loaded = snapshot !== null;
   const canWrite = state.phase === "ready";
-  const busy = submission.phase === "pending";
+  const busy = idea?.phase === "pending";
+  /** Unconfirmed by Jira: the text is fixed and only "Check Jira again" (same request id) is possible. */
+  const locked = ideaLocked(idea);
 
   useEffect(() => {
     if (highlight && loaded) window.requestAnimationFrame(() => document.querySelector<HTMLElement>(`[data-backlog-key="${attr(highlight)}"]`)?.focus());
   }, [highlight, loaded]);
 
   const open = () => {
+    if (unresolved) setTitle(unresolved.summary);
     setFormOpen(true);
     window.requestAnimationFrame(() => inputRef.current?.focus());
   };
@@ -48,9 +45,12 @@ export function BacklogView({ highlight }: { highlight?: string }) {
   const close = () => {
     if (busy) return;
     setFormOpen(false);
-    setTitle("");
     setError(null);
-    if (submission.phase === "failed") setSubmission({ phase: "idle" });
+    // an unconfirmed idea is kept (and shown below) until Jira answers; anything else is discarded
+    if (!locked) {
+      setTitle("");
+      clearIdea();
+    }
     window.requestAnimationFrame(() => openerRef.current?.focus());
   };
 
@@ -65,18 +65,15 @@ export function BacklogView({ highlight }: { highlight?: string }) {
     }
     const summary = normalizeSummary(title);
     // the same idea keeps its request id across retries, so Jira can never receive it twice
-    const requestId = submission.phase === "failed" && submission.summary === summary ? submission.requestId : crypto.randomUUID();
+    const requestId = unresolved && unresolved.summary === summary ? unresolved.requestId : crypto.randomUUID();
     setError(null);
-    setSubmission({ phase: "pending", requestId, summary });
     const result = await createIdea(requestId, summary);
     if (result.ok) {
-      setSubmission({ phase: "created", issue: result.issue, replayed: Boolean(result.replayed) });
       notify(t("backlog.created", { key: result.issue.key }));
       setTitle("");
       setFormOpen(false);
       window.requestAnimationFrame(() => openerRef.current?.focus());
     } else {
-      setSubmission({ phase: "failed", requestId, summary, failure: result.failure });
       window.requestAnimationFrame(() => inputRef.current?.focus());
     }
   };
@@ -111,13 +108,14 @@ export function BacklogView({ highlight }: { highlight?: string }) {
     return (
       <div className={styles.page} data-work-phase="failed">
         {header}
-        <FailureNotice failure={state.failure} actions={<Button onClick={() => void refresh()} data-testid="work-retry">{t("work.retry")}</Button>} />
+        <FailureNotice failure={state.failure} actions={<Button onClick={() => void refresh()} disabled={refreshing} data-testid="work-retry">{refreshing ? t("work.refreshing") : t("work.retry")}</Button>} />
       </div>
     );
   }
 
   const items = backlogIssues(state.snapshot);
-  const created = submission.phase === "created" ? submission.issue : null;
+  const created = idea?.phase === "created" ? idea.issue : null;
+  const failed = idea?.phase === "failed" ? idea : null;
 
   return (
     <div className={styles.page} data-work-phase={state.phase}>
@@ -129,7 +127,7 @@ export function BacklogView({ highlight }: { highlight?: string }) {
           failure={state.failure}
           testId="work-stale"
           subject={t("work.staleNote", { time: formatTime(state.snapshot.fetchedAt, locale) })}
-          actions={<Button onClick={() => void refresh()} data-testid="work-retry">{t("work.retry")}</Button>}
+          actions={<Button onClick={() => void refresh()} disabled={refreshing} data-testid="work-retry">{refreshing ? t("work.refreshing") : t("work.retry")}</Button>}
         />
       ) : null}
 
@@ -145,6 +143,15 @@ export function BacklogView({ highlight }: { highlight?: string }) {
                 </a>
               </span>
             </p>
+          ) : null}
+
+          {locked && unresolved && !formOpen ? (
+            <div className={styles.created} data-testid="idea-unresolved">
+              <span>{t("backlog.unresolved", { summary: unresolved.summary })}</span>
+              <Button variant="quiet" onClick={open} data-testid="idea-reopen">
+                {t("work.checkAgain")}
+              </Button>
+            </div>
           ) : null}
 
           {formOpen ? (
@@ -163,7 +170,7 @@ export function BacklogView({ highlight }: { highlight?: string }) {
                 maxLength={SUMMARY_MAX}
                 placeholder={t("backlog.ideaPlaceholder")}
                 value={title}
-                readOnly={busy}
+                readOnly={locked}
                 aria-invalid={error ? true : undefined}
                 aria-describedby={`${formId}-note${error ? ` ${formId}-error` : ""}`}
                 onChange={(e) => {
@@ -182,18 +189,12 @@ export function BacklogView({ highlight }: { highlight?: string }) {
                 </p>
               ) : null}
               <p id={`${formId}-note`} className={styles.note}>
-                {t("backlog.ideaNote")}
+                {locked ? t("backlog.lockedNote") : t("backlog.ideaNote")}
               </p>
-              {submission.phase === "failed" ? <FailureNotice failure={submission.failure} testId="idea-failure" /> : null}
+              {failed ? <FailureNotice failure={failed.failure} testId="idea-failure" /> : null}
               <div className={styles.formActions}>
                 <Button type="submit" variant="primary" disabled={busy || !canWrite} data-testid="idea-submit">
-                  {busy
-                    ? t("backlog.creating")
-                    : submission.phase === "failed" && submission.failure.state === "UNKNOWN"
-                      ? t("work.checkAgain")
-                      : submission.phase === "failed"
-                        ? t("work.retry")
-                        : t("backlog.addIdea")}
+                  {busy ? t("backlog.creating") : locked ? t("work.checkAgain") : failed ? t("work.retry") : t("backlog.addIdea")}
                 </Button>
                 <Button variant="quiet" onClick={close} disabled={busy}>
                   {t("common.cancel")}

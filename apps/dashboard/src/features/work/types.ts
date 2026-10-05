@@ -67,6 +67,7 @@ export const FAILURE_CODES = [
   "auth",
   "forbidden",
   "board-drift",
+  "source-missing",
   "unavailable",
   "upstream",
   "rejected",

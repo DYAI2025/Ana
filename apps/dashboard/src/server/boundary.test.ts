@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { describe, expect, it } from "vitest";
-import { readWriteRequest } from "./http";
+import { readWriteRequest, refuseNonLocal } from "./http";
 import { createJiraClient, jiraErrorDetail } from "./jira/client";
 import { readJiraConfig } from "./jira/config";
 
@@ -51,6 +51,28 @@ describe("Jira client", () => {
   it("shortens Jira error bodies to their messages", () => {
     expect(jiraErrorDetail(JSON.stringify({ errorMessages: ["A"], errors: { summary: "B" } }))).toBe("A; summary: B");
     expect(jiraErrorDetail("<html>gateway</html>")).toBe("<html>gateway</html>");
+  });
+});
+
+describe("work API answers only requests addressed to this machine", () => {
+  const get = (host: string) => new Request(`http://${host}/api/work`, { headers: { host } });
+
+  it.each(["localhost:3000", "127.0.0.1:3100", "[::1]:3000"])("accepts %s", (host) => {
+    expect(refuseNonLocal(get(host))).toBeNull();
+  });
+
+  it.each(["192.168.1.20:3000", "evil.example", "rebind.attacker.test:3000"])("refuses %s (LAN peer, DNS rebinding)", (host) => {
+    expect(refuseNonLocal(get(host))?.status).toBe(403);
+  });
+
+  it("refuses a write addressed to another host even when Origin matches it", async () => {
+    const request = new Request("http://evil.example/api/work/ideas", {
+      method: "POST",
+      headers: { host: "evil.example", origin: "http://evil.example", "content-type": "application/json" },
+      body: "{}",
+    });
+    const result = await readWriteRequest(request);
+    expect(!result.ok && result.response.status).toBe(403);
   });
 });
 

@@ -104,7 +104,8 @@ describe("Board — Jira projection", () => {
     expect(notice).toHaveAttribute("data-state", "BLOCKED");
     expect(notice).toHaveTextContent("ANA-904");
     expect(within(column("In Arbeit")).getByText("Prepare the shared resource map")).toBeInTheDocument();
-    await waitFor(() => expect(requests.filter((r) => r.url === "/api/work")).toHaveLength(2));
+    // the board is read again, asking Jira to reconcile the issue whose truth the failure carried
+    await waitFor(() => expect(requests.map((r) => r.url)).toContain("/api/work?reconcile=904"));
   });
 
   it("a failed move shows Jira's truth from the failure at once, before the board is re-read", async () => {
@@ -126,6 +127,31 @@ describe("Board — Jira projection", () => {
     expect(await screen.findByTestId("move-failure")).toHaveAttribute("data-state", "UNKNOWN");
     expect(within(column("Erledigt")).getByText("Prepare the shared resource map")).toBeInTheDocument();
     expect(within(column("In Arbeit")).queryByText("Prepare the shared resource map")).toBeNull();
+  });
+
+  it("a read that started before a confirmed move cannot put the card back; later reads ask Jira to reconcile it", async () => {
+    const snapshot = makeSnapshot();
+    let reads = 0;
+    let releaseRead!: (value: SnapshotResult) => void;
+    handler = (url) => {
+      if (url.includes("/transition")) return { ok: true, issue: { ...snapshot.issues[4]!, status: STATUS.review }, verifiedAt: "2026-10-05T08:03:00.000Z" };
+      if (++reads === 2) return new Promise<SnapshotResult>((resolve) => (releaseRead = resolve)); // a slow refresh
+      return serve(snapshot)();
+    };
+    const user = userEvent.setup();
+    render(wrap(<BoardView />));
+    await screen.findByTestId("work-source");
+    await user.click(screen.getByTestId("work-refresh")); // read #2 starts and hangs
+    const card = screen.getByText("Prepare the shared resource map");
+    act(() => card.closest("article")!.focus());
+    await user.keyboard("{Shift>}{ArrowRight}{/Shift}");
+    expect(await screen.findByTestId("toast")).toHaveTextContent("ANA-904 → Review · confirmed by Jira");
+    // the slow read answers with what Jira's search returned before the move
+    await act(async () => releaseRead(serve(snapshot)()));
+    expect(within(column("Review")).getByText("Prepare the shared resource map")).toBeInTheDocument();
+    // the next read asks Jira to reconcile the moved issue
+    await user.click(screen.getByTestId("work-refresh"));
+    await waitFor(() => expect(requests.map((r) => r.url)).toContain(`/api/work?reconcile=${snapshot.issues[4]!.id}`));
   });
 
   it("a failed refresh keeps the last Jira read visible but dated, marked UNKNOWN, and pauses moves", async () => {
@@ -157,7 +183,7 @@ describe("Backlog — same Jira items, Add idea through Jira", () => {
     handler = (url) =>
       url === "/api/work/ideas"
         ? { ok: true, issue: created, verifiedAt: "2026-10-05T08:02:00.000Z" }
-        : serve(url.includes("reconcile") ? { ...makeSnapshot(), issues: [created, ...makeSnapshot().issues] } : makeSnapshot())();
+        : serve(url.includes("reconcile") ? { ...makeSnapshot(), issues: [...makeSnapshot().issues, created] } : makeSnapshot())();
     const user = userEvent.setup();
     render(wrap(<BacklogView />));
     await user.click(await screen.findByTestId("add-idea"));
@@ -168,7 +194,8 @@ describe("Backlog — same Jira items, Add idea through Jira", () => {
     expect(post.body).toMatchObject({ summary: "Try a shared weekly review" });
     expect((post.body as { requestId: string }).requestId).toMatch(REQUEST_RE);
     await waitFor(() => expect(requests.some((r) => r.url === "/api/work?reconcile=950")).toBe(true));
-    expect(screen.getAllByTestId("backlog-item")[0]).toHaveAttribute("data-backlog-key", "ANA-950");
+    // ranked last, like Jira ranks a new issue
+    expect(screen.getAllByTestId("backlog-item").at(-1)).toHaveAttribute("data-backlog-key", "ANA-950");
   });
 
   it("an unconfirmed create stays UNKNOWN, keeps the draft, and a check reuses the same request id", async () => {
@@ -190,6 +217,43 @@ describe("Backlog — same Jira items, Add idea through Jira", () => {
     await waitFor(() => expect(requests.filter((r) => r.url === "/api/work/ideas")).toHaveLength(2));
     const [first, second] = requests.filter((r) => r.url === "/api/work/ideas").map((r) => (r.body as { requestId: string }).requestId);
     expect(second).toBe(first);
+  });
+
+  it("an unconfirmed idea stays locked after Cancel: same text, read-only, same request id on the next check", async () => {
+    handler = (url, init) =>
+      url === "/api/work/ideas"
+        ? { ok: false, failure: { state: "UNKNOWN", code: "write-unconfirmed", requestId: JSON.parse(String(init?.body)).requestId } }
+        : serve(makeSnapshot())();
+    const user = userEvent.setup();
+    render(wrap(<BacklogView />));
+    await user.click(await screen.findByTestId("add-idea"));
+    await user.type(screen.getByTestId("idea-input"), "Keep this request");
+    await user.click(screen.getByTestId("idea-submit"));
+    await screen.findByTestId("idea-failure");
+    await user.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(screen.queryByTestId("idea-form")).toBeNull();
+    expect(screen.getByTestId("idea-unresolved")).toHaveTextContent("Keep this request");
+    await user.click(screen.getByTestId("idea-reopen"));
+    expect(screen.getByTestId("idea-input")).toHaveValue("Keep this request");
+    expect(screen.getByTestId("idea-input")).toHaveAttribute("readonly");
+    await user.click(screen.getByTestId("idea-submit"));
+    await waitFor(() => expect(requests.filter((r) => r.url === "/api/work/ideas")).toHaveLength(2));
+    const ids = requests.filter((r) => r.url === "/api/work/ideas").map((r) => (r.body as { requestId: string }).requestId);
+    expect(ids[1]).toBe(ids[0]);
+  });
+
+  it("when the server names an earlier unresolved request for the same idea, the next check continues with that request", async () => {
+    const EARLIER = "3f2b8c1e-4d5a-4b6c-8d7e-9f0a1b2c3d4e";
+    handler = (url) => (url === "/api/work/ideas" ? { ok: false, failure: { state: "UNKNOWN", code: "write-unconfirmed", requestId: EARLIER } } : serve(makeSnapshot())());
+    const user = userEvent.setup();
+    render(wrap(<BacklogView />));
+    await user.click(await screen.findByTestId("add-idea"));
+    await user.type(screen.getByTestId("idea-input"), "Typed again after reload");
+    await user.click(screen.getByTestId("idea-submit"));
+    await screen.findByTestId("idea-failure");
+    await user.click(screen.getByTestId("idea-submit"));
+    await waitFor(() => expect(requests.filter((r) => r.url === "/api/work/ideas")).toHaveLength(2));
+    expect((requests.filter((r) => r.url === "/api/work/ideas")[1]!.body as { requestId: string }).requestId).toBe(EARLIER);
   });
 
   it("an empty idea is refused locally and nothing is sent to Jira", async () => {
