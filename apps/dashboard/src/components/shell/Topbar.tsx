@@ -1,6 +1,6 @@
 "use client";
 
-import { FlaskConical, Search } from "lucide-react";
+import { Database, FlaskConical, Search } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { useI18n } from "@/components/providers/I18nProvider";
 import { useToast } from "@/components/providers/ToastProvider";
@@ -36,11 +36,20 @@ export function Topbar({ onOpenSearch }: { onOpenSearch: () => void }) {
         ) : null}
       </p>
       <div className={styles.topActions} data-testid="topbar-actions">
-        <span className={styles.prototypeFlag} title={t("top.prototypeFlagDetail")} data-testid="prototype-flag">
-          <FlaskConical size={13} aria-hidden="true" />
-          {t("top.prototypeFlag")}
-          <span className="visually-hidden"> — {t("top.prototypeFlagDetail")}</span>
-        </span>
+        {view === "board" ? (
+          // Board and Backlog are live Jira: say so where they are, not "prototype"
+          <span className={styles.prototypeFlag} title={t("top.liveFlagDetail")} data-testid="prototype-flag" data-live="jira">
+            <Database size={13} aria-hidden="true" />
+            {t("top.liveFlag")}
+            <span className="visually-hidden"> — {t("top.liveFlagDetail")}</span>
+          </span>
+        ) : (
+          <span className={styles.prototypeFlag} title={t("top.prototypeFlagDetail")} data-testid="prototype-flag">
+            <FlaskConical size={13} aria-hidden="true" />
+            {t("top.prototypeFlag")}
+            <span className="visually-hidden"> — {t("top.prototypeFlagDetail")}</span>
+          </span>
+        )}
         <div className={styles.language} role="group" aria-label={t("top.language")}>
           {LOCALES.map((option) => (
             <button

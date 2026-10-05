@@ -76,15 +76,20 @@ describe("Add idea creates exactly one Jira item in Backlog, confirmed by readba
     expect(fake.creates).toBe(1);
   });
 
-  it("a create Jira did not perform (5xx) is UNKNOWN first; after the hold a retry creates exactly one", async () => {
+  it("after an unanswered create, checking again never re-sends it; after the hold only an explicit request creates, once", async () => {
     const { fake, client, options, advance } = setup();
     fake.addFault({ op: "create", mode: "status", status: 503, times: 1 });
     const first = await createIdea(client, { requestId: REQUEST, summary: "Second chance" }, options);
-    expect(first).toMatchObject({ ok: false, failure: { state: "UNKNOWN", code: "write-unconfirmed" } });
+    expect(first).toMatchObject({ ok: false, failure: { state: "UNKNOWN", code: "write-unconfirmed", recreatable: false } });
     expect(fake.creates).toBe(0);
+    // an early explicit request is still held back
+    expect(await createIdea(client, { requestId: REQUEST, summary: "Second chance", confirmRecreate: true }, options)).toMatchObject({ ok: false, failure: { recreatable: false } });
     advance(UNCONFIRMED_HOLD_MS + 1);
-    const second = await createIdea(client, { requestId: REQUEST, summary: "Second chance" }, options);
-    expect(second).toMatchObject({ ok: true });
+    const checked = await createIdea(client, { requestId: REQUEST, summary: "Second chance" }, options);
+    expect(checked).toMatchObject({ ok: false, failure: { state: "UNKNOWN", code: "write-unconfirmed", recreatable: true } });
+    expect(fake.creates).toBe(0); // "Check Jira again" only checks
+    const explicit = await createIdea(client, { requestId: REQUEST, summary: "Second chance", confirmRecreate: true }, options);
+    expect(explicit).toMatchObject({ ok: true });
     expect(fake.creates).toBe(1);
   });
 
@@ -165,10 +170,11 @@ describe("Add idea creates exactly one Jira item in Backlog, confirmed by readba
     fake.addFault({ op: "create", mode: "commit-then-delay", ms: 1_000, times: 2 });
     await createIdea(client, { requestId: REQUEST, summary: "Degraded Jira" }, options);
     advance(UNCONFIRMED_HOLD_MS + 1);
-    await createIdea(client, { requestId: REQUEST, summary: "Degraded Jira" }, options); // hold expired: a second create goes out, unanswered
+    // the person explicitly sends it again after the hold: a second create goes out, unanswered too
+    await createIdea(client, { requestId: REQUEST, summary: "Degraded Jira", confirmRecreate: true }, options);
     expect(fake.creates).toBe(2);
     advance(5_000);
-    const third = await createIdea(client, { requestId: REQUEST, summary: "Degraded Jira" }, options);
+    const third = await createIdea(client, { requestId: REQUEST, summary: "Degraded Jira", confirmRecreate: true }, options);
     expect(third).toMatchObject({ ok: false, failure: { state: "UNKNOWN", code: "write-unconfirmed" } });
     expect(fake.creates).toBe(2);
   });
@@ -181,6 +187,24 @@ describe("Add idea creates exactly one Jira item in Backlog, confirmed by readba
     const again = await createIdea(client, { requestId: OTHER, summary: "Typed twice" }, options);
     expect(again).toMatchObject({ ok: false, failure: { state: "UNKNOWN", code: "write-unconfirmed", requestId: REQUEST } });
     expect(fake.creates).toBe(1);
+  });
+
+  it("the same idea text under a new request id finds the item already in Jira, even with an empty ledger (reload, restart)", async () => {
+    const { fake, client, options } = setup();
+    const first = await createIdea(client, { requestId: REQUEST, summary: "Only once please" }, options);
+    expect(first.ok).toBe(true);
+    const again = await createIdea(client, { requestId: OTHER, summary: "Only once please" }, { ...options, ledger: new Map() });
+    expect(again).toMatchObject({ ok: true, replayed: true, matchedBy: "same-text", issue: { key: "ANA-920" } });
+    expect(fake.creates).toBe(1);
+  });
+
+  it("an unexpected error after the request started is held as UNKNOWN, never thrown and never forgotten", async () => {
+    const { fake, client, options } = setup();
+    const broken = { ...client, post: async (path: string, body: unknown) => (path === "/rest/api/3/issue" ? Promise.reject(new Error("boom")) : client.post(path, body)) } as typeof client;
+    const result = await createIdea(broken, { requestId: REQUEST, summary: "Exploding" }, options);
+    expect(result).toMatchObject({ ok: false, failure: { state: "UNKNOWN", code: "write-unconfirmed" } });
+    expect(options.ledger.get(REQUEST)).toMatchObject({ status: "unconfirmed" });
+    expect(fake.creates).toBe(0);
   });
 
   it("a readback whose summary differs from the request is an ERROR (readback mismatch)", async () => {

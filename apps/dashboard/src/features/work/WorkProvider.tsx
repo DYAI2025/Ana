@@ -1,6 +1,8 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useI18n } from "@/components/providers/I18nProvider";
+import { useToast } from "@/components/providers/ToastProvider";
 import { fetchSnapshot, postIdea, postMove } from "./api";
 import { withIssue } from "./model";
 import type { WorkColumn, WorkFailure, WorkIssue, WorkSnapshot, WriteResult } from "./types";
@@ -52,13 +54,17 @@ interface WorkValue {
   refreshing: boolean;
   /** Moves sent to Jira and not yet confirmed, by issue key. */
   pending: Readonly<Record<string, PendingMove>>;
-  /** The last refused or unconfirmed move; kept here so leaving the Board cannot lose it. */
-  moveNotice: MoveNotice | null;
-  dismissMoveNotice: () => void;
+  /** Refused or unconfirmed moves, one per issue, newest first; kept here so leaving the Board cannot lose them. */
+  moveNotices: readonly MoveNotice[];
+  dismissMoveNotice: (key: string) => void;
+  /** Issues whose last move got no readback: shown as "not confirmed" until a Jira read includes them again. */
+  unconfirmed: ReadonlySet<string>;
+  /** The Board announces that it is on screen; a failed move is then reported there, not by an extra toast. */
+  registerBoard: () => () => void;
   idea: IdeaSubmission | null;
   refresh: (reconcileIssueIds?: readonly string[]) => Promise<void>;
   move: (issue: WorkIssue, from: WorkColumn, to: WorkColumn) => Promise<WriteResult>;
-  createIdea: (requestId: string, summary: string) => Promise<WriteResult>;
+  createIdea: (requestId: string, summary: string, options?: { confirmRecreate?: boolean }) => Promise<WriteResult>;
   /** Drops a finished or definitively refused submission; an unconfirmed one stays. */
   clearIdea: () => void;
 }
@@ -80,7 +86,10 @@ export function WorkProvider({ children }: { children: ReactNode }) {
   const [refreshing, setRefreshing] = useState(false);
   const [pending, setPending] = useState<Record<string, PendingMove>>({});
   const [idea, setIdea] = useState<IdeaSubmission | null>(null);
-  const [moveNotice, setMoveNotice] = useState<MoveNotice | null>(null);
+  const [moveNotices, setMoveNotices] = useState<MoveNotice[]>([]);
+  const [unconfirmed, setUnconfirmed] = useState<ReadonlySet<string>>(() => new Set());
+  const { t } = useI18n();
+  const { notify } = useToast();
   const stateRef = useRef(state);
   const pendingRef = useRef(pending);
   const ideaRef = useRef(idea);
@@ -89,6 +98,7 @@ export function WorkProvider({ children }: { children: ReactNode }) {
   const written = useRef(new Map<string, Written>());
   /** Issues written from this tab (even when no readback came back), by Jira issue id, with the write time. */
   const touched = useRef(new Map<string, number>());
+  const boardsOnScreen = useRef(0);
 
   useEffect(() => {
     stateRef.current = state;
@@ -109,10 +119,16 @@ export function WorkProvider({ children }: { children: ReactNode }) {
     const seq = ++readSeq.current;
     const writesBefore = writeSeq.current;
     const now = Date.now();
-    const recent = [...touched.current.entries()].filter(([, at]) => now - at < RECONCILE_WINDOW_MS).map(([id]) => id);
+    // newest first: when more than 50 issues were touched, the most recent writes are the ones reconciled
+    const recent = [...touched.current.entries()]
+      .filter(([, at]) => now - at < RECONCILE_WINDOW_MS)
+      .sort((a, b) => b[1] - a[1])
+      .map(([id]) => id);
     const result = await fetchSnapshot([...new Set([...reconcileIssueIds, ...recent])].slice(0, 50));
     if (seq !== readSeq.current) return; // a newer read superseded this one
     setRefreshing(false);
+    // a successful Jira read shows every issue as Jira has it now: nothing is "not confirmed" any more
+    if (result.ok) setUnconfirmed((current) => (current.size === 0 ? current : new Set()));
     setState((current) => {
       if (result.ok) {
         let snapshot = result.snapshot;
@@ -145,11 +161,21 @@ export function WorkProvider({ children }: { children: ReactNode }) {
     async (issue: WorkIssue, from: WorkColumn, to: WorkColumn): Promise<WriteResult> => {
       if (stateRef.current.phase !== "ready" || pendingRef.current[issue.key]) return notReady;
       setPending((current) => ({ ...current, [issue.key]: { fromColumnId: from.id, toColumnId: to.id } }));
-      setMoveNotice(null);
+      setMoveNotices((current) => current.filter((notice) => notice.key !== issue.key));
       touched.current.set(issue.id, Date.now()); // reconciled by later reads even if no readback comes back
       const result = await postMove(issue.key, { fromStatusId: issue.status.id, toStatusIds: to.statuses.map((status) => status.id) });
       applyTruth(result.ok ? result.issue : result.failure.issue);
-      if (!result.ok) setMoveNotice({ key: issue.key, failure: result.failure });
+      setUnconfirmed((current) => {
+        const next = new Set(current);
+        if (!result.ok && !result.failure.issue) next.add(issue.key);
+        else next.delete(issue.key);
+        return next;
+      });
+      if (!result.ok) {
+        setMoveNotices((current) => [{ key: issue.key, failure: result.failure }, ...current.filter((notice) => notice.key !== issue.key)]);
+        // the notice stays on the Board; if the person has left it, the failure is announced where they are
+        if (boardsOnScreen.current === 0) notify(t("board.moveNotConfirmed", { key: issue.key, state: result.failure.state }));
+      }
       setPending((current) => {
         const next = { ...current };
         delete next[issue.key];
@@ -159,27 +185,30 @@ export function WorkProvider({ children }: { children: ReactNode }) {
       if (!result.ok) void refresh();
       return result;
     },
-    [applyTruth, refresh],
+    [applyTruth, refresh, notify, t],
   );
 
   const createIdea = useCallback(
-    async (requestId: string, summary: string): Promise<WriteResult> => {
+    async (requestId: string, summary: string, options: { confirmRecreate?: boolean } = {}): Promise<WriteResult> => {
       if (stateRef.current.phase !== "ready") return notReady;
       const before = ideaRef.current;
       if (before?.phase === "pending") return { ok: false, failure: { state: "UNKNOWN", code: "duplicate-in-flight", requestId: before.requestId } };
       const everUnknown = before !== null && before.phase !== "created" && before.requestId === requestId && before.everUnknown;
       setIdea({ phase: "pending", requestId, summary, everUnknown });
-      const result = await postIdea({ requestId, summary });
+      const result = await postIdea({ requestId, summary, ...(options.confirmRecreate ? { confirmRecreate: true } : {}) });
       const truth = result.ok ? result.issue : result.failure.issue;
       applyTruth(truth);
       if (result.ok) setIdea({ phase: "created", requestId, issue: result.issue, replayed: Boolean(result.replayed) });
       // the item exists but is not exactly what was asked: resolved, shown with its ERROR
       else if (result.failure.code === "readback-mismatch" && truth) setIdea({ phase: "created", requestId, issue: truth, replayed: false, problem: result.failure });
+      // Jira named an item for this request that no longer exists: resolved (ERROR), nothing is waiting any more
+      else if (result.failure.code === "readback-mismatch") setIdea({ phase: "failed", requestId, summary, failure: result.failure, everUnknown: false });
       // the server may answer with an earlier, still unresolved request for the same idea: continue with that one
       else {
-        const unknownNow = result.failure.state === "UNKNOWN";
+        // only outcomes where a create may have reached Jira lock the idea; a failed read before any create does not
+        const createMaybeSent = result.failure.code === "write-unconfirmed" || result.failure.code === "duplicate-in-flight";
         const adopted = result.failure.requestId ?? requestId;
-        setIdea({ phase: "failed", requestId: adopted, summary, failure: result.failure, everUnknown: everUnknown || unknownNow || adopted !== requestId });
+        setIdea({ phase: "failed", requestId: adopted, summary, failure: result.failure, everUnknown: everUnknown || createMaybeSent || adopted !== requestId });
       }
       // read-after-write: Jira reconciles the new issue into the board search
       void refresh(truth ? [truth.id] : []);
@@ -189,7 +218,13 @@ export function WorkProvider({ children }: { children: ReactNode }) {
   );
 
   const clearIdea = useCallback(() => setIdea((current) => (ideaLocked(current) ? current : null)), []);
-  const dismissMoveNotice = useCallback(() => setMoveNotice(null), []);
+  const dismissMoveNotice = useCallback((key: string) => setMoveNotices((current) => current.filter((notice) => notice.key !== key)), []);
+  const registerBoard = useCallback(() => {
+    boardsOnScreen.current += 1;
+    return () => {
+      boardsOnScreen.current -= 1;
+    };
+  }, []);
 
   // every page load reads Jira again; a returning network connection does too
   useEffect(() => {
@@ -200,8 +235,8 @@ export function WorkProvider({ children }: { children: ReactNode }) {
   }, [read, refresh]);
 
   const value = useMemo<WorkValue>(
-    () => ({ state, refreshing, pending, moveNotice, dismissMoveNotice, idea, refresh, move, createIdea, clearIdea }),
-    [state, refreshing, pending, moveNotice, dismissMoveNotice, idea, refresh, move, createIdea, clearIdea],
+    () => ({ state, refreshing, pending, moveNotices, dismissMoveNotice, unconfirmed, registerBoard, idea, refresh, move, createIdea, clearIdea }),
+    [state, refreshing, pending, moveNotices, dismissMoveNotice, unconfirmed, registerBoard, idea, refresh, move, createIdea, clearIdea],
   );
   return <WorkContext.Provider value={value}>{children}</WorkContext.Provider>;
 }

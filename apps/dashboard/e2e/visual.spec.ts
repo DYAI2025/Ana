@@ -12,7 +12,15 @@ const VIEWPORTS = [
   { width: 1024, height: 768 },
 ];
 
-const SHOTS: { name: string; route: string; locale?: "de" | "it"; jira?: (jira: FakeJiraControl) => Promise<void>; prepare?: (page: Page) => Promise<void> }[] = [
+const SHOTS: {
+  name: string;
+  route: string;
+  locale?: "de" | "it";
+  jira?: (jira: FakeJiraControl) => Promise<void>;
+  prepare?: (page: Page) => Promise<void>;
+  /** checks against the fake Jira that the shot shows the state it claims */
+  verify?: (jira: FakeJiraControl) => Promise<void>;
+}[] = [
   { name: "now", route: "/" },
   { name: "now-lens-work", route: "/", prepare: async (page) => page.getByTestId("context-work").click() },
   { name: "board", route: "/board" },
@@ -71,8 +79,10 @@ const SHOTS: { name: string; route: string; locale?: "de" | "it"; jira?: (jira: 
       // each viewport has its own idea: the server's ledger outlives the per-test fake reset
       await page.getByTestId("idea-input").fill(`Outcome not confirmed by Jira (${page.viewportSize()!.width})`);
       await page.getByTestId("idea-submit").click();
-      await expect(page.getByTestId("idea-failure")).toBeVisible({ timeout: 15_000 });
+      await expect(page.getByTestId("idea-failure")).toHaveAttribute("data-state", "UNKNOWN", { timeout: 15_000 });
     },
+    // the UNKNOWN on screen comes from one unanswered create, not from joining an earlier request
+    verify: async (jira) => expect((await jira.state()).creates).toBe(1),
   },
   { name: "session-transcript", route: "/sessions/working-session-01?tab=transcript" },
   {
@@ -148,6 +158,7 @@ for (const viewport of VIEWPORTS) {
         if (shot.prepare) await shot.prepare(page);
         await page.waitForTimeout(400);
         expect(await layoutProblems(page)).toEqual([]);
+        if (shot.verify) await shot.verify(jira);
         const dir = process.env.EVIDENCE_DIR;
         const file = `${viewport.width}x${viewport.height}-${shot.name}.png`;
         await page.screenshot({ path: dir ? path.join(dir, file) : info.outputPath(file) });

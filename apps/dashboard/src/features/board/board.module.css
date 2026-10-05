@@ -142,6 +142,11 @@
   border-color: rgba(245, 237, 228, 0.42);
 }
 
+.ticket[data-unconfirmed] {
+  border-style: dashed;
+  border-color: rgba(187, 180, 213, 0.75);
+}
+
 .ticket[data-idea] .category {
   color: var(--sand);
 }
@@ -194,13 +199,20 @@
 
 .ticketFoot {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
+  gap: 4px 8px;
   margin-top: auto;
 }
 
+/* on narrow cards the assignee may shorten, the issue key never breaks inside itself */
+.ticketFoot > :first-child {
+  min-width: 0;
+}
+
 .key {
+  white-space: nowrap;
   font-family: var(--mono);
   font-size: 10.5px;
   color: var(--text-muted);

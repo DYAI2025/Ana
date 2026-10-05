@@ -98,8 +98,13 @@ test.describe("Board — projection of Jira Board 734 / filter 10733", () => {
     await page.reload();
     await workSettled(page);
     await expect(column(page, "Review").locator('[data-ticket-id="ANA-901"]')).toBeVisible();
-    const stored = await page.evaluate(() => Object.keys(window.localStorage));
-    expect(stored.filter((key) => key !== "ana.locale")).toEqual([]);
+    // no browser store holds work: only the language choice is kept
+    const stores = await page.evaluate(async () => ({
+      local: Object.keys(window.localStorage),
+      session: Object.keys(window.sessionStorage),
+      indexedDb: (await indexedDB.databases()).map((db) => db.name),
+    }));
+    expect(stores).toEqual({ local: ["ana.locale"].filter((k) => stores.local.includes(k)), session: [], indexedDb: [] });
   });
 
   test("AC8 · reconnect: when the network returns the board is read from Jira again; while Jira is unreadable nothing is shown as current", async ({ page, jira, context }) => {
@@ -119,7 +124,8 @@ test.describe("Board — projection of Jira Board 734 / filter 10733", () => {
     await context.setOffline(true);
     await context.setOffline(false);
     await page.locator('html[data-work="ready"]').waitFor({ state: "attached" });
-    await page.goto("/board");
+    // in-app navigation shows what the reconnect read brought — no page reload involved
+    await page.getByTestId("nav-board").click();
     await workSettled(page);
     await expect(column(page, "In Arbeit").locator('[data-ticket-id="ANA-901"]')).toBeVisible();
   });
@@ -266,6 +272,18 @@ test.describe("Backlog — Add idea writes one Jira item, confirmed by readback 
     await expect(page.getByTestId("idea-input")).toHaveAttribute("readonly", "");
     await page.getByTestId("idea-submit").click();
     await expect(page.getByTestId("idea-failure")).toHaveAttribute("data-state", "UNKNOWN", { timeout: 15_000 });
+    expect((await jira.state()).creates).toBe(1);
+  });
+
+  test("reload and type the same idea again: Jira's own record shows it is already there — still exactly one item", async ({ page, jira }) => {
+    await addIdea(page, "Weekly retrospective notes");
+    await expect(page.getByTestId("idea-created")).toContainText("ANA-920 created in Jira Backlog");
+    await page.reload();
+    await workSettled(page);
+    await page.getByTestId("add-idea").click();
+    await page.getByTestId("idea-input").fill("Weekly retrospective notes");
+    await page.getByTestId("idea-submit").click();
+    await expect(page.getByTestId("idea-created")).toContainText("Already in Jira as ANA-920");
     expect((await jira.state()).creates).toBe(1);
   });
 

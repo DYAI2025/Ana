@@ -91,13 +91,19 @@ export interface WorkFailure {
   issue?: WorkIssue;
   /** Echoed for Add idea, so an UNKNOWN outcome can be checked again without creating a duplicate. */
   requestId?: string;
+  /**
+   * Add idea only: an earlier create for this request got no answer and Jira's search still does not show it after
+   * the hold. Sending it again is now possible, but only as an explicit decision (it could duplicate if Jira's index
+   * is very far behind).
+   */
+  recreatable?: boolean;
 }
 
 export type SnapshotResult = { ok: true; snapshot: WorkSnapshot } | { ok: false; failure: WorkFailure };
 
 /** A write is `ok` only after Jira readback confirmed it. */
 export type WriteResult =
-  | { ok: true; issue: WorkIssue; verifiedAt: string; replayed?: boolean }
+  | { ok: true; issue: WorkIssue; verifiedAt: string; replayed?: boolean; matchedBy?: "request" | "same-text" }
   | { ok: false; failure: WorkFailure };
 
 export interface MoveRequest {
@@ -109,4 +115,6 @@ export interface MoveRequest {
 export interface IdeaRequest {
   requestId: string;
   summary: string;
+  /** The person explicitly chose to send an unconfirmed request again after the hold (see `recreatable`). */
+  confirmRecreate?: boolean;
 }

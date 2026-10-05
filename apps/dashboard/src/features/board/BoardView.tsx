@@ -35,7 +35,9 @@ const sameOwner = (a: OwnerFilter, b: OwnerFilter) =>
 export function BoardView({ highlight }: { highlight?: string }) {
   const { t, locale } = useI18n();
   const { notify } = useToast();
-  const { state, refreshing, pending, refresh, move, moveNotice: notice, dismissMoveNotice } = useWork();
+  const { state, refreshing, pending, refresh, move, moveNotices, dismissMoveNotice, unconfirmed, registerBoard } = useWork();
+
+  useEffect(() => registerBoard(), [registerBoard]);
   const [owner, setOwner] = useState<OwnerFilter>("all");
   const [dragging, setDragging] = useState<string | null>(null);
   const [over, setOver] = useState<string | null>(null);
@@ -87,6 +89,8 @@ export function BoardView({ highlight }: { highlight?: string }) {
   const options: OwnerFilter[] = ["all", ...people.map((person) => ({ accountId: person.accountId })), ...(hasUnassigned ? (["unassigned"] as const) : [])];
   // a filter for someone who is no longer on the board (after a refresh) falls back to everyone
   const activeOwner: OwnerFilter = options.some((option) => sameOwner(option, owner)) ? owner : "all";
+  // that person is gone from the board: the choice is dropped, so it cannot silently come back with a later read
+  if (activeOwner === "all" && owner !== "all") setOwner("all");
   const visible = filterByOwner(issues, activeOwner);
 
   /** Where an issue is shown: its Jira column, or — while a move is being written — the requested column. */
@@ -141,18 +145,19 @@ export function BoardView({ highlight }: { highlight?: string }) {
         />
       ) : null}
 
-      {notice ? (
+      {moveNotices.map((notice) => (
         <FailureNotice
+          key={notice.key}
           failure={notice.failure}
           subject={notice.key}
           testId="move-failure"
           actions={
-            <Button variant="quiet" onClick={dismissMoveNotice} icon={<X size={14} aria-hidden="true" />}>
+            <Button variant="quiet" onClick={() => dismissMoveNotice(notice.key)} icon={<X size={14} aria-hidden="true" />}>
               {t("work.dismiss")}
             </Button>
           }
         />
-      ) : null}
+      ))}
 
       {state.snapshot.unmapped.length > 0 ? (
         <p className={workStyles.note} data-testid="work-unmapped">
@@ -230,6 +235,7 @@ export function BoardView({ highlight }: { highlight?: string }) {
               <ul className={styles.tickets}>
                 {shown.map((issue) => {
                   const isPending = Boolean(pending[issue.key]);
+                  const notConfirmed = !isPending && unconfirmed.has(issue.key);
                   const ownerLabel = issue.assignee?.displayName ?? t("work.unassigned");
                   return (
                     <li key={issue.key}>
@@ -241,13 +247,19 @@ export function BoardView({ highlight }: { highlight?: string }) {
                         data-owner={issue.assignee?.accountId ?? "unassigned"}
                         data-status-id={issue.status.id}
                         data-pending={isPending ? "true" : undefined}
+                        data-unconfirmed={notConfirmed ? "true" : undefined}
                         data-idea={issue.isIdea ? "true" : undefined}
                         data-dragging={dragging === issue.key ? "true" : undefined}
                         data-settled={settled?.key === issue.key ? (settled.done ? "done" : "moved") : undefined}
                         data-highlight={highlight === issue.key ? "true" : undefined}
                         aria-busy={isPending ? true : undefined}
                         aria-describedby={hintId}
-                        aria-label={t("board.ticketLabel", { key: issue.key, summary: issue.summary, status: isPending ? t("board.syncing") : issue.status.name, owner: ownerLabel })}
+                        aria-label={t("board.ticketLabel", {
+                          key: issue.key,
+                          summary: issue.summary,
+                          status: isPending ? t("board.syncing") : notConfirmed ? t("board.unconfirmedCard") : issue.status.name,
+                          owner: ownerLabel,
+                        })}
                         onKeyDown={(event) => onKeyDown(event, issue)}
                         onDragStart={(event) => {
                           event.dataTransfer.setData(DRAG_TYPE, issue.key);
@@ -267,7 +279,7 @@ export function BoardView({ highlight }: { highlight?: string }) {
                         </div>
                         <h3 className={styles.ticketTitle}>{issue.summary}</h3>
                         <p className={styles.status} data-testid="ticket-status">
-                          {isPending ? t("board.syncing") : issue.status.name}
+                          {isPending ? t("board.syncing") : notConfirmed ? `${t("board.unconfirmedCard")} · ${issue.status.name}` : issue.status.name}
                         </p>
                         <div className={styles.ticketFoot}>
                           <PersonBadge person={issue.assignee} unassignedLabel={t("work.unassigned")} size={22} showName />

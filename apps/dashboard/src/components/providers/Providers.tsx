@@ -9,11 +9,11 @@ import { ToastProvider } from "./ToastProvider";
 export function Providers({ children }: { children: ReactNode }) {
   return (
     <I18nProvider>
-      <WorkProvider>
-        <PrototypeProvider>
-          <ToastProvider>{children}</ToastProvider>
-        </PrototypeProvider>
-      </WorkProvider>
+      <ToastProvider>
+        <WorkProvider>
+          <PrototypeProvider>{children}</PrototypeProvider>
+        </WorkProvider>
+      </ToastProvider>
     </I18nProvider>
   );
 }

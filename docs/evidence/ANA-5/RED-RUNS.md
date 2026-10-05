@@ -60,6 +60,24 @@ Two guard tests protect behaviour that already existed; their canaries removed i
 `refuseNonLocal` call from `GET /api/work` and the `--hostname 127.0.0.1` from the npm scripts made
 "the GET /api/work route itself refuses a foreign Host…" and "the npm scripts bind the server to 127.0.0.1" fail.
 
+## Review round 3 — changed strategy (structural recovery)
+
+Round 3 audited the write-outcome state machines exhaustively instead of hunting scenarios; its violations led to a
+structural change (Jira as the durable dedup record, no implicit re-create, provider-owned move outcomes). The new
+tests were run against the production files of commit 19dd2ca (isolated copy); each failed there:
+
+| Test | Defect it catches |
+|---|---|
+| `ideas.test.ts` "after an unanswered create, checking again never re-sends it…" | after the hold, "Check Jira again" sent the create again |
+| `ideas.test.ts` "the same idea text under a new request id finds the item already in Jira, even with an empty ledger" | reload, second tab or restart could create the same idea twice |
+| `ideas.test.ts` "an unexpected error after the request started is held as UNKNOWN…" | an exception after the POST forgot the request |
+| `board.test.tsx` "a move that got no readback is marked 'not confirmed'…" | a card without readback looked settled |
+| `board.test.tsx` "two refused moves keep two notices, and a failure while away … is announced" | one notice slot dropped outcomes; failures off the Board were silent |
+| `board.test.tsx` "a locked request whose named item no longer exists is resolved…" | a vanished item kept the idea locked for good |
+| `board.test.tsx` "a failed read before any create does not lock the idea for good…" | a board-read timeout made the lock permanent |
+| `board.test.tsx` "after the hold, 'Create it again' is a separate, explained choice…" | no explicit re-create path existed |
+| `board.test.tsx` "the same idea already in Jira is shown as 'already in Jira'…" | a match was presented as newly created |
+
 ## Bundle secret scan (`npm run scan:bundle`)
 
 - A planted file under `.next/static` containing the token variable name: exit 1; without it: exit 0.

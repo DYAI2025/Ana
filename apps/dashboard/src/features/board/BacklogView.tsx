@@ -64,7 +64,7 @@ export function BacklogView({ highlight }: { highlight?: string }) {
     window.requestAnimationFrame(() => openerRef.current?.focus());
   };
 
-  const submit = async (event: Pick<FormEvent, "preventDefault">) => {
+  const submit = async (event: Pick<FormEvent, "preventDefault">, confirmRecreate = false) => {
     event.preventDefault();
     if (busy || !canWrite) return;
     const problem = validateIdeaSummary(title);
@@ -74,11 +74,11 @@ export function BacklogView({ highlight }: { highlight?: string }) {
       return;
     }
     const summary = normalizeSummary(title);
-    // the same idea keeps its request id across retries, so Jira can never receive it twice
+    // the same idea keeps its request id across retries: Jira is searched for that request before anything is sent
     const requestId = unresolved && unresolved.summary === summary ? unresolved.requestId : crypto.randomUUID();
     setError(null);
     setDraftRequestId(requestId);
-    const result = await createIdea(requestId, summary);
+    const result = await createIdea(requestId, summary, { confirmRecreate });
     if (result.ok) {
       notify(t("backlog.created", { key: result.issue.key }));
       setTitle("");
@@ -149,7 +149,7 @@ export function BacklogView({ highlight }: { highlight?: string }) {
             <p className={styles.created} role="status" data-testid="idea-created">
               <CircleCheck size={16} aria-hidden="true" />
               <span>
-                {t("backlog.created", { key: created.key })}{" "}
+                {idea?.phase === "created" && idea.replayed ? t("backlog.alreadyInJira", { key: created.key }) : t("backlog.created", { key: created.key })}{" "}
                 <a href={created.url} target="_blank" rel="noreferrer">
                   {t("work.openInJira", { key: created.key })}
                 </a>
@@ -217,10 +217,20 @@ export function BacklogView({ highlight }: { highlight?: string }) {
                 {locked ? t("backlog.lockedNote") : t("backlog.ideaNote")}
               </p>
               {failed ? <FailureNotice failure={failed.failure} testId="idea-failure" /> : null}
+              {failed?.failure.recreatable ? (
+                <p className={styles.note} data-testid="idea-recreate-hint">
+                  {t("backlog.recreateHint")}
+                </p>
+              ) : null}
               <div className={styles.formActions}>
                 <Button type="submit" variant="primary" disabled={busy || !canWrite} data-testid="idea-submit">
                   {busy ? t("backlog.creating") : locked ? t("work.checkAgain") : failed ? t("work.retry") : t("backlog.addIdea")}
                 </Button>
+                {failed?.failure.recreatable && !busy ? (
+                  <Button onClick={(event) => void submit(event, true)} data-testid="idea-recreate">
+                    {t("backlog.recreate")}
+                  </Button>
+                ) : null}
                 <Button variant="quiet" onClick={close} disabled={busy}>
                   {t("common.cancel")}
                 </Button>

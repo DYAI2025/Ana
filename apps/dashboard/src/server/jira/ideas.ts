@@ -33,6 +33,8 @@ const LEDGER_TTL_MS = 60 * 60_000;
 /** After a create got no answer, do not create again for this long; search-and-reconcile settles first. */
 export const UNCONFIRMED_HOLD_MS = 60_000;
 const SEARCH_ATTEMPTS = 3;
+/** A dashboard idea with exactly the same text added this recently counts as the same idea (reload, second tab, restart). */
+export const SAME_TEXT_WINDOW_MS = 60 * 60_000;
 const SEARCH_INTERVAL_MS = 1_000;
 
 export interface IdeaOptions {
@@ -49,10 +51,11 @@ interface RawSearch {
 
 export function validateIdeaRequest(body: unknown): IdeaRequest | null {
   if (typeof body !== "object" || body === null) return null;
-  const { requestId, summary } = body as Record<string, unknown>;
+  const { requestId, summary, confirmRecreate } = body as Record<string, unknown>;
   if (typeof requestId !== "string" || !REQUEST_ID_RE.test(requestId)) return null;
   if (typeof summary !== "string" || validateIdeaSummary(summary)) return null;
-  return { requestId, summary: normalizeSummary(summary) };
+  if (confirmRecreate !== undefined && typeof confirmRecreate !== "boolean") return null;
+  return { requestId, summary: normalizeSummary(summary), ...(confirmRecreate ? { confirmRecreate: true } : {}) };
 }
 
 function requestIdOf(raw: RawIssue): string | undefined {
@@ -60,24 +63,42 @@ function requestIdOf(raw: RawIssue): string | undefined {
   return value && typeof value === "object" && "requestId" in value ? String((value as { requestId: unknown }).requestId) : undefined;
 }
 
-/** Finds a dashboard idea created for this request id in the last day (search + property match). */
-async function findByRequestId(client: JiraClient, requestId: string): Promise<{ ok: true; key: string | null } | { ok: false; result: WriteResult }> {
+/**
+ * Looks in Jira — the only durable record — for this request's item, and for a dashboard idea with exactly the same
+ * text added within the last hour. Jira's search is eventually consistent: a create of the last seconds may not be
+ * visible yet, which the in-process ledger covers.
+ */
+async function findExisting(
+  client: JiraClient,
+  request: IdeaRequest,
+): Promise<{ ok: true; byRequest: string | null; byText: string | null } | { ok: false; result: WriteResult }> {
+  const { requestId } = request;
+  let byText: string | null = null;
   let nextPageToken: string | undefined;
   for (let page = 0; page < 20; page += 1) {
     const response = await client.post<RawSearch>("/rest/api/3/search/jql", {
       jql: `project = ${CANONICAL_SOURCE.projectKey} AND labels = "${IDEA_LABELS[0]}" AND created >= -1d ORDER BY created DESC`,
-      fields: ["summary"],
+      fields: ["summary", "created"],
       properties: [REQUEST_PROPERTY],
       maxResults: 100,
       ...(nextPageToken ? { nextPageToken } : {}),
     });
     if (!response.ok) return { ok: false, result: { ok: false, failure: { ...readFailure(response.error), requestId } } };
-    const match = (response.data.issues ?? []).find((raw) => requestIdOf(raw) === requestId);
-    if (match?.key) return { ok: true, key: match.key };
-    if (response.data.isLast === true || !response.data.nextPageToken) return { ok: true, key: null };
+    const issues = response.data?.issues ?? [];
+    const byRequest = issues.find((raw) => requestIdOf(raw) === requestId)?.key;
+    if (byRequest) return { ok: true, byRequest, byText: null };
+    if (!byText) {
+      const cutoff = Date.now() - SAME_TEXT_WINDOW_MS;
+      const twin = issues.find((raw) => {
+        const created = Date.parse(String((raw.fields as { created?: string } | undefined)?.created ?? ""));
+        return normalizeSummary(raw.fields?.summary ?? "") === request.summary && (Number.isNaN(created) || created >= cutoff);
+      });
+      byText = twin?.key ?? null;
+    }
+    if (response.data?.isLast === true || !response.data?.nextPageToken) return { ok: true, byRequest: null, byText };
     nextPageToken = response.data.nextPageToken;
   }
-  return { ok: true, key: null };
+  return { ok: true, byRequest: null, byText };
 }
 
 /** Independent readback: the created issue must exist, carry this request and summary, and sit in the Backlog. */
@@ -88,7 +109,7 @@ async function verifyCreated(client: JiraClient, key: string, request: IdeaReque
     return { ok: false, failure: failure("readback-mismatch", { requestId: request.requestId, detail: `Jira named ${key} for this request, but it no longer exists` }) };
   }
   if (!readback.ok) {
-    return { ok: false, failure: failure("write-unconfirmed", { requestId: request.requestId, detail: `Jira answered with ${key}, but reading it back failed (${readback.failure.code})` }) };
+    return { ok: false, failure: failure("write-unconfirmed", { requestId: request.requestId, recreatable: false, detail: `Jira answered with ${key}, but reading it back failed (${readback.failure.code})` }) };
   }
   const { issue, raw } = readback.value;
   const problems: string[] = [];
@@ -149,18 +170,34 @@ async function createOnce(client: JiraClient, request: IdeaRequest, previous: Le
   }
 
   // a create that already happened (earlier timeout, restarted server) is found and verified, never repeated
-  const existing = await findByRequestId(client, requestId);
+  const existing = await findExisting(client, request);
   if (!existing.ok) return done(existing.result);
-  if (existing.key) {
-    const verified = await verifyCreated(client, existing.key, request, backlogStatusIds, options.now);
-    if (!verified.ok && verified.failure.code === "write-unconfirmed") return done(verified, { key: existing.key });
-    return done(verified.ok ? { ...verified, replayed: true } : verified);
+  if (existing.byRequest) {
+    const verified = await verifyCreated(client, existing.byRequest, request, backlogStatusIds, options.now);
+    if (!verified.ok && verified.failure.code === "write-unconfirmed") return done(verified, { key: existing.byRequest });
+    return done(verified.ok ? { ...verified, replayed: true, matchedBy: "request" } : verified);
   }
-  if (previous?.status === "unconfirmed" && options.now() - previous.at < UNCONFIRMED_HOLD_MS) {
-    return done({
-      ok: false,
-      failure: failure("write-unconfirmed", { requestId, detail: "An earlier attempt got no answer from Jira and is not visible in Jira's search yet; not creating again before that settles" }),
-    });
+  if (existing.byText) {
+    // the same idea is already in Jira (added from another tab, before a reload or before a restart): that is the item
+    const twin = await readIssue(client, existing.byText);
+    if (!twin.ok) return done({ ok: false, failure: failure("write-unconfirmed", { requestId, recreatable: false, detail: `The same idea seems to exist as ${existing.byText}, but reading it failed (${twin.failure.code})` }) });
+    return done({ ok: true, issue: twin.value.issue, verifiedAt: new Date(options.now()).toISOString(), replayed: true, matchedBy: "same-text" });
+  }
+  // an unanswered earlier create is never sent again implicitly; after the hold only an explicit request may
+  if (previous?.status === "unconfirmed") {
+    const held = options.now() - previous.at < UNCONFIRMED_HOLD_MS;
+    if (held || !request.confirmRecreate) {
+      return done({
+        ok: false,
+        failure: failure("write-unconfirmed", {
+          requestId,
+          recreatable: !held,
+          detail: held
+            ? "An earlier attempt got no answer from Jira and is not visible in Jira's search yet"
+            : "An earlier attempt got no answer from Jira and Jira's search still does not show it",
+        }),
+      });
+    }
   }
 
   const created = await client.post<{ id?: string; key?: string }>("/rest/api/3/issue", createBody(request, new Date(options.now()).toISOString()));
@@ -168,20 +205,20 @@ async function createOnce(client: JiraClient, request: IdeaRequest, previous: Le
     if (!isAmbiguous(created.error)) return done({ ok: false, failure: { ...readFailure(created.error), requestId } });
     for (let attempt = 0; attempt < SEARCH_ATTEMPTS; attempt += 1) {
       await options.sleep(SEARCH_INTERVAL_MS);
-      const found = await findByRequestId(client, requestId);
-      if (found.ok && found.key) {
-        const verified = await verifyCreated(client, found.key, request, backlogStatusIds, options.now);
-        if (!verified.ok && verified.failure.code === "write-unconfirmed") return { result: verified, unansweredCreate: true, key: found.key };
+      const found = await findExisting(client, request);
+      if (found.ok && found.byRequest) {
+        const verified = await verifyCreated(client, found.byRequest, request, backlogStatusIds, options.now);
+        if (!verified.ok && verified.failure.code === "write-unconfirmed") return { result: verified, unansweredCreate: true, key: found.byRequest };
         return done(verified);
       }
     }
     return {
-      result: { ok: false, failure: failure("write-unconfirmed", { requestId, detail: "Jira gave no answer to the create request and the idea is not visible in Jira yet" }) },
+      result: { ok: false, failure: failure("write-unconfirmed", { requestId, recreatable: false, detail: "Jira gave no answer to the create request and the idea is not visible in Jira yet" }) },
       unansweredCreate: true,
     };
   }
   if (!created.data?.key) {
-    return { result: { ok: false, failure: failure("write-unconfirmed", { requestId, detail: "Jira accepted the request but returned no issue key" }) }, unansweredCreate: true };
+    return { result: { ok: false, failure: failure("write-unconfirmed", { requestId, recreatable: false, detail: "Jira accepted the request but returned no issue key" }) }, unansweredCreate: true };
   }
   const verified = await verifyCreated(client, created.data.key, request, backlogStatusIds, options.now);
   if (!verified.ok && verified.failure.code === "write-unconfirmed") return { result: verified, unansweredCreate: true, key: created.data.key };
@@ -230,8 +267,11 @@ export async function createIdea(client: JiraClient, request: IdeaRequest, optio
     else ledger.delete(request.requestId);
     return result;
   } catch (error) {
-    if (previous?.status === "unconfirmed") ledger.set(request.requestId, previous);
-    else ledger.delete(request.requestId);
-    throw error;
+    // something unexpected after the request started: a create may have been sent — hold it, never forget it
+    ledger.set(request.requestId, { status: "unconfirmed", at: resolved.now(), summary: request.summary, key: previous?.status === "unconfirmed" ? previous.key : undefined });
+    return {
+      ok: false,
+      failure: failure("write-unconfirmed", { requestId: request.requestId, recreatable: false, detail: `Unexpected error while creating: ${error instanceof Error ? error.message.slice(0, 200) : "unknown"}` }),
+    };
   }
 }

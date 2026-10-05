@@ -32,6 +32,7 @@ export async function readBoardContext(client: JiraClient): Promise<Outcome<Boar
     error.kind === "http" && error.status === 404 ? failure("source-missing", { detail: error.detail }) : readFailure(error);
   if (!board.ok) return { ok: false, failure: sourceFailure(board.error) };
   if (!statuses.ok) return { ok: false, failure: sourceFailure(statuses.error) };
+  if (!board.data || !statuses.data) return { ok: false, failure: failure("upstream", { detail: "Jira returned an empty board or status list" }) };
   const filterId = String(board.data.filter?.id ?? "");
   const projectKey = board.data.location?.key ?? board.data.location?.projectKey;
   if (filterId !== CANONICAL_SOURCE.filterId || (projectKey !== undefined && projectKey !== CANONICAL_SOURCE.projectKey)) {
@@ -87,19 +88,19 @@ export async function readSnapshot(client: JiraClient, options: { reconcileIssue
       ...(reconcile.length > 0 ? { reconcileIssues: reconcile } : {}),
     });
     if (!page.ok) return { ok: false, failure: readFailure(page.error) };
-    for (const raw of page.data.issues ?? []) {
+    for (const raw of page.data?.issues ?? []) {
       const issue = mapIssue(raw, client.siteOrigin);
       if (issue.key && !seen.has(issue.key)) {
         seen.add(issue.key);
         all.push(issue);
       }
     }
-    if (page.data.isLast === true || !page.data.nextPageToken) break;
+    if (page.data?.isLast === true || !page.data?.nextPageToken) break;
     if (all.length >= MAX_ISSUES) {
       truncated = true;
       break;
     }
-    nextPageToken = page.data.nextPageToken;
+    nextPageToken = page.data.nextPageToken ?? undefined;
   }
   const issues = all.filter((issue) => columnForStatus(columns, issue.status.id));
   const unmapped = all.filter((issue) => !columnForStatus(columns, issue.status.id));
@@ -111,6 +112,7 @@ export async function readIssue(client: JiraClient, key: string, properties: rea
   const query = `fields=${ISSUE_FIELDS.join(",")}${properties.length > 0 ? `&properties=${properties.map(encodeURIComponent).join(",")}` : ""}`;
   const response = await client.get<RawIssue>(`/rest/api/3/issue/${encodeURIComponent(key)}?${query}`);
   if (!response.ok) return { ok: false, failure: readFailure(response.error) };
+  if (!response.data) return { ok: false, failure: failure("upstream", { detail: "Jira returned an empty issue" }) };
   return { ok: true, value: { issue: mapIssue(response.data, client.siteOrigin), raw: response.data } };
 }
 
@@ -147,7 +149,7 @@ export async function moveIssue(client: JiraClient, key: string, request: MoveRe
 
   const offered = await client.get<{ transitions?: RawTransition[] }>(`/rest/api/3/issue/${encodeURIComponent(key)}/transitions`);
   if (!offered.ok) return { ok: false, failure: readFailure(offered.error, current) };
-  const available = (offered.data.transitions ?? []).filter((transition) => transition.isAvailable !== false && transition.id);
+  const available = (offered.data?.transitions ?? []).filter((transition) => transition.isAvailable !== false && transition.id);
   const transition = targets.map((id) => available.find((candidate) => String(candidate.to?.id) === id)).find(Boolean);
   if (!transition?.id) {
     const names = context.value.columns.flatMap((column) => column.statuses).filter((status) => targets.includes(status.id)).map((status) => status.name);
