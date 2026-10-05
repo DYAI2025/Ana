@@ -1,0 +1,34 @@
+{
+  "drs_version": "1.0",
+  "jira": "ANA-5",
+  "state": "IN_PROGRESS",
+  "delivery_profile": "STANDARD_CODE",
+  "ic": {
+    "definition": "All acceptance criteria of Jira ANA-5 (AC1-AC11) and of its work packages ANA-23..ANA-29 are implemented, and each AC has at least one automated test named in docs/evidence/ANA-5/CHECKLIST.md. AC1 the Board renders Jira issue key, summary, current status and assignee for the issue set of Board 734 / filter 10733. AC2 the Board renders the five Jira-mapped states Backlog, Zur Entwicklung ausgewaehlt, In Arbeit, Review, Erledigt, taken from the live Board 734 column configuration; columns without statuses are not rendered. AC3 the dedicated /backlog view and the Board Backlog column render the same Jira items from one snapshot. AC4 Add idea creates exactly one Jira item in Backlog and shows its durable key only after readback. AC5 status moves run server-side Jira transitions discovered from transition metadata. AC6 every create and transition is read back from Jira before success is shown. AC7 write, permission, connector failure and readback mismatch are visible as ERROR, BLOCKED or UNKNOWN. AC8 reload and reconnect rebuild work from Jira; no fixture or browser state is canonical work state. AC9 no Jira credential reaches the browser bundle or logs. AC10 tests cover read mapping, duplicate prevention, every supported transition including Review, readback mismatch and connector/auth failure. AC11 DRS v1.0 from DYAI2025/DRS@c4efb97931c6171563191afb74d61507e13bc6d4 (DRS-v1.0.tar.gz sha256 7d1b5856ff5635cc7fdb76ba9ec0132e008c47d4b1de8050eb2cb03080253daf) is unpacked and applied (docs/delivery/DRS.md). Precondition from ANA-23: Review exists as a real Jira status and is mapped as its own Board 734 column between In Arbeit and Erledigt, verified by Jira readback.",
+    "state": "NOT_EVALUATED",
+    "claimed": null,
+    "evidence": []
+  },
+  "r2g": {
+    "definition": "On the exact candidate SHA: (1) GitHub Actions workflow 'dashboard' green: npm ci, lint, typecheck, unit tests, production build, Playwright e2e against the fake Jira boundary (evidence_class integration-fake). (2) GitHub Actions workflow 'drs' green: pinned DRS v1.0 validator over .drs/*.json. (3) Client bundle secret scan of apps/dashboard/.next/static finds 0 occurrences of the Jira token value, the token variable name and a Basic authorization header. (4) Live Jira real-boundary smoke on the candidate SHA (evidence_class real-boundary-smoke): read Board 734 / filter 10733, create one bounded verification idea with independent Jira readback, move it through every supported transition including Review with readback, and show one forced failure path as a visible ERROR/BLOCKED/UNKNOWN state; recorded in a Jira ANA-5 comment. (5) Screenshots of Board and Backlog behaviour at 1440x900, 1280x800 and 1024x768. (6) The diff contains no secret and no G2/G3 data. Stale evidence (a run on another SHA) is not evidence.",
+    "state": "NOT_EVALUATED",
+    "claimed": null,
+    "candidate_sha": null,
+    "evidence": [],
+    "allowed_paths": [
+      "apps/dashboard/e2e/**",
+      "apps/dashboard/src/**/*.test.ts",
+      "apps/dashboard/src/**/*.test.tsx",
+      "docs/**",
+      ".drs/**"
+    ]
+  },
+  "r4m": {
+    "definition": "The unchanged R2G candidate has: one independent DRS reviewer session (ROLE: DRS REVIEWER for ANA-5, not the implementing session) that verified the evidence on the exact candidate SHA; 0 open BLOCKS_CURRENT_GATE findings; PR mergeable with base at most 1 commit behind main; PR CI green on the exact SHA; and a PRE_MERGE reconcile of Jira, Confluence and GitHub without critical drift.",
+    "state": "NOT_EVALUATED",
+    "claimed": null,
+    "evidence": []
+  },
+  "synced_at": "2026-10-05T02:35:44Z",
+  "source": "offline: ANA Jira has no DRS custom fields; gate definitions are mirrored in a Jira ANA-5 comment and acceptance states are recorded in Jira and the pull request, not in this file"
+}
