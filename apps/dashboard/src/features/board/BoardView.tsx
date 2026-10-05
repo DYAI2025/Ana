@@ -10,7 +10,7 @@ import { PersonBadge } from "@/components/ui/PersonBadge";
 import { attr, backlogIssues, columnForStatus, filterByOwner, ownersOf, type OwnerFilter } from "@/features/work/model";
 import type { WorkColumn, WorkIssue } from "@/features/work/types";
 import { snapshotOf, useWork } from "@/features/work/WorkProvider";
-import { FailureNotice, formatTime, LoadingLine, SourceLine } from "@/features/work/WorkStatus";
+import { FAILURE_ICON, FailureNotice, formatTime, LoadingLine, SourceLine } from "@/features/work/WorkStatus";
 import workStyles from "@/features/work/work.module.css";
 import styles from "./board.module.css";
 
@@ -43,6 +43,14 @@ export function BoardView({ highlight }: { highlight?: string }) {
   const [over, setOver] = useState<string | null>(null);
   const [settled, setSettled] = useState<{ key: string; done: boolean } | null>(null);
   const hintId = useId();
+  const noticeIdBase = useId();
+  const noticeId = (key: string) => `${noticeIdBase}-${key}`;
+  /** Brings a move's full notice into view (it sits above the columns, which can be far up on a long board). */
+  const showNotice = (key: string) => {
+    const element = document.getElementById(noticeId(key));
+    element?.scrollIntoView?.({ block: "center", behavior: "smooth" });
+    element?.focus({ preventScroll: true });
+  };
   const snapshot = snapshotOf(state);
   const loaded = snapshot !== null;
   const canWrite = state.phase === "ready";
@@ -150,6 +158,7 @@ export function BoardView({ highlight }: { highlight?: string }) {
       {moveNotices.map((notice) => (
         <FailureNotice
           key={notice.key}
+          id={noticeId(notice.key)}
           failure={notice.failure}
           subject={notice.key}
           testId="move-failure"
@@ -238,6 +247,9 @@ export function BoardView({ highlight }: { highlight?: string }) {
                 {shown.map((issue) => {
                   const isPending = Boolean(pending[issue.key]);
                   const notConfirmed = !isPending && unconfirmed.has(issue.key);
+                  // a refused or unconfirmed move is marked on the card itself, where the person is looking
+                  const failedMove = isPending ? undefined : moveNotices.find((notice) => notice.key === issue.key);
+                  const FailedIcon = failedMove ? FAILURE_ICON[failedMove.failure.state] : null;
                   const ownerLabel = issue.assignee?.displayName ?? t("work.unassigned");
                   return (
                     <li key={issue.key}>
@@ -255,7 +267,7 @@ export function BoardView({ highlight }: { highlight?: string }) {
                         data-settled={settled?.key === issue.key ? (settled.done ? "done" : "moved") : undefined}
                         data-highlight={highlight === issue.key ? "true" : undefined}
                         aria-busy={isPending ? true : undefined}
-                        aria-describedby={hintId}
+                        aria-describedby={failedMove ? `${hintId} ${noticeId(issue.key)}` : hintId}
                         aria-label={t("board.ticketLabel", {
                           key: issue.key,
                           summary: issue.summary,
@@ -283,6 +295,23 @@ export function BoardView({ highlight }: { highlight?: string }) {
                         <p className={styles.status} data-testid="ticket-status">
                           {isPending ? t("board.syncing") : notConfirmed ? `${t("board.unconfirmedCard")} · ${issue.status.name}` : issue.status.name}
                         </p>
+                        {failedMove && FailedIcon ? (
+                          <button
+                            type="button"
+                            className={styles.cardFailure}
+                            data-state={failedMove.failure.state}
+                            data-testid="ticket-failure"
+                            draggable={false}
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              showNotice(issue.key);
+                            }}
+                          >
+                            <FailedIcon size={13} aria-hidden="true" strokeWidth={2.2} />
+                            <span className={styles.cardFailureState}>{failedMove.failure.state}</span>
+                            <span>{t("board.cardFailure")}</span>
+                          </button>
+                        ) : null}
                         <div className={styles.ticketFoot}>
                           <PersonBadge person={issue.assignee} unassignedLabel={t("work.unassigned")} size={22} showName />
                           <a

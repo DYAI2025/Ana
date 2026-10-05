@@ -106,6 +106,7 @@ export const it: Messages = {
     movesPaused: "Gli spostamenti sono in pausa finché il board non è di nuovo aggiornato.",
     moveNotConfirmed: "{key}: spostamento non confermato da Jira ({state}) — vedi il Board",
     unconfirmedCard: "Non confermato da Jira",
+    cardFailure: "spostamento non confermato — mostra dettagli",
   },
   backlog: {
     title: "Backlog",

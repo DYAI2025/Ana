@@ -109,6 +109,7 @@ export const en = {
     movesPaused: "Moves are paused until the board is current again.",
     moveNotConfirmed: "{key}: move not confirmed by Jira ({state}) — see the Board",
     unconfirmedCard: "Not confirmed by Jira",
+    cardFailure: "move not confirmed — show details",
   },
   backlog: {
     title: "Backlog",

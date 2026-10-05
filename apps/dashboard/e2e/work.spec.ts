@@ -140,6 +140,13 @@ test.describe("Board — projection of Jira Board 734 / filter 10733", () => {
     await expect(notice).toHaveAttribute("data-state", "BLOCKED");
     await expect(notice).toContainText("Jira's workflow does not allow this move");
     await expect(column(page, "In Arbeit").locator('[data-ticket-id="ANA-904"]')).toBeVisible();
+    // the card itself carries the state where the person is looking, and leads to the full notice
+    const chip = card(page, "ANA-904").getByTestId("ticket-failure");
+    await expect(chip).toHaveAttribute("data-state", "BLOCKED");
+    await expect(chip).toBeInViewport();
+    await chip.click();
+    await expect(notice).toBeFocused();
+    await expect(notice).toBeInViewport();
     expect((await jira.state()).issues.find((i) => i.key === "ANA-904")!.status).toBe("In Arbeit");
   });
 

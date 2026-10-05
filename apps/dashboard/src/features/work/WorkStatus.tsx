@@ -7,14 +7,27 @@ import { Button } from "@/components/ui/Button";
 import type { FailureState, WorkFailure, WorkSnapshot } from "./types";
 import styles from "./work.module.css";
 
-const ICON: Record<FailureState, typeof Ban> = { ERROR: OctagonX, BLOCKED: Ban, UNKNOWN: CircleHelp };
+export const FAILURE_ICON: Record<FailureState, typeof Ban> = { ERROR: OctagonX, BLOCKED: Ban, UNKNOWN: CircleHelp };
 
 /** ERROR / BLOCKED / UNKNOWN, carried by label + icon + text — never shown as success, never colour alone. */
-export function FailureNotice({ failure, subject, actions, testId = "work-failure" }: { failure: WorkFailure; subject?: string; actions?: ReactNode; testId?: string }) {
+export function FailureNotice({
+  failure,
+  subject,
+  actions,
+  testId = "work-failure",
+  id,
+}: {
+  failure: WorkFailure;
+  subject?: string;
+  actions?: ReactNode;
+  testId?: string;
+  /** Lets another element (a card's state mark) bring this notice into view and focus it. */
+  id?: string;
+}) {
   const { t } = useI18n();
-  const Icon = ICON[failure.state];
+  const Icon = FAILURE_ICON[failure.state];
   return (
-    <div className={styles.failure} role="alert" data-state={failure.state} data-code={failure.code} data-testid={testId}>
+    <div className={styles.failure} role="alert" id={id} tabIndex={id ? -1 : undefined} data-state={failure.state} data-code={failure.code} data-testid={testId}>
       <span className={styles.stateLabel}>
         <Icon size={14} aria-hidden="true" strokeWidth={2.2} />
         {failure.state}

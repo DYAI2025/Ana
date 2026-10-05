@@ -106,6 +106,7 @@ export const de: Messages = {
     movesPaused: "Verschieben ist pausiert, bis das Board wieder aktuell ist.",
     moveNotConfirmed: "{key}: Verschieben nicht von Jira bestätigt ({state}) — siehe Board",
     unconfirmedCard: "Nicht von Jira bestätigt",
+    cardFailure: "Verschieben nicht bestätigt — Details zeigen",
   },
   backlog: {
     title: "Backlog",

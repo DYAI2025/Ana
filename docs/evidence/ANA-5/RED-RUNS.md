@@ -116,6 +116,16 @@ what was asked…" (mismatch-with-issue branch disabled), "reconcileIds…" (new
 always answers before the browser gives up…" (a route built without its budget). G4, G6 and G7 pass on 7ce8799: G4
 is an existing guarantee, G6 and G7 pin the documented residual rows.
 
+## Live run finding — a failure notice out of view
+
+The first live runtime proof (build of b99e0d2 against Jira Board 734, verification issue ANA-30) passed every
+assertion, but its screenshots showed a gap the fake board could not: on the real board (17 Backlog issues) a refused
+move's notice sits above the columns, out of view, while focus and scroll stay at the card far below. The state was in
+the DOM (role="alert") but not visible. Fix: the card itself carries the state and leads to the notice.
+`board.test.tsx` "a refused move is marked on the card itself, and the card leads to the full notice (long boards)"
+failed on b99e0d2 and passes on the fix; `e2e/work.spec.ts` AC7 and the live spec now require the card mark and the
+notice to be in the viewport.
+
 ## Bundle secret scan (`npm run scan:bundle`)
 
 - A planted file under `.next/static` containing the token variable name: exit 1; without it: exit 0.

@@ -97,8 +97,16 @@ test("live: Board and Backlog read Jira, one idea is created and moved through e
   const notice = page.getByTestId("move-failure");
   await expect(notice).toHaveAttribute("data-state", "UNKNOWN", { timeout: 30_000 });
   await expect(page.locator('[data-backlog="true"]').locator(`[data-ticket-id="${key}"]`)).toBeVisible();
-  log.push({ step: "visible-unknown", key, text: await notice.textContent() });
+  // on a long real board the notice can be far above: the card itself shows the state where the person is looking
+  const chip = card.getByTestId("ticket-failure");
+  await expect(chip).toHaveAttribute("data-state", "UNKNOWN");
+  await expect(chip).toBeInViewport();
+  log.push({ step: "visible-unknown", key, text: await notice.textContent(), cardMark: await chip.textContent() });
   await shots(page, "live-board-stale-unknown");
+  await chip.click();
+  await expect(notice).toBeFocused();
+  await expect(notice).toBeInViewport();
+  await shots(page, "live-board-stale-unknown-notice");
 
   // 4b · forced failure paths through the dashboard API — refused before any Jira write
   const origin = new URL(page.url()).origin;

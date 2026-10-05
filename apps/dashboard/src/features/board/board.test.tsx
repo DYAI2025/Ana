@@ -121,6 +121,27 @@ describe("Board — Jira projection", () => {
     await waitFor(() => expect(requests.map((r) => r.url)).toContain("/api/work?reconcile=904"));
   });
 
+  it("a refused move is marked on the card itself, and the card leads to the full notice (long boards)", async () => {
+    const snapshot = makeSnapshot();
+    handler = (url) =>
+      url.includes("/transition")
+        ? { ok: false, failure: { state: "BLOCKED", code: "unsupported-transition", issue: snapshot.issues[4], detail: "Jira offers no transition" } }
+        : serve(snapshot)();
+    const user = userEvent.setup();
+    render(wrap(<BoardView />));
+    const title = await screen.findByText("Prepare the shared resource map");
+    act(() => title.closest("article")!.focus());
+    await user.keyboard("{Shift>}{ArrowRight}{/Shift}");
+    const chip = await within(screen.getByText("Prepare the shared resource map").closest("article")!).findByTestId("ticket-failure");
+    expect(chip).toHaveAttribute("data-state", "BLOCKED");
+    expect(chip).toHaveTextContent("BLOCKED");
+    await user.click(chip);
+    expect(screen.getByTestId("move-failure")).toHaveFocus();
+    // dismissing the notice clears the mark on the card too
+    await user.click(within(screen.getByTestId("move-failure")).getByRole("button", { name: /Dismiss/ }));
+    expect(within(screen.getByText("Prepare the shared resource map").closest("article")!).queryByTestId("ticket-failure")).toBeNull();
+  });
+
   it("a failed move shows Jira's truth from the failure at once, before the board is re-read", async () => {
     const snapshot = makeSnapshot();
     let reads = 0;
