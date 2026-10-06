@@ -1,0 +1,31 @@
+{
+  "drs_version": "1.0",
+  "jira": "ANA-35",
+  "state": "IN_PROGRESS",
+  "delivery_profile": "STANDARD_CODE",
+  "ic": {
+    "definition": "All acceptance criteria AC1-AC15 of Jira ANA-35 are implemented with mapped evidence. This includes one canonical private Obsidian-compatible Brain vault; provenance-safe Markdown/source records with recoverable source truth; a verified pinned ANA embedding model and isolated dedicated ANA Qdrant collection/namespace; incremental idempotent indexing; authenticated shared MCP for Ana, Ben and Vince with bounded read/search/context/backlink plus safe create/add-source/add-relation/append-observation operations and no delete or unrestricted overwrite; one real pre-workshop artifact and one post-workshop consolidation proof; evidence-backed later retrieval distinguishing prior knowledge, new evidence, derivation, corrections, uncertainty and sources; the existing dashboard Brain route rendering real Brain data with semantic-position projection and explicit relation edges while preserving accessibility/reduced-motion behavior; no raw/private Brain material, credentials, tokens or G2/G3 payloads in public Git/CI/logs; Markdown/source records remain canonical while Qdrant/coordinates/clusters/dashboard are rebuildable projections; and operating ownership/backup/maintenance plus KEEP/INTEGRATE/SCALE/DELEGATE/AUTOMATE/STOP closeout are recorded. DRS v1.0 is the repository-bound standard in docs/delivery/DRS.md.",
+    "state": "NOT_EVALUATED",
+    "claimed": null,
+    "evidence": []
+  },
+  "r2g": {
+    "definition": "On the exact candidate SHA: (1) all affected repository CI checks are green, including install, lint, typecheck, unit tests, production build and relevant Playwright/E2E; (2) the pinned DRS v1.0 validator is green for .drs/ANA-35.json; (3) automated tests cover schema/frontmatter validation, path-root protection, provenance/explicit-relation handling, correction/supersession, idempotent indexing and no silent FACT/DECISION promotion; (4) a real-boundary Qdrant/Ollama/BGE smoke verifies selected model identity/vector dimension, dedicated ANA collection isolation, semantic write/read retrieval and persistence without public Qdrant/Ollama exposure; (5) authenticated MCP real-boundary smoke verifies at least two distinct caller identities including Ana or her configured client, with all three Ana/Ben/Vince configurations verified by final acceptance; (6) MCP smoke proves allowed read/search/context/backlink and safe create/add-source/add-relation/append-observation behavior plus rejection of unauthenticated access, path traversal, delete and unrestricted overwrite; (7) one private end-to-end workshop proof covers pre-workshop retrieval -> concrete preparation artifact -> post-workshop source addition -> consolidation -> later evidence-backed retrieval; (8) dashboard E2E/visual proof shows the Brain route uses the production graph-data contract instead of hard-coded semantic truth, renders semantic positions plus explicit edges, supports search/focus/source inspection and reduced-motion/accessibility fallback; (9) privacy/secret scan finds no raw private transcript/Brain payload, credential, token or G2/G3 source dump in repository/public build artifacts/logs; (10) the diff introduces no pgvector, second vector store, generalized RAG, automatic full graph extraction, universal ingestion, unrestricted canonical overwrite/delete or renderer rewrite without an accepted scope change; (11) every evidence item is current for the exact candidate SHA and stale evidence is inadmissible.",
+    "state": "NOT_EVALUATED",
+    "claimed": null,
+    "candidate_sha": null,
+    "evidence": [],
+    "allowed_paths": [
+      "docs/**",
+      ".drs/**"
+    ]
+  },
+  "r4m": {
+    "definition": "The unchanged R2G candidate has: one independent DRS reviewer session distinct from implementation verifying IC and R2G evidence on the exact candidate SHA; 0 open BLOCKS_CURRENT_GATE findings; PR mergeable with required CI/DRS green on the exact SHA; PRE_MERGE reconciliation of Jira, Confluence and GitHub with no critical drift in ANA-35 scope, privacy/provenance boundary, Qdrant/BGE choice, MCP access contract or 3D Brain semantics; base drift within project policy; and no code/product-scope mutation after R2G without invalidation and rerun.",
+    "state": "NOT_EVALUATED",
+    "claimed": null,
+    "evidence": []
+  },
+  "synced_at": "2026-10-06T00:06:00Z",
+  "source": "offline: ANA Jira has no DRS custom fields; gate definitions are mirrored in Jira ANA-35 comment 17391 and acceptance states are recorded in Jira and the pull request, not in this file"
+}
