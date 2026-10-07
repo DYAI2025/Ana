@@ -87,7 +87,7 @@ const SHOTS: {
   { name: "session-transcript", route: "/sessions/working-session-01?tab=transcript" },
   {
     name: "brain-selected",
-    route: "/brain?node=workshop-02",
+    route: "/brain?node=ws-workshop-02",
   },
   { name: "whiteboard", route: "/whiteboard" },
   { name: "calendar", route: "/calendar" },

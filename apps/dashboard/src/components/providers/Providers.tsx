@@ -1,6 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
+import { BrainProvider } from "@/features/brain/BrainProvider";
 import { WorkProvider } from "@/features/work/WorkProvider";
 import { I18nProvider } from "./I18nProvider";
 import { PrototypeProvider } from "./PrototypeProvider";
@@ -11,7 +12,9 @@ export function Providers({ children }: { children: ReactNode }) {
     <I18nProvider>
       <ToastProvider>
         <WorkProvider>
-          <PrototypeProvider>{children}</PrototypeProvider>
+          <BrainProvider>
+            <PrototypeProvider>{children}</PrototypeProvider>
+          </BrainProvider>
         </WorkProvider>
       </ToastProvider>
     </I18nProvider>

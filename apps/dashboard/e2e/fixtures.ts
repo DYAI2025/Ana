@@ -3,6 +3,14 @@ import { test as base, expect, type Page } from "@playwright/test";
 /** Control surface of the local fake Jira (e2e/fake-jira/server.mjs) — test-only, never a real Jira. */
 export const FAKE_JIRA = `http://127.0.0.1:${process.env.FAKE_JIRA_PORT ?? 3199}`;
 
+/** Control surface of the local fake Brain service (e2e/fake-brain/server.mjs) — synthetic data only. */
+export const FAKE_BRAIN = `http://127.0.0.1:${process.env.FAKE_BRAIN_PORT ?? 3198}`;
+export type FakeBrainMode = "ok" | "mirrored" | "empty" | "down" | "unauthorized" | "invalid" | "slow";
+
+export interface FakeBrainControl {
+  mode(mode: FakeBrainMode): Promise<void>;
+}
+
 export interface FakeJiraControl {
   fault(fault: Record<string, unknown>): Promise<void>;
   board(patch: { filterId?: string; withReview?: boolean }): Promise<void>;
@@ -11,7 +19,20 @@ export interface FakeJiraControl {
   state(): Promise<{ creates: number; issues: { key: string; summary: string; status: string; labels: string[] }[] }>;
 }
 
-export const test = base.extend<{ consoleErrors: string[]; jira: FakeJiraControl }>({
+export const test = base.extend<{ consoleErrors: string[]; jira: FakeJiraControl; brain: FakeBrainControl }>({
+  /** Every test starts from the same synthetic Brain projection. */
+  brain: [
+    async ({ request }, provide) => {
+      const post = async (path: string, data: unknown = {}) => {
+        const response = await request.post(`${FAKE_BRAIN}${path}`, { data });
+        expect(response.ok(), `fake Brain ${path}`).toBe(true);
+      };
+      await post("/__fake/reset");
+      await provide({ mode: (mode) => post("/__fake/mode", { mode }) });
+    },
+    { auto: true },
+  ],
+
   /** Every test starts from the same synthetic Jira state. */
   jira: [
     async ({ request }, provide) => {

@@ -1,21 +1,29 @@
-/** Canvas drawing for the Brain fixture. Visual only — no layout physics, no data semantics. */
-import type { BrainEdge, BrainNode, NodeType } from "@/fixtures/brain";
+/** Canvas drawing for the Brain projection. Visual only — positions come from the projection, never from type. */
+import type { BrainCluster, BrainEdge, BrainNode, NodeType } from "./types";
 import { project, type Camera, type HitTarget, type Viewport } from "./projection";
 
-/** Pastel per type; shape also differs per type so meaning is not colour-only. */
-export type NodeShape = "double" | "circle" | "square" | "triangle" | "diamond" | "hexagon" | "pentagon" | "ring";
+export type NodeShape = "double" | "circle" | "square" | "triangle" | "diamond" | "hexagon" | "pentagon" | "ring" | "star";
 
-/** Every type has its own shape (mirrored in the legend), so colour is never the only cue. */
-export const TYPE_STYLE: Readonly<Record<NodeType, { color: string; shape: NodeShape }>> = {
-  goal: { color: "#ffb7a8", shape: "double" },
-  resource: { color: "#e5d3be", shape: "circle" },
-  session: { color: "#bbb4d5", shape: "square" },
-  workshop: { color: "#ddbbc2", shape: "triangle" },
-  decision: { color: "#f5ede4", shape: "diamond" },
-  tool: { color: "#c9a3ad", shape: "hexagon" },
-  source: { color: "#d6c6ea", shape: "pentagon" },
-  hypothesis: { color: "#f1d7a6", shape: "ring" },
+/** Shape encodes the note type (mirrored in the legend); colour is reserved for the cluster. */
+export const TYPE_STYLE: Readonly<Record<NodeType, { shape: NodeShape }>> = {
+  source: { shape: "pentagon" },
+  concept: { shape: "circle" },
+  method: { shape: "square" },
+  tool: { shape: "hexagon" },
+  preference: { shape: "double" },
+  observation: { shape: "ring" },
+  workshop: { shape: "triangle" },
+  topic: { shape: "diamond" },
+  question: { shape: "star" },
 };
+
+/** Deterministic pastel palette from the C4/Lumen tones; clusters take colours in projection order. */
+export const CLUSTER_PALETTE = ["#ffb7a8", "#bbb4d5", "#f1d7a6", "#a9d3c5", "#ddbbc2", "#a8c3e6", "#e5d3be", "#c9e2a6"] as const;
+export const UNCLUSTERED_COLOR = "#b8b0aa";
+
+export function clusterColors(clusters: readonly BrainCluster[]): Map<string, string> {
+  return new Map(clusters.map((c, i) => [c.id, CLUSTER_PALETTE[i % CLUSTER_PALETTE.length]!]));
+}
 
 const POLYGON: Partial<Record<NodeShape, { sides: number; rotation: number; scale: number }>> = {
   square: { sides: 4, rotation: Math.PI / 4, scale: 1.25 },
@@ -24,6 +32,16 @@ const POLYGON: Partial<Record<NodeShape, { sides: number; rotation: number; scal
   hexagon: { sides: 6, rotation: 0, scale: 1.18 },
   pentagon: { sides: 5, rotation: -Math.PI / 2, scale: 1.2 },
 };
+
+function star(ctx: CanvasRenderingContext2D, x: number, y: number, radius: number) {
+  for (let i = 0; i < 10; i += 1) {
+    const angle = -Math.PI / 2 + (i / 10) * Math.PI * 2;
+    const r = i % 2 === 0 ? radius : radius * 0.48;
+    if (i === 0) ctx.moveTo(x + Math.cos(angle) * r, y + Math.sin(angle) * r);
+    else ctx.lineTo(x + Math.cos(angle) * r, y + Math.sin(angle) * r);
+  }
+  ctx.closePath();
+}
 
 function polygon(ctx: CanvasRenderingContext2D, x: number, y: number, radius: number, sides: number, rotation: number) {
   for (let i = 0; i < sides; i += 1) {
@@ -39,11 +57,14 @@ function polygon(ctx: CanvasRenderingContext2D, x: number, y: number, radius: nu
 export interface DrawInput {
   nodes: readonly BrainNode[];
   edges: readonly BrainEdge[];
+  colors: ReadonlyMap<string, string>;
   camera: Camera;
   viewport: Viewport;
   selected: string | null;
   hovered: string | null;
   related: ReadonlySet<string>;
+  /** Nodes that stay bright while a filter, cluster focus or selection is active; null = no focus, all bright. */
+  focus: ReadonlySet<string> | null;
   labelOf: (node: BrainNode) => string;
 }
 
@@ -53,7 +74,7 @@ function hexToRgba(hex: string, alpha: number) {
 }
 
 export function drawBrain(ctx: CanvasRenderingContext2D, input: DrawInput): HitTarget[] {
-  const { nodes, edges, camera, viewport, selected, hovered, related, labelOf } = input;
+  const { nodes, edges, colors, camera, viewport, selected, hovered, related, focus, labelOf } = input;
   ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height); // full canvas: the drawing viewport may be narrower
 
   const projected = new Map(nodes.map((node) => [node.id, project(node.position, camera, viewport)]));
@@ -65,7 +86,10 @@ export function drawBrain(ctx: CanvasRenderingContext2D, input: DrawInput): HitT
     const b = projected.get(edge.to);
     if (!a || !b) continue;
     const isActive = selected !== null && (edge.from === selected || edge.to === selected);
-    const alpha = Math.max(0.05, Math.min(1, depthAlpha((a.depth + b.depth) / 2))) * (isActive ? 0.9 : selected ? 0.18 : 0.32);
+    const inFocus = !focus || (focus.has(edge.from) && focus.has(edge.to));
+    // noise reduction: relations outside the focus nearly disappear
+    const weight = isActive ? 0.9 : !inFocus ? 0.04 : selected ? 0.18 : focus ? 0.55 : 0.32;
+    const alpha = Math.max(0.03, Math.min(1, depthAlpha((a.depth + b.depth) / 2))) * weight;
     ctx.strokeStyle = isActive ? `rgba(255, 150, 130, ${alpha})` : `rgba(245, 237, 228, ${alpha})`;
     ctx.lineWidth = isActive ? 1.6 : 1;
     ctx.setLineDash(isActive ? [] : [3, 5]);
@@ -82,12 +106,13 @@ export function drawBrain(ctx: CanvasRenderingContext2D, input: DrawInput): HitT
 
   for (const node of order) {
     const p = projected.get(node.id)!;
-    const style = TYPE_STYLE[node.type];
+    const style = { shape: TYPE_STYLE[node.type].shape, color: colors.get(node.cluster) ?? UNCLUSTERED_COLOR };
     const isSelected = node.id === selected;
     const isRelated = related.has(node.id);
-    const dimmed = selected !== null && !isSelected && !isRelated;
-    const alpha = Math.min(1, depthAlpha(p.depth)) * (dimmed ? 0.45 : 1);
-    const radius = (node.type === "goal" ? 9 : 6.5) * p.scale * Math.sqrt(camera.zoom);
+    const dimmed = focus !== null && !focus.has(node.id);
+    const superseded = node.status === "SUPERSEDED";
+    const alpha = Math.min(1, depthAlpha(p.depth)) * (dimmed ? 0.12 : 1) * (superseded ? 0.5 : 1);
+    const radius = (node.type === "topic" ? 8.5 : 6.5) * p.scale * Math.sqrt(camera.zoom);
 
     // soft glow
     const glow = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, radius * 3.4);
@@ -103,8 +128,13 @@ export function drawBrain(ctx: CanvasRenderingContext2D, input: DrawInput): HitT
     ctx.lineWidth = 1;
     ctx.beginPath();
     const poly = POLYGON[style.shape];
+    if (superseded) ctx.setLineDash([2, 2]);
     if (poly) {
       polygon(ctx, p.x, p.y, radius * poly.scale, poly.sides, poly.rotation);
+      ctx.fill();
+      ctx.stroke();
+    } else if (style.shape === "star") {
+      star(ctx, p.x, p.y, radius * 1.45);
       ctx.fill();
       ctx.stroke();
     } else if (style.shape === "ring") {
@@ -128,6 +158,7 @@ export function drawBrain(ctx: CanvasRenderingContext2D, input: DrawInput): HitT
       }
     }
 
+    ctx.setLineDash([]);
     if (isSelected) {
       ctx.beginPath();
       ctx.arc(p.x, p.y, radius + 8, 0, Math.PI * 2);
@@ -136,7 +167,7 @@ export function drawBrain(ctx: CanvasRenderingContext2D, input: DrawInput): HitT
       ctx.stroke();
     }
 
-    const priority = isSelected ? 3 : node.id === hovered ? 2 : isRelated ? 1 : selected === null && p.depth > -0.2 ? 0 : -1;
+    const priority = isSelected ? 3 : node.id === hovered ? 2 : isRelated ? 1 : selected === null && !dimmed && p.depth > -0.2 ? 0 : -1;
     if (priority >= 0) labels.push({ node, x: p.x, y: p.y, radius, alpha, priority, depth: p.depth });
 
     targets.push({ id: node.id, x: p.x, y: p.y, radius: Math.max(radius + 3, 10), depth: p.depth });

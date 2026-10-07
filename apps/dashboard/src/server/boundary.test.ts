@@ -2,6 +2,7 @@
 import { readFileSync } from "node:fs";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { GET } from "@/app/api/work/route";
+import { GET as GET_BRAIN } from "@/app/api/brain/route";
 import { READ_DEADLINE_MS, WRITE_DEADLINE_MS } from "@/features/work/api";
 import { READ_BUDGET_MS, readWriteRequest, refuseNonLocal, WRITE_BUDGET_MS } from "./http";
 import { createJiraClient, jiraErrorDetail } from "./jira/client";
@@ -106,6 +107,29 @@ describe("work API answers only requests addressed to this machine", () => {
     const response = await GET(get("rebind.attacker.test:3000"));
     expect(response.status).toBe(403);
     expect(await response.json()).toMatchObject({ ok: false, failure: { code: "invalid-request" } });
+  });
+
+  it("the GET /api/brain route refuses a foreign Host before any Brain call", async () => {
+    const fetchSpy = vi.spyOn(globalThis, "fetch");
+    try {
+      const response = await GET_BRAIN(new Request("http://rebind.attacker.test:3000/api/brain", { headers: { host: "rebind.attacker.test:3000" } }));
+      expect(response.status).toBe(403);
+      expect(fetchSpy).not.toHaveBeenCalled();
+    } finally {
+      fetchSpy.mockRestore();
+    }
+  });
+
+  it("the GET /api/brain route answers a local request honestly when the Brain is not configured", async () => {
+    vi.stubEnv("BRAIN_API_URL", "");
+    try {
+      const response = await GET_BRAIN(new Request("http://127.0.0.1:3000/api/brain", { headers: { host: "127.0.0.1:3000" } }));
+      expect(response.status).toBe(200);
+      expect(response.headers.get("cache-control")).toBe("no-store");
+      expect(await response.json()).toMatchObject({ ok: false, failure: { kind: "not-configured" } });
+    } finally {
+      vi.unstubAllEnvs();
+    }
   });
 
   it("the npm scripts bind the server to 127.0.0.1", () => {

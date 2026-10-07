@@ -5,17 +5,66 @@
   flex: 1;
 }
 
-.banner {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin: -10px 0 16px;
-  padding: 10px 14px;
-  border-radius: 14px;
+.statusLine {
+  margin: -10px 0 14px;
   font-size: 12.5px;
+  color: var(--text-secondary);
+}
+
+.loading,
+.empty {
+  margin: 8px 0;
+  padding: 18px 20px;
+  font-size: 14px;
+  color: var(--text-secondary);
+}
+
+.failure {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 12px 14px;
+  border-radius: 16px;
+  border: 1px solid rgba(229, 211, 190, 0.7);
+  background: rgba(32, 26, 31, 0.78);
+  color: var(--text);
+  font-size: 13.5px;
+}
+
+.failure[data-state="UNKNOWN"] {
+  border-style: dashed;
+  border-color: rgba(187, 180, 213, 0.75);
+}
+
+.stateLabel {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex: none;
+  padding: 3px 8px;
+  border-radius: 999px;
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  background: rgba(20, 16, 19, 0.6);
   color: var(--sand);
-  border: 1px solid rgba(229, 211, 190, 0.3);
-  background: rgba(229, 211, 190, 0.07);
+}
+
+.failure[data-state="UNKNOWN"] .stateLabel {
+  color: #dcd7ee;
+}
+
+.failureBody {
+  flex: 1 1 260px;
+  min-width: 0;
+}
+
+.failureDetail {
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--text-secondary);
 }
 
 .layout {
@@ -144,6 +193,10 @@
   pointer-events: none;
 }
 
+.legend .swatch {
+  color: #e9e1da;
+}
+
 .legendItem {
   display: inline-flex;
   align-items: center;
@@ -188,6 +241,11 @@
   border: 1.5px dashed currentColor;
 }
 
+.swatch[data-shape="star"] {
+  border-radius: 0;
+  clip-path: polygon(50% 0, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%);
+}
+
 .swatch[data-shape="double"] {
   box-shadow: 0 0 0 2px var(--canvas), 0 0 0 3px currentColor;
 }
@@ -214,6 +272,114 @@
   max-height: calc(100% - 96px);
   overflow: auto;
   background: rgba(46, 38, 44, 0.9);
+}
+
+.clusterCard {
+  flex: none;
+  padding-bottom: 10px;
+}
+
+.clusterList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.clusterItem {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 12px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  padding: 5px 8px;
+  border-radius: 10px;
+  border: 1px solid transparent;
+  background: transparent;
+  text-align: left;
+  font-size: 13px;
+}
+
+.clusterItem:hover {
+  background: rgba(255, 255, 255, 0.07);
+}
+
+.clusterItem[aria-pressed="true"] {
+  border-color: rgba(255, 128, 108, 0.5);
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.dot {
+  display: inline-block;
+  flex: none;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.statusChip {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  border: 1px solid rgba(245, 237, 228, 0.45);
+  background: rgba(20, 16, 19, 0.5);
+  color: var(--text);
+}
+
+.statusChip[data-status="CONFIRMED"] {
+  border-style: solid;
+  border-width: 2px;
+}
+
+.statusChip[data-status="CANDIDATE"] {
+  border-style: dashed;
+}
+
+.statusChip[data-status="SUPERSEDED"] {
+  border-style: dotted;
+  color: var(--text-secondary);
+  text-decoration: line-through;
+}
+
+.nodeTitle[data-superseded="true"] {
+  color: var(--text-secondary);
+  text-decoration: line-through;
+}
+
+.supersededHint {
+  font-size: 12.5px;
+  color: var(--text-secondary);
+  margin-bottom: 10px;
+}
+
+.refs {
+  list-style: none;
+  margin: 0 0 14px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 12.5px;
+}
+
+.relationType,
+.locator,
+.mono {
+  font-family: var(--mono);
+  font-size: 11.5px;
+  color: var(--text-secondary);
+}
+
+.listItem[data-status="SUPERSEDED"] .listLabel {
+  text-decoration: line-through;
+  color: var(--text-secondary);
 }
 
 .listCard {
