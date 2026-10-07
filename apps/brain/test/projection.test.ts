@@ -36,6 +36,8 @@ describe("projection", () => {
       expect(a.clusters.reduce((s, c) => s + c.size, 0)).toBe(9);
       expect(a.clusters.length).toBe(2);
       expect(a.clusters.some((c) => c.label === "Title top-alpha" || c.label === "Title top-beta")).toBe(true);
+      // two colours never carry the same name
+      expect(new Set(a.clusters.map((c) => c.label)).size).toBe(a.clusters.length);
       const restricted = a.nodes.find((n) => n.id === "src-restricted-doc")!;
       expect(restricted.source).toEqual({ kind: "drive_doc", access: "restricted", data_class: "G2", locator_display: "drive_doc: Synthetic restricted" });
       expect(JSON.stringify(a)).not.toContain("SECRET-DRIVE-ID-123");
@@ -68,5 +70,28 @@ describe("locator display", () => {
     expect(locatorDisplay({ ...base, access: "internal", data_class: "UNKNOWN" })).toBe("drive_doc: Synthetic");
     expect(locatorDisplay({ ...base, access: "internal", data_class: "G2" })).toBe("drive_doc: Synthetic");
     expect(locatorDisplay({ ...base, access: "restricted", data_class: "G0" })).toBe("drive_doc: Synthetic");
+  });
+});
+
+describe("cluster labels", () => {
+  it("are unique even when two clusters share their most frequent topic", async () => {
+    const { buildProjection } = await import("../src/projection/projection.js");
+    const { validateFrontmatter } = await import("../src/contract/note.js");
+    const at = "2026-10-07T12:00:00Z";
+    const fm = (id: string, type: string, topics: string[]) => ({
+      ana_brain: 1, id, title: `T ${id}`, type, status: "DERIVED", created: at, updated: at, created_by: "ben",
+      topics, workshops: [], source_refs: [], relations: [], superseded_by: null, provenance: { method: "manual", actor: "ben", at },
+    });
+    const notes = [
+      fm("top-shared", "topic", []), fm("top-other", "topic", []),
+      fm("kn-a-one", "concept", ["top-shared"]), fm("kn-a-two", "concept", ["top-shared"]),
+      fm("kn-b-one", "concept", ["top-shared"]), fm("kn-b-two", "concept", ["top-shared", "top-other"]),
+    ].map((f) => ({ fm: validateFrontmatter(f), body: "Body.\n" }));
+    // two well separated groups of embeddings
+    const v = (s: number) => Array.from({ length: 8 }, (_, i) => (i < 4 ? s : 1 - s) + i * 0.001);
+    const emb = new Map(notes.map((n, i) => [n.fm.id, v(i < 4 ? 1 : 0)]));
+    const p = buildProjection(notes, emb, { summary: () => "", generatedAt: at });
+    expect(p.clusters.length).toBeGreaterThan(1);
+    expect(new Set(p.clusters.map((c) => c.label)).size).toBe(p.clusters.length);
   });
 });

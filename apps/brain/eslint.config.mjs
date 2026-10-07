@@ -11,4 +11,9 @@ export default tseslint.config(
       "no-console": "off",
     },
   },
+  {
+    // plain Node scripts (smoke test) run outside TypeScript
+    files: ["scripts/**/*.mjs"],
+    languageOptions: { globals: { process: "readonly", console: "readonly", fetch: "readonly", URL: "readonly" } },
+  },
 );

@@ -70,13 +70,36 @@ export function buildProjection(notes: Note[], embeddings: Map<string, Vec>, opt
   const k = rows.length ? Math.max(...assign) + 1 : 0;
   const topicTitle = new Map(sorted.filter((n) => n.fm.type === "topic").map((n) => [n.fm.id, n.fm.title]));
 
-  const clusters = Array.from({ length: k }, (_, ci) => {
+  // Label = the topic that is most characteristic of the cluster (share of that topic's notes that fall in the
+  // cluster, weighted by count). Labels are unique: larger clusters choose first; a cluster without a free topic
+  // gets "<topic> · <n>" so two colours never carry the same name.
+  const globalCount = new Map<string, number>();
+  const topicsOf = (m: (typeof embedded)[number]) => [...m.fm.topics, ...(m.fm.type === "topic" ? [m.fm.id] : [])].filter((t) => topicTitle.has(t));
+  for (const m of embedded) for (const t of topicsOf(m)) globalCount.set(t, (globalCount.get(t) ?? 0) + 1);
+  const raw = Array.from({ length: k }, (_, ci) => {
     const members = embedded.filter((_, i) => assign[i] === ci);
     const counts = new Map<string, number>();
-    for (const m of members) for (const t of m.fm.topics) if (topicTitle.has(t)) counts.set(t, (counts.get(t) ?? 0) + 1);
-    const best = [...counts.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))[0];
-    return { id: `c${ci}`, label: best ? topicTitle.get(best[0])! : `Cluster ${ci + 1}`, size: members.length };
-  }).filter((c) => c.size > 0);
+    for (const m of members) for (const t of topicsOf(m)) counts.set(t, (counts.get(t) ?? 0) + 1);
+    const ranked = [...counts.entries()]
+      .map(([t, c]) => [t, c * (c / (globalCount.get(t) ?? c))] as const)
+      .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+      .map(([t]) => t);
+    return { ci, size: members.length, ranked };
+  });
+  const used = new Map<string, number>();
+  const labels = new Map<number, string>();
+  for (const c of [...raw].sort((a, b) => b.size - a.size || a.ci - b.ci)) {
+    const free = c.ranked.find((t) => !used.has(t));
+    const pick = free ?? c.ranked[0];
+    if (!pick) {
+      labels.set(c.ci, `Cluster ${c.ci + 1}`);
+      continue;
+    }
+    const n = (used.get(pick) ?? 0) + 1;
+    used.set(pick, n);
+    labels.set(c.ci, n === 1 ? topicTitle.get(pick)! : `${topicTitle.get(pick)!} · ${n}`);
+  }
+  const clusters = raw.map((c) => ({ id: `c${c.ci}`, label: labels.get(c.ci)!, size: c.size })).filter((c) => c.size > 0);
 
   const posById = new Map(embedded.map((n, i) => [n.fm.id, { p: pos[i] ?? [0, 0, 0], c: `c${assign[i]}` }]));
   const nodes: ProjectionNode[] = sorted.map((n) => {
