@@ -35,7 +35,8 @@ export const zSourceBlock = z
     locator: z.string().min(1).max(2000),
     original_title: z.string().min(1).max(500),
     access: z.enum(["restricted", "internal", "public"]),
-    data_class: z.enum(["G0", "G1", "G2", "G3"]),
+    // UNKNOWN when nobody has classified the source yet; it is then handled like a sensitive class
+    data_class: z.enum(["G0", "G1", "G2", "G3", "UNKNOWN"]),
     checksum: z.string().regex(/^sha256:[a-f0-9]{64}$/).optional(),
     retrieved_at: zIsoOrUnknown.optional(),
   })

@@ -17,6 +17,12 @@ describe("frontmatter v1", () => {
     expect(parse(baseFm("src-valid", "source")).fm.source?.kind).toBe("url");
   });
 
+  it("accepts an unclassified source (data_class UNKNOWN) but no invented class", () => {
+    const fm = baseFm("src-unclassified", "source") as Record<string, unknown> & { source: Record<string, unknown> };
+    expect(parse({ ...fm, source: { ...fm.source, data_class: "UNKNOWN" } }).fm.source?.data_class).toBe("UNKNOWN");
+    expect(() => parse({ ...fm, source: { ...fm.source, data_class: "G9" } })).toThrow();
+  });
+
   it.each([
     ["bad id", { id: "Bad_ID" }],
     ["short id", { id: "kn-a" }],

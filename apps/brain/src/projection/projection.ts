@@ -33,7 +33,9 @@ export interface Projection {
 }
 
 export function locatorDisplay(s: SourceBlock): string {
-  if (s.access === "restricted" || s.locator === "UNKNOWN") return `${s.kind}: ${s.original_title}`;
+  // the raw locator is shown only for non-restricted sources with a known G0/G1 class
+  const openClass = s.data_class === "G0" || s.data_class === "G1";
+  if (s.access === "restricted" || !openClass || s.locator === "UNKNOWN") return `${s.kind}: ${s.original_title}`;
   return `${s.kind}: ${s.original_title} (${s.locator})`;
 }
 

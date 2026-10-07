@@ -59,3 +59,14 @@ describe("projection", () => {
     expect(buildProjection([], new Map(), { summary: () => "" }).nodes).toEqual([]);
   });
 });
+
+describe("locator display", () => {
+  const base = { kind: "drive_doc" as const, locator: "SYNTHETIC-ID", original_title: "Synthetic", retrieved_at: undefined };
+  it("shows the raw locator only for open (G0/G1), non-restricted sources", async () => {
+    const { locatorDisplay } = await import("../src/projection/projection.js");
+    expect(locatorDisplay({ ...base, access: "internal", data_class: "G1" })).toBe("drive_doc: Synthetic (SYNTHETIC-ID)");
+    expect(locatorDisplay({ ...base, access: "internal", data_class: "UNKNOWN" })).toBe("drive_doc: Synthetic");
+    expect(locatorDisplay({ ...base, access: "internal", data_class: "G2" })).toBe("drive_doc: Synthetic");
+    expect(locatorDisplay({ ...base, access: "restricted", data_class: "G0" })).toBe("drive_doc: Synthetic");
+  });
+});

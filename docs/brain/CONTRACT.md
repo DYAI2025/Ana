@@ -99,7 +99,7 @@ source:
   locator: <Drive file id | Confluence page id | URL | path> # or UNKNOWN
   original_title: "…"
   access: restricted | internal | public
-  data_class: G0 | G1 | G2 | G3
+  data_class: G0 | G1 | G2 | G3 | UNKNOWN   # UNKNOWN = not yet classified; treated like a sensitive class
   checksum: sha256:<hex>       # of the retrieved content, optional
   retrieved_at: 2026-10-07T12:00:00Z
 ```
