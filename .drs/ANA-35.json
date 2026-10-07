@@ -16,8 +16,29 @@
     "candidate_sha": null,
     "evidence": [],
     "allowed_paths": [
+      ".drs/**",
       "docs/**",
-      ".drs/**"
+      ".github/workflows/brain.yml",
+      "apps/brain/**",
+      "apps/dashboard/.env.example",
+      "apps/dashboard/playwright.config.ts",
+      "apps/dashboard/e2e/**",
+      "apps/dashboard/src/app/brain/**",
+      "apps/dashboard/src/app/api/brain/**",
+      "apps/dashboard/src/server/brain/**",
+      "apps/dashboard/src/server/http.ts",
+      "apps/dashboard/src/server/boundary.test.ts",
+      "apps/dashboard/src/features/brain/**",
+      "apps/dashboard/src/fixtures/brain.ts",
+      "apps/dashboard/src/fixtures/fixtures.test.ts",
+      "apps/dashboard/src/lib/search.ts",
+      "apps/dashboard/src/lib/search.test.ts",
+      "apps/dashboard/src/components/shell/SearchPalette.tsx",
+      "apps/dashboard/src/components/providers/Providers.tsx",
+      "apps/dashboard/src/i18n/en.ts",
+      "apps/dashboard/src/i18n/de.ts",
+      "apps/dashboard/src/i18n/it.ts",
+      "apps/dashboard/src/test/**"
     ]
   },
   "r4m": {
@@ -26,6 +47,7 @@
     "claimed": null,
     "evidence": []
   },
-  "synced_at": "2026-10-06T00:06:00Z",
+  "scope_note": "Change scope set 2026-10-07 after PO decisions (first canonical vault, ANA Evidence Root, mcp.ana.dyai.cloud): new Brain service apps/brain (contract, vault, BGE-M3/Qdrant indexer, authenticated MCP, projection API, deploy templates), its CI workflow, and the dashboard Brain route/data path plus the files that import the Brain fixture (search, i18n, e2e). Contract: docs/brain/CONTRACT.md. Private Brain content and credentials are outside the repository.",
+  "synced_at": "2026-10-07T12:40:00Z",
   "source": "offline: ANA Jira has no DRS custom fields; gate definitions are mirrored in Jira ANA-35 comment 17391 and acceptance states are recorded in Jira and the pull request, not in this file"
 }
