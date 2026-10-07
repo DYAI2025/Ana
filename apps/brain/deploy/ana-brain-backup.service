@@ -1,0 +1,9 @@
+[Unit]
+Description=Nightly backup of the ANA Brain vault and service state
+
+[Service]
+Type=oneshot
+# vault = canonical Markdown (with its local git history); state = key/token hashes and index state.
+# Qdrant is not backed up: it is a rebuildable projection (`node dist/cli.js index --full`).
+ExecStart=/bin/sh -c 'tar -C /var/lib/ana-brain -czf /var/backups/ana-brain/ana-brain-$(date +%%F).tar.gz vault state && find /var/backups/ana-brain -name "ana-brain-*.tar.gz" -mtime +30 -delete'
+UMask=0077

@@ -77,3 +77,21 @@ To roll back a single bad write, use `git -C /var/lib/ana-brain/vault log` / `gi
 
 Qdrant data is disposable: `node dist/cli.js index --full`. Projection (`/projection`) is computed from the index on
 request, so it is rebuilt automatically.
+
+## Timers (installed with the service)
+
+| Unit | Schedule | Purpose |
+|---|---|---|
+| `ana-brain-index.timer` | every 5 min | incremental index; unchanged notes are skipped by content hash |
+| `ana-brain-backup.timer` | daily 03:15 UTC | `tar` of `vault` + `state` to `/var/backups/ana-brain`, 30 days kept |
+
+## Smoke test against the running service
+
+```bash
+cd /opt/ana-brain/apps/brain
+SMOKE_URL=http://127.0.0.1:8790 SMOKE_KEY_FILES=/root/ana-brain-keys/ana.key,/root/ana-brain-keys/ben.key node scripts/smoke.mjs
+```
+
+`SMOKE_WRITES=1` exercises the write tools and must only be pointed at a disposable copy of the vault
+(a second `serve` on another port with `BRAIN_VAULT_DIR`/`BRAIN_STATE_DIR` in `/tmp`). The script prints
+evidence JSON without keys or note bodies.
