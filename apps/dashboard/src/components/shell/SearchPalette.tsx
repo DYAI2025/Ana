@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import { useI18n } from "@/components/providers/I18nProvider";
 import { usePrototype } from "@/components/providers/PrototypeProvider";
+import { projectionOf, useBrain } from "@/features/brain/BrainProvider";
 import { snapshotOf, useWork } from "@/features/work/WorkProvider";
 import { formatTime } from "@/features/work/WorkStatus";
 import { useFocusTrap } from "@/lib/hooks/useFocusTrap";
@@ -32,6 +33,7 @@ export function SearchPalette({ open, onClose }: { open: boolean; onClose: () =>
   const { state } = usePrototype();
   const { state: work } = useWork();
   const snapshot = snapshotOf(work);
+  const brain = projectionOf(useBrain().state);
   const staleSince = work.phase === "stale" ? formatTime(work.snapshot.fetchedAt, locale) : null;
   const router = useRouter();
   const panel = useRef<HTMLDivElement>(null);
@@ -39,7 +41,7 @@ export function SearchPalette({ open, onClose }: { open: boolean; onClose: () =>
   const [active, setActive] = useState(0);
   const listId = useId();
 
-  const index = useMemo(() => buildSearchIndex(state, locale, snapshot, staleSince), [state, locale, snapshot, staleSince]);
+  const index = useMemo(() => buildSearchIndex(state, locale, snapshot, staleSince, brain), [state, locale, snapshot, staleSince, brain]);
   const results = useMemo(() => searchEntries(index, query), [index, query]);
   const grouped = useMemo(() => groupResults(results), [results]);
   const ordered = useMemo(() => grouped.flatMap((g) => g.items), [grouped]);

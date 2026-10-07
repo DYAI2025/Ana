@@ -1,0 +1,34 @@
+name: brain
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "apps/brain/**"
+      - ".github/workflows/brain.yml"
+  pull_request:
+    paths:
+      - "apps/brain/**"
+      - ".github/workflows/brain.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/brain
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: apps/brain/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build

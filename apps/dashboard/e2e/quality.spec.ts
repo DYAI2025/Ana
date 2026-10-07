@@ -116,7 +116,7 @@ const OVERLAY_STATES: { label: string; route: string; jira?: Record<string, unkn
   { label: "session summary", route: "/sessions/working-session-01?tab=summary", prepare: async () => undefined },
   { label: "session transcript", route: "/sessions/working-session-01?tab=transcript", prepare: async () => undefined },
   { label: "session json", route: "/sessions/working-session-01?tab=json", prepare: async () => undefined },
-  { label: "brain selected", route: "/brain?node=workshop-02", prepare: async () => undefined },
+  { label: "brain selected", route: "/brain?node=ws-workshop-02", prepare: async () => undefined },
   { label: "lens knowledge", route: "/", prepare: (p) => p.getByTestId("context-knowledge").click() },
   { label: "lens business", route: "/", prepare: (p) => p.getByTestId("context-business").click() },
   { label: "lens community", route: "/", prepare: (p) => p.getByTestId("context-community").click() },

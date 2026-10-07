@@ -127,7 +127,7 @@ const STATES: { label: string; route: string; jira?: Record<string, unknown>; pr
   { label: "session summary", route: "/sessions/working-session-01?tab=summary" },
   { label: "session transcript", route: "/sessions/working-session-01?tab=transcript" },
   { label: "session json", route: "/sessions/working-session-01?tab=json" },
-  { label: "brain", route: "/brain?node=workshop-02" },
+  { label: "brain", route: "/brain?node=ws-workshop-02" },
   { label: "whiteboard", route: "/whiteboard" },
   { label: "calendar form", route: "/calendar", prepare: (p) => p.getByTestId("cal-add").click() },
   { label: "pulse", route: "/pulse" },

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { createInitialState, prototypeReducer } from "@/state/prototype";
 import { makeSnapshot } from "@/test/work-fixture";
+import { baseProjection } from "../../e2e/fake-brain/data.mjs";
 import { buildSearchIndex, groupResults, normalize, SEARCH_GROUPS, searchEntries } from "./search";
 import { activeViewFor } from "./views";
 
@@ -23,10 +24,10 @@ describe("searchEntries", () => {
 
   it("finds content across groups", () => {
     const entries = index();
-    expect(searchEntries(entries, "loop").map((r) => r.group)).toEqual(expect.arrayContaining(["ticket", "concept", "event"]));
+    expect(searchEntries(entries, "loop").map((r) => r.group)).toEqual(expect.arrayContaining(["ticket", "event"]));
     expect(searchEntries(entries, "onboarding checklist")[0]).toMatchObject({ group: "idea", href: "/backlog?ticket=ANA-901" });
     expect(searchEntries(entries, "workshop 02").map((r) => r.href)).toContain("/sessions/workshop-02");
-    expect(searchEntries(entries, "miro").map((r) => r.group)).toEqual(expect.arrayContaining(["tool", "concept"]));
+    expect(searchEntries(entries, "miro").map((r) => r.group)).toEqual(expect.arrayContaining(["tool"]));
     expect(searchEntries(entries, "instagram")[0]).toMatchObject({ group: "source", href: "/pulse" });
   });
 
@@ -65,6 +66,15 @@ describe("searchEntries", () => {
     const work = entries.filter((e) => e.group === "ticket" || e.group === "idea");
     expect(work.length).toBeGreaterThan(0);
     for (const entry of work) expect(entry.detail).toContain("as read 10:42 · Jira not reachable");
+  });
+
+  it("offers Brain concepts only from a loaded projection — never example concepts", () => {
+    expect(index().filter((e) => e.group === "concept")).toEqual([]);
+    const brain = baseProjection();
+    const entries = buildSearchIndex(createInitialState(), "en", null, null, brain);
+    expect(entries.filter((e) => e.group === "concept")).toHaveLength(brain.nodes.length);
+    expect(searchEntries(entries, "hook-first")[0]).toMatchObject({ group: "concept", href: "/brain?node=kn-hook-first-cut-brief", label: "Hook-first cut brief" });
+    expect(searchEntries(entries, "top-cut-brief").map((r) => r.group)).toContain("concept");
   });
 
   it("offers no work entries without a Jira snapshot — never fixture tickets", () => {

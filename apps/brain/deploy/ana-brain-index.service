@@ -1,0 +1,24 @@
+[Unit]
+Description=ANA Brain incremental index (vault -> BGE-M3 -> Qdrant ana_brain_v1)
+After=network-online.target ollama.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=ana-brain
+Group=ana-brain
+WorkingDirectory=/opt/ana-brain/apps/brain
+EnvironmentFile=/etc/ana-brain/env
+# Unchanged notes are skipped (content hash), so a run without changes costs no embedding calls.
+ExecStart=/usr/bin/node dist/cli.js index
+Nice=10
+
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+PrivateDevices=true
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+CapabilityBoundingSet=
+UMask=0077
+ReadWritePaths=/var/lib/ana-brain/vault /var/lib/ana-brain/state

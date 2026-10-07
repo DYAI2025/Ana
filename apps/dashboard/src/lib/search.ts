@@ -1,5 +1,5 @@
-/** Client-side search over fixture content, in-session prototype content and the current Jira work snapshot. */
-import { BRAIN_NODES } from "@/fixtures/brain";
+/** Client-side search over fixture content, in-session prototype content, the current Jira work snapshot and a loaded Brain projection. */
+import type { BrainProjection } from "@/features/brain/types";
 import { SOURCE_GROUPS, TOOLS } from "@/fixtures/connections";
 import { SESSIONS } from "@/fixtures/sessions";
 import { backlogIssues } from "@/features/work/model";
@@ -36,8 +36,17 @@ function entry(group: SearchGroup, id: string, label: string, detail: string, hr
 
 const VIEW_ORDER: readonly ViewId[] = ["now", "board", "backlog", "sessions", "brain", "whiteboard", "calendar", "pulse", "vault", "toolbox"];
 
-/** `work` is the latest Jira snapshot; without one, no work entries are offered (never fixture tickets). */
-export function buildSearchIndex(state: PrototypeState, locale: Locale, work: WorkSnapshot | null = null, staleSince: string | null = null): SearchEntry[] {
+/**
+ * `work` is the latest Jira snapshot; without one, no work entries are offered (never fixture tickets).
+ * `brain` is a loaded Brain projection; without one, no concepts are offered (never fabricated ones).
+ */
+export function buildSearchIndex(
+  state: PrototypeState,
+  locale: Locale,
+  work: WorkSnapshot | null = null,
+  staleSince: string | null = null,
+  brain: BrainProjection | null = null,
+): SearchEntry[] {
   const t = (key: MessageKey) => translate(locale, key);
   const entries: SearchEntry[] = [];
 
@@ -70,8 +79,8 @@ export function buildSearchIndex(state: PrototypeState, locale: Locale, work: Wo
     );
   }
 
-  for (const node of BRAIN_NODES) {
-    entries.push(entry("concept", node.id, show(node.label, locale), t(`brain.types.${node.type}`), `/brain?node=${node.id}`, allLanguages(node.label)));
+  for (const node of brain?.nodes ?? []) {
+    entries.push(entry("concept", node.id, node.title, `${t(`brain.types.${node.type}`)} · ${node.status}`, `/brain?node=${encodeURIComponent(node.id)}`, [node.id, ...node.topics]));
   }
 
   for (const event of state.events) {

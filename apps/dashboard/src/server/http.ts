@@ -55,7 +55,7 @@ export function refuseNonLocal(request: Request): Response | null {
   const extra = (process.env.DASHBOARD_ALLOWED_HOSTS ?? "").split(",").map((h) => hostnameOf(h.trim())).filter((h): h is string => Boolean(h));
   const allowed = new Set([...LOOPBACK, ...extra]);
   const hostname = hostnameOf(request.headers.get("host"));
-  if (!hostname || !allowed.has(hostname)) return invalid("the work API answers only requests addressed to this machine", 403);
+  if (!hostname || !allowed.has(hostname)) return invalid("this dashboard API answers only requests addressed to this machine", 403);
   return null;
 }
 

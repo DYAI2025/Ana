@@ -124,7 +124,7 @@ test("8–9 · Session opens and switches Watch / Summary / Transcript / JSON", 
 
 test("10 · Brain rotates, zooms and selects a node on the canvas and from the list", async ({ page }) => {
   await page.goto("/brain");
-  await expect(page.getByTestId("brain-fixture-banner")).toContainText("no embeddings");
+  await expect(page.getByTestId("brain-status")).toHaveAttribute("data-nodes", "20");
   const canvas = page.getByTestId("brain-canvas");
   await page.getByTestId("brain-auto-rotate").click();
   await expect(page.getByTestId("brain-auto-rotate")).toHaveAttribute("aria-pressed", "false");
@@ -149,7 +149,7 @@ test("10 · Brain rotates, zooms and selects a node on the canvas and from the l
   const hotspots = JSON.parse((await canvas.getAttribute("data-hotspots")) ?? "[]") as { id: string; x: number; y: number }[];
   // only nodes not covered by the toolbar, the selection card or the legend
   const covers = await page.evaluate(() =>
-    ['[data-testid="brain-selection"]', '[role="toolbar"]', 'ul[aria-label="Type"]'].map((s) => document.querySelector(s)!.getBoundingClientRect().toJSON() as DOMRect),
+    ['[data-testid="brain-selection"]', '[role="toolbar"]', '[data-testid="brain-legend-types"]'].map((s) => document.querySelector(s)!.getBoundingClientRect().toJSON() as DOMRect),
   );
   const inside = hotspots.filter(
     (h) =>
@@ -163,9 +163,10 @@ test("10 · Brain rotates, zooms and selects a node on the canvas and from the l
   await expect(page.getByTestId("brain-selected-title")).toHaveText(label);
 
   await page.getByTestId("brain-filter").fill("workshop 02");
-  await page.getByTestId("brain-node-workshop-02").click();
+  await page.getByTestId("brain-node-ws-workshop-02").click();
   await expect(page.getByTestId("brain-selected-title")).toHaveText("Workshop 02");
-  await expect(page.getByTestId("brain-selection")).toContainText("Fixture · not reviewed");
+  await expect(page.getByTestId("brain-selected-status")).toHaveText("DERIVED");
+  await expect(page.getByTestId("brain-selected-created-by")).toHaveText("vince");
 });
 
 test("11 · Whiteboard adds and moves a note (pointer and keyboard)", async ({ page }) => {

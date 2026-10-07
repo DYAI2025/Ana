@@ -81,7 +81,7 @@ test("search result for an issue is visible even when an owner filter was active
 });
 
 test("brain: turning auto-rotate on while a node is selected releases the node and rotates", async ({ page }) => {
-  await page.goto("/brain?node=workshop-02");
+  await page.goto("/brain?node=ws-workshop-02");
   await expect(page.getByTestId("brain-selected-title")).toHaveText("Workshop 02");
   await page.getByTestId("brain-auto-rotate").click();
   await expect(page.getByTestId("brain-auto-rotate")).toHaveAttribute("aria-pressed", "true");
@@ -205,7 +205,7 @@ test("whiteboard: notes beyond a shrunken board are pulled back and follow the p
 
 test("brain at 1024×768 fits the viewport (side column does not overflow)", async ({ page }) => {
   await page.setViewportSize({ width: 1024, height: 768 });
-  await page.goto("/brain?node=workshop-02");
+  await page.goto("/brain?node=ws-workshop-02");
   const overflow = await page.evaluate(() => document.documentElement.scrollHeight - window.innerHeight);
   expect(overflow).toBeLessThanOrEqual(1);
   const rows = await page.locator('[data-testid^="brain-node-"]').evaluateAll((els) => {
@@ -250,12 +250,22 @@ test("whiteboard: a temporary shrink does not rearrange notes; widening restores
   expect(Math.abs(restored.x - wide.x)).toBeLessThan(2);
 });
 
-test("brain: the selected concept's details are fully visible at 1280×800 and 1440×900", async ({ page }) => {
+test("brain: the selected concept's identity, status and provenance are visible without scrolling at 1280×800 and 1440×900", async ({ page }) => {
   for (const viewport of [{ width: 1280, height: 800 }, { width: 1440, height: 900 }]) {
     await page.setViewportSize(viewport);
-    await page.goto("/brain?node=workshop-02");
-    const clipped = await page.getByTestId("brain-selection").evaluate((el) => el.scrollHeight - el.clientHeight);
-    expect(clipped, `${viewport.width}`).toBeLessThanOrEqual(1);
+    await page.goto("/brain?node=ws-workshop-02");
+    await expect(page.getByTestId("brain-selected-title")).toHaveText("Workshop 02");
+    // a long note may scroll inside the card, but title, status chip and provenance are always in view
+    const hidden = await page.getByTestId("brain-selection").evaluate((card) => {
+      const box = card.getBoundingClientRect();
+      return ["brain-selected-title", "brain-selected-status", "brain-selected-created-by"].filter((id) => {
+        const r = card.querySelector(`[data-testid="${id}"]`)!.getBoundingClientRect();
+        return r.top < box.top - 1 || r.bottom > box.bottom + 1;
+      });
+    });
+    expect(hidden, `${viewport.width}`).toEqual([]);
+    // the rest of the card stays reachable: the card scrolls instead of clipping
+    expect(await page.getByTestId("brain-selection").evaluate((el) => getComputedStyle(el).overflowY), `${viewport.width}`).toBe("auto");
   }
 });
 
