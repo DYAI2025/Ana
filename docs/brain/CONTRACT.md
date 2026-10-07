@@ -136,6 +136,16 @@ Unauthenticated requests get 401.
 | `brain_register_source` | write | source record with locator; no raw content |
 | `brain_add_relation` | write | typed relation, both ids must exist |
 | `brain_append_observation` | write | append-only observation or correction |
+| `brain_read_source` | read | bounded text slice (`offset`, `max_chars` ≤ 60000, default 20000) of a `drive_*` source whose locator lies under the ANA Evidence Root; Google Docs (exported as text) and text/transcript files only; recordings/binaries refused; text is returned to the caller only, never stored or logged |
+
+**Google Drive (ANA Evidence Root).** Raw evidence stays canonical in Google Drive; the vault holds only source
+records and derived knowledge. The service uses one OAuth refresh token with exactly the scope
+`https://www.googleapis.com/auth/drive.readonly` and enables Drive only when `ANA_DRIVE_ROOT_ID` is set and the
+credentials file exists. Root guard: every Drive operation exposed via MCP or CLI first resolves the file's parent
+chain (max 12 hops) to `ANA_DRIVE_ROOT_ID`; files outside the root, trashed files and deeper chains are refused
+with `outside ANA Evidence Root`. `brain_register_source` with a `drive_*` kind verifies the locator (Drive file id)
+through the guard and takes `original_title`, `retrieved_at` and `checksum` (sha256 of the readable text, when
+readable) from Drive; without Drive configured the locator is stored as given.
 
 There is no delete tool and no tool that overwrites a note body. Every write records the caller identity in the note
 and in `.ana/audit.jsonl` (no raw payloads in the audit log).

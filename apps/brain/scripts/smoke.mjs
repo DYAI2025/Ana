@@ -48,7 +48,7 @@ for (const file of keyFiles) {
   const key = readFileSync(file, "utf8").trim();
   const client = await connect(key);
   const tools = (await client.listTools()).tools.map((t) => t.name).sort();
-  check(`[${file.split("/").pop()}] tools are exactly the bounded set`, tools.length === 8 && !tools.some((t) => /delete|remove|overwrite|update_body|write_file/.test(t)), { tools });
+  check(`[${file.split("/").pop()}] tools are exactly the bounded set`, tools.length === 9 && !tools.some((t) => /delete|remove|overwrite|update_body|write_file/.test(t)), { tools });
   const s = await call(client, "brain_search", { query, limit: 5 });
   const hits = s.data?.results ?? [];
   check(`[${file.split("/").pop()}] semantic search returns provenance-bearing notes`, !s.isError && hits.length > 0, { top: hits.slice(0, 5).map((h) => ({ id: h.id ?? h.note_id, status: h.status, score: h.score })) });

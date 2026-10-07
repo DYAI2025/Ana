@@ -6,18 +6,25 @@ import { search } from "../index/indexer.js";
 import type { Embedder } from "../index/ollama.js";
 import type { VectorStore } from "../index/qdrant.js";
 import { VaultError, type Vault } from "../vault/vault.js";
+import { DriveError, type DriveClient } from "../drive/client.js";
+import { fillDriveSource } from "../drive/register.js";
+import type { SourceBlock } from "../contract/schema.js";
 
-export interface BrainDeps { vault: Vault; embedder: Embedder; store: VectorStore }
+export interface BrainDeps { vault: Vault; embedder: Embedder; store: VectorStore; drive?: DriveClient }
 
 export const TOOL_NAMES = [
   "brain_search", "brain_get", "brain_context", "brain_related",
   "brain_create_note", "brain_register_source", "brain_add_relation", "brain_append_observation",
+  "brain_read_source",
 ] as const;
+
+export const READ_SOURCE_DEFAULT_CHARS = 20000;
+export const READ_SOURCE_MAX_CHARS = 60000;
 
 const ok = (data: unknown): CallToolResult => ({ content: [{ type: "text", text: JSON.stringify(data, null, 2) }], structuredContent: data as Record<string, unknown> });
 const fail = (e: unknown): CallToolResult => ({
   isError: true,
-  content: [{ type: "text", text: e instanceof VaultError ? `${e.code}: ${e.message}` : e instanceof Error ? e.message : "error" }],
+  content: [{ type: "text", text: e instanceof VaultError ? `${e.code}: ${e.message}` : e instanceof DriveError ? `${e.code}: ${e.message}` : e instanceof Error ? e.message : "error" }],
 });
 
 type Extra = { authInfo?: { extra?: Record<string, unknown> } };
@@ -30,7 +37,7 @@ const actorOf = (extra: Extra): string => {
 const STATUS_RANK: Record<string, number> = { CONFIRMED: 0, DERIVED: 1, SOURCE: 2, CANDIDATE: 3, SUPERSEDED: 4 };
 
 /** Build an MCP server exposing exactly the Brain tools. Caller identity comes only from authInfo. */
-export function createMcpServer({ vault, embedder, store }: BrainDeps): McpServer {
+export function createMcpServer({ vault, embedder, store, drive }: BrainDeps): McpServer {
   const server = new McpServer({ name: "ana-brain", version: "1.0.0" });
   const wrap = <A>(fn: (args: A, actor: string) => Promise<unknown> | unknown) => async (args: A, extra: Extra) => {
     try {
@@ -117,12 +124,31 @@ export function createMcpServer({ vault, embedder, store }: BrainDeps): McpServe
   }, wrap(async (a: Parameters<Vault["createNote"]>[1], actor) => ({ created: await vault.createNote(actor, a) })));
 
   server.registerTool("brain_register_source", {
-    description: "Register a source record (metadata + locator, short description). Never paste raw evidence or transcripts.",
+    description: "Register a source record (metadata + locator, short description). Never paste raw evidence or transcripts. For drive_* kinds the locator is a Drive file id; when Drive is configured it must lie under the ANA Evidence Root and title/retrieved_at/checksum are taken from Drive.",
     inputSchema: {
       id: zId, title: z.string().min(1).max(300), source: zSourceBlock, description: z.string().max(4000),
       topics: z.array(zId).max(50).optional(), workshops: z.array(zId).max(50).optional(), provenance_note: z.string().max(1000).optional(),
     },
-  }, wrap(async (a: Parameters<Vault["registerSource"]>[1], actor) => ({ created: await vault.registerSource(actor, a) })));
+  }, wrap(async (a: Parameters<Vault["registerSource"]>[1], actor) => {
+    const source: SourceBlock = drive && a.source.kind.startsWith("drive_") ? await fillDriveSource(drive, a.source) : a.source;
+    return { created: await vault.registerSource(actor, { ...a, source }) };
+  }));
+
+  server.registerTool("brain_read_source", {
+    description: "Read a bounded slice of the text of a Drive-backed source (Google Doc or text/transcript file under the ANA Evidence Root). Read-only; the text is returned to the caller only and never stored. Recordings and binaries are refused.",
+    inputSchema: { id: zId, offset: z.number().int().min(0).optional(), max_chars: z.number().int().min(1).max(READ_SOURCE_MAX_CHARS).optional() },
+    annotations: { readOnlyHint: true },
+  }, wrap(async (a: { id: string; offset?: number; max_chars?: number }) => {
+    const n = vault.require(a.id);
+    const src = n.fm.source;
+    if (n.fm.type !== "source" || !src || !src.kind.startsWith("drive_")) throw new VaultError(`${a.id} is not a Drive source record`, "forbidden");
+    if (!drive) throw new VaultError("Drive access is not configured on this server", "forbidden");
+    const r = await drive.readText(src.locator);
+    const offset = a.offset ?? 0;
+    const max = a.max_chars ?? READ_SOURCE_DEFAULT_CHARS;
+    const text = r.text.slice(offset, offset + max);
+    return { source_id: a.id, drive_file_id: r.file.id, mime: r.mime, total_chars: r.text.length, offset, text, truncated: offset + max < r.text.length || r.truncated };
+  }));
 
   server.registerTool("brain_add_relation", {
     description: "Append a typed relation from one existing note to another. 'supersedes' marks the target SUPERSEDED (kept, not deleted). Idempotent.",

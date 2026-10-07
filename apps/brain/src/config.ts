@@ -10,6 +10,11 @@ export interface Config {
   dashboardTokenSha256?: string;
   port: number;
   host: string;
+  /** ANA Evidence Root folder id; Drive access is enabled only when set and the OAuth file exists. */
+  driveRootId?: string;
+  driveOauthFile: string;
+  /** Optional transcripts folder (must lie under the root). */
+  driveTranscriptsId?: string;
 }
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
@@ -25,5 +30,8 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     dashboardTokenSha256: env.BRAIN_DASHBOARD_TOKEN_SHA256 || undefined,
     port: Number(env.PORT ?? 8790),
     host: env.HOST ?? "127.0.0.1",
+    driveRootId: env.ANA_DRIVE_ROOT_ID || undefined,
+    driveOauthFile: env.ANA_DRIVE_OAUTH_FILE || "/etc/ana-brain/drive-oauth.json",
+    driveTranscriptsId: env.ANA_DRIVE_TRANSCRIPTS_ID || undefined,
   };
 }

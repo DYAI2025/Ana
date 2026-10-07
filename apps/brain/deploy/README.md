@@ -85,6 +85,37 @@ request, so it is rebuilt automatically.
 | `ana-brain-index.timer` | every 5 min | incremental index; unchanged notes are skipped by content hash |
 | `ana-brain-backup.timer` | daily 03:15 UTC | `tar` of `vault` + `state` to `/var/backups/ana-brain`, 30 days kept |
 
+## Google Drive (ANA Evidence Root)
+
+Read-only access to raw evidence in Drive (scope exactly `https://www.googleapis.com/auth/drive.readonly`),
+confined in code to files under `ANA_DRIVE_ROOT_ID` (parent chain ≤ 12 hops; trashed/outside files refused).
+Drive is off unless `ANA_DRIVE_ROOT_ID` is set and `ANA_DRIVE_OAUTH_FILE` (default
+`/etc/ana-brain/drive-oauth.json`) exists. `/healthz` never calls Drive.
+
+1. Google Cloud console: OAuth client of type **Desktop app**; the consent screen must be **In production**
+   (in *Testing*, refresh tokens expire after 7 days).
+2. On the Mac (browser available), with the downloaded client file:
+   ```bash
+   cd apps/brain && npm run build
+   node dist/cli.js drive-auth --client ~/Downloads/client_secret_XXX.json --out ~/drive-oauth.json
+   ```
+   It prints only the consent URL (PKCE + state, loopback on 127.0.0.1), then `saved refresh token to …` and the
+   granted scope. The file is written with mode 0600; `--force` is needed to overwrite.
+3. Copy it to the VPS and lock it down, then delete the local copy:
+   ```bash
+   scp ~/drive-oauth.json root@<vps>:/etc/ana-brain/drive-oauth.json
+   ssh root@<vps> 'chown root:ana-brain /etc/ana-brain/drive-oauth.json && chmod 0640 /etc/ana-brain/drive-oauth.json'
+   rm ~/drive-oauth.json
+   ```
+4. Set `ANA_DRIVE_ROOT_ID` (and optionally `ANA_DRIVE_TRANSCRIPTS_ID`) in `/etc/ana-brain/env`, restart `ana-brain`.
+5. Use (as the service user, env loaded):
+   ```bash
+   ana-brain drive-list [folderId]                       # JSON lines; default folder = root
+   ana-brain drive-register <fileId> --id src-… --title "…" --actor ben [--data-class G2] [--topics a,b]
+   ```
+   `drive-register` stores metadata only (locator = file id, Drive title, mime/size/modifiedTime, sha256 of the
+   readable text) — never content. MCP `brain_read_source` returns bounded text slices to the caller only.
+
 ## Smoke test against the running service
 
 ```bash
