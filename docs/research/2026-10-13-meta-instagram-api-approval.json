@@ -1,0 +1,760 @@
+{
+  "meta": {
+    "title": "Meta Instagram App Approval & ANA Live Content Intelligence",
+    "research_date": "2026-10-13",
+    "source_access_date": "2026-10-13",
+    "classification": "G1",
+    "target_instagram_username": "anasavu",
+    "live_api_test_performed": false,
+    "meta_developer_access_available": false,
+    "honesty_note": "No Meta developer access, app, token or API call was available in this research session. No end-to-end test is claimed as passed. All runtime items are NOT_TESTED or BLOCKED.",
+    "companion_document": "docs/research/2026-10-13-meta-instagram-api-approval.md"
+  },
+  "status_tags": {
+    "vocabulary": [
+      "SOURCE_VERIFIED",
+      "TESTED_OK",
+      "TESTED_FAIL",
+      "CONDITIONAL",
+      "NOT_TESTED",
+      "BLOCKED",
+      "UNKNOWN"
+    ],
+    "gate_vocabulary": [
+      "MANDATORY",
+      "CONDITIONAL",
+      "RECOMMENDED",
+      "NOT_REQUIRED",
+      "UNKNOWN"
+    ]
+  },
+  "executive_decision": {
+    "can_connect_now_under_standard_access": true,
+    "requires_app_review": false,
+    "requires_business_verification": false,
+    "requires_oauth_flow_implementation": false,
+    "requires_facebook_page": false,
+    "requires_live_mode_for_data_reads": false,
+    "permitted_account_types": ["BUSINESS", "CREATOR"],
+    "decisive_condition": "The person whose account is read must hold a role on the Meta app (admin, developer, or Instagram Tester).",
+    "evidence": [
+      "Instagram Platform Overview, Access levels: 'If your app only serves your Instagram professional account or an account you manage, Standard Access is all your app needs.'",
+      "Instagram Platform Overview: 'If your app serves only your Instagram professional accounts, or accounts you manage, you do not need to implement a login flow.'",
+      "App Review Process: 'If your app will only be used by app users who have a role on the app itself, App Review is not required.'"
+    ]
+  },
+  "scenarios": [
+    {
+      "id": "A",
+      "name": "ANA pilot - single account, Ana holds an app role",
+      "access_level": "STANDARD",
+      "app_review": "NOT_REQUIRED",
+      "business_verification": "NOT_REQUIRED",
+      "app_role_required": true,
+      "app_mode": "DEVELOPMENT_SUFFICIENT",
+      "data_access_possible": true,
+      "facebook_page_required": false,
+      "webhooks_available": false,
+      "status": "SOURCE_VERIFIED"
+    },
+    {
+      "id": "B",
+      "name": "Multi-creator SaaS - arbitrary external creators",
+      "access_level": "ADVANCED",
+      "app_review": "MANDATORY_PER_PERMISSION",
+      "business_verification": "MANDATORY",
+      "app_role_required": false,
+      "app_mode": "LIVE_REQUIRED",
+      "data_access_possible": true,
+      "facebook_page_required": false,
+      "webhooks_available": true,
+      "data_use_checkup": "CONDITIONAL_ANNUAL",
+      "data_handling_questions": "CONDITIONAL",
+      "status": "SOURCE_VERIFIED"
+    }
+  ],
+  "research_question_a_matrix": [
+    {
+      "n": 1,
+      "scenario": "App owned by Ana herself",
+      "access": "STANDARD",
+      "app_role": "Ana = Admin",
+      "business_verification": false,
+      "app_review": false,
+      "mode": "DEVELOPMENT_SUFFICIENT",
+      "data_access": true,
+      "status": "SOURCE_VERIFIED"
+    },
+    {
+      "n": 2,
+      "scenario": "Ana listed as tester or other app role",
+      "access": "STANDARD",
+      "app_role": "Instagram Tester / Developer / Admin",
+      "business_verification": false,
+      "app_review": false,
+      "mode": "DEVELOPMENT_SUFFICIENT",
+      "data_access": true,
+      "status": "SOURCE_VERIFIED"
+    },
+    {
+      "n": 3,
+      "scenario": "Operator actually manages Ana's account",
+      "access": "STANDARD",
+      "app_role": "Operator holds app role",
+      "business_verification": false,
+      "app_review": false,
+      "mode": "DEVELOPMENT_SUFFICIENT",
+      "data_access": true,
+      "note": "Standard Access wording is 'accounts you own or manage'.",
+      "status": "SOURCE_VERIFIED"
+    },
+    {
+      "n": 4,
+      "scenario": "Private internal use, exactly one authorized account",
+      "access": "STANDARD",
+      "app_role": "as above",
+      "business_verification": false,
+      "app_review": false,
+      "mode": "DEVELOPMENT_SUFFICIENT",
+      "data_access": true,
+      "note": "No login flow needed; dashboard-generated long-lived token is sufficient.",
+      "status": "SOURCE_VERIFIED"
+    },
+    {
+      "n": 5,
+      "scenario": "Production use of a Standard Access app",
+      "access": "STANDARD",
+      "app_role": "every app user needs an app role",
+      "business_verification": false,
+      "app_review": false,
+      "mode": "LIVE_POSSIBLE_BUT_ROLE_RESTRICTED",
+      "data_access": true,
+      "status": "SOURCE_VERIFIED"
+    },
+    {
+      "n": 6,
+      "scenario": "Arbitrary external creators sign up",
+      "access": "ADVANCED",
+      "app_role": "none required",
+      "business_verification": true,
+      "app_review": true,
+      "mode": "LIVE_REQUIRED",
+      "data_access": true,
+      "status": "SOURCE_VERIFIED"
+    },
+    {
+      "n": 7,
+      "scenario": "Read-only app",
+      "access": "STANDARD for own/managed accounts, ADVANCED for foreign accounts",
+      "app_role": "as above",
+      "business_verification": "only for Advanced Access",
+      "app_review": "only for Advanced Access",
+      "mode": "as above",
+      "data_access": true,
+      "note": "Read access is not privileged; endpoint Requirements tables demand only instagram_business_basic.",
+      "status": "SOURCE_VERIFIED"
+    },
+    {
+      "n": 8,
+      "scenario": "Additionally comments, insights, webhooks",
+      "access": "comments and insights follow scenario 7; webhooks force ADVANCED",
+      "app_role": "as above",
+      "business_verification": "required for webhooks production access",
+      "app_review": "required for webhooks",
+      "mode": "LIVE_REQUIRED for webhooks",
+      "data_access": "comments and insights yes; webhooks only after approval",
+      "status": "SOURCE_VERIFIED"
+    }
+  ],
+  "concept_disambiguation": {
+    "account_ownership": "Who owns the Instagram account; drives the 'own' in 'own or manage'.",
+    "management_rights": "Who may commercially manage the account; sufficient for Standard Access via 'or manage'.",
+    "app_role": "Admin / Developer / Instagram Tester on the Meta app; the actual gatekeeper for Standard Access.",
+    "oauth_consent": "Explicit consent in the authorization window; only needed when a login flow is implemented."
+  },
+  "app_registration_checklist": {
+    "dashboard_variant_warning": "Meta rolls out dashboard variants; menu labels may differ. What Meta serves for the concrete workspace on 2026-10-13 is UNKNOWN until login.",
+    "phase_0_preconditions": [
+      {"item": "anasavu is a professional account (Business or Creator)", "status": "UNKNOWN"},
+      {"item": "Meta developer account exists", "status": "UNKNOWN"},
+      {"item": "Meta Business Portfolio exists", "status": "UNKNOWN", "mandatory_for_standard_access": false},
+      {"item": "App admin decided (Ben, Ana, or both)", "status": "UNKNOWN"},
+      {"item": "HTTPS domain for redirect URI", "status": "UNKNOWN", "mandatory_for_dashboard_token": false}
+    ],
+    "phase_1_app": [
+      "Register as Meta developer at developers.facebook.com",
+      "Create app, choose app type Business",
+      "Add use case 'Manage messaging & content on Instagram'",
+      "Customize use case -> left menu 'API setup with Instagram Login'",
+      "Record Instagram App ID and Instagram App Secret (distinct from the Facebook app ID/secret)"
+    ],
+    "phase_2_permissions": [
+      "Click 'Add all required permissions'",
+      "Note: dashboard adds instagram_business_basic AND instagram_business_manage_messages by default",
+      "Remove instagram_business_manage_messages (ANA is read-only, no messaging)",
+      "Add instagram_business_manage_insights",
+      "Optionally add instagram_business_manage_comments later"
+    ],
+    "phase_3_token": [
+      "App Dashboard -> App roles -> Roles -> Instagram testers -> Add Instagram Testers -> enter username",
+      "Ana accepts in Instagram: Settings -> Apps and websites -> Tester invites -> Accept",
+      "API setup with Instagram login -> Generate access tokens -> Add account",
+      "Continue -> log in to Instagram in popup -> Allow",
+      "Save, then Got it",
+      "Generate token next to the account; copy immediately (shown once)"
+    ],
+    "phase_4_business_login_settings": [
+      {"field": "Redirect URL", "pilot": "configure anyway (needed to obtain Instagram App ID/Secret)"},
+      {"field": "Deauthorization callback URL", "pilot": "RECOMMENDED"},
+      {"field": "Data deletion request URL", "pilot": "RECOMMENDED", "later": "MANDATORY for review"},
+      {"field": "Additional redirect URIs", "pilot": "OPTIONAL"}
+    ],
+    "phase_5_smoke_test_preconditions": [
+      "Account is a professional account",
+      "Account is an accepted Instagram Tester or holds admin/developer role",
+      "Token generated AFTER permissions were added",
+      "Host https://graph.instagram.com, API version v26.0",
+      "Token used server-side only"
+    ],
+    "first_call": "GET https://graph.instagram.com/v26.0/me?fields=id,username,media_count&access_token=<TOKEN>",
+    "known_pitfalls": [
+      {
+        "issue": "'Insufficient developer role' / 'Unable to add a user with a role on the app's owning business'",
+        "cause": "Instagram account belongs to the same Meta Business that owns the app, so it cannot be added as tester",
+        "workaround": "Assign the app to a different business, or take the app Live",
+        "confidence": "medium (secondary source)",
+        "status": "CONDITIONAL"
+      },
+      {"issue": "Token is displayed only once", "workaround": "Store immediately in a secret store", "status": "SOURCE_VERIFIED"}
+    ]
+  },
+  "permissions": [
+    {
+      "name": "instagram_business_basic",
+      "login_path": "INSTAGRAM_LOGIN",
+      "host": "graph.instagram.com",
+      "dependencies": [],
+      "official_description": "allows your app to read an Instagram Business account profile's info and media",
+      "allowed_usage": "Get basic metadata of an Instagram Business account profile",
+      "read_write_separable": true,
+      "read_or_write": "READ",
+      "standard_access_suitable": true,
+      "review_required_for_foreign_accounts": true,
+      "reviewer_evidence": "Demonstrate the complete Instagram login process on your app platform, showing how your app user grants your app this permission; demonstrate getting basic metadata, such as the username and ID, of an Instagram Business account profile on your app platform",
+      "account_type_restriction": "Professional account (Business or Creator)",
+      "ana_mvp": "INCLUDE",
+      "status": "SOURCE_VERIFIED"
+    },
+    {
+      "name": "instagram_business_manage_insights",
+      "login_path": "INSTAGRAM_LOGIN",
+      "host": "graph.instagram.com",
+      "dependencies": [],
+      "dependencies_status": "UNKNOWN - not stated on the Insights page",
+      "read_write_separable": true,
+      "read_or_write": "READ",
+      "standard_access_suitable": true,
+      "review_required_for_foreign_accounts": true,
+      "reviewer_evidence": null,
+      "documentation_gap": "Not present as its own entry in the official Permissions Reference (as of 2026-10-12), although the Insights guide requires it and third-party integrations use it in production.",
+      "reviewer_evidence_workaround": "Write own use-case text, orient on the analogous instagram_manage_insights entry (account metadata, post insights, story insights).",
+      "endpoints_unlocked": ["GET /<IG_MEDIA_ID>/insights", "GET /<IG_USER_ID>/insights"],
+      "ana_mvp": "INCLUDE",
+      "status": "CONDITIONAL"
+    },
+    {
+      "name": "instagram_business_manage_comments",
+      "login_path": "INSTAGRAM_LOGIN",
+      "host": "graph.instagram.com",
+      "dependencies": ["instagram_business_basic"],
+      "read_write_separable": false,
+      "read_or_write": "READ_AND_WRITE",
+      "standard_access_suitable": true,
+      "review_required_for_foreign_accounts": true,
+      "reviewer_evidence": "Demonstrate creating a new comment, updating an existing comment and deleting a comment; show how this appears both in your app and the native Instagram app",
+      "documentation_defect": "Official description text is a copy/paste error repeating the instagram_business_content_publish description.",
+      "ana_mvp": "EXCLUDE",
+      "exclusion_reason": "Not separable into read and write; would force a write-action screencast ANA cannot provide.",
+      "status": "SOURCE_VERIFIED"
+    },
+    {
+      "name": "instagram_business_content_publish",
+      "login_path": "INSTAGRAM_LOGIN",
+      "host": "graph.instagram.com",
+      "dependencies": ["instagram_business_basic"],
+      "read_write_separable": true,
+      "read_or_write": "WRITE",
+      "standard_access_suitable": true,
+      "review_required_for_foreign_accounts": true,
+      "ana_mvp": "EXCLUDE",
+      "exclusion_reason": "ANA does not publish content.",
+      "status": "SOURCE_VERIFIED"
+    },
+    {
+      "name": "instagram_business_manage_messages",
+      "login_path": "INSTAGRAM_LOGIN",
+      "host": "graph.instagram.com",
+      "dependencies": ["instagram_business_basic"],
+      "read_write_separable": true,
+      "read_or_write": "READ_AND_WRITE",
+      "standard_access_suitable": true,
+      "review_required_for_foreign_accounts": true,
+      "ana_mvp": "EXCLUDE",
+      "exclusion_reason": "ANA does not read direct messages. Dashboard adds it by default - must be removed actively.",
+      "status": "SOURCE_VERIFIED"
+    }
+  ],
+  "facebook_login_path": {
+    "relevant_when": "Caption is unavailable via Instagram Login (open conflict C1), or hashtag search / product tagging / partnership ads / media_product_type / story_insights are needed.",
+    "extra_hard_requirements": [
+      "Facebook Page is mandatory and must be linked to the Instagram account",
+      "App user must hold matching Page tasks"
+    ],
+    "task_to_permission_map": {
+      "PROFILE_PLUS_ADVERTISE": ["instagram_basic"],
+      "PROFILE_PLUS_CREATE_CONTENT": ["instagram_basic", "instagram_content_publish"],
+      "PROFILE_PLUS_FULL_CONTROL": ["instagram_basic", "instagram_content_publish"],
+      "PROFILE_PLUS_ANALYZE": ["instagram_basic", "instagram_manage_insights"],
+      "PROFILE_PLUS_MESSAGING": ["instagram_basic", "instagram_manage_messages"],
+      "PROFILE_PLUS_MODERATE": ["instagram_basic", "instagram_manage_comments"]
+    },
+    "minimum_scope_set": [
+      "instagram_basic",
+      "instagram_manage_insights",
+      "pages_show_list",
+      "pages_read_engagement"
+    ],
+    "conclusion": "Instagram Login is the smaller footprint: no Page, no Page tasks, no ads scopes."
+  },
+  "minimal_scope_set": {
+    "scopes": ["instagram_business_basic", "instagram_business_manage_insights"],
+    "count": 2,
+    "rationale": {
+      "instagram_business_basic": "Without it no access to IG User or IG Media. No dependencies.",
+      "instagram_business_manage_insights": "Without it no media insights and no account insights - both core to the ANA purpose."
+    },
+    "deliberately_excluded": {
+      "instagram_business_content_publish": "ANA does not publish.",
+      "instagram_business_manage_messages": "ANA does not read DMs; dashboard default must be removed.",
+      "instagram_business_manage_comments": "Not read/write separable; pulls a write-proof obligation into review."
+    }
+  },
+  "app_review_gates": {
+    "ana_pilot": [
+      {"requirement": "Create Meta app (Business type, Instagram product)", "gate": "MANDATORY"},
+      {"requirement": "Configure Instagram App ID and Secret", "gate": "MANDATORY"},
+      {"requirement": "App role for Ana (tester/admin/developer)", "gate": "MANDATORY"},
+      {"requirement": "Professional account (Business or Creator)", "gate": "MANDATORY"},
+      {"requirement": "Implement OAuth login flow", "gate": "NOT_REQUIRED"},
+      {"requirement": "App Review", "gate": "NOT_REQUIRED"},
+      {"requirement": "Business Verification", "gate": "NOT_REQUIRED"},
+      {"requirement": "Screencast", "gate": "NOT_REQUIRED"},
+      {"requirement": "Reviewer test access", "gate": "NOT_REQUIRED"},
+      {"requirement": "Privacy policy URL", "gate": "RECOMMENDED"},
+      {"requirement": "Data deletion request URL", "gate": "RECOMMENDED"},
+      {"requirement": "Deauthorization callback URL", "gate": "RECOMMENDED"},
+      {"requirement": "Data handling questions", "gate": "UNKNOWN"},
+      {"requirement": "Data Use Checkup", "gate": "UNKNOWN"},
+      {"requirement": "Access Verification", "gate": "UNKNOWN"},
+      {"requirement": "Tech provider review", "gate": "NOT_REQUIRED"},
+      {"requirement": "App in Live mode", "gate": "NOT_REQUIRED"},
+      {"requirement": "Facebook Page link", "gate": "NOT_REQUIRED"},
+      {"requirement": "Company/legal-entity verification", "gate": "NOT_REQUIRED"}
+    ],
+    "multi_creator": [
+      {"requirement": "Create Meta app (Business type, Instagram product)", "gate": "MANDATORY"},
+      {"requirement": "Configure Instagram App ID and Secret", "gate": "MANDATORY"},
+      {"requirement": "Professional account (Business or Creator)", "gate": "MANDATORY"},
+      {"requirement": "Implement OAuth login flow", "gate": "MANDATORY"},
+      {"requirement": "App Review", "gate": "MANDATORY", "scope": "per permission"},
+      {"requirement": "Business Verification", "gate": "MANDATORY"},
+      {"requirement": "Screencast", "gate": "MANDATORY", "scope": "per permission"},
+      {"requirement": "Reviewer test access", "gate": "MANDATORY"},
+      {"requirement": "Privacy policy URL", "gate": "CONDITIONAL"},
+      {"requirement": "Data deletion request URL", "gate": "MANDATORY"},
+      {"requirement": "Deauthorization callback URL", "gate": "RECOMMENDED"},
+      {"requirement": "Data handling questions", "gate": "CONDITIONAL"},
+      {"requirement": "Data Use Checkup", "gate": "CONDITIONAL", "cadence": "annual"},
+      {"requirement": "Access Verification", "gate": "CONDITIONAL"},
+      {"requirement": "Tech provider review", "gate": "UNKNOWN"},
+      {"requirement": "App in Live mode", "gate": "MANDATORY", "scope": "webhooks"},
+      {"requirement": "Facebook Page link", "gate": "NOT_REQUIRED", "note": "only for the Facebook Login path"},
+      {"requirement": "Company/legal-entity verification", "gate": "CONDITIONAL", "note": "part of Business Verification"}
+    ],
+    "private_apps_exception": {
+      "text": "If reviewers cannot test the app (private intranet, no UI, no Facebook Login for Business), approval can be requested only for instagram_basic and instagram_manage_comments.",
+      "consequences": [
+        "It names Facebook Login permission names, not the instagram_business_* family.",
+        "It contains no insights permission - a non-testable internal app cannot obtain insights this way.",
+        "It only applies once a review is needed at all; the ANA pilot needs none."
+      ],
+      "status": "SOURCE_VERIFIED"
+    }
+  },
+  "live_feed": {
+    "official_webhook_for_new_posts": false,
+    "official_webhook_for_new_posts_status": "SOURCE_VERIFIED",
+    "available_webhook_fields": [
+      "comments",
+      "live_comments",
+      "mentions",
+      "message_echoes",
+      "message_reactions",
+      "messages",
+      "messaging_handover",
+      "messaging_optins",
+      "messaging_policy_enforcement",
+      "messaging_postbacks",
+      "messaging_referral",
+      "messaging_seen",
+      "response_feedback",
+      "standby",
+      "story_insights"
+    ],
+    "webhook_blockers_for_pilot": [
+      "App must be Live to receive notifications for app users",
+      "Access level: Advanced Access (Instagram Login column)",
+      "Business verification: required for production access",
+      "HTTPS endpoint with a valid TLS/SSL certificate; self-signed not supported",
+      "Media-owning account must be public",
+      "Fields cannot be selected per app user account",
+      "No historical webhook notification store"
+    ],
+    "decision": "Polling only for the ANA pilot. Webhooks are a later extension, not an architecture assumption.",
+    "polling": {
+      "interval": {
+        "media": "6h default, configurable",
+        "account_insights": "24h default, configurable",
+        "expected_publish_window": "15m, configurable"
+      },
+      "new_post_detection": "GET /<IG_USER_ID>/media?fields=id,timestamp&limit=25; follow pages until timestamp is older than the stored watermark. No documented sort guarantee, so compare the first page fully.",
+      "pagination": "Cursor-based via the returned paging object; follow next URL. Abort on: no next, watermark undercut, or hard page limit (default 20).",
+      "idempotency": "Persistent key (ig_user_id, ig_media_id); upsert only.",
+      "delta_detection": "NEW (unknown media_id) | CHANGED (known id, changed field hash) | MISSING (known id absent in a full pass)",
+      "retry_backoff": "Exponential 1s,2s,4s,8s,16s; max 5 attempts; jitter +/-20%; no retry on 4xx except 429; retry on 5xx and network errors",
+      "token_refresh": {
+        "conditions": ["token at least 24h old", "token still valid", "instagram_business_basic granted"],
+        "planned_refresh_day": 45,
+        "lifetime_days": 60,
+        "expired_token_recovery": "Not recoverable; user must log in again -> status REAUTH_REQUIRED"
+      },
+      "rate_limits": "UNKNOWN from primary sources in this pass. Implementation: conservative (<=1 req/s, sequential) and log the rate-limit response headers Meta returns as the measurement basis. No guaranteed numbers claimed.",
+      "error_handling": "Log timestamp, endpoint, HTTP status, Meta error code/subcode, correlation id, token fingerprint (never the token).",
+      "backfill": "Watermark per account and resource type; single full scan after outage; missing insight windows re-fetched via since/until while inside the 90-day window.",
+      "monitoring": [
+        "run duration",
+        "pages fetched",
+        "new/changed/missing media",
+        "errors by code",
+        "token age in days",
+        "time since last successful run"
+      ],
+      "alerts": [
+        "no successful run for > 2x interval",
+        "token age > 50 days",
+        "connection_status = REAUTH_REQUIRED"
+      ],
+      "provenance_fields": ["fetched_at (UTC)", "source_endpoint", "api_version", "sync_run_id"],
+      "realtime_claim": "Not claimed. Freshness equals polling interval plus run duration."
+    },
+    "endpoints": {
+      "list_own_posts": "GET /<IG_USER_ID>/media",
+      "stories": "GET /<IG_USER_ID>/stories",
+      "live_media": "GET /<IG_USER_ID>/live_media (readable only while broadcasting)",
+      "single_media": "GET /<IG_MEDIA_ID>",
+      "carousel_children": "GET /<IG_MEDIA_ID>/children",
+      "media_insights": "GET /<IG_MEDIA_ID>/insights?metric=engagement,impressions,reach",
+      "account_insights": "GET /<IG_USER_ID>/insights?metric=impressions,reach,profile_views&period=day",
+      "comments": "Edge 'comments' on IG Media",
+      "profile": "GET /<IG_USER_ID>?fields=... or GET /me"
+    },
+    "ig_media_fields_available_instagram_login": [
+      "id", "permalink", "shortcode", "timestamp", "media_type", "media_url", "thumbnail_url",
+      "comments_count", "like_count", "media_audio_type", "owner", "username", "alt_text",
+      "is_comment_enabled", "is_shared_to_feed", "is_ai_generated", "copyright_check_information.status"
+    ],
+    "ig_media_fields_facebook_login_only": [
+      "media_product_type", "reposts_count", "saved_count", "shares_count", "total_like_count",
+      "total_comments_count", "total_views_count", "view_count", "boost_ads_list",
+      "boost_eligibility_info", "caption (see open conflict C1)"
+    ],
+    "insights_limitations": [
+      "Some metrics unavailable on accounts with fewer than 100 followers",
+      "User Metrics data stored for up to 90 days",
+      "Insights for a single user at a time only",
+      "No insights for Facebook Pages",
+      "Missing data returns an empty data set instead of 0",
+      "Live video media readable only while broadcasting",
+      "Only media owned by professional accounts",
+      "story_insights webhook only for Facebook Login"
+    ]
+  },
+  "video_availability": {
+    "platform_change_date": "2026-07-30",
+    "platform_change_title": "Download and copyright protections on media_url",
+    "omission_conditions": [
+      {
+        "condition": "Video contains copyrighted or licensed audio (including audio from the Instagram audio library) or is flagged for a copyright violation",
+        "applies_to": "all video media: reels, video posts, video stories",
+        "applies_even_when_app_user_owns_media": true,
+        "affected_endpoints": [
+          "GET /<IG_MEDIA_ID>",
+          "GET /<IG_MEDIA_ID>/children",
+          "GET /<IG_USER_ID>/media",
+          "GET /<IG_USER_ID>/stories",
+          "GET /<IG_USER_ID>/live_media",
+          "GET /<IG_USER_ID>/collaboration_invites"
+        ]
+      },
+      {
+        "condition": "Reel owner turned off downloads (account-level or per-reel 'Allow people to download your reels')",
+        "applies_to": "reels only, only on endpoints reading other users' media",
+        "explicitly_not_affected": "GET /<IG_USER_ID>/media and GET /<IG_MEDIA_ID> for own media",
+        "evaluated_against": "the reel's owner, so it can apply to a co-authored reel",
+        "affected_endpoints": [
+          "GET /<IG_USER_ID>?fields=business_discovery{media}",
+          "GET /<IG_USER_ID>/tags",
+          "GET /<IG_USER_ID>/mentioned_media",
+          "GET /<IG_USER_ID>/mentioned_comment",
+          "GET /<IG_HASHTAG_ID>/top_media",
+          "GET /<IG_HASHTAG_ID>/recent_media",
+          "GET /<IG_USER_ID>/collaborative_media"
+        ]
+      }
+    ],
+    "further_facts": [
+      "All other media fields (id, permalink, caption, timestamp) are returned as normal",
+      "Image media and carousel containers are not affected; a carousel's video children can be",
+      "Requests still return HTTP 200",
+      "Official guidance: treat media_url as optional; fall back to permalink or thumbnail_url",
+      "Applies to both graph.facebook.com and graph.instagram.com",
+      "Nested media via field expansion inherit the conditions of the originating request"
+    ],
+    "early_warning_field": {
+      "name": "media_audio_type",
+      "values": ["MUSIC", "ORIGINAL_SOUND"],
+      "returned_for": "video media such as Reels only",
+      "introduced": "2026-06-01",
+      "use": "Predicts media_url availability before attempting a download"
+    },
+    "diagnostic_field": "copyright_check_information.status (completed | error | in_progress | not_started), matches_found, copyright_matches with matched_segments.segment_type AUDIO|VIDEO and owner_copyright_policy actions BLOCK|MUTE",
+    "by_content_type": {
+      "image_feed_post": {"media_url": "always", "status": "SOURCE_VERIFIED"},
+      "carousel_container": {"media_url": "always", "status": "SOURCE_VERIFIED"},
+      "carousel_image_child": {"media_url": "always", "status": "SOURCE_VERIFIED"},
+      "carousel_video_child": {"media_url": "missing when licensed audio", "fallback": ["thumbnail_url", "permalink"], "status": "SOURCE_VERIFIED"},
+      "feed_video_or_reel": {"media_url": "missing when licensed audio or copyright flag, even for own media", "fallback": ["thumbnail_url", "permalink"], "status": "SOURCE_VERIFIED"},
+      "story_video": {"media_url": "missing when licensed audio", "fallback": ["thumbnail_url", "permalink"], "status": "SOURCE_VERIFIED"},
+      "reel_with_downloads_disabled": {"media_url": "not affected when reading own media via /media or /<ID>; missing on foreign-read endpoints", "status": "SOURCE_VERIFIED"},
+      "collaborative_post": {"media_url": "download setting of the reel owner applies; can affect the co-author", "status": "SOURCE_VERIFIED"}
+    },
+    "fallback_chain": [
+      "1. Always import metadata (id, permalink, shortcode, timestamp, media_type, comments_count, like_count, media_audio_type, is_ai_generated, caption*)",
+      "2. Check media_url -> AVAILABLE or MISSING_LICENSED_AUDIO; never an import failure",
+      "3. Match an own original from the archive: manual link > permalink > timestamp+media_type+duration; set LOCAL_ARCHIVE or MISSING_NO_ARCHIVE_MATCH",
+      "4. Transcribe and analyse only AVAILABLE or LOCAL_ARCHIVE; otherwise placeholder 'transcript not available - source missing'",
+      "5. Never fabricate missing content with AI; every field carries an availability_status"
+    ],
+    "availability_status_vocabulary": [
+      "AVAILABLE",
+      "MISSING_LICENSED_AUDIO",
+      "MISSING_NO_ARCHIVE_MATCH",
+      "LOCAL_ARCHIVE",
+      "NOT_APPLICABLE"
+    ]
+  },
+  "privacy_and_security": {
+    "separate_regimes": [
+      "Meta platform rules (Platform Terms, Developer Policies, Permissions Reference)",
+      "Data protection law (GDPR/EU), independent of Meta",
+      "Contractual duties between Ana and the project"
+    ],
+    "key_clarification": "Ana's consent to connect her own account is not a legal basis for processing personal data of third parties, especially commenters who never consented to processing by ANA.",
+    "meta_side_obligations": [
+      {"duty": "Prompt data deletion on request", "basis": "Platform Terms section 3(d)(i)"},
+      {"duty": "Data deletion request callback: signed POST with app-scoped user id; response must be JSON containing url and a confirmation code", "basis": "Create-an-App doc + Platform Terms"},
+      {"duty": "Deauthorization callback URL configurable in the dashboard", "basis": "Create-an-App doc"},
+      {"duty": "Permission must be regranted after 90 days of non-use", "basis": "Permissions Reference"},
+      {"duty": "Analytics/marketing use only aggregated, de-identified or anonymised, and not re-identifiable", "basis": "Permissions Reference"},
+      {"duty": "App secret never client-side; long-lived token exchange server-side", "basis": "Business Login doc"}
+    ],
+    "data_classification": {
+      "ana_profile_metadata": "G1, public but personal - document purpose",
+      "ana_captions": "G1/G2 depending on content - no publication without approval",
+      "third_party_comments": "G2 - never in Git; protected store only; legal basis required",
+      "instagram_scoped_user_ids": "G2 - as above",
+      "ai_derivations": "G3 - protected store, status candidate, falsification condition required",
+      "access_tokens": "secret - secret store / .env only, never in Git"
+    },
+    "ai_processing_rules": {
+      "embeddings_from_ana_captions": "ALLOWED with documented purpose limitation",
+      "embeddings_from_third_party_comments": "NOT_ALLOWED in the pilot - no legal basis; requires own decision plus a DPA with the AI provider",
+      "aggregated_topic_clusters_without_personal_reference": "ALLOWED if no individual is reconstructable",
+      "person_level_inferences": "NOT_ALLOWED (G3) without an explicit basis",
+      "transfer_to_processors": "ALLOWED with a DPA (Art. 28 GDPR) and a processor register",
+      "ai_provider_outside_eu": "ALLOWED only with SCC / adequacy decision, documented in the processing record"
+    },
+    "pilot_minimum_standard": [
+      "Processing-record entry: source, purpose, access, retention, correction path, deletion path, observation vs inference",
+      "No comment import in phase 1",
+      "Short privacy policy on a publicly reachable HTTPS page",
+      "Data deletion request URL implemented from the start",
+      "Retention: raw media 24 months, insights 12 months (justified by the 90-day user-metrics window), AI derivations until revocation",
+      "One-click revocation path: disconnect -> discard token -> delete data -> confirm",
+      "Token security: server-side only, secret store, fingerprint in logs, rotation on suspicion"
+    ],
+    "extended_standard_for_external_users": [
+      "DPA with every AI provider and hoster",
+      "Data-subject-rights process for commenters with a reachable contact point",
+      "Written lawfulness assessment per data type before first import",
+      "Schedule the Data Use Checkup (annual, CONDITIONAL)",
+      "Complete Data Handling Questions when Meta requests them",
+      "Deletion cascade: Meta request -> own store -> backups -> derived embeddings",
+      "Privacy by design: comments as hash plus aggregate; plaintext only transiently"
+    ],
+    "token_storage": [
+      "Never in the client bundle",
+      "Never in logs - SHA-256 fingerprint (first 8 hex chars) only",
+      "Never in Git (.gitignore already covers .env*, private/, transcripts/, recordings/, exports/private/)",
+      "Separate pilot and production secrets",
+      "Rotation immediately on suspicion, regularly via the 60-day refresh"
+    ]
+  },
+  "mvp_architecture": {
+    "google_sheets_sufficient": false,
+    "google_sheets_reason": "No safe token location, no idempotent upserts, no deletion endpoint, no cursor pagination handling. Useful as a view, not as a store.",
+    "recommended": "Small worker plus SQLite (pilot) or a managed database (once a public endpoint or webhooks are needed)",
+    "rejected": ["large web app", "graph database", "complex infrastructure"],
+    "tables": [
+      "ig_connection", "raw_media", "media_snapshot", "media_insights", "account_insights",
+      "comments (optional, separated, G2)", "sync_run", "api_error_log", "deletion_request",
+      "semantic_cluster (AI derivations, kept separate from raw data)"
+    ],
+    "ai_separation_rule": "AI derivations live in their own table carrying source_media_ids, model, prompt version, created_at, reviewer and falsification_condition; never merged with raw Meta data.",
+    "api_contract_external": [
+      "POST /api/instagram/connect",
+      "GET /api/instagram/connection",
+      "POST /api/instagram/sync",
+      "GET /api/media",
+      "GET /api/media/:id",
+      "GET /api/media/:id/insights",
+      "GET /api/export/media.json",
+      "GET /api/export/media.csv",
+      "POST /api/revoke",
+      "POST /api/deletion-request",
+      "GET /api/deletion-request/:code",
+      "GET /dashboard"
+    ],
+    "api_contract_excluded": "Anything requiring media_product_type, reposts_count, saved_count, shares_count, total_*, hashtag search or business discovery - not available under Instagram Login."
+  },
+  "tests": [
+    {"id": 1, "scenario": "Ana can authorise with her account", "expected": "Token created, account listed in dashboard", "status": "BLOCKED", "blocker": "No Meta access; professional status UNKNOWN"},
+    {"id": 2, "scenario": "App reads account id and username", "expected": "GET /me?fields=id,username returns both", "status": "NOT_TESTED", "fields_status": "SOURCE_VERIFIED"},
+    {"id": 3, "scenario": "A real post appears with correct id and caption", "expected": "Media list contains the post; caption availability is open conflict C1", "status": "NOT_TESTED", "priority": "HIGHEST - decides the login path"},
+    {"id": 4, "scenario": "A second query creates no duplicate", "expected": "Row count unchanged, delta_state UNCHANGED", "status": "NOT_TESTED"},
+    {"id": 5, "scenario": "Available insights attach to the same post", "expected": "media_insights rows carry the same ig_media_id", "status": "NOT_TESTED", "endpoint_status": "SOURCE_VERIFIED"},
+    {"id": 6, "scenario": "Missing insights documented as missing", "expected": "is_missing=1, value NULL, not 0", "status": "NOT_TESTED", "basis": "API returns an empty data set instead of 0"},
+    {"id": 7, "scenario": "Video without media_url does not break the import", "expected": "Run succeeds, media_availability MISSING_LICENSED_AUDIO, HTTP 200", "status": "NOT_TESTED", "basis": "Requests still return a 200 response"},
+    {"id": 8, "scenario": "Expired authorisation leads to traceable reconnection", "expected": "REAUTH_REQUIRED, visible hint, re-login possible", "status": "NOT_TESTED", "basis": "Expired tokens cannot be refreshed"},
+    {"id": 9, "scenario": "Import stops on missing permission", "expected": "Error logged, no workaround, run ends BLOCKED", "status": "NOT_TESTED"},
+    {"id": 10, "scenario": "Deletion request is technically traceable", "expected": "deletion_request row, status COMPLETED, confirmation code, 0 remaining rows", "status": "NOT_TESTED", "blocker": "Callback not built"},
+    {"id": 11, "scenario": "A new post is detected within the measured interval", "expected": "Detection <= interval + run duration", "status": "NOT_TESTED", "note": "No webhook; polling only. Interval is a configurable target, not a platform guarantee."},
+    {"id": 12, "scenario": "System produces a valid JSON/CSV export", "expected": "Files parse without error, field names match media_snapshot", "status": "NOT_TESTED"},
+    {"id": 13, "scenario": "media_audio_type MUSIC implies missing media_url", "expected": "Consistent prediction before download attempt", "status": "NOT_TESTED"},
+    {"id": 14, "scenario": "media_audio_type ORIGINAL_SOUND implies present media_url", "expected": "Positive case", "status": "NOT_TESTED"},
+    {"id": 15, "scenario": "Carousel with mixed children", "expected": "Image children available, video children possibly not", "status": "NOT_TESTED"},
+    {"id": 16, "scenario": "Token refresh before day 60", "expected": "New 60-day token, token_refreshed_at updated", "status": "NOT_TESTED"},
+    {"id": 17, "scenario": "Token refresh after expiry", "expected": "Error, status REAUTH_REQUIRED", "status": "NOT_TESTED"},
+    {"id": 18, "scenario": "90 days without using a permission", "expected": "Permission must be regranted; plan as a maintenance case", "status": "NOT_TESTED", "basis": "Permissions Reference"},
+    {"id": 19, "scenario": "Deleted post", "expected": "delta_state MISSING after a full pass", "status": "NOT_TESTED"},
+    {"id": 20, "scenario": "Archived post", "expected": "Document behaviour", "status": "UNKNOWN", "blocker": "Meta docs are silent on archived posts"}
+  ],
+  "open_facts": [
+    {"item": "Exact rate-limit thresholds for Instagram API with Instagram Login", "status": "UNKNOWN"},
+    {"item": "Whether Data Handling Questions are triggered for this use case", "status": "UNKNOWN"},
+    {"item": "Whether the annual Data Use Checkup is triggered for this use case", "status": "UNKNOWN"},
+    {"item": "Whether Access Verification is mandatory in the multi-creator case", "status": "UNKNOWN"},
+    {"item": "Behaviour for archived posts", "status": "UNKNOWN"},
+    {"item": "Full media-insights metric list under Instagram Login", "status": "UNKNOWN", "note": "Official example names engagement, impressions, reach; the full list is in the insights endpoint reference not fetched"},
+    {"item": "Which dashboard variant Meta serves for the concrete workspace", "status": "UNKNOWN"},
+    {"item": "Whether anasavu is already a professional account", "status": "UNKNOWN"},
+    {"item": "Whether a Meta developer account, business portfolio, app roles or privacy pages exist", "status": "UNKNOWN"},
+    {"item": "Whether caption is readable via Instagram Login (conflict C1)", "status": "NOT_TESTED", "priority": "HIGHEST"}
+  ],
+  "conflicts_and_outdated_sources": [
+    {"id": "C1", "issue": "caption marked 'Available for Instagram API with Facebook Login only' in the IG Media reference, versus the common assumption that captions are readable via Instagram Login", "resolution": "OPEN - decide via test AC-3; fallback is the Facebook Login path", "status": "SOURCE_VERIFIED + NOT_TESTED"},
+    {"id": "C2", "issue": "instagram_business_manage_insights is missing from the Permissions Reference (2026-10-12) but required by the Insights guide and used in production", "resolution": "Scope exists and works; official reviewer-proof text is missing - write own text using instagram_manage_insights as an analogue", "status": "CONDITIONAL"},
+    {"id": "C3", "issue": "The official description of instagram_business_manage_comments repeats the instagram_business_content_publish text verbatim", "resolution": "Documentation defect; derive meaning from the webhook matrix and the comment reference", "status": "SOURCE_VERIFIED"},
+    {"id": "C4", "issue": "Instagram Basic Display API guides are unusable", "resolution": "Shut down 2024-12-04; use Instagram API with Instagram Login or with Facebook Login. Source S8 states a wrong sunset date.", "status": "SOURCE_VERIFIED"},
+    {"id": "C5", "issue": "Old scope names business_basic, business_content_publish, business_manage_comments, business_manage_messages", "resolution": "Deprecated 2025-01-27; use instagram_business_*", "status": "SOURCE_VERIFIED"},
+    {"id": "C6", "issue": "Webhook access level stated as Advanced Access for Instagram Login, while the private-apps exception covers only instagram_basic and instagram_manage_comments", "resolution": "No contradiction, but insights are not reachable via the private-app path", "status": "SOURCE_VERIFIED"},
+    {"id": "C7", "issue": "API version: IG Media reference names v26.0 as latest, IG User Media examples use v25.0", "resolution": "Use v26.0 and pin deliberately", "status": "SOURCE_VERIFIED"},
+    {"id": "C8", "issue": "create-an-instagram-app.md returns a stub page", "resolution": "Content taken from the HTML page / page index (P14)", "status": "SOURCE_VERIFIED"}
+  ],
+  "sources_primary": [
+    {"id": "P1", "title": "Instagram Platform Overview", "url": "https://developers.facebook.com/documentation/instagram-platform/overview", "doc_date": null, "confidence": "high"},
+    {"id": "P2", "title": "Business Login for Instagram", "url": "https://developers.facebook.com/documentation/instagram-platform/instagram-api-with-instagram-login/business-login", "doc_date": "2026-03-13", "confidence": "high"},
+    {"id": "P3", "title": "Instagram Platform Insights", "url": "https://developers.facebook.com/documentation/instagram-platform/insights", "doc_date": "2025-01-21", "confidence": "high"},
+    {"id": "P4", "title": "IG Media Reference", "url": "https://developers.facebook.com/documentation/instagram-platform/reference/instagram-media", "doc_date": "2026-08-12", "confidence": "high"},
+    {"id": "P5", "title": "IG User Reference", "url": "https://developers.facebook.com/documentation/instagram-platform/instagram-graph-api/reference/ig-user", "doc_date": "2026-04-22", "confidence": "high"},
+    {"id": "P6", "title": "IG User Media Reference", "url": "https://developers.facebook.com/documentation/instagram-platform/instagram-graph-api/reference/ig-user/media", "doc_date": "2026-09-28", "confidence": "high"},
+    {"id": "P7", "title": "Set up Instagram Webhooks", "url": "https://developers.facebook.com/documentation/instagram-platform/webhooks/setup", "doc_date": "2026-09-16", "confidence": "high"},
+    {"id": "P8", "title": "Instagram webhook fields and permissions", "url": "https://developers.facebook.com/documentation/instagram-platform/webhooks/fields", "doc_date": "2026-09-23", "confidence": "high"},
+    {"id": "P9", "title": "Changelog for Instagram Platform", "url": "https://developers.facebook.com/documentation/instagram-platform/changelog", "doc_date": "2026-10-05", "confidence": "high"},
+    {"id": "P10", "title": "Permissions Reference for Meta Technologies APIs", "url": "https://developers.facebook.com/documentation/development/permissions", "doc_date": "2026-10-12", "confidence": "high"},
+    {"id": "P11", "title": "Access Levels", "url": "https://developers.facebook.com/docs/graph-api/overview/access-levels", "doc_date": null, "confidence": "high"},
+    {"id": "P12", "title": "App Review Process", "url": "https://developers.facebook.com/documentation/resp-plat-initiatives/individual-processes/app-review", "doc_date": null, "confidence": "high"},
+    {"id": "P13", "title": "Instagram Platform API reference (index)", "url": "https://developers.facebook.com/documentation/instagram-platform/reference", "doc_date": "2025-01-21", "confidence": "high"},
+    {"id": "P14", "title": "Create an App - Instagram Platform", "url": "https://developers.facebook.com/docs/instagram-platform/create-an-instagram-app/", "doc_date": null, "confidence": "medium-high", "note": "The .md variant returned a stub; step list taken from the HTML page"}
+  ],
+  "sources_secondary": [
+    {"id": "S1", "title": "postzen.dev - How to Get an Instagram API Access Token (2026)", "url": "https://www.postzen.dev/blog/how-to-get-instagram-access-token", "date": "2026-09-28", "confidence": "medium"},
+    {"id": "S2", "title": "upload-post.com - Instagram API in 2026", "url": "https://www.upload-post.com/instagram-api/", "date": "2026-09-28", "confidence": "medium"},
+    {"id": "S3", "title": "keryx.phpboyscout.uk - Get Instagram posting credentials", "url": "https://keryx.phpboyscout.uk/how-to/instagram-credentials/", "date": null, "confidence": "medium", "use": "Pitfall: Insufficient developer role / app-owning business"},
+    {"id": "S4", "title": "restfb issue #1525 - new insights permission", "url": "https://github.com/restfb/restfb/issues/1525", "date": "2025-01-29", "confidence": "medium"},
+    {"id": "S5", "title": "Stack Overflow #79229499 - instagram_business_manage_messages default", "url": "https://stackoverflow.com/questions/79229499", "date": "2024-11-27", "confidence": "medium"},
+    {"id": "S6", "title": "ppc.land - Meta user data deletion requirements", "url": "https://ppc.land/meta-enhances-developer-platform-with-new-user-data-deletion-requirements/", "date": "2024-11-17", "confidence": "medium"},
+    {"id": "S7", "title": "landing.app-club.org - Data deletion instructions guide", "url": "https://landing.app-club.org/data-deletion-instructions-facebook", "date": "2026", "confidence": "medium"},
+    {"id": "S8", "title": "gist jameschapman2c - Instagram Official APIs reference", "url": "https://gist.github.com/jameschapman2c/65eff9f54a2d350b17a6ce5127b9fe42", "date": "2026-04-02", "confidence": "low", "note": "Contains outdated statements (Basic Display sunset date)"}
+  ],
+  "approval_status": {
+    "ana_pilot": {
+      "can_start_immediately": true,
+      "blocking_unknowns": ["professional account status of anasavu", "Meta developer account existence"],
+      "estimated_effort_to_first_real_import": "3-4 working days",
+      "not_required": [
+        "Business Verification", "App Review", "company verification", "Facebook Page link",
+        "implemented OAuth flow", "tech provider status", "Live mode for data reads"
+      ]
+    },
+    "multi_creator": {
+      "can_start_immediately": false,
+      "blocking_requirements": ["Advanced Access", "App Review per permission", "Business Verification", "Live app", "reviewer-testable app", "screencast per permission"],
+      "review_claim": "No approval is claimed. Nothing has been submitted."
+    }
+  },
+  "next_slice": [
+    {"n": 1, "task": "Verify anasavu is a professional account; convert if not", "effort": "5min"},
+    {"n": 2, "task": "Create or verify the Meta developer account", "effort": "15min"},
+    {"n": 3, "task": "Create app (type Business), add use case 'Manage messaging & content on Instagram'", "effort": "15min"},
+    {"n": 4, "task": "Record Instagram App ID and Secret into a secret store", "effort": "5min"},
+    {"n": 5, "task": "Set permissions: instagram_business_basic + instagram_business_manage_insights; remove instagram_business_manage_messages", "effort": "10min"},
+    {"n": 6, "task": "Invite Ana as Instagram Tester; Ana accepts in Instagram", "effort": "10min"},
+    {"n": 7, "task": "Generate token; store in .env (never in Git)", "effort": "5min"},
+    {"n": 8, "task": "Smoke test AC-2/AC-3: GET /me and GET /<id>/media?fields=id,permalink,timestamp,media_type,caption&limit=5", "effort": "15min"},
+    {"n": 9, "task": "Decide conflict C1: does caption arrive? Confirm Instagram Login or switch to Facebook Login", "effort": "10min"},
+    {"n": 10, "task": "Worker skeleton: load token, read profile, paginate media, idempotent upsert", "effort": "1d"},
+    {"n": 11, "task": "Sync insights; set is_missing correctly", "effort": "0.5d"},
+    {"n": 12, "task": "media_availability logic including media_audio_type", "effort": "0.5d"},
+    {"n": 13, "task": "JSON/CSV export plus a simple dashboard", "effort": "0.5d"},
+    {"n": 14, "task": "Revoke and delete, including the data-deletion callback", "effort": "0.5d"}
+  ],
+  "next_slice_excluded": [
+    "webhooks (need Advanced Access + Live + Business Verification)",
+    "comment import (legal question open, scope not separable)",
+    "transcription (only after media_availability is stable)",
+    "multi-creator onboarding",
+    "App Review and Business Verification",
+    "Facebook Login path (fallback only, if step 9 fails)"
+  ]
+}
