@@ -24,6 +24,7 @@ export function ContentRows({
   overrides,
   onOverride,
   openId,
+  openSeq,
   onOpen,
 }: {
   snapshot: SocialSnapshot;
@@ -31,6 +32,8 @@ export function ContentRows({
   overrides: ThemeOverrides;
   onOverride: (id: string, themes: readonly ThemeId[] | null) => void;
   openId: string | null;
+  /** increments on every selection, including re-selecting the open post */
+  openSeq: number;
   onOpen: (id: string | null) => void;
 }) {
   const { t } = useI18n();
@@ -38,9 +41,9 @@ export function ContentRows({
   const formats = [...new Set(analysis.posts.map((p) => p.post.format))];
   // a post chosen from the map or an evidence link must become visible even when the format filter hides it
   // (state adjusted during render when the selection changes, not in an effect)
-  const [seenOpenId, setSeenOpenId] = useState(openId);
-  if (openId !== seenOpenId) {
-    setSeenOpenId(openId);
+  const [seenSeq, setSeenSeq] = useState(openSeq);
+  if (openSeq !== seenSeq) {
+    setSeenSeq(openSeq);
     const chosen = analysis.posts.find((p) => p.post.media_id === openId);
     if (chosen && filter !== "all" && chosen.post.format !== filter) setFilter("all");
   }

@@ -60,12 +60,13 @@ export interface SocialPost {
 }
 
 export interface Coverage {
-  requested: number;
+  /** null when the worker did not report it */
+  requested: number | null;
   retrieved: number;
   /** Total posts on the account when Instagram reports media_count, otherwise null (UNKNOWN). */
   total_available: number | null;
   has_more: boolean;
-  pages_fetched: number;
+  pages_fetched: number | null;
   posts_with_insights: number;
   posts_without_insights: number;
   /** null when the worker did not report its call budget (shown as unknown, never 0) */

@@ -2,7 +2,7 @@
 import { describe, expect, it } from "vitest";
 import { buildSnapshot } from "../../../e2e/fake-social/core.mjs";
 import { normalizeSnapshot } from "@/server/social/normalize";
-import { analyze, heroReading, hiddenWinner, MATURE_AGE_DAYS, median, MIN_GROUP_N, practicalValueFamily, reuseCandidate, type ThemeOf } from "./insights";
+import { analyze, heroReading, hiddenWinner, mapGroups, MATURE_AGE_DAYS, median, MIN_GROUP_N, practicalValueFamily, reuseCandidate, type ThemeOf } from "./insights";
 import { COMMERCIAL_SIGNALS, HYPOTHESES, hypothesisSignals, nextTest, themeSignals, type FamilyOf } from "./offers";
 import { assignTheme, deriveThemes } from "./themes";
 import type { Observation, SocialSnapshot } from "./types";
@@ -78,6 +78,12 @@ describe("analyze — transparent rates, same-format groups, age disclosure", ()
     expect(reel.nHighIntent).toBe(4);
     expect(a.posts.every((p) => p.highIntentIndex === null)).toBe(true);
     expect(a.posts.find((p) => p.post.media_id === "syn002")!.reachIndex).not.toBeNull(); // reach baseline unaffected
+  });
+
+  it("the map only offers formats with a baseline on both axes (never an empty CONNECTED map)", () => {
+    expect(mapGroups(analysis).map((g) => g.format)).toEqual(["reel"]);
+    const keep = new Set(["syn002", "syn003", "syn004", "syn005"]);
+    expect(mapGroups(analyze(withoutMetric(snapshot, "saves", (id) => !keep.has(id))))).toEqual([]);
   });
 
   it("hero = newest mature post with a same-format baseline", () => {

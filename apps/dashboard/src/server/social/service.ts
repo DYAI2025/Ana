@@ -40,6 +40,8 @@ interface Cache {
   attemptedAt: number;
   lastResult: SocialResult | null;
   inFlight: Promise<SocialResult> | null;
+  /** bumped by reset(): a load started before it must not write its result back */
+  generation: number;
 }
 
 export interface SnapshotService {
@@ -49,23 +51,26 @@ export interface SnapshotService {
 }
 
 export function createSnapshotService(config: SocialConfig, fetchImpl: typeof fetch = fetch, now: () => number = Date.now): SnapshotService {
-  const cache: Cache = { snapshot: null, fetchedAt: 0, attemptedAt: -Infinity, lastResult: null, inFlight: null };
+  const cache: Cache = { snapshot: null, fetchedAt: 0, attemptedAt: -Infinity, lastResult: null, inFlight: null, generation: 0 };
 
   async function load(): Promise<SocialResult> {
     cache.attemptedAt = now();
-    const result = await attempt();
-    cache.lastResult = result;
+    const generation = cache.generation;
+    const result = await attempt(generation);
+    if (generation === cache.generation) cache.lastResult = result;
     return result;
   }
 
-  async function attempt(): Promise<SocialResult> {
+  async function attempt(generation: number): Promise<SocialResult> {
     const response = await fetchWorkerSnapshot(config, fetchImpl);
     let failure: SocialFailure;
     if (response.ok) {
       try {
         const snapshot = normalizeSnapshot(response.data);
-        cache.snapshot = snapshot;
-        cache.fetchedAt = now();
+        if (generation === cache.generation) {
+          cache.snapshot = snapshot;
+          cache.fetchedAt = now();
+        }
         return { ok: true, snapshot: { ...snapshot, served_at: new Date(now()).toISOString() }, stale: false };
       } catch (error) {
         failure = { state: "ERROR", code: "invalid-response", detail: error instanceof InvalidWorkerResponse ? error.message : "unreadable snapshot" };
@@ -92,8 +97,11 @@ export function createSnapshotService(config: SocialConfig, fetchImpl: typeof fe
       }
       // a failing worker is not hammered: within the interval the last answer (failure or STALE) is repeated
       if (!mayCallWorker && cache.lastResult) return Promise.resolve(cache.lastResult);
-      cache.inFlight = load().finally(() => (cache.inFlight = null));
-      return cache.inFlight;
+      const pending = load().finally(() => {
+        if (cache.inFlight === pending) cache.inFlight = null;
+      });
+      cache.inFlight = pending;
+      return pending;
     },
     reset() {
       cache.snapshot = null;
@@ -101,6 +109,7 @@ export function createSnapshotService(config: SocialConfig, fetchImpl: typeof fe
       cache.attemptedAt = -Infinity;
       cache.lastResult = null;
       cache.inFlight = null;
+      cache.generation += 1;
     },
   };
 }

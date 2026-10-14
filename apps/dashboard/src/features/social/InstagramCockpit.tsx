@@ -144,7 +144,9 @@ function Coverage({ snapshot }: { snapshot: SocialSnapshot }) {
 function Loaded({ snapshot, stale }: { snapshot: SocialSnapshot; stale: boolean }) {
   const { t, locale } = useI18n();
   const [overrides, setOverrides] = useState<ThemeOverrides>({});
-  const [openId, setOpenId] = useState<string | null>(null);
+  const [open, setOpen] = useState<{ id: string | null; seq: number }>({ id: null, seq: 0 });
+  const openId = open.id;
+  const setOpenId = useCallback((id: string | null) => setOpen((o) => ({ id, seq: o.seq + 1 })), []);
   const [mapFormat, setMapFormat] = useState<PostFormat | null>(null);
   const analysis = useMemo(() => analyze(snapshot), [snapshot]);
   const hero = useMemo(() => heroReading(analysis), [analysis]);
@@ -172,7 +174,7 @@ function Loaded({ snapshot, stale }: { snapshot: SocialSnapshot; stale: boolean 
           <StreamPanel />
           <ContentMap analysis={analysis} format={mapFormat} onFormat={setMapFormat} onSelect={setOpenId} selectedId={openId} />
           <AudiencePanel />
-          <ContentRows snapshot={snapshot} analysis={analysis} overrides={overrides} onOverride={onOverride} openId={openId} onOpen={setOpenId} />
+          <ContentRows snapshot={snapshot} analysis={analysis} overrides={overrides} onOverride={onOverride} openId={openId} openSeq={open.seq} onOpen={setOpenId} />
           <PatternsPanel analysis={analysis} themeOf={themeOf} familyOf={familyOf} onSelect={setOpenId} />
           <CommentsPanel />
         </div>

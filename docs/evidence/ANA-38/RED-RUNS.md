@@ -57,3 +57,25 @@ Worker fixes were test-first (5 tests red before the change, 47 / 47 after). Das
 e2e: under a machine load average of ~94 the 1.5 s e2e worker timeout made the fake worker look down (the cockpit
 correctly showed ERROR); the e2e timeout is now 5 s. The Brain canvas journey and its contrast state failed locally
 under the same load; they do not touch any changed file and are judged by CI on an unloaded runner.
+
+## Closure verification of round 1 (read-only, 6 agents)
+
+21 of 37 findings CLOSED, 16 PARTIAL (mostly: code fixed but no test would fail on a revert), 0 OPEN, 1 new MINOR
+regression (the content map picked formats by reach population only). Round 2 fixed the residual code paths (invented
+`requested`/`pages_fetched`, re-selecting a hidden open post, reset during an in-flight read, map eligibility) and added the
+missing tests. Each new test was seen failing on sabotage:
+
+| Sabotage | Result |
+|---|---|
+| rate inspector: hard-coded inputs / English formula | e2e "inspector provenance" and German test red |
+| row labels `display: none` | e2e "accessible label" red |
+| index label removed | e2e mobile red |
+| selection keyed on id instead of a selection event | e2e "re-selecting" red |
+| `1.00×` literal | e2e German red |
+| old tablet grid | e2e tablet 768 red (28 rows wider than the panel); at 800 px the old grid still fit, so the test runs at 768 |
+| reset without the generation guard | 1 failed / 49 |
+| map eligibility on reach population only | 1 failed / 49 |
+| `requested` invented from the post count | 1 failed / 49 |
+| dates forced to UTC | 1 failed / 49 |
+| worker identity extras falling back on any Meta error | 1 failed / 49 (worker) |
+| worker budget shortfall summarised as error | 1 failed / 49 (worker); the first version of this test stayed green and was tightened |

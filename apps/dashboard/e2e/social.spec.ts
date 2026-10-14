@@ -172,11 +172,59 @@ test.describe("Instagram cockpit — real-data shape, honest states", () => {
     await expect(page.getByTestId("tab-offers")).toHaveAttribute("aria-selected", "true");
   });
 
+  test("inspector provenance per derived rate, translated formulas", async ({ page }) => {
+    await openCockpit(page);
+    await row(page, "syn004").getByTestId("row-toggle").click();
+    await page.getByTestId("inspect-rate-saves_per_reach").click();
+    const dialog = page.getByTestId("metric-inspector");
+    await expect(dialog).toContainText("saved, reach");
+    await expect(dialog).toContainText("saves ÷ reach");
+    await page.keyboard.press("Escape");
+    await page.getByTestId("inspect-high-intent").click();
+    await expect(dialog).toContainText("median of (saves + shares) ÷ reach over 18 posts");
+  });
+
+  test("every row value has an accessible label at desktop width; tab panels exist for every tab", async ({ page }) => {
+    await openCockpit(page);
+    const cell = row(page, "syn002").locator('[data-metric="reach"]');
+    await expect(cell).toContainText("Reach");
+    expect(await cell.locator("span").first().evaluate((e) => getComputedStyle(e).display)).not.toBe("none");
+    await expect(row(page, "syn002").getByText("Reach index", { exact: true })).toHaveCount(1);
+    const missing = await page.getByRole("tab").evaluateAll((tabs) => tabs.filter((t) => !document.getElementById(t.getAttribute("aria-controls") ?? "")).length);
+    expect(missing).toBe(0);
+  });
+
+  test("theme editor keeps keyboard focus on its toggle when closing", async ({ page }) => {
+    await openCockpit(page);
+    await row(page, "syn004").getByTestId("row-toggle").click();
+    const toggle = page.getByTestId("edit-themes");
+    await toggle.click();
+    await expect(toggle).toHaveAttribute("aria-expanded", "true");
+    await toggle.click();
+    await expect(toggle).toHaveAttribute("aria-expanded", "false");
+    await expect(toggle).toBeFocused();
+  });
+
+  test("re-selecting the open post while the filter hides it shows it again", async ({ page }) => {
+    await openCockpit(page);
+    const point = page.getByTestId("map-point").first();
+    await point.click();
+    await page.getByTestId("content-filter-carousel").click();
+    await expect(page.locator('[data-testid="content-row"] [data-testid="row-detail"]')).toHaveCount(0);
+    await point.click();
+    await expect(page.getByTestId("content-count")).toHaveText("28 of 28 posts");
+    await expect(page.locator('[data-testid="content-row"] [data-testid="row-detail"]')).toHaveCount(1);
+  });
+
   test("German locale translates the cockpit", async ({ page }) => {
     await page.addInitScript(() => window.localStorage.setItem("ana.locale", "de"));
     await openCockpit(page);
     await expect(page.getByRole("heading", { name: "Neueste Inhalte" })).toBeVisible();
     await expect(page.getByTestId("coverage-retrieved")).toHaveText("28 von 212 Beiträgen abgerufen");
+    await expect(page.getByTestId("hero").locator("svg text").first()).toHaveText("1,00×");
+    await row(page, "syn004").getByTestId("row-toggle").click();
+    await page.getByTestId("inspect-rate-saves_per_reach").click();
+    await expect(page.getByTestId("metric-inspector")).toContainText("Gespeichert ÷ Reichweite");
   });
 });
 
@@ -239,6 +287,18 @@ test.describe("Instagram cockpit — failure states (AC10)", () => {
   });
 });
 
+test.describe("Instagram cockpit — tablet 768×1024 (just above the 760 breakpoint)", () => {
+  test.use({ viewport: { width: 768, height: 1024 } });
+
+  test("content rows fit their panel; panels do not overlap", async ({ page }) => {
+    await openCockpit(page);
+    const wide = await page.locator('[data-testid="content-row"] > div').evaluateAll((rows) => rows.filter((r) => r.scrollWidth > r.clientWidth + 1).length);
+    expect(wide).toBe(0);
+    const boxes = await page.locator("[data-testid=instagram-cockpit] > div > section").evaluateAll((els) => els.map((e) => e.getBoundingClientRect()).map((r) => ({ top: r.top, bottom: r.bottom })));
+    for (let i = 1; i < boxes.length; i += 1) expect(boxes[i]!.top).toBeGreaterThanOrEqual(boxes[i - 1]!.bottom - 1);
+  });
+});
+
 test.describe("Instagram cockpit — mobile 390×844", () => {
   test.use({ viewport: { width: 390, height: 844 } });
 
@@ -248,6 +308,7 @@ test.describe("Instagram cockpit — mobile 390×844", () => {
     expect(overflow).toBeLessThanOrEqual(0);
     await expect(page.getByTestId("content-map").locator("svg")).toBeHidden();
     await expect(page.getByRole("list", { name: "Ranked by reach index" })).toBeVisible();
+    await expect(row(page, "syn002").getByText("Reach index", { exact: true })).toBeVisible();
     await page.getByTestId("inspect-followers").click();
     const box = await page.getByTestId("metric-inspector").boundingBox();
     expect(box).not.toBeNull();

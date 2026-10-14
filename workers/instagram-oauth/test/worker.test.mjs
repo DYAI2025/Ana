@@ -675,6 +675,35 @@ test('social snapshot: only Meta error 100 triggers the optional-field fallback;
   assert.equal(calls.filter(c => c.url.pathname === '/v26.0/me/media').length, 1, 'no retry without optional fields');
 });
 
+test('social snapshot: identity extras fall back only on Meta error 100; a rate limit fails the read', async () => {
+  const env = mockEnv();
+  await connect(env);
+  const calls = installMeta({media: pagedMedia(1), me: u => u.searchParams.get('fields').includes('followers_count') ? Response.json({error: {message: 'synthetic', type: 'OAuthException', code: 4}}, {status: 400}) : Response.json({user_id: IG_USER_ID, username: 'anasavu'})});
+  const r = await snapshot(env);
+  assert.equal(r.status, 502);
+  assert.deepEqual(await r.json(), {error: 'instagram-media-fetch-failed', reason: 'meta-4'});
+  assert.equal(calls.filter(c => c.url.pathname === '/v26.0/me').length, 1, 'no retry without extras on a rate limit');
+});
+
+test('social snapshot: a budget that runs out inside the per-metric fallback yields not_fetched, never error', async () => {
+  const env = mockEnv();
+  await connect(env);
+  // 1 identity + 1 media page + 4 account metrics = 6; then each post's combined call fails with 100 and the
+  // per-metric fallback (7 calls per post) exhausts the 45-call budget mid-post
+  installMeta({media: pagedMedia(30), mediaInsights: u => u.searchParams.get('metric').includes(',')
+    ? Response.json({error: {message: 'synthetic', type: 'OAuthException', code: 100}}, {status: 400})
+    : Response.json({data: []})});
+  const body = await (await snapshot(env)).json();
+  assert.equal(body.insights.budget.used, body.insights.budget.limit);
+  const states = body.media.items.map(i => i.insights.state);
+  assert.ok(!states.includes('error'), 'budget shortfall is never an error');
+  assert.ok(states.includes('not_fetched'));
+  // the post cut mid-fallback holds unavailable + not_fetched metrics and no ok one: still not_fetched, not error
+  const cut = body.media.items.find(i => i.insights.metrics.some(m => m.state === 'unavailable') && i.insights.metrics.some(m => m.state === 'not_fetched'));
+  assert.ok(cut, 'scenario reaches a post cut mid-fallback');
+  assert.equal(cut.insights.state, 'not_fetched');
+});
+
 test('social snapshot: media without insight support stops the per-metric fallback after reach', async () => {
   const env = mockEnv();
   await connect(env);

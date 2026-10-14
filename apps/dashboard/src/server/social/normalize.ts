@@ -157,11 +157,11 @@ export function normalizeSnapshot(raw: unknown): SocialSnapshot {
     observed_at: observedAt,
     served_at: observedAt,
     coverage: {
-      requested: num(media.requested_max) ?? posts.length,
+      requested: num(media.requested_max),
       retrieved: posts.length,
       total_available: mediaCount?.availability_state === "VERIFIED" ? mediaCount.value : null,
       has_more: media.has_more === true,
-      pages_fetched: num(media.pages_fetched) ?? 0,
+      pages_fetched: num(media.pages_fetched),
       posts_with_insights: withInsights,
       posts_without_insights: posts.length - withInsights,
       budget_used: num(budget.used),

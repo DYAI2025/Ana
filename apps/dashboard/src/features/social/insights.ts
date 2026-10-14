@@ -148,6 +148,11 @@ export function analyze(snapshot: SocialSnapshot): Analysis {
   return { observedAt: snapshot.observed_at, posts, groups };
 }
 
+/** Formats the content map can plot: a baseline population on both axes (reach and high-intent). */
+export function mapGroups(analysis: Analysis): FormatGroup[] {
+  return analysis.groups.filter((g) => g.n >= MIN_GROUP_N && g.nHighIntent >= MIN_GROUP_N).sort((a, b) => b.nHighIntent - a.nHighIntent);
+}
+
 export interface HeroReading {
   post: PostAnalysis;
   group: FormatGroup;

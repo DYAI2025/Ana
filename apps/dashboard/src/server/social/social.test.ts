@@ -120,6 +120,9 @@ describe("normalizeSnapshot — provider response → dashboard DTO", () => {
     const raw = buildSnapshot() as unknown as Record<string, Record<string, unknown>>;
     raw.insights = { ...raw.insights, budget: undefined };
     expect(normalizeSnapshot(raw).coverage).toMatchObject({ budget_used: null, budget_limit: null });
+    const raw2 = buildSnapshot() as unknown as Record<string, Record<string, unknown>>;
+    raw2.media = { ...raw2.media, requested_max: undefined, pages_fetched: undefined };
+    expect(normalizeSnapshot(raw2).coverage).toMatchObject({ requested: null, pages_fetched: null });
   });
 
   it("maps formats from media type and product type", () => {
@@ -208,6 +211,24 @@ describe("snapshot service — caching, STALE and failure states", () => {
     const printed = spies.flatMap((s) => s.mock.calls.flat().map(String)).join("\n");
     spies.forEach((s) => s.mockRestore());
     expect(printed).toBe("");
+  });
+
+  it("a reset invalidates a read already in flight: its late answer does not repopulate the cache", async () => {
+    let release!: () => void;
+    const gate = new Promise<void>((r) => (release = r));
+    let calls = 0;
+    const service = createSnapshotService({ ...config, minRefreshMs: 0 }, async () => {
+      calls += 1;
+      if (calls === 1) await gate;
+      return calls === 1 ? new Response(JSON.stringify(buildSnapshot())) : new Response(JSON.stringify({ error: "reauth-required" }), { status: 409 });
+    });
+    const first = service.read();
+    service.reset();
+    release();
+    await first;
+    // the old read finished after the reset: the next read must ask the worker again, not serve that snapshot
+    expect(await service.read()).toMatchObject({ ok: false, failure: { code: "reauth-required" } });
+    expect(calls).toBe(2);
   });
 
   it("an unreadable snapshot is an ERROR, not partial data", async () => {

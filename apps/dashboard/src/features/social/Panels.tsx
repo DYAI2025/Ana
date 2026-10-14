@@ -4,7 +4,7 @@ import { History, MessageSquareOff, Users } from "lucide-react";
 import { useI18n } from "@/components/providers/I18nProvider";
 import { formatDay, formatIndex } from "./format";
 import { StateChip } from "./Instruments";
-import { MATURE_AGE_DAYS, MIN_GROUP_N, type Analysis, type PostAnalysis } from "./insights";
+import { mapGroups, MATURE_AGE_DAYS, MIN_GROUP_N, type Analysis, type PostAnalysis } from "./insights";
 import type { PostFormat } from "./types";
 import styles from "./social.module.css";
 
@@ -77,8 +77,9 @@ export function Glyph({ format, x, y, size }: { format: PostFormat; x: number; y
 
 export function ContentMap({ analysis, format, onFormat, onSelect, selectedId }: { analysis: Analysis; format: PostFormat | null; onFormat: (f: PostFormat) => void; onSelect: (id: string) => void; selectedId: string | null }) {
   const { t, locale } = useI18n();
-  const eligible = analysis.groups.filter((g) => g.n >= MIN_GROUP_N);
-  const group = eligible.find((g) => g.format === format) ?? eligible.sort((a, b) => b.n - a.n)[0];
+  // the map plots reach index × high-intent index: a format needs a baseline population on both axes
+  const eligible = mapGroups(analysis);
+  const group = eligible.find((g) => g.format === format) ?? eligible[0];
   const points = group ? analysis.posts.filter((p) => p.post.format === group.format && p.reachIndex !== null && p.highIntentIndex !== null) : [];
   const maxX = Math.max(2.5, ...points.map((p) => p.reachIndex! * 1.08));
   const maxY = Math.max(2.5, ...points.map((p) => p.highIntentIndex! * 1.08));
@@ -112,7 +113,7 @@ export function ContentMap({ analysis, format, onFormat, onSelect, selectedId }:
       {!group ? (
         <>
           <StateChip state="INSUFFICIENT_EVIDENCE" />
-          <p className={styles.muted}>{t("social.map.insufficient", { n: Math.max(0, ...analysis.groups.map((g) => g.n)), min: MIN_GROUP_N })}</p>
+          <p className={styles.muted}>{t("social.map.insufficient", { n: Math.max(0, ...analysis.groups.map((g) => Math.min(g.n, g.nHighIntent))), min: MIN_GROUP_N })}</p>
         </>
       ) : (
         <>
