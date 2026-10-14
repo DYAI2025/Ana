@@ -4,24 +4,32 @@
 import type { Page } from "@playwright/test";
 import { expect, test, workReady, workSettled } from "./fixtures";
 
-const area = async (page: Page, testId: string) => {
-  const box = await page.getByTestId(testId).boundingBox();
-  if (!box) throw new Error(`${testId} has no box`);
-  return box.width * box.height;
+const box = async (page: Page, testId: string) => {
+  const rect = await page.getByTestId(testId).boundingBox();
+  if (!rect) throw new Error(`${testId} has no box`);
+  return rect;
 };
 
-test("1 · Now shows Current Focus first, then Work + Last Session, then secondary context", async ({ page }) => {
+const CONTEXT_ORDER = ["session", "work", "business", "knowledge", "community"];
+
+test("1 · Now shows Current Focus first, then the five context cards as one uniform column", async ({ page }) => {
   await page.goto("/");
   await expect(page.getByTestId("focus-statement")).toBeVisible();
-  const focusBox = (await page.getByTestId("focus-statement").boundingBox())!;
-  for (const id of ["work", "session", "business", "knowledge", "community"]) {
-    const box = (await page.getByTestId(`context-${id}`).boundingBox())!;
-    expect(box.y, `${id} sits below the focus statement`).toBeGreaterThan(focusBox.y + focusBox.height);
-  }
-  const primary = Math.min(await area(page, "context-work"), await area(page, "context-session"));
-  for (const id of ["business", "knowledge", "community"]) {
-    expect(await area(page, `context-${id}`), `${id} is visually secondary`).toBeLessThan(primary);
-  }
+  const focusBox = await box(page, "focus-statement");
+  const boxes = await Promise.all(CONTEXT_ORDER.map((id) => box(page, `context-${id}`)));
+  const [first] = boxes;
+  boxes.forEach((rect, i) => {
+    const id = CONTEXT_ORDER[i];
+    expect(rect.y, `${id} sits below the focus statement`).toBeGreaterThan(focusBox.y + focusBox.height);
+    expect(Math.abs(rect.x - first!.x), `${id} shares the column's left edge`).toBeLessThanOrEqual(1);
+    expect(Math.abs(rect.width - first!.width), `${id} has the column width`).toBeLessThanOrEqual(1);
+    expect(Math.abs(rect.height - first!.height), `${id} has the card height`).toBeLessThanOrEqual(1);
+    if (i > 0) expect(rect.y, `${id} stacks below ${CONTEXT_ORDER[i - 1]}`).toBeGreaterThan(boxes[i - 1]!.y + boxes[i - 1]!.height);
+  });
+  const radii = await Promise.all(
+    CONTEXT_ORDER.map((id) => page.getByTestId(`context-${id}`).evaluate((el) => getComputedStyle(el).borderRadius)),
+  );
+  expect(new Set(radii).size, `one shared border radius (${radii.join(" | ")})`).toBe(1);
   await expect(page.getByTestId("prototype-flag")).toBeVisible();
 });
 

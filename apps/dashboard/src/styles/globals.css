@@ -184,6 +184,13 @@ a {
 }
 
 /* ---------- glass material ---------- */
+/* strength of a glass surface's colour tint; registered so tinted layers can transition smoothly */
+@property --tint-strength {
+  syntax: "<number>";
+  inherits: true;
+  initial-value: 1;
+}
+
 /* zero-specificity positioning so component modules can make glass fixed/absolute */
 :where(.glass) {
   position: relative;
