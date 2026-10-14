@@ -61,6 +61,7 @@ function installMeta(overrides = {}) {
     media: () => Response.json({data: [{id: 'media1', caption: 'synthetic'}]}),
     insights: () => Response.json({data: [{name: 'reach', period: 'day', total_value: {value: 42}}]}),
     refresh: () => Response.json({access_token: 'ROTATED_TOKEN', token_type: 'bearer', expires_in: 5184000}),
+    mediaInsights: u => Response.json({data: u.searchParams.get('metric').split(',').map((name, i) => ({name, period: 'lifetime', values: [{value: 10 + i}]}))}),
     ...overrides
   };
   globalThis.fetch = async (input, opts = {}) => {
@@ -72,7 +73,8 @@ function installMeta(overrides = {}) {
       u.origin === 'https://graph.instagram.com' && u.pathname === '/refresh_access_token' ? 'refresh' :
       u.origin === 'https://graph.instagram.com' && u.pathname === '/v26.0/me' ? 'me' :
       u.origin === 'https://graph.instagram.com' && u.pathname === '/v26.0/me/media' ? 'media' :
-      u.origin === 'https://graph.instagram.com' && u.pathname === `/v26.0/${IG_USER_ID}/insights` ? 'insights' : null;
+      u.origin === 'https://graph.instagram.com' && u.pathname === `/v26.0/${IG_USER_ID}/insights` ? 'insights' :
+      u.origin === 'https://graph.instagram.com' && /^\/v26\.0\/[A-Za-z0-9_]+\/insights$/.test(u.pathname) ? 'mediaInsights' : null;
     if (!key) throw Error('unexpected upstream ' + u.origin + u.pathname);
     return routes[key](u, opts);
   };
@@ -545,6 +547,160 @@ test('internal media read: separate key, limit validation, reauth state', async 
   assert.equal(body.data.length, 1);
   assert.ok(!JSON.stringify(body).includes(LONG_TOKEN));
   assert.equal(r.headers.get('Access-Control-Allow-Origin'), null, 'no CORS for browser JS');
+});
+
+// =================== social snapshot (internal read contract for the dashboard BFF) ===================
+// Synthetic paged /me/media: `total` items, cursor paging; `next` carries a token like Meta's real URL does.
+function pagedMedia(total, {fields = null} = {}) {
+  return u => {
+    if (fields) fields.push(u.searchParams.get('fields'));
+    const start = u.searchParams.has('after') ? Number(u.searchParams.get('after').slice(1)) : 0;
+    const limit = Number(u.searchParams.get('limit'));
+    const end = Math.min(total, start + limit);
+    const data = Array.from({length: end - start}, (_, k) => ({
+      id: `m${start + k}`, media_type: 'VIDEO', media_product_type: 'REELS', permalink: `https://example.invalid/p/${start + k}`,
+      timestamp: '2026-10-01T10:00:00+0000', thumbnail_url: `https://example.invalid/t/${start + k}.jpg`, caption: `synthetic caption ${start + k}`,
+      like_count: 5, comments_count: 1
+    }));
+    const paging = end < total ? {cursors: {before: `c${start}`, after: `c${end}`}, next: `https://graph.instagram.com/v26.0/me/media?access_token=${LONG_TOKEN}&after=c${end}`} : {cursors: {before: `c${start}`, after: `c${end}`}};
+    return Response.json({data, paging});
+  };
+}
+const snapshot = (env, q = '', key = INTERNAL_KEY) => worker.fetch(new Request(origin + '/internal/social-snapshot' + q, {headers: {Authorization: `Bearer ${key}`}}), env);
+
+test('social snapshot: internal key only, max validation, reauth and account checks', async () => {
+  const env = mockEnv();
+  assert.equal((await worker.fetch(new Request(origin + '/internal/social-snapshot'), env)).status, 401);
+  assert.equal((await snapshot(env, '', ADMIN_KEY)).status, 401, 'admin key is not the internal read key');
+  assert.equal((await snapshot(env)).status, 409, 'no token -> reauth-required');
+  await connect(env);
+  for (const q of ['?max=0', '?max=51', '?max=abc', '?max=-1', '?max=100']) assert.equal((await snapshot(env, q)).status, 400, q);
+  installMeta({me: () => Response.json({user_id: IG_USER_ID, username: 'someoneelse'})});
+  assert.equal((await snapshot(env)).status, 409, 'account mismatch');
+  installMeta({media: metaError(4, 400)});
+  const failed = await snapshot(env);
+  assert.equal(failed.status, 502);
+  assert.deepEqual(await failed.json(), {error: 'instagram-media-fetch-failed', reason: 'meta-4'});
+});
+
+test('social snapshot: cursor pagination to max, never forwards Meta paging URLs or tokens', async () => {
+  const env = mockEnv();
+  await connect(env);
+  const calls = installMeta({media: pagedMedia(60)});
+  const r = await snapshot(env, '?max=30');
+  assert.equal(r.status, 200);
+  const text = await r.text();
+  assert.ok(!text.includes(LONG_TOKEN) && !text.includes('access_token'), 'no token or paging URL in output');
+  const body = JSON.parse(text);
+  const mediaCalls = calls.filter(c => c.url.pathname === '/v26.0/me/media');
+  assert.deepEqual(mediaCalls.map(c => [c.url.searchParams.get('limit'), c.url.searchParams.get('after')]), [['25', null], ['5', 'c25']]);
+  assert.equal(body.snapshot_version, 1);
+  assert.equal(body.api_version, 'v26.0');
+  assert.equal(body.account.id, IG_USER_ID);
+  assert.deepEqual({requested: body.media.requested_max, returned: body.media.returned, pages: body.media.pages_fetched, more: body.media.has_more},
+    {requested: 30, returned: 30, pages: 2, more: true});
+  assert.equal(body.media.items[29].id, 'm29');
+  assert.equal(body.media.items[0].caption, 'synthetic caption 0', 'caption passes through (localhost display decided by PO; never logged)');
+  assert.equal(body.media.optional_fields_state, 'ACCEPTED');
+});
+
+test('social snapshot: fewer posts than max are reported honestly; default max is 30', async () => {
+  const env = mockEnv();
+  await connect(env);
+  installMeta({media: pagedMedia(7)});
+  const body = await (await snapshot(env)).json();
+  assert.deepEqual({requested: body.media.requested_max, returned: body.media.returned, pages: body.media.pages_fetched, more: body.media.has_more},
+    {requested: 30, returned: 7, pages: 1, more: false});
+});
+
+test('social snapshot: per-post insights with per-metric isolation; missing values are null + unavailable, never 0', async () => {
+  const env = mockEnv();
+  await connect(env);
+  installMeta({
+    media: pagedMedia(3),
+    mediaInsights: u => {
+      const id = u.pathname.split('/')[2];
+      const metrics = u.searchParams.get('metric').split(',');
+      if (id === 'm1' && metrics.length > 1) return Response.json({error: {message: 'synthetic', type: 'OAuthException', code: 100}}, {status: 400});
+      if (id === 'm1' && metrics[0] === 'views') return Response.json({error: {message: 'synthetic', type: 'OAuthException', code: 100}}, {status: 400});
+      if (id === 'm1' && metrics[0] === 'shares') return Response.json({data: []});
+      if (id === 'm2') return Response.json({error: {message: 'synthetic', type: 'OAuthException', code: 10}}, {status: 403});
+      return Response.json({data: metrics.map((name, i) => ({name, period: 'lifetime', values: [{value: 10 + i}]}))});
+    }
+  });
+  const body = await (await snapshot(env)).json();
+  const byId = Object.fromEntries(body.media.items.map(i => [i.id, i.insights]));
+  assert.deepEqual(body.insights.requested_metrics, ['reach', 'views', 'saved', 'shares', 'likes', 'comments', 'total_interactions']);
+  assert.equal(byId.m0.state, 'ok');
+  assert.deepEqual(byId.m0.metrics.find(m => m.name === 'saved'), {name: 'saved', value: 12, state: 'ok', period: 'lifetime'});
+  assert.equal(byId.m1.state, 'partial');
+  assert.deepEqual(byId.m1.metrics.find(m => m.name === 'views'), {name: 'views', value: null, state: 'unavailable', period: null, error_class: 'meta-100'});
+  assert.deepEqual(byId.m1.metrics.find(m => m.name === 'shares'), {name: 'shares', value: null, state: 'unavailable', period: null, error_class: 'empty-response'});
+  assert.deepEqual(byId.m1.metrics.find(m => m.name === 'reach'), {name: 'reach', value: 10, state: 'ok', period: 'lifetime'});
+  assert.equal(byId.m2.state, 'error');
+  assert.ok(byId.m2.metrics.every(m => m.value === null && m.state === 'error' && m.error_class === 'meta-10'));
+});
+
+test('social snapshot: a hard sub-request budget bounds Meta calls; posts beyond it are marked not_fetched', async () => {
+  const env = mockEnv();
+  await connect(env);
+  const calls = installMeta({media: pagedMedia(60)});
+  const body = await (await snapshot(env, '?max=50')).json();
+  assert.equal(body.media.returned, 50);
+  assert.ok(calls.length <= body.insights.budget.limit, `calls ${calls.length} <= budget ${body.insights.budget.limit}`);
+  assert.equal(body.insights.budget.used, calls.length);
+  const fetched = body.media.items.filter(i => i.insights.state === 'ok').length;
+  const skipped = body.media.items.filter(i => i.insights.state === 'not_fetched');
+  assert.equal(fetched + skipped.length, 50);
+  assert.ok(fetched > 0 && skipped.length > 0);
+  assert.equal(body.insights.posts_with_insights, fetched);
+  assert.ok(skipped.every(i => i.insights.reason === 'subrequest-budget' && i.insights.metrics.every(m => m.value === null && m.state === 'not_fetched')));
+  // newest posts get insights first
+  assert.equal(body.media.items[0].insights.state, 'ok');
+});
+
+test('social snapshot: optional media fields rejected by Meta fall back to the base field set', async () => {
+  const env = mockEnv();
+  await connect(env);
+  const fields = [];
+  const base = pagedMedia(2, {fields});
+  installMeta({media: u => u.searchParams.get('fields').includes('caption') ? Response.json({error: {message: 'synthetic', type: 'OAuthException', code: 100}}, {status: 400}) : base(u)});
+  const body = await (await snapshot(env)).json();
+  assert.equal(body.media.optional_fields_state, 'REJECTED_BY_META');
+  assert.equal(body.media.returned, 2);
+  assert.deepEqual(fields, ['id,media_type,permalink,timestamp,thumbnail_url']);
+});
+
+test('social snapshot: account metrics per metric over a 28-day window; followers degrade to unavailable', async () => {
+  const env = mockEnv();
+  await connect(env);
+  const accountCalls = [];
+  installMeta({
+    media: pagedMedia(1),
+    me: u => u.searchParams.get('fields').includes('followers_count')
+      ? Response.json({error: {message: 'synthetic', type: 'OAuthException', code: 100}}, {status: 400})
+      : Response.json({user_id: IG_USER_ID, id: APP_SCOPED_ID, username: 'anasavu'}),
+    insights: u => {
+      accountCalls.push(u);
+      const metric = u.searchParams.get('metric');
+      if (metric === 'accounts_engaged') return Response.json({error: {message: 'synthetic', type: 'OAuthException', code: 100}}, {status: 400});
+      return Response.json({data: [{name: metric, period: 'day', total_value: {value: 1000}}]});
+    }
+  });
+  const body = await (await snapshot(env)).json();
+  assert.deepEqual(accountCalls.map(u => u.searchParams.get('metric')), ['reach', 'views', 'accounts_engaged', 'total_interactions']);
+  for (const u of accountCalls) {
+    assert.equal(u.searchParams.get('period'), 'day');
+    assert.equal(u.searchParams.get('metric_type'), 'total_value');
+    assert.equal(Number(u.searchParams.get('until')) - Number(u.searchParams.get('since')), 28 * DAY);
+  }
+  const m = Object.fromEntries(body.account.metrics.map(x => [x.name, x]));
+  assert.equal(m.reach.value, 1000);
+  assert.equal(m.reach.state, 'ok');
+  assert.equal(m.reach.window_days, 28);
+  assert.deepEqual({value: m.accounts_engaged.value, state: m.accounts_engaged.state, error_class: m.accounts_engaged.error_class}, {value: null, state: 'unavailable', error_class: 'meta-100'});
+  assert.deepEqual(body.account.followers_count, {value: null, state: 'unavailable'});
+  assert.equal(body.account.username, 'anasavu');
 });
 
 // =================== refresh ===================

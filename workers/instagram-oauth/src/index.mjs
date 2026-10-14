@@ -20,6 +20,17 @@ const MAX_ATTEMPTS_PER_INVITE = 3;
 const MIN_TOKEN_SECONDS = 7 * 86400;
 const MIN_KEY_LENGTH = 32;
 const MEDIA_FIELDS = 'id,media_type,permalink,timestamp,thumbnail_url';
+// Social snapshot (internal read contract for the dashboard BFF).
+const SNAPSHOT_OPTIONAL_FIELDS = 'media_product_type,caption,like_count,comments_count';
+const SNAPSHOT_DEFAULT_MAX = 30;
+const SNAPSHOT_MAX = 50;
+const SNAPSHOT_PAGE_SIZE = 25;
+// Stays below Cloudflare's 50 sub-requests per invocation on the free plan; shortfall is reported, never hidden.
+const SNAPSHOT_SUBREQUEST_BUDGET = 45;
+const SNAPSHOT_INSIGHT_CONCURRENCY = 5;
+const MEDIA_INSIGHT_METRICS = ['reach','views','saved','shares','likes','comments','total_interactions'];
+const ACCOUNT_METRICS = ['reach','views','accounts_engaged','total_interactions'];
+const ACCOUNT_WINDOW_DAYS = 28;
 
 class MetaError extends Error {
   constructor(kind, code = null) { super(kind); this.metaCode = code; }
@@ -351,6 +362,145 @@ async function readMedia(req,env,url) {
     return json({fetched_at:new Date().toISOString(),account_id:String(env.EXPECTED_IG_USER_ID),caption_field:media.caption,data:media.data.data||[],paging_present:!!media.data.paging});
   }catch(e){return json({error:'instagram-media-fetch-failed',reason:errorClass(e)},502)}
 }
+// ---- social snapshot ----
+// Every Meta call goes through one budget so a snapshot can never exceed the Worker's sub-request limit.
+function metaBudget(token, limit) {
+  const b = {limit, used:0, remaining:() => limit - b.used};
+  b.fetch = (path, params) => {
+    if (b.used >= limit) throw Error('subrequest-budget');
+    b.used++;
+    return metaFetch(path, token, params);
+  };
+  return b;
+}
+async function snapshotIdentity(b) {
+  try {
+    const me = unwrapSingle(await b.fetch('/me', {fields:'user_id,username,followers_count,media_count'}));
+    if (typeof me?.user_id !== 'string' || !/^\d+$/.test(me.user_id) || typeof me.username !== 'string') throw Error('bad-identity');
+    return {me, extras:true};
+  } catch (e) {
+    if (!(e instanceof MetaError)) throw e;
+    const me = unwrapSingle(await b.fetch('/me', {fields:'user_id,username'}));
+    if (typeof me?.user_id !== 'string' || !/^\d+$/.test(me.user_id) || typeof me.username !== 'string') throw Error('bad-identity');
+    return {me, extras:false};
+  }
+}
+const countOrNull = v => Number.isFinite(v) && v >= 0 ? v : null;
+// Follows paging.cursors.after through metaFetch; Meta's paging.next URL carries the token and is never used or returned.
+async function snapshotMedia(b, max) {
+  let fields = MEDIA_FIELDS + ',' + SNAPSHOT_OPTIONAL_FIELDS, optional = 'ACCEPTED', after = null, pages = 0, hasMore = false;
+  const items = [];
+  while (items.length < max) {
+    const params = {fields, limit:Math.min(SNAPSHOT_PAGE_SIZE, max - items.length)};
+    if (after) params.after = after;
+    let page;
+    try { page = await b.fetch('/me/media', params); }
+    catch (e) {
+      if (!(e instanceof MetaError) || pages > 0 || optional !== 'ACCEPTED') throw e;
+      fields = MEDIA_FIELDS; optional = 'REJECTED_BY_META';
+      continue;
+    }
+    pages++;
+    const data = Array.isArray(page?.data) ? page.data : [];
+    items.push(...data.slice(0, max - items.length));
+    const cursor = page?.paging?.cursors?.after;
+    hasMore = Boolean(page?.paging?.next) && typeof cursor === 'string' && data.length > 0;
+    if (!hasMore) break;
+    after = cursor;
+  }
+  return {optional, pages, hasMore, items:items.map(m => ({
+    id:String(m.id), media_type:m.media_type ?? null, media_product_type:m.media_product_type ?? null,
+    permalink:m.permalink ?? null, timestamp:m.timestamp ?? null, thumbnail_url:m.thumbnail_url ?? null,
+    ...(optional === 'ACCEPTED' ? {caption:typeof m.caption === 'string' ? m.caption : null, like_count:countOrNull(m.like_count), comments_count:countOrNull(m.comments_count)} : {})
+  }))};
+}
+function insightValue(entry) {
+  const v = entry?.total_value?.value ?? entry?.values?.[0]?.value;
+  return Number.isFinite(v) ? v : null;
+}
+const metricState = (name, state, error_class) => ({name, value:null, state, period:null, ...(error_class ? {error_class} : {})});
+async function mediaInsights(b, id) {
+  const read = async metrics => {
+    const data = await b.fetch(`/${id}/insights`, {metric:metrics.join(',')});
+    return Array.isArray(data?.data) ? data.data : [];
+  };
+  const fromEntries = (metrics, entries) => metrics.map(name => {
+    const e = entries.find(x => x?.name === name);
+    const value = insightValue(e);
+    return value === null ? metricState(name, 'unavailable', 'empty-response') : {name, value, state:'ok', period:e.period ?? null};
+  });
+  if (b.remaining() < 1) return {state:'not_fetched', reason:'subrequest-budget', metrics:MEDIA_INSIGHT_METRICS.map(n => metricState(n, 'not_fetched'))};
+  try {
+    return summarize(fromEntries(MEDIA_INSIGHT_METRICS, await read(MEDIA_INSIGHT_METRICS)));
+  } catch (e) {
+    // Meta rejects the whole request when one metric does not apply to this media (code 100): isolate per metric.
+    if (!(e instanceof MetaError) || e.metaCode !== 100) {
+      const reason = e?.message === 'subrequest-budget' ? null : errorClass(e);
+      return reason ? {state:'error', metrics:MEDIA_INSIGHT_METRICS.map(n => metricState(n, 'error', reason))}
+                    : {state:'not_fetched', reason:'subrequest-budget', metrics:MEDIA_INSIGHT_METRICS.map(n => metricState(n, 'not_fetched'))};
+    }
+    const metrics = [];
+    for (const name of MEDIA_INSIGHT_METRICS) {
+      if (b.remaining() < 1) { metrics.push(metricState(name, 'not_fetched')); continue; }
+      try { metrics.push(...fromEntries([name], await read([name]))); }
+      catch (err) { metrics.push(metricState(name, err instanceof MetaError && err.metaCode === 100 ? 'unavailable' : 'error', errorClass(err))); }
+    }
+    return summarize(metrics);
+  }
+}
+function summarize(metrics) {
+  const ok = metrics.filter(m => m.state === 'ok').length;
+  return {state:ok === metrics.length ? 'ok' : ok > 0 ? 'partial' : metrics.every(m => m.state === 'unavailable') ? 'unavailable' : 'error', metrics};
+}
+async function accountMetrics(b, userId) {
+  const until = nowSeconds(), since = until - ACCOUNT_WINDOW_DAYS * 86400;
+  const out = [];
+  for (const name of ACCOUNT_METRICS) {
+    const base = {name, period:'day', metric_type:'total_value', window_days:ACCOUNT_WINDOW_DAYS, since, until};
+    try {
+      const data = await b.fetch(`/${userId}/insights`, {metric:name, period:'day', metric_type:'total_value', since, until});
+      const value = insightValue((Array.isArray(data?.data) ? data.data : []).find(x => x?.name === name));
+      out.push(value === null ? {...base, value:null, state:'unavailable', error_class:'empty-response'} : {...base, value, state:'ok'});
+    } catch (e) {
+      const cls = e?.message === 'subrequest-budget' ? 'subrequest-budget' : errorClass(e);
+      out.push({...base, value:null, state:e instanceof MetaError && e.metaCode === 100 ? 'unavailable' : cls === 'subrequest-budget' ? 'not_fetched' : 'error', error_class:cls});
+    }
+  }
+  return out;
+}
+async function readSocialSnapshot(req,env,url) {
+  if(!(await authorizeAdmin(req,env,'INTERNAL_READ_KEY')))return json({error:'unauthorized'},401);
+  const maxRaw=url.searchParams.get('max')||String(SNAPSHOT_DEFAULT_MAX);
+  if(!/^\d{1,2}$/.test(maxRaw) || +maxRaw<1 || +maxRaw>SNAPSHOT_MAX)return json({error:'invalid-max'},400);
+  const token=await usableToken(env);
+  if(!token)return json({error:'reauth-required'},409);
+  const b=metaBudget(token,SNAPSHOT_SUBREQUEST_BUDGET);
+  let identity, media;
+  try {
+    identity=await snapshotIdentity(b);
+    if(!isExpectedAccount(identity.me,env))return json({error:'account-mismatch'},409);
+    media=await snapshotMedia(b,+maxRaw);
+  } catch(e) { return json({error:'instagram-media-fetch-failed',reason:errorClass(e)},502); }
+  const account_metrics=await accountMetrics(b,identity.me.user_id);
+  // Newest first (Meta's order); a few in parallel to bound wall time.
+  const insights=new Array(media.items.length);
+  for (let i=0;i<media.items.length;i+=SNAPSHOT_INSIGHT_CONCURRENCY) {
+    const chunk=media.items.slice(i,i+SNAPSHOT_INSIGHT_CONCURRENCY);
+    const results=await Promise.all(chunk.map(m=>mediaInsights(b,m.id)));
+    results.forEach((r,k)=>{insights[i+k]=r;});
+  }
+  const followers=identity.extras?countOrNull(identity.me.followers_count):null;
+  return json({
+    snapshot_version:1, fetched_at:new Date().toISOString(), provider:'instagram', api_version:GRAPH_VERSION,
+    account:{id:String(env.EXPECTED_IG_USER_ID), username:identity.me.username,
+      followers_count:{value:followers, state:followers===null?'unavailable':'ok'},
+      media_count:{value:identity.extras?countOrNull(identity.me.media_count):null, state:identity.extras&&countOrNull(identity.me.media_count)!==null?'ok':'unavailable'},
+      metrics:account_metrics},
+    media:{requested_max:+maxRaw, returned:media.items.length, pages_fetched:media.pages, has_more:media.hasMore, optional_fields_state:media.optional,
+      items:media.items.map((m,i)=>({...m, insights:insights[i]}))},
+    insights:{requested_metrics:MEDIA_INSIGHT_METRICS, posts_with_insights:insights.filter(x=>x.state==='ok'||x.state==='partial').length, budget:{limit:b.limit, used:b.used}}
+  });
+}
 async function refresh(env,force=false) {
   const row=await findToken(env);
   if(!row)return {status:'NOT_AUTHORIZED'};
@@ -406,6 +556,7 @@ async function route(req,env,url) {
     return insightsProbe(env);
   }
   if(req.method==='GET' && url.pathname==='/internal/media')return readMedia(req,env,url);
+  if(req.method==='GET' && url.pathname==='/internal/social-snapshot')return readSocialSnapshot(req,env,url);
   if(req.method==='GET' && url.pathname==='/instagram/start')return startPage(req,env,url);
   if(req.method==='POST' && url.pathname==='/instagram/start')return startLogin(req,env);
   if(req.method==='GET' && url.pathname===CALLBACK_PATH)return callback(req,env,url);
