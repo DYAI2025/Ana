@@ -88,6 +88,12 @@ describe("configuration fails closed", () => {
     expect(await checkAccess(headers({ host: "localhost" }), { NODE_ENV: "production" })).toMatchObject({ ok: false, status: 503 });
   });
 
+  it("the container image never runs loopback mode: it listens on all interfaces, so Host trust would be spoofable", async () => {
+    expect(readAccessConfig({ ANA_CONTAINER: "1", ANA_ACCESS_MODE: "loopback" })).toMatchObject({ mode: "misconfigured" });
+    expect(readAccessConfig({ ANA_CONTAINER: "1", NODE_ENV: "development" })).toMatchObject({ mode: "misconfigured" });
+    expect(await checkAccess(headers({ host: "localhost" }), { ANA_CONTAINER: "1", ANA_ACCESS_MODE: "loopback" })).toMatchObject({ ok: false, status: 503 });
+  });
+
   it("a production server runs loopback mode only when it is asked for explicitly", () => {
     expect(readAccessConfig({ NODE_ENV: "production", ANA_ACCESS_MODE: "loopback" })).toEqual({ mode: "loopback" });
   });

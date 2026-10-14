@@ -5,8 +5,8 @@
 # The dashboard additionally verifies the Access JWT on every request (ANA_ACCESS_MODE=cloudflare).
 #
 # Secrets: /opt/ana-dashboard/dashboard.env and tunnel.env, root-owned, mode 600, never in Git.
-# Release: ANA_RELEASE (the Git SHA the image was built from) in /opt/ana-dashboard/.env.
-# Rollback: set ANA_RELEASE to the previous SHA (its image stays loaded) and `docker compose up -d dashboard`.
+# Release and rollback only through release.sh (see README.md): it sets ANA_RELEASE in .env, verifies health and
+# the access gate, and keeps the history of verified releases. Do not edit ANA_RELEASE by hand.
 name: ana-dashboard
 
 services:

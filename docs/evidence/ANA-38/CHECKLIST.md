@@ -33,7 +33,7 @@ Run by hand on the candidate SHA against the deployed worker, never in CI:
 cd apps/dashboard && npm run build
 SOCIAL_IG_WORKER_URL=https://login.dyai.cloud \
 SOCIAL_IG_INTERNAL_READ_KEY="$(security find-generic-password -a "$USER" -s ana-instagram-oauth/INTERNAL_READ_KEY -w)" \
-  npx next start --hostname 127.0.0.1 --port 3300 &
+ANA_ACCESS_MODE=loopback npx next start --hostname 127.0.0.1 --port 3300 &
 LIVE_BASE_URL=http://127.0.0.1:3300 LIVE_EVIDENCE_DIR=<dir outside the repo> \
 SOCIAL_IG_INTERNAL_READ_KEY="$(security find-generic-password -a "$USER" -s ana-instagram-oauth/INTERNAL_READ_KEY -w)" \
   npx playwright test -c playwright.live.config.ts social.live

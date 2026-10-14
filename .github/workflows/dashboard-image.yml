@@ -57,12 +57,18 @@ jobs:
           done
           expect "$(code 3002 localhost /api/healthz)" 200 "health check"
 
-          docker run -d --name bad -p 127.0.0.1:3003:3000 -e ANA_ACCESS_MODE=open "ana-dashboard:${GITHUB_SHA}"
-          wait_healthy bad
-          expect "$(code 3003 localhost /)" 503 "unknown access mode fails closed"
+          # any mode other than cloudflare is refused inside the container (it listens on all interfaces)
+          port=3003
+          for mode in open "" loopback; do
+            docker run -d --name "mode$port" -p "127.0.0.1:$port:3000" -e "ANA_ACCESS_MODE=$mode" "ana-dashboard:${GITHUB_SHA}"
+            wait_healthy "mode$port"
+            expect "$(code "$port" localhost /)" 503 "ANA_ACCESS_MODE='$mode', spoofed loopback Host, page"
+            expect "$(code "$port" localhost /api/social/instagram)" 503 "ANA_ACCESS_MODE='$mode', spoofed loopback Host, social API"
+            port=$((port + 1))
+          done
 
           docker inspect -f '{{.Config.User}}' "ana-dashboard:${GITHUB_SHA}" | grep -qx node
-          docker rm -f bare cf bad
+          docker rm -f bare cf mode3003 mode3004 mode3005
       - name: Save image
         shell: bash
         run: |

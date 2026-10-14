@@ -40,6 +40,8 @@ type ModeConfig = { mode: "loopback" } | { mode: "cloudflare"; config: Cloudflar
 
 export function readAccessConfig(env: Env = process.env): ModeConfig {
   const mode = (env.ANA_ACCESS_MODE ?? "").trim();
+  // the container image listens on all interfaces (Dockerfile sets ANA_CONTAINER=1): Host trust would be spoofable there
+  if (env.ANA_CONTAINER === "1" && mode !== "cloudflare") return { mode: "misconfigured", reason: "the container image runs only with ANA_ACCESS_MODE=cloudflare" };
   if (mode === "loopback") return { mode: "loopback" };
   // a production server never falls back to trusting the Host header silently: a lost env line must fail closed
   if (mode === "") return env.NODE_ENV === "production" ? { mode: "misconfigured", reason: "ANA_ACCESS_MODE must be set on a production server" } : { mode: "loopback" };
