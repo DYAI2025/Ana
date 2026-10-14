@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { GET } from "@/app/api/work/route";
 import { READ_DEADLINE_MS, WRITE_DEADLINE_MS } from "@/features/work/api";
-import { READ_BUDGET_MS, readWriteRequest, refuseNonLocal, WRITE_BUDGET_MS } from "./http";
+import { READ_BUDGET_MS, readWriteRequest, refuseUnauthorized, WRITE_BUDGET_MS } from "./http";
 import { createJiraClient, jiraErrorDetail } from "./jira/client";
 import { isAmbiguous, readFailure } from "./jira/failures";
 import { readJiraConfig } from "./jira/config";
@@ -94,12 +94,12 @@ describe("Jira client", () => {
 describe("work API answers only requests addressed to this machine", () => {
   const get = (host: string) => new Request(`http://${host}/api/work`, { headers: { host } });
 
-  it.each(["localhost:3000", "127.0.0.1:3100", "[::1]:3000"])("accepts %s", (host) => {
-    expect(refuseNonLocal(get(host))).toBeNull();
+  it.each(["localhost:3000", "127.0.0.1:3100", "[::1]:3000"])("accepts %s", async (host) => {
+    expect(await refuseUnauthorized(get(host))).toBeNull();
   });
 
-  it.each(["192.168.1.20:3000", "evil.example", "rebind.attacker.test:3000"])("refuses %s (LAN peer, DNS rebinding)", (host) => {
-    expect(refuseNonLocal(get(host))?.status).toBe(403);
+  it.each(["192.168.1.20:3000", "evil.example", "rebind.attacker.test:3000"])("refuses %s (LAN peer, DNS rebinding)", async (host) => {
+    expect((await refuseUnauthorized(get(host)))?.status).toBe(403);
   });
 
   it("the GET /api/work route itself refuses a foreign Host before any Jira call", async () => {
@@ -116,10 +116,10 @@ describe("work API answers only requests addressed to this machine", () => {
 
   describe("DASHBOARD_ALLOWED_HOSTS", () => {
     afterEach(() => vi.unstubAllEnvs());
-    it("is normalised like the Host header (case and port)", () => {
+    it("is normalised like the Host header (case and port)", async () => {
       vi.stubEnv("DASHBOARD_ALLOWED_HOSTS", " Dash.Example:3000 , ");
-      expect(refuseNonLocal(get("dash.example:4000"))).toBeNull();
-      expect(refuseNonLocal(get("other.example"))?.status).toBe(403);
+      expect(await refuseUnauthorized(get("dash.example:4000"))).toBeNull();
+      expect((await refuseUnauthorized(get("other.example")))?.status).toBe(403);
     });
   });
 

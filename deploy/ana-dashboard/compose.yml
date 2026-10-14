@@ -1,0 +1,43 @@
+# ANA LUMEN on the DYAI VPS (LIVE-01). Lives at /opt/ana-dashboard/compose.yml on the host.
+#
+# No port is published: the only way in is the Cloudflare Tunnel, which connects outbound and forwards
+# ana.dyai.cloud to http://dashboard:3000 on the private compose network, behind Cloudflare Access.
+# The dashboard additionally verifies the Access JWT on every request (ANA_ACCESS_MODE=cloudflare).
+#
+# Secrets: /opt/ana-dashboard/dashboard.env and tunnel.env, root-owned, mode 600, never in Git.
+# Release: ANA_RELEASE (the Git SHA the image was built from) in /opt/ana-dashboard/.env.
+# Rollback: set ANA_RELEASE to the previous SHA (its image stays loaded) and `docker compose up -d dashboard`.
+name: ana-dashboard
+
+services:
+  dashboard:
+    image: ana-dashboard:${ANA_RELEASE:?set ANA_RELEASE in .env}
+    restart: unless-stopped
+    env_file: dashboard.env
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /app/.next/cache
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    mem_limit: 512m
+    cpus: 1.0
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "3" }
+
+  tunnel:
+    image: cloudflare/cloudflared:2026.9.3
+    restart: unless-stopped
+    command: ["tunnel", "--no-autoupdate", "run"]
+    env_file: tunnel.env
+    depends_on:
+      dashboard:
+        condition: service_healthy
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    mem_limit: 128m
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "3" }
