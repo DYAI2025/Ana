@@ -2,15 +2,15 @@
 
 import { useId, useState } from "react";
 import { useI18n } from "@/components/providers/I18nProvider";
-import { formatDay, formatIndex, formatPercent } from "./format";
+import { formatDay, formatIndex } from "./format";
 import { StateChip } from "./Instruments";
-import { MIN_THEME_N, patternObservations, type Analysis, type PatternResult, type PostAnalysis, type ThemeOf } from "./insights";
-import { COMMERCIAL_SIGNALS, HYPOTHESES, hypothesisSignals, nextTest, themeSignals, type HypothesisSignal } from "./offers";
+import { MIN_PATTERN_GROUP_N, MIN_THEME_N, patternObservations, type Analysis, type Comparator, type PatternResult, type PostAnalysis, type ThemeOf } from "./insights";
+import { COMMERCIAL_SIGNALS, HYPOTHESES, hypothesisSignals, nextTest, themeSignals, type FamilyOf, type HypothesisSignal } from "./offers";
 import styles from "./social.module.css";
 
 type Tab = "observations" | "offers";
 
-export function PatternsPanel({ analysis, themeOf, onSelect }: { analysis: Analysis; themeOf: ThemeOf; onSelect: (id: string) => void }) {
+export function PatternsPanel({ analysis, themeOf, familyOf, onSelect }: { analysis: Analysis; themeOf: ThemeOf; familyOf: FamilyOf; onSelect: (id: string) => void }) {
   const { t } = useI18n();
   const [tab, setTab] = useState<Tab>("observations");
   const base = useId();
@@ -47,8 +47,12 @@ export function PatternsPanel({ analysis, themeOf, onSelect }: { analysis: Analy
           ))}
         </div>
       </div>
-      <div role="tabpanel" id={`${base}-panel-${tab}`} aria-labelledby={`${base}-tab-${tab}`}>
-        {tab === "observations" ? <Observations analysis={analysis} themeOf={themeOf} onSelect={onSelect} /> : <OfferSignals analysis={analysis} themeOf={themeOf} onSelect={onSelect} />}
+      {/* both panels exist so every tab's aria-controls resolves; the inactive one is hidden */}
+      <div role="tabpanel" id={`${base}-panel-observations`} aria-labelledby={`${base}-tab-observations`} hidden={tab !== "observations"}>
+        {tab === "observations" ? <Observations analysis={analysis} themeOf={themeOf} onSelect={onSelect} /> : null}
+      </div>
+      <div role="tabpanel" id={`${base}-panel-offers`} aria-labelledby={`${base}-tab-offers`} hidden={tab !== "offers"}>
+        {tab === "offers" ? <OfferSignals analysis={analysis} themeOf={themeOf} familyOf={familyOf} onSelect={onSelect} /> : null}
       </div>
     </section>
   );
@@ -65,8 +69,15 @@ function PostLink({ p, onSelect }: { p: PostAnalysis | undefined; onSelect: (id:
   );
 }
 
+function useComparatorText() {
+  const { t } = useI18n();
+  return (c: Comparator) =>
+    c.kind === "format-median" ? t("social.comparators.formatMedian", { n: c.n, format: t(`social.formats.${c.format}`) }) : t("social.comparators.withinFormat", { n: c.n });
+}
+
 function Observations({ analysis, themeOf, onSelect }: { analysis: Analysis; themeOf: ThemeOf; onSelect: (id: string) => void }) {
   const { t, locale } = useI18n();
+  const comparatorText = useComparatorText();
   const results = patternObservations(analysis, themeOf);
   const post = (id: string) => analysis.posts.find((p) => p.post.media_id === id);
   return (
@@ -97,11 +108,11 @@ function Observations({ analysis, themeOf, onSelect }: { analysis: Analysis; the
                   </div>
                   <div>
                     <dt>{t("social.patterns.formula")}</dt>
-                    <dd className={styles.mono}>{r.evidence.formula}</dd>
+                    <dd>{t(`social.formulas.${r.evidence.formula}`)}</dd>
                   </div>
                   <div>
                     <dt>{t("social.patterns.comparator")}</dt>
-                    <dd>{r.evidence.comparator}</dd>
+                    <dd>{comparatorText(r.evidence.comparator)}</dd>
                   </div>
                   <div>
                     <dt>{t("social.patterns.windowLabel")}</dt>
@@ -109,7 +120,9 @@ function Observations({ analysis, themeOf, onSelect }: { analysis: Analysis; the
                   </div>
                 </dl>
                 <details className={styles.evidence}>
-                  <summary>{t("social.patterns.sources")} ({r.evidence.sourcePosts.length})</summary>
+                  <summary>
+                    {t("social.patterns.sources")} ({r.evidence.sourcePosts.length})
+                  </summary>
                   <p className={styles.chips}>
                     {r.evidence.sourcePosts.slice(0, 12).map((id) => (
                       <PostLink key={id} p={post(id)} onSelect={onSelect} />
@@ -135,12 +148,13 @@ function Observations({ analysis, themeOf, onSelect }: { analysis: Analysis; the
   );
 }
 
-function OfferSignals({ analysis, themeOf, onSelect }: { analysis: Analysis; themeOf: ThemeOf; onSelect: (id: string) => void }) {
+function OfferSignals({ analysis, themeOf, familyOf, onSelect }: { analysis: Analysis; themeOf: ThemeOf; familyOf: FamilyOf; onSelect: (id: string) => void }) {
   const { t, locale } = useI18n();
-  const signals = hypothesisSignals(analysis, themeOf);
+  const signals = hypothesisSignals(analysis, familyOf);
   const themes = themeSignals(analysis, themeOf);
   const test = nextTest(signals);
   const [inspected, setInspected] = useState<string | null>(null);
+  const cell = (v: number | null) => (v !== null ? formatIndex(v, locale) : "—");
   return (
     <div className={styles.offers} data-testid="offer-signals">
       <p className={styles.note}>{t("social.offers.intro")}</p>
@@ -155,7 +169,7 @@ function OfferSignals({ analysis, themeOf, onSelect }: { analysis: Analysis; the
                 <StateChip state="HYPOTHESIS" />
               </div>
               <p className={styles.muted}>{t(`social.offers.${id}Desc`)}</p>
-              <p className={styles.note}>{t("social.offers.mappedThemes", { themes: s.hypothesis.themes.map((th) => t(`social.themes.${th}`)).join(", ") })}</p>
+              <p className={styles.note}>{t("social.offers.mappedFamilies", { families: s.hypothesis.families.map((f) => t(`social.families.${f}`)).join(", ") })}</p>
               {s.state === "INSUFFICIENT_EVIDENCE" ? (
                 <>
                   <StateChip state="INSUFFICIENT_EVIDENCE" />
@@ -163,7 +177,7 @@ function OfferSignals({ analysis, themeOf, onSelect }: { analysis: Analysis; the
                 </>
               ) : (
                 <>
-                  <p className={styles.mono}>{t("social.offers.medianIndex", { index: formatIndex(s.medianHighIntentIndex ?? 0, locale), n: s.mapped.length })}</p>
+                  <p className={styles.mono}>{t("social.offers.medianIndex", { index: cell(s.medianHighIntentIndex), n: s.mapped.length })}</p>
                   <p>
                     {t("social.offers.supporting", { n: s.supporting.length })} · {t("social.offers.contradicting", { n: s.contradicting.length })}
                   </p>
@@ -175,9 +189,13 @@ function OfferSignals({ analysis, themeOf, onSelect }: { analysis: Analysis; the
               {open ? (
                 <div id={`inspect-${id}`} className={styles.inspection} data-testid={`inspection-${id}`}>
                   <p className={styles.detailTitle}>{t("social.offers.supporting", { n: s.supporting.length })}</p>
-                  <p className={styles.chips}>{s.supporting.length ? s.supporting.slice(0, 10).map((p) => <PostLink key={p.post.media_id} p={p} onSelect={onSelect} />) : <span className={styles.muted}>{t("social.patterns.noCounter")}</span>}</p>
+                  <p className={styles.chips} data-testid={`supporting-${id}`}>
+                    {s.supporting.length ? s.supporting.slice(0, 10).map((p) => <PostLink key={p.post.media_id} p={p} onSelect={onSelect} />) : <span className={styles.muted}>{t("social.patterns.noCounter")}</span>}
+                  </p>
                   <p className={styles.detailTitle}>{t("social.offers.contradicting", { n: s.contradicting.length })}</p>
-                  <p className={styles.chips}>{s.contradicting.length ? s.contradicting.slice(0, 10).map((p) => <PostLink key={p.post.media_id} p={p} onSelect={onSelect} />) : <span className={styles.muted}>{t("social.patterns.noCounter")}</span>}</p>
+                  <p className={styles.chips} data-testid={`contradicting-${id}`}>
+                    {s.contradicting.length ? s.contradicting.slice(0, 10).map((p) => <PostLink key={p.post.media_id} p={p} onSelect={onSelect} />) : <span className={styles.muted}>{t("social.patterns.noCounter")}</span>}
+                  </p>
                   <p className={styles.detailTitle}>{t("social.patterns.limits")}</p>
                   <ul className={styles.limits}>
                     <li>{t("social.patterns.limitations.derived-themes")}</li>
@@ -212,20 +230,32 @@ function OfferSignals({ analysis, themeOf, onSelect }: { analysis: Analysis; the
           </thead>
           <tbody>
             {themes.map((th) => (
-              <tr key={th.theme} data-testid={`theme-row-${th.theme}`}>
+              <tr key={th.theme} data-testid={`theme-row-${th.theme}`} data-state={th.state}>
                 <th scope="row">{t(`social.themes.${th.theme}`)}</th>
                 <td className={styles.mono}>{th.n}</td>
-                <td className={styles.mono}>{th.medianSavesPerReach !== null ? formatPercent(th.medianSavesPerReach, locale) : "—"}</td>
-                <td className={styles.mono}>{th.medianSharesPerReach !== null ? formatPercent(th.medianSharesPerReach, locale) : "—"}</td>
-                <td className={styles.mono}>{th.medianHighIntentIndex !== null ? formatIndex(th.medianHighIntentIndex, locale) : "—"}</td>
+                {th.state === "INSUFFICIENT_EVIDENCE" ? (
+                  <td colSpan={3}>
+                    <StateChip state="INSUFFICIENT_EVIDENCE" />
+                  </td>
+                ) : (
+                  <>
+                    <td className={styles.mono}>{cell(th.medianSavesIndex)}</td>
+                    <td className={styles.mono}>{cell(th.medianSharesIndex)}</td>
+                    <td className={styles.mono}>{cell(th.medianHighIntentIndex)}</td>
+                  </>
+                )}
               </tr>
             ))}
           </tbody>
         </table>
+        <p className={styles.note}>{t("social.offers.tableNote")}</p>
       </div>
       <article className={styles.nextTest} data-testid="next-test" data-state={test.state}>
         <h3 className={styles.detailTitle}>{t("social.offers.nextTestTitle")}</h3>
         <p>{t("social.offers.nextTestBody")}</p>
+        <p className={styles.note} data-testid="next-test-n">
+          {t("social.offers.nextTestN", { h1: test.nH1, h4: test.nH4, min: MIN_PATTERN_GROUP_N })}
+        </p>
         <p className={styles.note}>{test.lean ? t("social.offers.lean", { id: test.lean }) : t("social.offers.noLean")}</p>
       </article>
       <div data-testid="commercial">

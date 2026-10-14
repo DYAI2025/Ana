@@ -84,7 +84,7 @@ export function buildSnapshot({ count = POSTS.length, observedAt = FAKE_OBSERVED
       metrics: [accountMetric("reach", 48200), accountMetric("views", 131000), { ...accountMetric("accounts_engaged", null), state: "unavailable", error_class: "meta-100" }, accountMetric("total_interactions", 3900)],
     },
     media: { requested_max: 50, returned: items.length, pages_fetched: 2, has_more: true, optional_fields_state: "ACCEPTED", items },
-    insights: { requested_metrics: METRICS, posts_with_insights: items.filter((x) => x.insights.state !== "not_fetched").length, budget: { limit: 45, used: 45 } },
+    insights: { requested_metrics: METRICS, priority: "mature-first", mature_days: 7, halted: null, posts_with_insights: items.filter((x) => x.insights.state !== "not_fetched").length, budget: { limit: 45, used: 45 } },
   };
 }
 

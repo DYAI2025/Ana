@@ -35,7 +35,10 @@ SOCIAL_IG_WORKER_URL=https://login.dyai.cloud \
 SOCIAL_IG_INTERNAL_READ_KEY="$(security find-generic-password -a "$USER" -s ana-instagram-oauth/INTERNAL_READ_KEY -w)" \
   npx next start --hostname 127.0.0.1 --port 3300 &
 LIVE_BASE_URL=http://127.0.0.1:3300 LIVE_EVIDENCE_DIR=<dir outside the repo> \
+SOCIAL_IG_INTERNAL_READ_KEY="$(security find-generic-password -a "$USER" -s ana-instagram-oauth/INTERNAL_READ_KEY -w)" \
   npx playwright test -c playwright.live.config.ts social.live
 ```
 
 `live-social-result.json` holds states, counts and availability distributions only; its summary is posted to Jira ANA-38.
+The spec refuses to run without `LIVE_EVIDENCE_DIR` outside the repository and without the key (leak check), and blanks
+every caption and thumbnail before its screenshots.

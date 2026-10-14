@@ -2,15 +2,21 @@
  * LIVE Instagram runtime proof for ANA-38 — runs only by hand against a dashboard whose server is configured with the
  * real worker (SOCIAL_IG_WORKER_URL / SOCIAL_IG_INTERNAL_READ_KEY). Read-only: it never writes to Instagram or the worker.
  * The result file records states, counts and availability distributions only — never captions, ids, links or metric
- * values. Screenshots show real data: LIVE_EVIDENCE_DIR must be outside the public repository.
+ * values. Screenshots are taken only after every caption and thumbnail is blanked (PO decision: captions never in
+ * screenshots); they still show real metric values, so LIVE_EVIDENCE_DIR is required and must be outside the repository.
+ * SOCIAL_IG_INTERNAL_READ_KEY must be exported to this process too: the spec checks the BFF body never contains it.
  *
- *   LIVE_BASE_URL=http://127.0.0.1:3300 LIVE_EVIDENCE_DIR=<dir outside the repo> npx playwright test -c playwright.live.config.ts social.live
+ *   LIVE_BASE_URL=http://127.0.0.1:3300 LIVE_EVIDENCE_DIR=<dir outside the repo> SOCIAL_IG_INTERNAL_READ_KEY=… \
+ *     npx playwright test -c playwright.live.config.ts social.live
  */
 import { writeFileSync } from "node:fs";
 import path from "node:path";
 import { expect, test } from "@playwright/test";
 
-const DIR = process.env.LIVE_EVIDENCE_DIR ?? "test-results/live";
+const REPO = path.resolve(__dirname, "../../..");
+const DIR = process.env.LIVE_EVIDENCE_DIR ? path.resolve(process.env.LIVE_EVIDENCE_DIR) : "";
+/** Blanks everything that shows Ana's own content before any screenshot. */
+const REDACT = "[data-caption], [data-testid=content-row] img, [data-testid=row-detail] [data-caption] { visibility: hidden !important; }";
 const VIEWPORTS = [
   { width: 1440, height: 900 },
   { width: 1280, height: 800 },
@@ -22,6 +28,10 @@ const tally = (values: (string | null)[]) => values.reduce<Record<string, number
 
 test("live: the cockpit renders real Instagram data through the server-side worker adapter", async ({ page, request }) => {
   test.setTimeout(180_000);
+  expect(DIR, "LIVE_EVIDENCE_DIR is required").not.toBe("");
+  expect(DIR.startsWith(REPO + path.sep) || DIR === REPO, "LIVE_EVIDENCE_DIR must be outside the repository").toBe(false);
+  const key = process.env.SOCIAL_IG_INTERNAL_READ_KEY;
+  expect(key, "SOCIAL_IG_INTERNAL_READ_KEY is needed for the leak check").toBeTruthy();
   await page.emulateMedia({ reducedMotion: "reduce" });
 
   // 1 · the BFF answers with a real snapshot; no credential or token in what the browser could receive
@@ -30,8 +40,7 @@ test("live: the cockpit renders real Instagram data through the server-side work
   const parsed = JSON.parse(body) as { ok: boolean; stale?: boolean; snapshot?: { provider_api_version: string; coverage: Record<string, unknown> } };
   expect(parsed.ok).toBe(true);
   expect(body).not.toContain("access_token");
-  const key = process.env.SOCIAL_IG_INTERNAL_READ_KEY;
-  if (key) expect(body.includes(key)).toBe(false);
+  expect(body.includes(key!)).toBe(false);
 
   // 2 · the page shows it
   await page.goto("/pulse/social/instagram");
@@ -66,6 +75,10 @@ test("live: the cockpit renders real Instagram data through the server-side work
   const hypotheses = Object.fromEntries(await page.locator('[data-testid^="hypothesis-"]').evaluateAll((els) => els.map((e) => [e.getAttribute("data-testid"), e.getAttribute("data-state")])));
   const commercial = tally(await page.locator('[data-testid^="commercial-"][data-state]').evaluateAll((els) => els.map((e) => e.getAttribute("data-state"))));
 
+  await page.getByTestId("tab-observations").click();
+  await page.addStyleTag({ content: REDACT });
+  const visibleCaptions = await page.locator("[data-caption]").evaluateAll((els) => els.filter((e) => getComputedStyle(e).visibility !== "hidden").length);
+  expect(visibleCaptions, "no caption is visible in any screenshot").toBe(0);
   for (const viewport of VIEWPORTS) {
     await page.setViewportSize(viewport);
     await page.waitForTimeout(300);

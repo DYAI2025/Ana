@@ -4,7 +4,7 @@ import { useId } from "react";
 import { useI18n } from "@/components/providers/I18nProvider";
 import { ageDays, formatCount, formatDay, formatIndex, formatPercent } from "./format";
 import { InspectButton, useObservationSpec, type InspectorSpec } from "./Inspector";
-import { MATURE_AGE_DAYS, median, MIN_GROUP_N, type Analysis, type HeroReading } from "./insights";
+import { MATURE_AGE_DAYS, median, MIN_GROUP_N, RATE_INPUTS, type Analysis, type HeroReading } from "./insights";
 import type { CanonicalMetric, Observation, SocialSnapshot } from "./types";
 import styles from "./social.module.css";
 
@@ -91,7 +91,7 @@ export function HeroInstrument({ hero, snapshot }: { hero: HeroReading | null; s
             {/* 1.00× baseline marker: always visible */}
             <line x1={CX} y1={CY} x2={baseline.x} y2={baseline.y} stroke="#a88791" strokeWidth="1.5" strokeDasharray="2 3" />
             <text x={baseline.x} y={baseline.y - 17} textAnchor="middle" className={styles.gaugeTick}>
-              1.00×
+              {formatIndex(1, locale)}
             </text>
             <circle cx={marker.x} cy={marker.y} r="9.5" fill="#ff715b" opacity="0.18" />
             <circle cx={marker.x} cy={marker.y} r="4.6" fill="#ff715b" />
@@ -155,9 +155,10 @@ const CLUSTER: Array<{ metric: CanonicalMetric; key: "followers" | "reach28" | "
 export function MetricCluster({ snapshot, analysis }: { snapshot: SocialSnapshot; analysis: Analysis }) {
   const { t, locale } = useI18n();
   const specOf = useObservationSpec();
-  const reels = analysis.groups.filter((g) => g.n >= MIN_GROUP_N).sort((a, b) => b.n - a.n)[0];
-  const rates = reels ? analysis.posts.filter((p) => p.post.format === reels.format && p.reachIndex !== null).map((p) => p.rates.high_intent_rate).filter((v): v is number => v !== null) : [];
-  const rateMedian = median(rates);
+  // the largest format whose high-intent median rests on enough posts with verified saves and shares
+  const reels = analysis.groups.filter((g) => g.nHighIntent >= MIN_GROUP_N).sort((a, b) => b.nHighIntent - a.nHighIntent)[0];
+  const rates = reels ? analysis.posts.filter((p) => p.post.format === reels.format && p.excluded === null).map((p) => p.rates.high_intent_rate).filter((v): v is number => v !== null) : [];
+  const rateMedian = reels ? median(rates) : null;
   const maxRate = Math.max(...rates, 0.0001);
   return (
     <section className={`${styles.panel} ${styles.panelBare} ${styles.colCluster}`} aria-labelledby="cluster-title" data-testid="cluster">
@@ -185,15 +186,15 @@ export function MetricCluster({ snapshot, analysis }: { snapshot: SocialSnapshot
         })}
         <li className={styles.clusterItem} data-testid="cluster-high-intent" data-availability={rateMedian === null ? "INSUFFICIENT_EVIDENCE" : "DERIVED"}>
           <div className={styles.clusterHead}>
-            <span className={styles.clusterLabel}>{t("social.cluster.highIntent", { format: reels ? t(`social.formats.${reels.format}`) : "—" })}</span>
+            <span className={styles.clusterLabel}>{reels ? t("social.cluster.highIntent", { format: t(`social.formats.${reels.format}`), n: rates.length }) : t("social.cluster.highIntentNone")}</span>
             {rateMedian !== null && reels ? (
               <InspectButton
                 testId="inspect-high-intent"
                 spec={{
                   label: t("social.metrics.high_intent_rate"),
-                  native: "saved, shares, reach",
+                  native: RATE_INPUTS.high_intent_rate,
                   unit: t("social.inspector.units.ratio"),
-                  calculation: `median((saves + shares) ÷ reach), n = ${rates.length}`,
+                  calculation: t("social.formulas.highIntentMedian", { n: rates.length }),
                   period: t("social.inspector.periods.lifetime"),
                   baseline: t("social.inspector.none"),
                   source: "instagram:media/*/insights#saved,shares,reach",

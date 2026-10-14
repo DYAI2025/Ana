@@ -14,6 +14,18 @@ const json = (body: SocialResult) => Response.json(body, { headers: { "Cache-Con
 export async function GET(request: Request) {
   const nonLocal = refuseNonLocal(request);
   if (nonLocal) return nonLocal;
+  // a read can start a costly worker call with the stored Instagram token: only the dashboard's own pages may ask
+  const site = request.headers.get("sec-fetch-site");
+  const origin = request.headers.get("origin");
+  let originHost: string | null = null;
+  try {
+    originHost = origin ? new URL(origin).host : null;
+  } catch {
+    originHost = "invalid";
+  }
+  if ((site && site !== "same-origin" && site !== "none") || (origin && originHost !== request.headers.get("host"))) {
+    return Response.json({ ok: false, failure: { state: "ERROR", code: "invalid-request", detail: "cross-site request refused" } } satisfies SocialResult, { status: 403, headers: { "Cache-Control": "no-store" } });
+  }
   const service = socialServiceFromEnv();
   if (!service) return json({ ok: false, failure: NOT_CONFIGURED });
   const params = new URL(request.url).searchParams;

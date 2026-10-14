@@ -68,8 +68,13 @@ export interface Coverage {
   pages_fetched: number;
   posts_with_insights: number;
   posts_without_insights: number;
-  budget_used: number;
-  budget_limit: number;
+  /** null when the worker did not report its call budget (shown as unknown, never 0) */
+  budget_used: number | null;
+  budget_limit: number | null;
+  /** "mature-first": the worker spent its call budget on posts old enough to compare before young ones */
+  insights_priority: "mature-first" | null;
+  /** Meta error class that stopped further insight calls (rate limit or token), if any */
+  halted: string | null;
   optional_fields: "ACCEPTED" | "REJECTED_BY_META";
 }
 

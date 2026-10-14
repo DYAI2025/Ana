@@ -9,10 +9,12 @@ import { fetchInstagram } from "./api";
 import { ContentRows } from "./ContentRows";
 import { formatDateTime } from "./format";
 import { InspectorProvider } from "./Inspector";
-import { analyze, heroReading, type ThemeId, type ThemeOf } from "./insights";
+import { analyze, heroReading, MATURE_AGE_DAYS, type ThemeId, type ThemeOf } from "./insights";
+import { setSocialPhase } from "./phase";
 import { HeroInstrument, MetricCluster, StateChip } from "./Instruments";
 import { AudiencePanel, CommentsPanel, ContentMap, StreamPanel } from "./Panels";
 import { PatternsPanel } from "./Patterns";
+import type { FamilyOf } from "./offers";
 import { assignTheme, type ThemeOverrides } from "./themes";
 import type { CockpitState, PostFormat, SocialResult, SocialSnapshot } from "./types";
 import styles from "./social.module.css";
@@ -41,6 +43,11 @@ export function InstagramCockpit() {
 
   const state: CockpitState = result === null ? "LOADING" : !result.ok ? (result.failure.state === "PERMISSION_REQUIRED" ? "PERMISSION_REQUIRED" : "ERROR") : result.stale ? "STALE" : result.snapshot.posts.length === 0 ? "EMPTY" : "CONNECTED";
   const snapshot = result?.ok ? result.snapshot : null;
+
+  useEffect(() => {
+    setSocialPhase(state);
+  }, [state]);
+  useEffect(() => () => setSocialPhase(null), []);
 
   return (
     <InspectorProvider>
@@ -121,7 +128,13 @@ function Coverage({ snapshot }: { snapshot: SocialSnapshot }) {
         {c.total_available !== null ? t("social.coverage.retrieved", { retrieved: c.retrieved, total: c.total_available }) : t("social.coverage.retrievedUnknown", { retrieved: c.retrieved })}
       </span>
       <span data-testid="coverage-paging">{c.has_more ? t("social.coverage.more") : t("social.coverage.complete")}</span>
-      <span data-testid="coverage-insights">{t("social.coverage.insights", { n: c.posts_with_insights, m: c.posts_without_insights, used: c.budget_used, limit: c.budget_limit })}</span>
+      <span data-testid="coverage-insights">
+        {c.budget_used !== null && c.budget_limit !== null
+          ? t("social.coverage.insights", { n: c.posts_with_insights, m: c.posts_without_insights, used: c.budget_used, limit: c.budget_limit })
+          : t("social.coverage.budgetUnknown", { n: c.posts_with_insights, m: c.posts_without_insights })}
+      </span>
+      {c.insights_priority === "mature-first" ? <span data-testid="coverage-priority">{t("social.coverage.priority", { days: MATURE_AGE_DAYS })}</span> : null}
+      {c.halted ? <span data-testid="coverage-halted">{t("social.coverage.halted", { reason: c.halted })}</span> : null}
       {c.optional_fields === "REJECTED_BY_META" ? <span>{t("social.coverage.optionalRejected")}</span> : null}
       <span>{t("social.coverage.snapshot")}</span>
     </section>
@@ -136,6 +149,7 @@ function Loaded({ snapshot, stale }: { snapshot: SocialSnapshot; stale: boolean 
   const analysis = useMemo(() => analyze(snapshot), [snapshot]);
   const hero = useMemo(() => heroReading(analysis), [analysis]);
   const themeOf: ThemeOf = useCallback((post) => assignTheme(post, overrides).themes, [overrides]);
+  const familyOf: FamilyOf = useCallback((post) => assignTheme(post, overrides).families, [overrides]);
   const onOverride = useCallback((id: string, themes: readonly ThemeId[] | null) => setOverrides((o) => ({ ...o, [id]: themes ?? [] })), []);
 
   return (
@@ -159,7 +173,7 @@ function Loaded({ snapshot, stale }: { snapshot: SocialSnapshot; stale: boolean 
           <ContentMap analysis={analysis} format={mapFormat} onFormat={setMapFormat} onSelect={setOpenId} selectedId={openId} />
           <AudiencePanel />
           <ContentRows snapshot={snapshot} analysis={analysis} overrides={overrides} onOverride={onOverride} openId={openId} onOpen={setOpenId} />
-          <PatternsPanel analysis={analysis} themeOf={themeOf} onSelect={setOpenId} />
+          <PatternsPanel analysis={analysis} themeOf={themeOf} familyOf={familyOf} onSelect={setOpenId} />
           <CommentsPanel />
         </div>
       )}

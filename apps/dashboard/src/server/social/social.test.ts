@@ -110,12 +110,20 @@ describe("normalizeSnapshot — provider response → dashboard DTO", () => {
       posts_without_insights: 3,
       budget_used: 45,
       budget_limit: 45,
+      insights_priority: "mature-first",
+      halted: null,
       optional_fields: "ACCEPTED",
     });
   });
 
+  it("a budget the worker did not report is unknown (null), never 0", () => {
+    const raw = buildSnapshot() as unknown as Record<string, Record<string, unknown>>;
+    raw.insights = { ...raw.insights, budget: undefined };
+    expect(normalizeSnapshot(raw).coverage).toMatchObject({ budget_used: null, budget_limit: null });
+  });
+
   it("maps formats from media type and product type", () => {
-    expect([formatOf("VIDEO", "REELS"), formatOf("CAROUSEL_ALBUM", "FEED"), formatOf("IMAGE", "FEED"), formatOf("VIDEO", "FEED"), formatOf(null, null)]).toEqual(["reel", "carousel", "image", "video", "unknown"]);
+    expect([formatOf("VIDEO", "REELS"), formatOf("CAROUSEL_ALBUM", "FEED"), formatOf("IMAGE", "FEED"), formatOf("VIDEO", "FEED"), formatOf("VIDEO", null), formatOf(null, null)]).toEqual(["reel", "carousel", "image", "video", "unknown", "unknown"]);
   });
 
   it("drops non-https links and rejects unknown snapshot versions", () => {
@@ -174,6 +182,34 @@ describe("snapshot service — caching, STALE and failure states", () => {
     expect(await service.read()).toEqual({ ok: false, failure: expect.objectContaining({ state: "PERMISSION_REQUIRED", code: "reauth-required" }) });
   });
 
+  it("a failing worker is not hammered: within the interval the last failure is repeated without a new call", async () => {
+    let calls = 0;
+    let t = 0;
+    const service = createSnapshotService(config, async () => { calls += 1; return new Response(JSON.stringify({ error: "instagram-media-fetch-failed" }), { status: 502 }); }, () => t);
+    expect(await service.read()).toMatchObject({ ok: false, failure: { code: "upstream" } });
+    t += MIN_REFRESH_INTERVAL_MS - 1;
+    expect(await service.read({ refresh: true })).toMatchObject({ ok: false, failure: { code: "upstream" } });
+    await service.read();
+    expect(calls).toBe(1);
+    t += 1;
+    await service.read();
+    expect(calls).toBe(2);
+  });
+
+  it("never writes a caption (or anything else) to the server log", async () => {
+    const spies = (["log", "info", "warn", "error", "debug"] as const).map((k) => vi.spyOn(console, k).mockImplementation(() => {}));
+    let t = 0;
+    let fail = false;
+    const service = createSnapshotService(config, async () => (fail ? new Response("nope", { status: 500 }) : new Response(JSON.stringify(buildSnapshot()))), () => t);
+    await service.read();
+    fail = true;
+    t += FRESH_MS;
+    await service.read();
+    const printed = spies.flatMap((s) => s.mock.calls.flat().map(String)).join("\n");
+    spies.forEach((s) => s.mockRestore());
+    expect(printed).toBe("");
+  });
+
   it("an unreadable snapshot is an ERROR, not partial data", async () => {
     const service = createSnapshotService(config, ok({ snapshot_version: 99 }));
     expect(await service.read()).toEqual({ ok: false, failure: { state: "ERROR", code: "invalid-response", detail: "unsupported snapshot_version" } });
@@ -190,6 +226,20 @@ describe("GET /api/social/instagram", () => {
     const spy = vi.spyOn(globalThis, "fetch");
     const response = await GET(get("rebind.attacker.test:3000"));
     expect(response.status).toBe(403);
+    expect(spy).not.toHaveBeenCalled();
+    spy.mockRestore();
+  });
+
+  it("refuses a cross-site request (a read may start a costly worker call)", async () => {
+    vi.stubEnv("SOCIAL_IG_WORKER_URL", "https://worker.example.invalid");
+    vi.stubEnv("SOCIAL_IG_INTERNAL_READ_KEY", KEY);
+    const spy = vi.spyOn(globalThis, "fetch");
+    const cases: Record<string, string>[] = [{ host: "127.0.0.1:3000", "sec-fetch-site": "cross-site" }, { host: "127.0.0.1:3000", origin: "https://evil.example" }];
+    for (const headers of cases) {
+      const response = await GET(new Request("http://127.0.0.1:3000/api/social/instagram?refresh=1", { headers }));
+      expect(response.status).toBe(403);
+      expect(await response.json()).toMatchObject({ ok: false, failure: { code: "invalid-request" } });
+    }
     expect(spy).not.toHaveBeenCalled();
     spy.mockRestore();
   });

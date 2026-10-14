@@ -591,10 +591,20 @@
   color: var(--text);
 }
 
+/* per-cell labels: read by assistive tech at every width (the visual column header is aria-hidden); shown on mobile */
 .rowMetricLabel {
-  display: none;
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+.cellLabel {
+  grid-column: 1 / -1;
   font-size: 11px;
-  color: var(--text-muted);
+  color: var(--text-secondary);
 }
 
 .missing {
@@ -699,11 +709,6 @@
   border: 1px solid var(--hairline);
   font-size: 13px;
   color: var(--text);
-}
-
-.metricCell .rowMetricLabel {
-  display: block;
-  grid-column: 1 / -1;
 }
 
 .derivedCell {
@@ -994,7 +999,8 @@
   }
   .rowsHead,
   .rowMain {
-    grid-template-columns: 48px minmax(150px, 1fr) repeat(3, 64px) 84px 70px;
+    grid-template-columns: 44px minmax(0, 1fr) repeat(3, 56px) 76px 64px;
+    gap: 8px;
   }
   .rowMain > [data-metric="views"],
   .rowMain > [data-metric="comments"],
@@ -1052,8 +1058,14 @@
     flex-direction: column;
     grid-column: span 2;
   }
-  .rowMain > [data-metric] .rowMetricLabel {
-    display: block;
+  .rowMain .rowMetricLabel {
+    position: static;
+    width: auto;
+    height: auto;
+    overflow: visible;
+    clip: auto;
+    font-size: 11px;
+    color: var(--text-secondary);
   }
   .failure {
     grid-template-columns: auto minmax(0, 1fr);

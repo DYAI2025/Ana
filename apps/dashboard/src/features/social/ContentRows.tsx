@@ -1,13 +1,13 @@
 "use client";
 
 import { ChevronDown, ExternalLink } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { useI18n } from "@/components/providers/I18nProvider";
 import { useReducedMotion } from "@/lib/hooks/useReducedMotion";
 import { ageDays, formatCompact, formatCount, formatDay, formatIndex, formatPercent } from "./format";
 import { InspectButton, useObservationSpec } from "./Inspector";
 import { StateChip } from "./Instruments";
-import { RATE_FORMULA, verified, type Analysis, type PostAnalysis, type RateName, type ThemeId } from "./insights";
+import { RATE_INPUTS, verified, type Analysis, type PostAnalysis, type RateName, type ThemeId } from "./insights";
 import { Glyph } from "./Panels";
 import { assignTheme, THEMES, type ThemeOverrides } from "./themes";
 import type { CanonicalMetric, PostFormat, SocialSnapshot } from "./types";
@@ -36,6 +36,14 @@ export function ContentRows({
   const { t } = useI18n();
   const [filter, setFilter] = useState<PostFormat | "all">("all");
   const formats = [...new Set(analysis.posts.map((p) => p.post.format))];
+  // a post chosen from the map or an evidence link must become visible even when the format filter hides it
+  // (state adjusted during render when the selection changes, not in an effect)
+  const [seenOpenId, setSeenOpenId] = useState(openId);
+  if (openId !== seenOpenId) {
+    setSeenOpenId(openId);
+    const chosen = analysis.posts.find((p) => p.post.media_id === openId);
+    if (chosen && filter !== "all" && chosen.post.format !== filter) setFilter("all");
+  }
   const rows = analysis.posts.filter((p) => filter === "all" || p.post.format === filter);
   return (
     <section className={`glass ${styles.panel} ${styles.colFull}`} aria-labelledby="content-title" data-testid="content-rows">
@@ -94,10 +102,15 @@ function ContentRow({ p, snapshot, overrides, onOverride, open, onToggle }: { p:
   const { t, locale } = useI18n();
   const specOf = useObservationSpec();
   const ref = useRef<HTMLLIElement>(null);
+  const toggleRef = useRef<HTMLButtonElement>(null);
+  const themeEditId = useId();
   const [editing, setEditing] = useState(false);
   const reduced = useReducedMotion();
   useEffect(() => {
-    if (open) ref.current?.scrollIntoView({ block: "nearest", behavior: reduced ? "auto" : "smooth" });
+    if (!open) return;
+    ref.current?.scrollIntoView({ block: "nearest", behavior: reduced ? "auto" : "smooth" });
+    // opened from elsewhere (map, evidence link): bring keyboard focus to the opened post
+    if (ref.current && !ref.current.contains(document.activeElement)) toggleRef.current?.focus({ preventScroll: true });
   }, [open, reduced]);
   const post = p.post;
   const caption = post.caption ?? "";
@@ -113,7 +126,9 @@ function ContentRow({ p, snapshot, overrides, onOverride, open, onToggle }: { p:
           <span className={styles.rowMeta}>
             {t(`social.formats.${post.format}`)} · {post.published_at ? formatDay(post.published_at, locale) : "—"}
           </span>
-          <span className={styles.rowCaption}>{excerpt || t("social.content.noCaption")}</span>
+          <span className={styles.rowCaption} data-caption>
+            {excerpt || t("social.content.noCaption")}
+          </span>
         </div>
         {ROW_METRICS.map((m) => {
           const v = verified(post, m);
@@ -125,12 +140,15 @@ function ContentRow({ p, snapshot, overrides, onOverride, open, onToggle }: { p:
             </span>
           );
         })}
-        <span className={styles.rowIndex} data-testid="row-index">
-          {p.reachIndex !== null ? (
-            <span className={`${styles.mono} ${p.reachIndex < 1 ? styles.low : ""}`}>{formatIndex(p.reachIndex, locale)}</span>
-          ) : (
-            <span className={styles.missing}>{p.excluded ? t(`social.content.excluded.${p.excluded}`) : "—"}</span>
-          )}
+        <span className={styles.rowIndex}>
+          <span className={styles.rowMetricLabel}>{t("social.content.colIndex")}</span>
+          <span data-testid="row-index">
+            {p.reachIndex !== null ? (
+              <span className={`${styles.mono} ${p.reachIndex < 1 ? styles.low : ""}`}>{formatIndex(p.reachIndex, locale)}</span>
+            ) : (
+              <span className={styles.missing}>{p.excluded ? t(`social.content.excluded.${p.excluded}`) : "—"}</span>
+            )}
+          </span>
         </span>
         <span className={styles.rowActions}>
           {post.permalink ? (
@@ -138,7 +156,7 @@ function ContentRow({ p, snapshot, overrides, onOverride, open, onToggle }: { p:
               <ExternalLink size={15} aria-hidden="true" />
             </a>
           ) : null}
-          <button type="button" className={styles.iconButton} aria-expanded={open} aria-controls={detailId} onClick={onToggle} aria-label={open ? t("social.content.hideDetails") : t("social.content.details")} data-testid="row-toggle">
+          <button ref={toggleRef} type="button" className={styles.iconButton} aria-expanded={open} aria-controls={detailId} onClick={onToggle} aria-label={open ? t("social.content.hideDetails") : t("social.content.details")} data-testid="row-toggle">
             <ChevronDown size={16} aria-hidden="true" className={open ? styles.chevOpen : undefined} />
           </button>
         </span>
@@ -146,7 +164,9 @@ function ContentRow({ p, snapshot, overrides, onOverride, open, onToggle }: { p:
       {open ? (
         <div id={detailId} className={styles.detail} data-testid="row-detail">
           <div className={styles.detailCaption}>
-            <p className={styles.detailCaptionText}>{caption || t("social.content.noCaption")}</p>
+            <p className={styles.detailCaptionText} data-caption>
+              {caption || t("social.content.noCaption")}
+            </p>
             <p className={styles.note}>{t("social.content.captionLocal")}</p>
             <dl className={styles.kv}>
               <div>
@@ -166,7 +186,7 @@ function ContentRow({ p, snapshot, overrides, onOverride, open, onToggle }: { p:
                 const o = post.observations.find((x) => x.metric_name === m);
                 return (
                   <li key={m} className={styles.metricCell} data-availability={o?.availability_state ?? "UNAVAILABLE"}>
-                    <span className={styles.rowMetricLabel}>{metricLabel(m)}</span>
+                    <span className={styles.cellLabel}>{metricLabel(m)}</span>
                     {o && o.value !== null ? <span className={styles.mono}>{formatCount(o.value, locale)}</span> : <StateChip state={o?.availability_state ?? "UNAVAILABLE"} />}
                     {o ? <InspectButton spec={specOf(o, metricLabel(m))} testId={`inspect-${m}`} /> : null}
                   </li>
@@ -179,14 +199,15 @@ function ContentRow({ p, snapshot, overrides, onOverride, open, onToggle }: { p:
                 const v = p.rates[r];
                 return (
                   <li key={r} className={`${styles.metricCell} ${styles.derivedCell}`} data-testid={`rate-${r}`}>
-                    <span className={styles.rowMetricLabel}>{t(`social.metrics.${r}`)}</span>
+                    <span className={styles.cellLabel}>{t(`social.metrics.${r}`)}</span>
                     {v !== null ? <span className={styles.mono}>{formatPercent(v, locale)}</span> : <StateChip state="INSUFFICIENT_EVIDENCE" />}
                     <InspectButton
+                      testId={`inspect-rate-${r}`}
                       spec={{
                         label: t(`social.metrics.${r}`),
-                        native: "saved, shares, comments, reach",
+                        native: RATE_INPUTS[r],
                         unit: t("social.inspector.units.ratio"),
-                        calculation: RATE_FORMULA[r],
+                        calculation: t(`social.formulas.${r}`),
                         period: t("social.inspector.periods.lifetime"),
                         baseline: t("social.inspector.none"),
                         source: `instagram:media/${post.media_id}/insights`,
@@ -208,28 +229,20 @@ function ContentRow({ p, snapshot, overrides, onOverride, open, onToggle }: { p:
             <p className={styles.note} data-testid="theme-provenance" data-source={theme.source}>
               {theme.source === "derived-keyword" ? t("social.content.themeDerived", { words: theme.matched.join(", ") }) : theme.source === "manual-session" ? t("social.content.themeManual") : t("social.content.themeNone")}
             </p>
+            <button type="button" className={styles.linkButton} aria-expanded={editing} aria-controls={themeEditId} onClick={() => setEditing((e) => !e)} data-testid="edit-themes">
+              {editing ? t("social.content.doneThemes") : t("social.content.editThemes")}
+            </button>
             {editing ? (
-              <fieldset className={styles.themeEdit}>
+              <fieldset id={themeEditId} className={styles.themeEdit}>
                 <legend className="visually-hidden">{t("social.content.editThemes")}</legend>
                 {THEMES.map((th) => (
                   <label key={th} className={styles.checkbox}>
-                    <input
-                      type="checkbox"
-                      checked={theme.themes.includes(th)}
-                      onChange={(e) => onOverride(post.media_id, e.target.checked ? [...theme.themes, th] : theme.themes.filter((x) => x !== th))}
-                    />
+                    <input type="checkbox" checked={theme.themes.includes(th)} onChange={(e) => onOverride(post.media_id, e.target.checked ? [...theme.themes, th] : theme.themes.filter((x) => x !== th))} />
                     {t(`social.themes.${th}`)}
                   </label>
                 ))}
-                <button type="button" className={styles.linkButton} onClick={() => setEditing(false)}>
-                  {t("social.content.doneThemes")}
-                </button>
               </fieldset>
-            ) : (
-              <button type="button" className={styles.linkButton} onClick={() => setEditing(true)} data-testid="edit-themes">
-                {t("social.content.editThemes")}
-              </button>
-            )}
+            ) : null}
           </div>
         </div>
       ) : null}

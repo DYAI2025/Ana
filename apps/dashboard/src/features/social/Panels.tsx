@@ -141,7 +141,7 @@ export function ContentMap({ analysis, format, onFormat, onSelect, selectedId }:
               {t("social.map.y")}
             </text>
             <text x={sx(1)} y={H - PAD.b + 14} textAnchor="middle" className={styles.gaugeTick}>
-              1.00×
+              {formatIndex(1, locale)}
             </text>
             {points.map((p) => (
               <g

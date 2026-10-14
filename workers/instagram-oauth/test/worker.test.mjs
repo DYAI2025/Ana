@@ -559,7 +559,8 @@ function pagedMedia(total, {fields = null} = {}) {
     const end = Math.min(total, start + limit);
     const data = Array.from({length: end - start}, (_, k) => ({
       id: `m${start + k}`, media_type: 'VIDEO', media_product_type: 'REELS', permalink: `https://example.invalid/p/${start + k}`,
-      timestamp: '2026-10-01T10:00:00+0000', thumbnail_url: `https://example.invalid/t/${start + k}.jpg`, caption: `synthetic caption ${start + k}`,
+      timestamp: new Date(Date.now() - (start + k) * 0.5 * DAY * 1000).toISOString().replace('.000Z', '+0000'),
+      thumbnail_url: `https://example.invalid/t/${start + k}.jpg`, caption: track(`synthetic caption ${start + k} ${'c'.repeat(8)}`),
       like_count: 5, comments_count: 1
     }));
     const paging = end < total ? {cursors: {before: `c${start}`, after: `c${end}`}, next: `https://graph.instagram.com/v26.0/me/media?access_token=${LONG_TOKEN}&after=c${end}`} : {cursors: {before: `c${start}`, after: `c${end}`}};
@@ -600,7 +601,7 @@ test('social snapshot: cursor pagination to max, never forwards Meta paging URLs
   assert.deepEqual({requested: body.media.requested_max, returned: body.media.returned, pages: body.media.pages_fetched, more: body.media.has_more},
     {requested: 30, returned: 30, pages: 2, more: true});
   assert.equal(body.media.items[29].id, 'm29');
-  assert.equal(body.media.items[0].caption, 'synthetic caption 0', 'caption passes through (localhost display decided by PO; never logged)');
+  assert.equal(body.media.items[0].caption, `synthetic caption 0 ${'c'.repeat(8)}`, 'caption passes through (localhost display decided by PO; never logged — see the suite-wide log guard)');
   assert.equal(body.media.optional_fields_state, 'ACCEPTED');
 });
 
@@ -655,8 +656,47 @@ test('social snapshot: a hard sub-request budget bounds Meta calls; posts beyond
   assert.ok(fetched > 0 && skipped.length > 0);
   assert.equal(body.insights.posts_with_insights, fetched);
   assert.ok(skipped.every(i => i.insights.reason === 'subrequest-budget' && i.insights.metrics.every(m => m.value === null && m.state === 'not_fetched')));
-  // newest posts get insights first
-  assert.equal(body.media.items[0].insights.state, 'ok');
+  // posts at least 7 days old get insights first (younger lifetime metrics are never compared); the newest go short
+  const ageDays = i => (Date.now() - Date.parse(i.timestamp)) / (DAY * 1000);
+  assert.ok(skipped.every(i => ageDays(i) < 7), 'only young posts are left without insights');
+  assert.ok(body.media.items.filter(i => ageDays(i) >= 7).slice(0, 10).every(i => i.insights.state === 'ok'));
+  assert.equal(body.insights.priority, 'mature-first');
+  // a budget shortfall is never reported as an error
+  assert.ok(body.media.items.every(i => i.insights.state !== 'error'));
+});
+
+test('social snapshot: only Meta error 100 triggers the optional-field fallback; a rate limit fails the read', async () => {
+  const env = mockEnv();
+  await connect(env);
+  const calls = installMeta({media: metaError(4, 400)});
+  const r = await snapshot(env);
+  assert.equal(r.status, 502);
+  assert.deepEqual(await r.json(), {error: 'instagram-media-fetch-failed', reason: 'meta-4'});
+  assert.equal(calls.filter(c => c.url.pathname === '/v26.0/me/media').length, 1, 'no retry without optional fields');
+});
+
+test('social snapshot: media without insight support stops the per-metric fallback after reach', async () => {
+  const env = mockEnv();
+  await connect(env);
+  const calls = installMeta({media: pagedMedia(1), mediaInsights: () => Response.json({error: {message: 'synthetic', type: 'OAuthException', code: 100}}, {status: 400})});
+  const body = await (await snapshot(env)).json();
+  const ins = body.media.items[0].insights;
+  assert.equal(ins.state, 'unavailable');
+  assert.ok(ins.metrics.every(m => m.value === null && m.state === 'unavailable'));
+  assert.equal(calls.filter(c => /\/m0\/insights$/.test(c.url.pathname)).length, 2, 'combined call + reach only');
+});
+
+test('social snapshot: a throttle or token error stops further insight calls', async () => {
+  const env = mockEnv();
+  await connect(env);
+  const calls = installMeta({media: pagedMedia(30), mediaInsights: metaError(4, 400)});
+  const body = await (await snapshot(env)).json();
+  const insightCalls = calls.filter(c => /\/m\d+\/insights$/.test(c.url.pathname)).length;
+  assert.ok(insightCalls <= 5, `stopped after the first throttled batch (${insightCalls} calls)`);
+  const states = body.media.items.map(i => i.insights.state);
+  assert.ok(states.includes('error'));
+  const skipped = body.media.items.filter(i => i.insights.state === 'not_fetched');
+  assert.ok(skipped.length > 0 && skipped.every(i => i.insights.reason === 'meta-throttled'));
 });
 
 test('social snapshot: optional media fields rejected by Meta fall back to the base field set', async () => {
@@ -668,7 +708,7 @@ test('social snapshot: optional media fields rejected by Meta fall back to the b
   const body = await (await snapshot(env)).json();
   assert.equal(body.media.optional_fields_state, 'REJECTED_BY_META');
   assert.equal(body.media.returned, 2);
-  assert.deepEqual(fields, ['id,media_type,permalink,timestamp,thumbnail_url']);
+  assert.deepEqual(fields, ['id,media_type,permalink,timestamp,thumbnail_url,media_product_type'], 'product type survives the fallback: formats stay separable');
 });
 
 test('social snapshot: account metrics per metric over a 28-day window; followers degrade to unavailable', async () => {

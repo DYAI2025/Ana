@@ -23,7 +23,8 @@ export const test = base.extend<{ consoleErrors: string[]; jira: FakeJiraControl
   social: [
     async ({ request, baseURL }, provide) => {
       expect((await request.post(`${FAKE_SOCIAL}/__fake/reset`)).ok(), "fake Instagram reset").toBe(true);
-      expect((await request.get(`${baseURL}/api/social/instagram?__reset`)).status(), "dashboard social cache reset").toBe(204);
+      // against an already running server (E2E_BASE_URL) the reset control may be off: start it with SOCIAL_IG_E2E_CONTROLS=1
+      if (!process.env.E2E_BASE_URL) expect((await request.get(`${baseURL}/api/social/instagram?__reset`)).status(), "dashboard social cache reset").toBe(204);
       await provide({
         fault: async (fault) => {
           expect((await request.post(`${FAKE_SOCIAL}/__fake/fault`, { data: fault ?? {} })).ok()).toBe(true);

@@ -36,6 +36,9 @@ export const NOT_CONFIGURED: SocialFailure = {
 interface Cache {
   snapshot: SocialSnapshot | null;
   fetchedAt: number;
+  /** last worker read, successful or not: the minimum interval applies to failures too */
+  attemptedAt: number;
+  lastResult: SocialResult | null;
   inFlight: Promise<SocialResult> | null;
 }
 
@@ -46,9 +49,16 @@ export interface SnapshotService {
 }
 
 export function createSnapshotService(config: SocialConfig, fetchImpl: typeof fetch = fetch, now: () => number = Date.now): SnapshotService {
-  const cache: Cache = { snapshot: null, fetchedAt: 0, inFlight: null };
+  const cache: Cache = { snapshot: null, fetchedAt: 0, attemptedAt: -Infinity, lastResult: null, inFlight: null };
 
   async function load(): Promise<SocialResult> {
+    cache.attemptedAt = now();
+    const result = await attempt();
+    cache.lastResult = result;
+    return result;
+  }
+
+  async function attempt(): Promise<SocialResult> {
     const response = await fetchWorkerSnapshot(config, fetchImpl);
     let failure: SocialFailure;
     if (response.ok) {
@@ -72,17 +82,25 @@ export function createSnapshotService(config: SocialConfig, fetchImpl: typeof fe
 
   return {
     read({ refresh = false } = {}) {
+      if (cache.inFlight) return cache.inFlight;
       const age = now() - cache.fetchedAt;
-      const refreshAllowed = refresh && age >= config.minRefreshMs;
-      if (cache.snapshot && age < config.cacheMs && !refreshAllowed) {
-        return Promise.resolve({ ok: true, snapshot: { ...cache.snapshot, served_at: new Date(now()).toISOString() }, stale: false });
+      const sinceAttempt = now() - cache.attemptedAt;
+      const fresh = cache.snapshot !== null && age < config.cacheMs;
+      const mayCallWorker = sinceAttempt >= config.minRefreshMs;
+      if (fresh && !(refresh && mayCallWorker)) {
+        return Promise.resolve({ ok: true, snapshot: { ...cache.snapshot!, served_at: new Date(now()).toISOString() }, stale: false });
       }
-      if (!cache.inFlight) cache.inFlight = load().finally(() => (cache.inFlight = null));
+      // a failing worker is not hammered: within the interval the last answer (failure or STALE) is repeated
+      if (!mayCallWorker && cache.lastResult) return Promise.resolve(cache.lastResult);
+      cache.inFlight = load().finally(() => (cache.inFlight = null));
       return cache.inFlight;
     },
     reset() {
       cache.snapshot = null;
       cache.fetchedAt = 0;
+      cache.attemptedAt = -Infinity;
+      cache.lastResult = null;
+      cache.inFlight = null;
     },
   };
 }

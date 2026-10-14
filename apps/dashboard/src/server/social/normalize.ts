@@ -37,11 +37,12 @@ const need = <T>(v: T | null | undefined, what: string): T => {
   return v;
 };
 
+/** A VIDEO without a product type could be a Reel or a feed video: it stays "unknown" and is never compared. */
 export function formatOf(mediaType: string | null, productType: string | null): PostFormat {
   if (productType === "REELS") return "reel";
   if (mediaType === "CAROUSEL_ALBUM") return "carousel";
   if (mediaType === "IMAGE") return "image";
-  if (mediaType === "VIDEO") return "video";
+  if (mediaType === "VIDEO" && productType === "FEED") return "video";
   return "unknown";
 }
 
@@ -163,8 +164,10 @@ export function normalizeSnapshot(raw: unknown): SocialSnapshot {
       pages_fetched: num(media.pages_fetched) ?? 0,
       posts_with_insights: withInsights,
       posts_without_insights: posts.length - withInsights,
-      budget_used: num(budget.used) ?? 0,
-      budget_limit: num(budget.limit) ?? 0,
+      budget_used: num(budget.used),
+      budget_limit: num(budget.limit),
+      insights_priority: insights.priority === "mature-first" ? "mature-first" : null,
+      halted: str(insights.halted)?.slice(0, 40) ?? null,
       optional_fields: media.optional_fields_state === "ACCEPTED" ? "ACCEPTED" : "REJECTED_BY_META",
     },
     account: accountObs,

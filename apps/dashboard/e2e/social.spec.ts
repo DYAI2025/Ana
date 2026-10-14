@@ -32,6 +32,15 @@ test.describe("Instagram cockpit — real-data shape, honest states", () => {
     await expect(page.getByTestId("prototype-flag")).toContainText("Instagram live · read-only");
     const order = await page.locator("[data-testid=instagram-cockpit] > div > section").evaluateAll((els) => els.map((el) => el.getAttribute("data-testid")));
     expect(order).toEqual(["hero", "cluster", "stream", "content-map", "audience", "content-rows", "patterns", "comments"]);
+    // the 5/7 · 12 · 7/5 · 12 · 7/5 rhythm at 1440: widths in proportion (minus the 20px gap), rows aligned
+    const box = async (id: string) => (await page.getByTestId(id).boundingBox())!;
+    const [hero, cluster, stream, map, audience, rows, patterns, comments] = await Promise.all(["hero", "cluster", "stream", "content-map", "audience", "content-rows", "patterns", "comments"].map(box));
+    expect(Math.abs((hero!.width + 10) / (cluster!.width + 10) - 5 / 7)).toBeLessThan(0.03);
+    expect(Math.abs((map!.width + 10) / (audience!.width + 10) - 7 / 5)).toBeLessThan(0.05);
+    expect(Math.abs((patterns!.width + 10) / (comments!.width + 10) - 7 / 5)).toBeLessThan(0.05);
+    expect(Math.abs(stream!.width - rows!.width)).toBeLessThan(1);
+    expect(Math.abs(hero!.y - cluster!.y)).toBeLessThan(1);
+    expect(Math.abs(map!.y - audience!.y)).toBeLessThan(1);
   });
 
   test("AC4/AC5 · posts, captions, permalinks and metrics render; coverage is explicit", async ({ page }) => {
@@ -47,6 +56,8 @@ test.describe("Instagram cockpit — real-data shape, honest states", () => {
     await expect(r.getByTestId("row-permalink")).toHaveAttribute("href", "https://example.invalid/p/syn2");
     await expect(page.getByTestId("hero-value")).toHaveText("1.60×");
     await expect(page.getByTestId("hero")).toContainText("1.00× = median of 18 mature Reel posts");
+    await expect(page.getByTestId("coverage-priority")).toHaveText("Insights fetched first for posts at least 7 days old");
+    await expect(page.getByTestId("cluster-high-intent")).toContainText("n = 18");
     await expect(page.getByTestId("cluster-followers")).toContainText("12,400");
   });
 
@@ -75,6 +86,11 @@ test.describe("Instagram cockpit — real-data shape, honest states", () => {
     await expect(row(page, "syn020").getByTestId("row-index")).toHaveText("Format group too small");
     await page.getByTestId("content-filter-carousel").click();
     await expect(page.getByTestId("content-count")).toHaveText("3 of 28 posts");
+    // choosing a Reel on the map while the list shows only carousels brings the post back into view, focused
+    await page.getByTestId("map-point").first().click();
+    await expect(page.getByTestId("content-count")).toHaveText("28 of 28 posts");
+    await expect(page.locator('[data-testid="content-row"] [data-testid="row-detail"]')).toHaveCount(1);
+    await expect(page.locator('[data-testid="content-row"]:has([data-testid="row-detail"]) [data-testid="row-toggle"]')).toBeFocused();
   });
 
   test("metric inspector: keyboard open, every provenance field, Escape returns focus", async ({ page }) => {
@@ -115,8 +131,8 @@ test.describe("Instagram cockpit — real-data shape, honest states", () => {
     await openCockpit(page);
     const winner = page.getByTestId("observation-hidden-winner");
     await expect(winner).toHaveAttribute("data-state", "OBSERVED");
-    await expect(winner).toContainText("median of 18 mature reel posts");
-    await expect(winner).toContainText("(saves + shares) ÷ reach ÷ median");
+    await expect(winner).toContainText("median of 18 mature Reel posts");
+    await expect(winner).toContainText("(saves + shares) ÷ reach, divided by the same-format median");
     await winner.locator("summary").click();
     await expect(winner).toContainText("Shows association, not cause.");
     await winner.getByTestId("evidence-post").first().click();
@@ -137,8 +153,11 @@ test.describe("Instagram cockpit — real-data shape, honest states", () => {
     await expect(page.getByTestId("hypothesis-H1")).toHaveAttribute("data-state", "SIGNAL");
     await page.getByTestId("inspect-hypothesis-H1").click();
     const inspection = page.getByTestId("inspection-H1");
-    await expect(inspection).toContainText("Supporting posts");
-    await expect(inspection).toContainText("Contradicting posts");
+    // exact for the synthetic fixture (see insights.test.ts): 4 supporting, 5 contradicting
+    await expect(page.getByTestId("supporting-H1").getByTestId("evidence-post")).toHaveCount(4);
+    await expect(page.getByTestId("contradicting-H1").getByTestId("evidence-post")).toHaveCount(5);
+    await expect(page.getByTestId("next-test-n")).toHaveText("Compared without overlap: 6 H1 posts, 6 H4 posts (needs 8 each for a lean).");
+    await expect(page.getByTestId("next-test")).toContainText("No current lean between H1 and H4.");
     await expect(inspection).toContainText("Themes are keyword suggestions, not confirmed topics.");
     const first = inspection.getByTestId("evidence-post").first();
     await first.click();
@@ -180,6 +199,8 @@ test.describe("Instagram cockpit — failure states (AC10)", () => {
       await expect(page.getByTestId("cockpit-failure")).toContainText(c.text);
       await expect(page.getByTestId("content-row")).toHaveCount(0);
       await expect(page.getByTestId("hero")).toHaveCount(0);
+      // the Topbar never claims "live" while the cockpit cannot read Instagram
+      await expect(page.getByTestId("prototype-flag")).toHaveText(/Instagram not connected/);
     });
   }
 
@@ -197,6 +218,7 @@ test.describe("Instagram cockpit — failure states (AC10)", () => {
     await page.getByTestId("refresh").click();
     await expect(page.getByTestId("instagram-cockpit")).toHaveAttribute("data-state", "STALE");
     await expect(page.getByTestId("stale-banner")).toContainText("not current");
+    await expect(page.getByTestId("prototype-flag")).toHaveText(/Instagram · older snapshot/);
   });
 
   test("a permission problem after a good read is not hidden behind the older snapshot", async ({ page, social }) => {

@@ -21,6 +21,8 @@ export default defineConfig({
     trace: "retain-on-failure",
     ...devices["Desktop Chrome"],
     viewport: { width: 1440, height: 900 },
+    // cockpit dates render in the viewer's zone: pin it so expectations are deterministic
+    timezoneId: "UTC",
   },
   webServer: external
     ? undefined
@@ -49,7 +51,8 @@ export default defineConfig({
             JIRA_TIMEOUT_MS: "1500",
             SOCIAL_IG_WORKER_URL: `http://127.0.0.1:${FAKE_SOCIAL_PORT}`,
             SOCIAL_IG_INTERNAL_READ_KEY: "e2e-fake-social-key",
-            SOCIAL_IG_TIMEOUT_MS: "1500",
+            // generous: under heavy machine load a 1.5 s budget made the fake worker look down
+            SOCIAL_IG_TIMEOUT_MS: "5000",
             SOCIAL_IG_MIN_REFRESH_MS: "0",
             SOCIAL_IG_E2E_CONTROLS: "1",
           },

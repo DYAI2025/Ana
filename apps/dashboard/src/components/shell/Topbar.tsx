@@ -9,6 +9,7 @@ import { PEOPLE } from "@/fixtures/team";
 import { LOCALES, type Locale } from "@/lib/locale";
 import { activeViewFor } from "@/lib/views";
 import { useWorkPhase } from "@/features/work/WorkProvider";
+import { useSocialPhase } from "@/features/social/phase";
 import { translate } from "@/i18n/translate";
 import styles from "./shell.module.css";
 
@@ -19,6 +20,15 @@ export function Topbar({ onOpenSearch }: { onOpenSearch: () => void }) {
   const view = activeViewFor(pathname);
   // the Social cockpit reads live Instagram data (ANA-38): never label it as prototype
   const instagramLive = pathname.startsWith("/pulse/social/instagram");
+  const socialPhase = useSocialPhase();
+  const igLabel =
+    socialPhase === "CONNECTED" || socialPhase === "EMPTY"
+      ? t("top.liveInstagram")
+      : socialPhase === "STALE"
+        ? t("top.liveInstagramStale")
+        : socialPhase === "ERROR" || socialPhase === "PERMISSION_REQUIRED"
+          ? t("top.liveInstagramDown")
+          : t("top.liveInstagramReading");
   const workPhase = useWorkPhase();
   const jiraUp = workPhase === "ready";
   const jiraLabel = jiraUp ? t("top.liveFlag") : workPhase === "loading" || workPhase === null ? t("top.liveFlagReading") : t("top.liveFlagDown");
@@ -45,9 +55,9 @@ export function Topbar({ onOpenSearch }: { onOpenSearch: () => void }) {
       </p>
       <div className={styles.topActions} data-testid="topbar-actions">
         {instagramLive ? (
-          <span className={styles.prototypeFlag} title={t("top.liveInstagramDetail")} data-testid="prototype-flag" data-live="instagram">
-            <Camera size={13} aria-hidden="true" />
-            {t("top.liveInstagram")}
+          <span className={styles.prototypeFlag} title={t("top.liveInstagramDetail")} data-testid="prototype-flag" data-live="instagram" data-social={socialPhase ?? "LOADING"}>
+            {socialPhase === "ERROR" || socialPhase === "PERMISSION_REQUIRED" ? <Unplug size={13} aria-hidden="true" /> : <Camera size={13} aria-hidden="true" />}
+            {igLabel}
             <span className="visually-hidden"> — {t("top.liveInstagramDetail")}</span>
           </span>
         ) : view === "board" ? (
