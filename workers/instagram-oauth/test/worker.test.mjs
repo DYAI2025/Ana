@@ -149,13 +149,28 @@ test('standard base64 AES key (with + and /) and surrounding whitespace are acce
   assert.equal(testing.configured(mockEnv({AES_GCM_KEY_BASE64: std + '\n'})), true);
 });
 
-test('authorize URL: documented host, exact redirect, exactly two read-only scopes, force_reauth=true', () => {
+test('authorize URL: documented host, exact redirect, exactly two read-only scopes, no forced re-login', () => {
   const u = new URL(testing.metaOAuthURL(mockEnv(), 'abc123'));
   assert.equal(u.origin + u.pathname, 'https://www.instagram.com/oauth/authorize');
+  assert.equal(u.searchParams.get('client_id'), '1000000000000001');
   assert.equal(u.searchParams.get('redirect_uri'), origin + '/instagram/callback');
   assert.equal(u.searchParams.get('response_type'), 'code');
-  assert.equal(u.searchParams.get('force_reauth'), 'true');
+  assert.equal(u.searchParams.get('state'), 'abc123');
   assert.deepEqual(u.searchParams.get('scope').split(','), ['instagram_business_basic', 'instagram_business_manage_insights']);
+  // force_reauth=true made Instagram demand a fresh login (and its SMS/backup-code security check) on every
+  // attempt; an existing instagram.com session may be reused. Identity is still enforced by the callback.
+  assert.equal(u.searchParams.has('force_reauth'), false);
+  assert.deepEqual([...u.searchParams.keys()].sort(), ['client_id', 'redirect_uri', 'response_type', 'scope', 'state']);
+});
+
+test('reused Instagram session of another account is still rejected (no forced re-login does not weaken identity)', async () => {
+  const env = mockEnv();
+  const a = await prepareAttempt(env);
+  installMeta({me: () => Response.json({user_id: '17841400000000999', id: APP_SCOPED_ID, username: 'someone_else'})});
+  const r = await worker.fetch(callbackReq(`state=${a.state}&code=${uniqueCode()}`, a.cookie), env);
+  assert.equal(r.status, 422);
+  assert.match(await r.text(), /nicht das freigegebene Instagram-Konto/);
+  assert.equal(rows(env.DB, 'instagram_tokens').length, 0);
 });
 
 // =================== crypto ===================

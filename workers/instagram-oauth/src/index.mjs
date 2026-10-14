@@ -154,7 +154,8 @@ function metaOAuthURL(env, state) {
   u.searchParams.set('scope', SCOPES.join(','));
   u.searchParams.set('response_type', 'code');
   u.searchParams.set('state', state);
-  u.searchParams.set('force_reauth', 'true');
+  // No force_reauth: forcing a fresh login made Instagram run its SMS/backup-code security check on every
+  // attempt. A reused instagram.com session is safe because the callback pins user_id + username.
   return u.href;
 }
 async function exchangeCode(code, env) {
