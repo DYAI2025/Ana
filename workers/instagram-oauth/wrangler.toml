@@ -28,5 +28,5 @@ crons = ["0 5 * * *"]
 [[d1_databases]]
 binding = "DB"
 database_name = "ana_instagram_oauth"
-database_id = "REPLACE_WITH_CLOUDFLARE_D1_DATABASE_UUID"
+database_id = "1c27425c-b097-45e6-a4d2-cfad249a8701"
 migrations_dir = "migrations"
