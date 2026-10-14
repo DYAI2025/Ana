@@ -79,8 +79,9 @@ browser. Contract:
 
 ### Structure
 
-- `src/app/` — routes: `/` Now, `/board?ticket=`, `/backlog?ticket=`, `/sessions`, `/sessions/[id]?tab=`, `/brain?node=`, `/whiteboard`, `/calendar?event=`, `/pulse`, `/vault`, `/toolbox?tool=`; `src/app/api/work/` — the work API
+- `src/app/` — routes: `/` Now, `/board?ticket=`, `/backlog?ticket=`, `/sessions`, `/sessions/[id]?tab=`, `/brain?node=`, `/whiteboard`, `/calendar?event=`, `/pulse`, `/pulse/social/instagram`, `/vault`, `/toolbox?tool=`; `src/app/api/work/` — the work API; `src/app/api/social/instagram` — the read-only Social API (ANA-38)
 - `src/server/` — server-only Jira adapter (`jira/`) and request guards (`http.ts`)
+- `src/server/social/` + `src/features/social/` — Instagram cockpit (ANA-38): server-only worker client, normalizer to the observation DTO, in-memory snapshot cache; client-side insight engine, themes and Substack offer signals. Configure `SOCIAL_IG_WORKER_URL` and `SOCIAL_IG_INTERNAL_READ_KEY` (see `.env.example`); without them the cockpit says not-configured. Evidence: `docs/evidence/ANA-38/`.
 - `src/features/work/` — client-safe work types, pure model, the `WorkProvider` (disposable view state) and failure/provenance UI
 - `src/styles/globals.css` — LUMEN tokens (canvas, pastel refraction, glass material, coral accent), atmosphere, focus and reduced-motion rules
 - `src/components/` — shell (rail, top bar, search palette), providers (i18n, prototype state, toasts), UI primitives

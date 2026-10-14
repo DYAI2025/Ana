@@ -22,6 +22,24 @@ const SHOTS: {
   verify?: (jira: FakeJiraControl) => Promise<void>;
 }[] = [
   { name: "now", route: "/" },
+  { name: "instagram-cockpit", route: "/pulse/social/instagram", prepare: async (page) => void (await page.getByTestId("hero").waitFor()) },
+  {
+    name: "instagram-row-detail",
+    route: "/pulse/social/instagram",
+    prepare: async (page) => {
+      await page.locator('[data-media-id="syn004"]').getByTestId("row-toggle").click();
+      await page.getByTestId("row-detail").waitFor();
+    },
+  },
+  {
+    name: "instagram-offer-signals",
+    route: "/pulse/social/instagram",
+    prepare: async (page) => {
+      await page.getByTestId("tab-offers").click();
+      await page.getByTestId("inspect-hypothesis-H1").click();
+      await page.getByTestId("inspection-H1").scrollIntoViewIfNeeded();
+    },
+  },
   { name: "now-lens-work", route: "/", prepare: async (page) => page.getByTestId("context-work").click() },
   { name: "board", route: "/board" },
   {

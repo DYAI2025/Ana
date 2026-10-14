@@ -109,7 +109,7 @@ async function measure(page: Page, label: string): Promise<string[]> {
   return failures;
 }
 
-const STATES: { label: string; route: string; jira?: Record<string, unknown>; prepare?: (page: Page) => Promise<unknown> }[] = [
+const STATES: { label: string; route: string; jira?: Record<string, unknown>; social?: Record<string, unknown>; prepare?: (page: Page) => Promise<unknown> }[] = [
   { label: "now", route: "/" },
   { label: "lens work", route: "/", prepare: (p) => p.getByTestId("context-work").click() },
   { label: "lens session", route: "/", prepare: (p) => p.getByTestId("context-session").click() },
@@ -131,6 +131,11 @@ const STATES: { label: string; route: string; jira?: Record<string, unknown>; pr
   { label: "whiteboard", route: "/whiteboard" },
   { label: "calendar form", route: "/calendar", prepare: (p) => p.getByTestId("cal-add").click() },
   { label: "pulse", route: "/pulse" },
+  { label: "instagram cockpit", route: "/pulse/social/instagram", prepare: (p) => p.getByTestId("hero").waitFor() },
+  { label: "instagram row detail", route: "/pulse/social/instagram", prepare: async (p) => { await p.locator('[data-media-id="syn004"]').getByTestId("row-toggle").click(); await p.getByTestId("row-detail").waitFor(); } },
+  { label: "instagram offer signals", route: "/pulse/social/instagram", prepare: async (p) => { await p.getByTestId("tab-offers").click(); await p.getByTestId("inspect-hypothesis-H1").click(); await p.getByTestId("inspection-H1").waitFor(); } },
+  { label: "instagram inspector", route: "/pulse/social/instagram", prepare: async (p) => { await p.getByTestId("inspect-hero").click(); await p.getByTestId("metric-inspector").waitFor(); } },
+  { label: "instagram permission required", route: "/pulse/social/instagram", social: { status: 409, error: "reauth-required" }, prepare: (p) => p.getByTestId("cockpit-failure").waitFor() },
   { label: "vault", route: "/vault" },
   { label: "toolbox", route: "/toolbox?tool=jira" },
 ];
@@ -139,8 +144,9 @@ for (const viewport of [{ width: 1440, height: 900 }, { width: 1280, height: 800
   test.describe(`contrast ${viewport.width}`, () => {
     test.use({ viewport });
     for (const state of STATES) {
-      test(`text contrast >= WCAG AA: ${state.label}`, async ({ page, jira }) => {
+      test(`text contrast >= WCAG AA: ${state.label}`, async ({ page, jira, social }) => {
         if (state.jira) await jira.fault(state.jira);
+        if (state.social) await social.fault(state.social);
         await page.emulateMedia({ reducedMotion: "reduce" });
         await page.goto(state.route);
         await page.waitForLoadState("networkidle");
