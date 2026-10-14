@@ -2,12 +2,13 @@ import { defineConfig, devices } from "@playwright/test";
 
 const PORT = Number(process.env.E2E_PORT ?? 3100);
 const FAKE_JIRA_PORT = Number(process.env.FAKE_JIRA_PORT ?? 3199);
+const FAKE_SOCIAL_PORT = Number(process.env.FAKE_SOCIAL_PORT ?? 3198);
 // E2E_BASE_URL=http://localhost:3200 reuses an already running server (fast local iteration); CI builds its own
 const external = process.env.E2E_BASE_URL;
 
 /**
- * The browser tests run the production build against a local fake Jira (e2e/fake-jira) — never against a real
- * Jira. The credentials below are test values for that fake only.
+ * The browser tests run the production build against a local fake Jira (e2e/fake-jira) and a local fake Instagram
+ * worker (e2e/fake-social) — never against real services. The credentials below are test values for those fakes only.
  */
 export default defineConfig({
   testDir: "./e2e",
@@ -20,6 +21,8 @@ export default defineConfig({
     trace: "retain-on-failure",
     ...devices["Desktop Chrome"],
     viewport: { width: 1440, height: 900 },
+    // cockpit dates render in the viewer's zone: pin it so expectations are deterministic
+    timezoneId: "UTC",
   },
   webServer: external
     ? undefined
@@ -32,6 +35,13 @@ export default defineConfig({
           timeout: 20_000,
         },
         {
+          command: `node e2e/fake-social/server.mjs`,
+          url: `http://127.0.0.1:${FAKE_SOCIAL_PORT}/__fake/health`,
+          env: { FAKE_SOCIAL_PORT: String(FAKE_SOCIAL_PORT), FAKE_SOCIAL_KEY: "e2e-fake-social-key" },
+          reuseExistingServer: false,
+          timeout: 20_000,
+        },
+        {
           command: `npm run build && npx next start --hostname 127.0.0.1 --port ${PORT}`,
           url: `http://127.0.0.1:${PORT}`,
           env: {
@@ -39,6 +49,12 @@ export default defineConfig({
             JIRA_EMAIL: "e2e@example.invalid",
             JIRA_API_TOKEN: "e2e-fake-token",
             JIRA_TIMEOUT_MS: "1500",
+            SOCIAL_IG_WORKER_URL: `http://127.0.0.1:${FAKE_SOCIAL_PORT}`,
+            SOCIAL_IG_INTERNAL_READ_KEY: "e2e-fake-social-key",
+            // generous: under heavy machine load a 1.5 s budget made the fake worker look down
+            SOCIAL_IG_TIMEOUT_MS: "5000",
+            SOCIAL_IG_MIN_REFRESH_MS: "0",
+            SOCIAL_IG_E2E_CONTROLS: "1",
           },
           reuseExistingServer: false,
           timeout: 240_000,

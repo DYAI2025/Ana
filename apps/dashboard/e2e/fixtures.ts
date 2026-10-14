@@ -2,6 +2,13 @@ import { test as base, expect, type Page } from "@playwright/test";
 
 /** Control surface of the local fake Jira (e2e/fake-jira/server.mjs) — test-only, never a real Jira. */
 export const FAKE_JIRA = `http://127.0.0.1:${process.env.FAKE_JIRA_PORT ?? 3199}`;
+/** Control surface of the local fake Instagram worker (e2e/fake-social/server.mjs) — synthetic data only. */
+export const FAKE_SOCIAL = `http://127.0.0.1:${process.env.FAKE_SOCIAL_PORT ?? 3198}`;
+
+export interface FakeSocialControl {
+  fault(fault: Record<string, unknown> | null): Promise<void>;
+  state(): Promise<{ calls: number }>;
+}
 
 export interface FakeJiraControl {
   fault(fault: Record<string, unknown>): Promise<void>;
@@ -11,7 +18,23 @@ export interface FakeJiraControl {
   state(): Promise<{ creates: number; issues: { key: string; summary: string; status: string; labels: string[] }[] }>;
 }
 
-export const test = base.extend<{ consoleErrors: string[]; jira: FakeJiraControl }>({
+export const test = base.extend<{ consoleErrors: string[]; jira: FakeJiraControl; social: FakeSocialControl }>({
+  /** Every test starts with a healthy fake worker and an empty dashboard snapshot cache (e2e-only reset control). */
+  social: [
+    async ({ request, baseURL }, provide) => {
+      expect((await request.post(`${FAKE_SOCIAL}/__fake/reset`)).ok(), "fake Instagram reset").toBe(true);
+      // against an already running server (E2E_BASE_URL) the reset control may be off: start it with SOCIAL_IG_E2E_CONTROLS=1
+      if (!process.env.E2E_BASE_URL) expect((await request.get(`${baseURL}/api/social/instagram?__reset`)).status(), "dashboard social cache reset").toBe(204);
+      await provide({
+        fault: async (fault) => {
+          expect((await request.post(`${FAKE_SOCIAL}/__fake/fault`, { data: fault ?? {} })).ok()).toBe(true);
+        },
+        state: async () => (await request.get(`${FAKE_SOCIAL}/__fake/state`)).json(),
+      });
+    },
+    { auto: true },
+  ],
+
   /** Every test starts from the same synthetic Jira state. */
   jira: [
     async ({ request }, provide) => {
@@ -63,6 +86,11 @@ export async function workSettled(page: Page) {
 }
 
 /** Waits until the app-wide Jira read finished successfully (search over Jira issues needs it). */
+/** Waits until the Instagram cockpit left its loading state. */
+export async function socialSettled(page: Page) {
+  await page.locator('[data-testid="instagram-cockpit"]:not([data-state="LOADING"])').waitFor();
+}
+
 export async function workReady(page: Page) {
   await page.locator('html[data-work="ready"]').waitFor({ state: "attached" });
 }

@@ -90,6 +90,15 @@ Insights support may be claimed only after `insights-probe` returns `PASS` again
 
 `GET /internal/media?limit=1..25` uses the **separate** `INTERNAL_READ_KEY`. It is server-to-server only and must never appear in browser JavaScript or `NEXT_PUBLIC_*` variables. It returns the first page only.
 
+`GET /internal/social-snapshot?max=1..50` (default 30, same `INTERNAL_READ_KEY`) is the read contract for the dashboard's server-side Social BFF (Jira ANA-38):
+
+- Media: follows `paging.cursors.after` in pages of ≤ 25 up to `max`. Meta's `paging.next` URL carries the access token and is never used or returned. `returned`, `pages_fetched` and `has_more` state the real coverage. `media_product_type` is part of the base field set, so Reels and feed videos stay separable. Optional fields (`caption`, `like_count`, `comments_count`) fall back to the base set only when Meta answers error 100 (invalid field); any other error fails the read (`optional_fields_state`).
+- Per-post insights: `reach, views, saved, shares, likes, comments, total_interactions` in one call per post. On Meta error 100 (a metric does not apply to that media) each metric is read on its own; if even `reach` is refused the post has no insights and the rest is marked unavailable. Every metric carries `state` `ok | unavailable | error | not_fetched`; a missing value is `null`, never `0`, and a budget shortfall is `not_fetched`, never `error`.
+- Insights are fetched first for posts at least 7 days old (`insights.priority: mature-first`), because the dashboard never compares younger posts whose lifetime metrics are still growing. A rate limit (Meta 4, 17, 32, 613) or token error (190) stops further calls; the remaining posts are `not_fetched` with `reason: meta-throttled` and `insights.halted` names the class.
+- Account: `followers_count`, `media_count`, and `reach, views, accounts_engaged, total_interactions` as `period=day&metric_type=total_value` over the last 28 days, one call per metric.
+- A hard budget of 45 Meta calls per snapshot keeps the Worker under Cloudflare's 50 sub-requests per invocation. Posts beyond it are `not_fetched` with `reason: subrequest-budget`. `insights.budget` reports `used` and `limit`.
+- Captions pass through to the BFF for localhost display only (PO decision, ANA-38) and are never logged.
+
 ## Security boundaries
 
 - `/admin/*` uses a header-only bearer key with digest-based constant-time comparison. `/internal/media` uses its own key, and each key is rejected on the other's routes.

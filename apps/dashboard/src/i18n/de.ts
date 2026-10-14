@@ -1,4 +1,5 @@
 import type { Messages } from "./en";
+import { socialDe } from "./social/de";
 
 export const de: Messages = {
   app: {
@@ -27,6 +28,11 @@ export const de: Messages = {
     liveFlagReading: "Jira wird gelesen",
     liveFlagDown: "Jira nicht verbunden",
     liveFlagDownDetail: "Board und Backlog können Jira gerade nicht lesen; die Seite sagt, warum. Geschrieben wird erst, wenn Jira wieder antwortet",
+    liveInstagram: "Instagram live · nur lesend",
+    liveInstagramDetail: "Diese Seite liest Instagram über den Dashboard-Server und schreibt nichts. Andere Module sind lokale Prototyp-Daten",
+    liveInstagramReading: "Instagram wird gelesen",
+    liveInstagramDown: "Instagram nicht verbunden",
+    liveInstagramStale: "Instagram · älterer Stand",
     language: "Sprache",
     languageChanged: "Sprache geändert zu Deutsch",
     team: "Team: Ana, Ben und Vince",
@@ -260,7 +266,11 @@ export const de: Messages = {
     eventsOnDay: "{count} Termine",
     localNote: "Prototyp · bleibt in diesem Tab",
   },
+  social: socialDe,
   pulse: {
+    socialTitle: "Social · Instagram",
+    socialBody: "Echte Instagram-Beiträge und Kennzahlen, nur lesend auf diesem Computer.",
+    socialLink: "Instagram-Cockpit öffnen",
     title: "Signale",
     subtitle: "Hier erscheinen nur geprüfte, verbundene Signale.",
     community: "Community",

@@ -1,3 +1,5 @@
+import { socialEn } from "./social/en";
+
 /**
  * English UI dictionary — the reference shape. `de` and `it` must provide every key
  * (enforced by the `Messages` type and by src/i18n/i18n.test.ts).
@@ -30,6 +32,11 @@ export const en = {
     liveFlagReading: "Reading Jira",
     liveFlagDown: "Jira not connected",
     liveFlagDownDetail: "Board and Backlog cannot read Jira right now; the page says why. Nothing is written until Jira answers again",
+    liveInstagram: "Instagram live · read-only",
+    liveInstagramDetail: "This page reads Instagram through the dashboard server; it writes nothing. Other modules are local prototype data",
+    liveInstagramReading: "Reading Instagram",
+    liveInstagramDown: "Instagram not connected",
+    liveInstagramStale: "Instagram · older snapshot",
     language: "Language",
     languageChanged: "Language changed to English",
     team: "Team: Ana, Ben and Vince",
@@ -263,7 +270,11 @@ export const en = {
     eventsOnDay: "{count} events",
     localNote: "Prototype · stays in this tab",
   },
+  social: socialEn,
   pulse: {
+    socialTitle: "Social · Instagram",
+    socialBody: "Real Instagram posts and metrics, read-only on this computer.",
+    socialLink: "Open Instagram cockpit",
     title: "Pulse",
     subtitle: "Only verified, connected signals will appear here.",
     community: "Community",
