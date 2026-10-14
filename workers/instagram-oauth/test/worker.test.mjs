@@ -1,0 +1,650 @@
+// All identifiers below are synthetic. Meta is mocked: these tests prove worker logic only,
+// never a working Meta connection (see README "Tests / known limitations").
+import assert from 'node:assert/strict';
+import {test, beforeEach, afterEach, after} from 'node:test';
+import worker, {testing} from '../src/index.mjs';
+import {createD1, rows} from './d1-sqlite.mjs';
+
+const origin = 'https://login.dyai.cloud';
+const IG_USER_ID = '17841400000000001';   // professional account ID (> 2^53, string only)
+const APP_SCOPED_ID = '27000000000000002'; // /me `id` — must NOT be used as identity
+const APP_SECRET = 'synthetic-app-secret-not-real';
+const ADMIN_KEY = 'synthetic-admin-key-0123456789abcdef';
+const INTERNAL_KEY = 'synthetic-internal-key-0123456789abcdef';
+const SHORT_TOKEN = 'SHORT_TOKEN_ONLY_FOR_TEST';
+const LONG_TOKEN = 'LONG_TOKEN_NEVER_EXPOSE';
+const DAY = 86400;
+const now = () => Math.floor(Date.now() / 1000);
+
+function mockEnv(overrides = {}) {
+  return {
+    DB: createD1(), PUBLIC_ORIGIN: origin,
+    INSTAGRAM_APP_ID: '1000000000000001',
+    INSTAGRAM_APP_SECRET: APP_SECRET,
+    EXPECTED_IG_USER_ID: IG_USER_ID,
+    EXPECTED_IG_USERNAME: 'anasavu',
+    AES_GCM_KEY_BASE64: btoa(String.fromCharCode(...Uint8Array.from({length: 32}, (_, i) => i))),
+    ADMIN_API_KEY: ADMIN_KEY,
+    INTERNAL_READ_KEY: INTERNAL_KEY,
+    ...overrides
+  };
+}
+const adminReq = (path, method = 'GET', key = ADMIN_KEY) =>
+  new Request(origin + path, {method, headers: {Authorization: `Bearer ${key}`}});
+
+// ---- log capture: every console line of the whole suite is checked (after()) against every
+// secret, code, state, invite and cookie nonce the suite ever produced ----
+const logs = [];
+const CONSOLE = ['log', 'error', 'warn', 'info', 'debug'];
+const oldConsole = Object.fromEntries(CONSOLE.map(k => [k, console[k]]));
+const oldFetch = globalThis.fetch;
+const sensitive = new Set([APP_SECRET, ADMIN_KEY, INTERNAL_KEY, SHORT_TOKEN, LONG_TOKEN, 'ROTATED_TOKEN', 'OLD_TOKEN', 'test-code']);
+const track = v => { if (v && v.length >= 8) sensitive.add(v); return v; };
+let codeCounter = 0;
+const uniqueCode = () => track(`synthetic-oauth-code-${++codeCounter}-${'q'.repeat(8)}`);
+beforeEach(() => { for (const k of CONSOLE) console[k] = (...a) => logs.push(a.map(String).join(' ')); });
+afterEach(() => { for (const k of CONSOLE) console[k] = oldConsole[k]; globalThis.fetch = oldFetch; });
+after(() => {
+  assert.ok(logs.length > 0, 'log capture is live');
+  const all = logs.join('\n');
+  for (const s of sensitive) assert.ok(!all.includes(s), 'log leak: ' + s.slice(0, 12) + '…');
+  assert.ok(!all.includes('/instagram/callback?') && !all.includes('access_token='), 'no URLs in logs');
+});
+
+// ---- Meta mock: documented response shapes, records every outbound call ----
+function installMeta(overrides = {}) {
+  const calls = [];
+  const routes = {
+    exchange: () => Response.json({data: [{access_token: SHORT_TOKEN, user_id: APP_SCOPED_ID, permissions: 'instagram_business_basic,instagram_business_manage_insights'}]}),
+    long: () => Response.json({access_token: LONG_TOKEN, token_type: 'bearer', expires_in: 5183944}),
+    me: () => Response.json({user_id: IG_USER_ID, id: APP_SCOPED_ID, username: 'anasavu', media_count: 5}),
+    media: () => Response.json({data: [{id: 'media1', caption: 'synthetic'}]}),
+    insights: () => Response.json({data: [{name: 'reach', period: 'day', total_value: {value: 42}}]}),
+    refresh: () => Response.json({access_token: 'ROTATED_TOKEN', token_type: 'bearer', expires_in: 5184000}),
+    ...overrides
+  };
+  globalThis.fetch = async (input, opts = {}) => {
+    const u = new URL(String(input));
+    calls.push({url: u, opts});
+    const key =
+      u.href.startsWith('https://api.instagram.com/oauth/access_token') ? 'exchange' :
+      u.origin === 'https://graph.instagram.com' && u.pathname === '/access_token' ? 'long' :
+      u.origin === 'https://graph.instagram.com' && u.pathname === '/refresh_access_token' ? 'refresh' :
+      u.origin === 'https://graph.instagram.com' && u.pathname === '/v26.0/me' ? 'me' :
+      u.origin === 'https://graph.instagram.com' && u.pathname === '/v26.0/me/media' ? 'media' :
+      u.origin === 'https://graph.instagram.com' && u.pathname === `/v26.0/${IG_USER_ID}/insights` ? 'insights' : null;
+    if (!key) throw Error('unexpected upstream ' + u.origin + u.pathname);
+    return routes[key](u, opts);
+  };
+  return calls;
+}
+const metaError = (code, status = 400) => () => Response.json({error: {message: 'synthetic', type: 'OAuthException', code}}, {status});
+
+// ---- flow helpers ----
+async function createInvite(env) {
+  const r = await worker.fetch(adminReq('/admin/invitations', 'POST'), env);
+  assert.equal(r.status, 200);
+  const body = await r.json();
+  return {...body, invite: track(new URL(body.url).searchParams.get('invite'))};
+}
+function postStart(invite, headers = {Origin: origin}) {
+  return new Request(origin + '/instagram/start', {method: 'POST', headers: {'Content-Type': 'application/x-www-form-urlencoded', ...headers}, body: new URLSearchParams({invite})});
+}
+async function startAttempt(env, invite) {
+  const r = await worker.fetch(postStart(invite), env);
+  assert.equal(r.status, 200);
+  const page = await r.text();
+  const href = page.match(/href="([^"]+)"/)[1].replace(/&amp;/g, '&');
+  const oauthUrl = new URL(href);
+  const cookie = r.headers.get('Set-Cookie').split(';')[0];
+  track(cookie.split('=')[1]);
+  return {oauthUrl, state: track(oauthUrl.searchParams.get('state')), setCookie: r.headers.get('Set-Cookie'), cookie};
+}
+async function prepareAttempt(env) {
+  const inv = await createInvite(env);
+  const landing = await worker.fetch(new Request(inv.url), env);
+  assert.equal(landing.status, 200);
+  return {...inv, ...(await startAttempt(env, inv.invite))};
+}
+const callbackReq = (qs, cookie) => {
+  const p = new URLSearchParams(qs);
+  track(p.get('code')); track(p.get('state'));
+  return new Request(origin + '/instagram/callback?' + qs, {headers: cookie ? {Cookie: cookie} : {}});
+};
+async function connect(env) {
+  const a = await prepareAttempt(env);
+  installMeta();
+  const r = await worker.fetch(callbackReq(`state=${a.state}&code=test-code%23_`, a.cookie), env);
+  assert.equal(r.status, 200);
+  return a;
+}
+async function seedToken(env, {issuedAgo = 46 * DAY, expiresIn = 14 * DAY, token = 'OLD_TOKEN', status = 'CONNECTED'} = {}) {
+  const t = now();
+  const sealed = await testing.seal(token, env, IG_USER_ID);
+  await env.DB.prepare('INSERT INTO instagram_tokens (account_id,username,token_iv,token_ciphertext,granted_permissions,issued_at,expires_at,updated_at,connection_status) VALUES (?,?,?,?,?,?,?,?,?)')
+    .bind(IG_USER_ID, 'anasavu', sealed.iv, sealed.ciphertext, '[]', t - issuedAgo, t + expiresIn, t - issuedAgo, status).run();
+}
+const tokenRow = env => rows(env.DB, 'instagram_tokens')[0];
+
+// =================== configuration ===================
+test('configured() fails closed on every missing or weak setting', () => {
+  const env = mockEnv();
+  assert.equal(testing.configured(env), true);
+  for (const k of ['DB', 'PUBLIC_ORIGIN', 'INSTAGRAM_APP_ID', 'INSTAGRAM_APP_SECRET', 'EXPECTED_IG_USER_ID', 'EXPECTED_IG_USERNAME', 'AES_GCM_KEY_BASE64', 'ADMIN_API_KEY', 'INTERNAL_READ_KEY'])
+    assert.equal(testing.configured({...env, [k]: undefined}), false, k);
+  assert.equal(testing.configured({...env, PUBLIC_ORIGIN: 'http://login.dyai.cloud'}), false);
+  assert.equal(testing.configured({...env, PUBLIC_ORIGIN: origin + '/'}), false);
+  assert.equal(testing.configured({...env, ADMIN_API_KEY: 'short'}), false);
+  assert.equal(testing.configured({...env, INTERNAL_READ_KEY: ADMIN_KEY}), false, 'admin and internal keys must differ');
+  assert.equal(testing.configured({...env, AES_GCM_KEY_BASE64: btoa('x'.repeat(16))}), false, '16-byte key');
+  assert.equal(testing.configured({...env, AES_GCM_KEY_BASE64: '!!!not-base64!!!'}), false);
+  assert.equal(testing.configured({...env, EXPECTED_IG_USER_ID: '1784e10'}), false);
+  assert.equal(testing.configured({...env, EXPECTED_IG_USERNAME: 'ana savu'}), false);
+});
+
+test('standard base64 AES key (with + and /) and surrounding whitespace are accepted', () => {
+  const bytes = Uint8Array.from({length: 32}, (_, i) => 250 - i); // produces + and / in standard base64
+  const std = btoa(String.fromCharCode(...bytes));
+  assert.match(std, /[+/]/);
+  assert.equal(testing.configured(mockEnv({AES_GCM_KEY_BASE64: std + '\n'})), true);
+});
+
+test('authorize URL: documented host, exact redirect, exactly two read-only scopes, force_reauth=true', () => {
+  const u = new URL(testing.metaOAuthURL(mockEnv(), 'abc123'));
+  assert.equal(u.origin + u.pathname, 'https://www.instagram.com/oauth/authorize');
+  assert.equal(u.searchParams.get('redirect_uri'), origin + '/instagram/callback');
+  assert.equal(u.searchParams.get('response_type'), 'code');
+  assert.equal(u.searchParams.get('force_reauth'), 'true');
+  assert.deepEqual(u.searchParams.get('scope').split(','), ['instagram_business_basic', 'instagram_business_manage_insights']);
+});
+
+// =================== crypto ===================
+test('AES-GCM: random nonce, authenticated, bound to account id', async () => {
+  const env = mockEnv();
+  const a = await testing.seal('sensitive-token', env, IG_USER_ID), b = await testing.seal('sensitive-token', env, IG_USER_ID);
+  assert.notEqual(a.ciphertext, b.ciphertext);
+  assert.equal(await testing.openSealed({account_id: IG_USER_ID, token_iv: a.iv, token_ciphertext: a.ciphertext}, env), 'sensitive-token');
+  await assert.rejects(testing.openSealed({account_id: IG_USER_ID, token_iv: b.iv, token_ciphertext: a.ciphertext}, env));
+  await assert.rejects(testing.openSealed({account_id: '17841400000000999', token_iv: a.iv, token_ciphertext: a.ciphertext}, env), 'ciphertext moved to another row must not decrypt');
+});
+
+// =================== routing & auth ===================
+test('health is public; everything else is 503 until configured; unknown routes 404', async () => {
+  const h = await worker.fetch(new Request(origin + '/healthz'), {});
+  assert.equal(h.status, 200);
+  assert.deepEqual(await h.json(), {ok: true, service: 'ana-instagram-oauth'});
+  for (const [p, m] of [['/admin/status', 'GET'], ['/instagram/start', 'GET'], ['/instagram/callback', 'GET'], ['/internal/media', 'GET']])
+    assert.equal((await worker.fetch(new Request(origin + p, {method: m}), {})).status, 503, p);
+  assert.equal((await worker.fetch(new Request(origin + '/nope'), mockEnv())).status, 404);
+  assert.equal((await worker.fetch(new Request(origin + '/admin/status', {method: 'DELETE'}), mockEnv())).status, 404);
+});
+
+test('admin endpoints reject missing, wrong, non-Bearer and internal-read credentials', async () => {
+  const env = mockEnv();
+  const admin = [['/admin/invitations', 'POST'], ['/admin/status', 'GET'], ['/admin/refresh', 'POST'], ['/admin/probe', 'GET'], ['/admin/insights-probe', 'GET']];
+  for (const [p, m] of admin) {
+    assert.equal((await worker.fetch(new Request(origin + p, {method: m}), env)).status, 401, p + ' none');
+    assert.equal((await worker.fetch(adminReq(p, m, 'wrong'), env)).status, 401, p + ' wrong');
+    assert.equal((await worker.fetch(adminReq(p, m, INTERNAL_KEY), env)).status, 401, p + ' internal key');
+    assert.equal((await worker.fetch(new Request(origin + p, {method: m, headers: {Authorization: `Basic ${ADMIN_KEY}`}}), env)).status, 401, p + ' basic');
+  }
+  assert.equal(rows(env.DB, 'oauth_invites').length, 0, 'no invite created by unauthorized calls');
+  assert.equal((await worker.fetch(new Request(origin + '/internal/media', {headers: {Authorization: `Bearer ${ADMIN_KEY}`}}), env)).status, 401, 'admin key is not a read key');
+});
+
+// =================== start page / browser-policy regressions ===================
+test('start page lets browsers send a real Origin on the form POST (Referrer-Policy is not no-referrer)', async () => {
+  const env = mockEnv();
+  const inv = await createInvite(env);
+  const r = await worker.fetch(new Request(inv.url), env);
+  assert.equal(r.status, 200);
+  // With `no-referrer`, the Fetch spec serializes the POST's Origin as "null" and the origin check fails.
+  assert.equal(r.headers.get('Referrer-Policy'), 'same-origin');
+  assert.match(r.headers.get('Content-Security-Policy'), /form-action 'self'/);
+  assert.match(await r.text(), /action="\/instagram\/start" method="post"/);
+});
+
+test('POST /instagram/start is not a cross-origin redirect (CSP form-action would block it)', async () => {
+  const env = mockEnv();
+  const inv = await createInvite(env);
+  const r = await worker.fetch(postStart(inv.invite), env);
+  assert.equal(r.status, 200);
+  assert.equal(r.headers.get('Location'), null);
+  const page = await r.text();
+  const href = new URL(page.match(/href="([^"]+)"/)[1].replace(/&amp;/g, '&'));
+  assert.equal(href.origin, 'https://www.instagram.com');
+  assert.ok(href.searchParams.get('state'));
+  const cookie = r.headers.get('Set-Cookie');
+  assert.match(cookie, /^__Secure-ana_ig_oauth=[A-Za-z0-9_-]{43};/);
+  for (const attr of ['Path=/instagram/callback', 'HttpOnly', 'Secure', 'SameSite=Lax', 'Max-Age=600']) assert.ok(cookie.includes(attr), attr);
+});
+
+test('POST /instagram/start rejects missing, null and foreign Origin, oversized and malformed bodies', async () => {
+  const env = mockEnv();
+  const inv = await createInvite(env);
+  for (const headers of [{}, {Origin: 'null'}, {Origin: 'https://evil.example'}, {Origin: 'https://ana-instagram-oauth.example.workers.dev'}])
+    assert.equal((await worker.fetch(postStart(inv.invite, headers), env)).status, 403, JSON.stringify(headers));
+  const big = new Request(origin + '/instagram/start', {method: 'POST', headers: {Origin: origin}, body: 'invite=' + 'a'.repeat(3000)});
+  assert.equal((await worker.fetch(big, env)).status, 400);
+  assert.equal((await worker.fetch(postStart('short'), env)).status, 400);
+  assert.equal(rows(env.DB, 'oauth_invites')[0].attempt_count, 0, 'rejected requests do not spend attempts');
+});
+
+test('invalid, unknown and expired invitations are refused on GET and POST', async () => {
+  const env = mockEnv();
+  assert.equal((await worker.fetch(new Request(origin + '/instagram/start?invite=bad'), env)).status, 400);
+  assert.equal((await worker.fetch(new Request(origin + '/instagram/start?invite=' + 'A'.repeat(43)), env)).status, 410);
+  assert.equal((await worker.fetch(postStart('A'.repeat(43)), env)).status, 410);
+  const inv = await createInvite(env);
+  env.DB.sqlite.prepare('UPDATE oauth_invites SET expires_at=?').run(now() - 1);
+  assert.equal((await worker.fetch(new Request(inv.url), env)).status, 410);
+  assert.equal((await worker.fetch(postStart(inv.invite), env)).status, 410);
+});
+
+test('an invitation allows a bounded number of attempts', async () => {
+  const env = mockEnv();
+  const inv = await createInvite(env);
+  for (let i = 0; i < testing.MAX_ATTEMPTS_PER_INVITE; i++) assert.equal((await worker.fetch(postStart(inv.invite), env)).status, 200);
+  assert.equal((await worker.fetch(postStart(inv.invite), env)).status, 410);
+  assert.equal((await worker.fetch(new Request(inv.url), env)).status, 410);
+});
+
+// =================== callback ===================
+test('callback rejects missing state, missing cookie, missing code and oversized code', async () => {
+  const env = mockEnv();
+  const a = await prepareAttempt(env);
+  installMeta();
+  assert.equal((await worker.fetch(callbackReq('code='+uniqueCode(), a.cookie), env)).status, 400);
+  assert.equal((await worker.fetch(callbackReq(`state=${a.state}&code=${uniqueCode()}`), env)).status, 400);
+  assert.equal((await worker.fetch(callbackReq(`state=${a.state}`, a.cookie), env)).status, 400);
+  assert.equal((await worker.fetch(callbackReq(`state=${a.state}&code=${'c'.repeat(2001)}`, a.cookie), env)).status, 400);
+  assert.equal(rows(env.DB, 'oauth_attempts')[0].consumed_at, null, 'malformed callbacks do not burn the attempt');
+});
+
+test('callback state is bound to the browser cookie that started it', async () => {
+  const env = mockEnv();
+  const victim = await prepareAttempt(env);
+  const attacker = await prepareAttempt(env);
+  const calls = installMeta();
+  const r = await worker.fetch(callbackReq(`state=${victim.state}&code=${uniqueCode()}`, attacker.cookie), env);
+  assert.equal(r.status, 410);
+  assert.equal(calls.length, 0, 'no code exchange without matching cookie');
+  assert.ok(rows(env.DB, 'oauth_attempts').every(x => x.consumed_at === null));
+});
+
+test('expired attempt is refused before any Meta call', async () => {
+  const env = mockEnv();
+  const a = await prepareAttempt(env);
+  env.DB.sqlite.prepare('UPDATE oauth_attempts SET expires_at=?').run(now() - 1);
+  const calls = installMeta();
+  const r = await worker.fetch(callbackReq(`state=${a.state}&code=${uniqueCode()}`, a.cookie), env);
+  assert.equal(r.status, 410);
+  assert.match(await r.text(), /Freigabe abgelaufen/, 'rejected by the attempt match, not by the later consume guard');
+  assert.equal(calls.length, 0);
+});
+
+test('forged callback links (?code= with bad or missing state) never clear the real attempt\'s cookie', async () => {
+  const env = mockEnv();
+  const a = await prepareAttempt(env);
+  const calls = installMeta();
+  for (const qs of [`code=${uniqueCode()}`, `code=${uniqueCode()}&state=${'B'.repeat(43)}`]) {
+    const r = await worker.fetch(callbackReq(qs, a.cookie), env);
+    assert.ok([400, 410].includes(r.status), qs);
+    assert.equal(r.headers.get('Set-Cookie'), null, qs);
+  }
+  assert.equal(calls.length, 0);
+  assert.equal((await worker.fetch(callbackReq(`state=${a.state}&code=${uniqueCode()}`, a.cookie), env)).status, 200, 'real attempt still completes');
+});
+
+test('after one attempt succeeds, the invitation\'s other open attempts are dead', async () => {
+  const env = mockEnv();
+  const inv = await createInvite(env);
+  const first = await startAttempt(env, inv.invite);
+  const second = await startAttempt(env, inv.invite); // e.g. a second browser/device
+  installMeta();
+  assert.equal((await worker.fetch(callbackReq(`state=${first.state}&code=${uniqueCode()}`, first.cookie), env)).status, 200);
+  const sealedBefore = tokenRow(env).token_ciphertext;
+  const calls = installMeta();
+  const r = await worker.fetch(callbackReq(`state=${second.state}&code=${uniqueCode()}`, second.cookie), env);
+  assert.equal(r.status, 410);
+  assert.equal(calls.length, 0, 'no second code exchange');
+  assert.equal(tokenRow(env).token_ciphertext, sealedBefore, 'stored token not overwritten');
+  assert.ok(rows(env.DB, 'oauth_attempts').every(x => x.consumed_at !== null));
+});
+
+test('an open attempt of an already spent invitation is refused even if it was never marked consumed', async () => {
+  const env = mockEnv();
+  const a = await prepareAttempt(env);
+  env.DB.sqlite.prepare('UPDATE oauth_invites SET used_at=?').run(now()); // defense in depth: invite check alone
+  const calls = installMeta();
+  assert.equal((await worker.fetch(callbackReq(`state=${a.state}&code=${uniqueCode()}`, a.cookie), env)).status, 410);
+  assert.equal(calls.length, 0);
+});
+
+test('forged ?error= cannot cancel or clear another browser\'s attempt; a genuine denial consumes only that attempt', async () => {
+  const env = mockEnv();
+  const a = await prepareAttempt(env);
+  const forged = await worker.fetch(callbackReq(`error=access_denied&state=${a.state}`), env);
+  assert.equal(forged.status, 400);
+  assert.equal(forged.headers.get('Set-Cookie'), null, 'forged denial must not clear the cookie');
+  assert.equal(rows(env.DB, 'oauth_attempts')[0].consumed_at, null);
+  const real = await worker.fetch(callbackReq(`error=access_denied&error_reason=user_denied&state=${a.state}`, a.cookie), env);
+  assert.equal(real.status, 400);
+  assert.match(real.headers.get('Set-Cookie'), /Max-Age=0/);
+  assert.notEqual(rows(env.DB, 'oauth_attempts')[0].consumed_at, null);
+  assert.equal(rows(env.DB, 'oauth_invites')[0].used_at, null, 'denial does not spend the invitation');
+  assert.equal((await worker.fetch(postStart(a.invite), env)).status, 200, 'Ana can retry with the same link');
+});
+
+test('successful OAuth stores only ciphertext, keyed by the professional account ID, and spends the invite', async () => {
+  const env = mockEnv();
+  const a = await prepareAttempt(env);
+  const calls = installMeta();
+  const r = await worker.fetch(callbackReq(`state=${a.state}&code=test-code%23_`, a.cookie), env);
+  assert.equal(r.status, 200);
+  const page = await r.text();
+  assert.match(page, /erfolgreich verbunden/);
+  for (const s of [LONG_TOKEN, SHORT_TOKEN, 'test-code']) assert.ok(!page.includes(s), s);
+  assert.match(r.headers.get('Set-Cookie'), /Max-Age=0/);
+  const row = tokenRow(env);
+  assert.equal(row.account_id, IG_USER_ID, 'identity is /me user_id, not the app-scoped id');
+  assert.equal(row.username, 'anasavu');
+  assert.deepEqual(JSON.parse(row.granted_permissions), ['instagram_business_basic', 'instagram_business_manage_insights'], 'comma-separated permissions are parsed');
+  const dump = JSON.stringify(rows(env.DB, 'instagram_tokens')) + JSON.stringify(rows(env.DB, 'oauth_attempts')) + JSON.stringify(rows(env.DB, 'oauth_invites'));
+  for (const s of [LONG_TOKEN, SHORT_TOKEN, a.state, a.invite, 'test-code']) assert.ok(!dump.includes(s), 'D1 holds no plaintext ' + s);
+  assert.notEqual(rows(env.DB, 'oauth_invites')[0].used_at, null);
+  // exchange: code `#_` suffix stripped, secret only in POST body to api.instagram.com
+  const ex = calls.find(c => c.url.hostname === 'api.instagram.com');
+  assert.equal(new URLSearchParams(ex.opts.body).get('code'), 'test-code');
+  assert.equal(new URLSearchParams(ex.opts.body).get('redirect_uri'), origin + '/instagram/callback');
+  assert.equal(ex.opts.method, 'POST');
+  assert.equal(ex.url.search, '', 'nothing in the exchange URL');
+  const form = new URLSearchParams(ex.opts.body);
+  assert.equal(form.get('grant_type'), 'authorization_code');
+  assert.equal(form.get('client_id'), '1000000000000001');
+  assert.equal(form.get('client_secret'), APP_SECRET);
+  const lg = calls.find(c => c.url.pathname === '/access_token');
+  assert.equal(lg.url.searchParams.get('grant_type'), 'ig_exchange_token');
+  assert.equal(lg.url.searchParams.get('access_token'), SHORT_TOKEN);
+  assert.equal(lg.url.searchParams.get('client_secret'), APP_SECRET);
+  const me = calls.find(c => c.url.pathname === '/v26.0/me');
+  assert.deepEqual(me.url.searchParams.get('fields').split(','), ['user_id', 'username']);
+  assert.ok(calls.filter(c => c.url.searchParams.has('client_secret') || String(c.opts.body ?? '').includes(APP_SECRET)).every(c => c.url.pathname === '/access_token' || c.url.pathname === '/oauth/access_token'), 'App Secret only on the two exchange calls');
+  // graph calls use the documented access_token query parameter, no Authorization header
+  for (const c of calls.filter(c => c.url.pathname.startsWith('/v26.0/'))) {
+    assert.equal(c.url.searchParams.get('access_token'), LONG_TOKEN);
+    assert.equal(c.opts.headers, undefined);
+  }
+  assert.ok(calls.every(c => ['api.instagram.com', 'graph.instagram.com'].includes(c.url.hostname)), 'secrets only go to Instagram hosts');
+  // replay of the same callback and reuse of the spent invite
+  assert.equal((await worker.fetch(callbackReq(`state=${a.state}&code=test-code`, a.cookie), env)).status, 410);
+  assert.equal((await worker.fetch(postStart(a.invite), env)).status, 410);
+  assert.equal((await worker.fetch(new Request(a.url), env)).status, 410);
+});
+
+test('top-level (unwrapped) code-exchange response is accepted too', async () => {
+  const env = mockEnv();
+  const a = await prepareAttempt(env);
+  installMeta({exchange: () => Response.json({access_token: SHORT_TOKEN, user_id: APP_SCOPED_ID, permissions: ['instagram_business_basic']})});
+  assert.equal((await worker.fetch(callbackReq(`state=${a.state}&code=${uniqueCode()}`, a.cookie), env)).status, 200);
+  assert.deepEqual(JSON.parse(tokenRow(env).granted_permissions), ['instagram_business_basic']);
+});
+
+test('wrong account, wrong username, numeric or missing user_id: fail closed, nothing stored, invite retryable', async () => {
+  const cases = {
+    'other account': [() => Response.json({user_id: '17841400000000999', id: APP_SCOPED_ID, username: 'anasavu'}), 'wrong-account'],
+    'other username': [() => Response.json({user_id: IG_USER_ID, id: APP_SCOPED_ID, username: 'attacker'}), 'wrong-account'],
+    'app-scoped id only': [() => Response.json({id: IG_USER_ID, username: 'anasavu'}), 'bad-identity'],
+    // safe-integer value: would match after String(), so only the string-type check can reject it
+    'numeric user_id': [() => new Response('{"user_id":17841400000001,"username":"anasavu"}', {headers: {'Content-Type': 'application/json'}}), 'bad-identity', '17841400000001']
+  };
+  for (const [name, [me, reason, expectedId]] of Object.entries(cases)) {
+    const env = mockEnv(expectedId ? {EXPECTED_IG_USER_ID: expectedId} : {});
+    const before = logs.length;
+    const a = await prepareAttempt(env);
+    installMeta({me});
+    const r = await worker.fetch(callbackReq(`state=${a.state}&code=${uniqueCode()}`, a.cookie), env);
+    assert.equal(r.status, 422, name);
+    assert.ok(logs.slice(before).some(l => l.includes('"oauth-failed"') && l.includes(`"reason":"${reason}"`)), `${name}: rejected as ${reason}`);
+    const page = await r.text();
+    assert.ok(!page.includes(LONG_TOKEN), name);
+    assert.equal(rows(env.DB, 'instagram_tokens').length, 0, name);
+    assert.equal(rows(env.DB, 'oauth_invites')[0].used_at, null, name);
+  }
+});
+
+test('Meta failures during exchange fail closed without storing anything', async () => {
+  const cases = {
+    'code rejected': {exchange: metaError(100)},
+    'non-JSON': {exchange: () => new Response('<html>', {status: 502})},
+    'network/timeout': {exchange: () => { throw new DOMException('timeout', 'TimeoutError'); }},
+    'long-lived rejected': {long: metaError(190)},
+    'short lifetime': {long: () => Response.json({access_token: LONG_TOKEN, expires_in: 3600})},
+    'no access_token': {exchange: () => Response.json({data: [{user_id: APP_SCOPED_ID}]})}
+  };
+  for (const [name, o] of Object.entries(cases)) {
+    const env = mockEnv();
+    const a = await prepareAttempt(env);
+    installMeta(o);
+    const r = await worker.fetch(callbackReq(`state=${a.state}&code=${uniqueCode()}`, a.cookie), env);
+    assert.equal(r.status, 422, name);
+    assert.equal(rows(env.DB, 'instagram_tokens').length, 0, name);
+  }
+});
+
+// =================== admin status / probes / internal read ===================
+test('status reflects NOT_AUTHORIZED, CONNECTED and expiry', async () => {
+  const env = mockEnv();
+  assert.equal((await (await worker.fetch(adminReq('/admin/status'), env)).json()).status, 'NOT_AUTHORIZED');
+  await connect(env);
+  const s = await (await worker.fetch(adminReq('/admin/status'), env)).json();
+  assert.equal(s.status, 'CONNECTED');
+  assert.equal(s.connected, true);
+  assert.equal(s.username, 'anasavu');
+  assert.ok(!JSON.stringify(s).includes(LONG_TOKEN));
+  env.DB.sqlite.prepare('UPDATE instagram_tokens SET expires_at=?').run(now() - 1);
+  const e = await (await worker.fetch(adminReq('/admin/status'), env)).json();
+  assert.equal(e.status, 'REAUTH_REQUIRED');
+  assert.equal(e.connected, false);
+});
+
+test('media probe: caption accepted, caption rejected falls back, no token -> 409, Meta failure -> 502 without leaks', async () => {
+  const env = mockEnv();
+  assert.equal((await worker.fetch(adminReq('/admin/probe'), env)).status, 409);
+  await connect(env);
+  const ok = await (await worker.fetch(adminReq('/admin/probe'), env)).json();
+  assert.equal(ok.connected, true);
+  assert.equal(ok.caption_field, 'ACCEPTED');
+  assert.equal(ok.caption_value_observed, true);
+  assert.match(ok.insights, /^NOT_TESTED/);
+  installMeta({media: (u) => u.searchParams.get('fields').includes('caption') ? metaError(100)() : Response.json({data: [{id: 'm1'}]})});
+  const fb = await (await worker.fetch(adminReq('/admin/probe'), env)).json();
+  assert.equal(fb.caption_field, 'REJECTED_BY_META');
+  assert.equal(fb.caption_error, 'meta-100');
+  assert.equal(fb.sample_received, 1);
+  installMeta({me: metaError(190)});
+  const bad = await worker.fetch(adminReq('/admin/probe'), env);
+  assert.equal(bad.status, 502);
+  const body = await bad.text();
+  assert.match(body, /meta-190/);
+  assert.ok(!body.includes(LONG_TOKEN));
+});
+
+test('insights probe: PASS only with real metric data, FAILED otherwise; uses the professional account ID', async () => {
+  const env = mockEnv();
+  await connect(env);
+  const calls = installMeta();
+  const ok = await (await worker.fetch(adminReq('/admin/insights-probe'), env)).json();
+  assert.deepEqual(ok, {insights: 'PASS', metrics: [{name: 'reach', period: 'day', total_value: 42}]});
+  const c = calls.find(x => x.url.pathname.endsWith('/insights'));
+  assert.equal(c.url.pathname, `/v26.0/${IG_USER_ID}/insights`);
+  assert.equal(c.url.searchParams.get('metric'), 'reach');
+  assert.equal(c.url.searchParams.get('access_token'), LONG_TOKEN);
+  assert.equal(c.url.searchParams.get('period'), 'day');
+  installMeta({insights: metaError(10)});
+  const r = await worker.fetch(adminReq('/admin/insights-probe'), env);
+  assert.equal(r.status, 502);
+  assert.deepEqual(await r.json(), {insights: 'FAILED', reason: 'meta-10'});
+  installMeta({insights: () => Response.json({data: []})});
+  assert.equal((await (await worker.fetch(adminReq('/admin/insights-probe'), env)).json()).insights, 'FAILED');
+});
+
+test('internal media read: separate key, limit validation, reauth state', async () => {
+  const env = mockEnv();
+  const read = (q, key = INTERNAL_KEY) => worker.fetch(new Request(origin + '/internal/media' + q, {headers: {Authorization: `Bearer ${key}`}}), env);
+  assert.equal((await read('')).status, 409);
+  await connect(env);
+  for (const q of ['?limit=0', '?limit=26', '?limit=abc', '?limit=100', '?limit=-1']) assert.equal((await read(q)).status, 400, q);
+  const calls = installMeta();
+  const r = await read('?limit=2');
+  assert.equal(r.status, 200);
+  assert.equal(calls.find(c => c.url.pathname === '/v26.0/me/media').url.searchParams.get('limit'), '2');
+  const body = await r.json();
+  assert.equal(body.account_id, IG_USER_ID);
+  assert.equal(body.data.length, 1);
+  assert.ok(!JSON.stringify(body).includes(LONG_TOKEN));
+  assert.equal(r.headers.get('Access-Control-Allow-Origin'), null, 'no CORS for browser JS');
+});
+
+// =================== refresh ===================
+test('refresh: not due, too young, due -> rotates ciphertext and keeps token private', async () => {
+  const env = mockEnv();
+  await seedToken(env, {issuedAgo: 10 * DAY, expiresIn: 50 * DAY});
+  installMeta();
+  assert.equal((await testing.refresh(env)).status, 'NOT_DUE');
+  const young = mockEnv();
+  await seedToken(young, {issuedAgo: 3600, expiresIn: 10 * DAY});
+  assert.equal((await testing.refresh(young, true)).status, 'NOT_DUE', 'Meta refuses refresh < 24h');
+  const due = mockEnv();
+  await seedToken(due);
+  const calls = installMeta();
+  assert.equal((await testing.refresh(due)).status, 'REFRESHED');
+  assert.equal(await testing.openSealed(tokenRow(due), due), 'ROTATED_TOKEN');
+  assert.equal(tokenRow(due).last_refresh_error, null);
+  assert.equal(calls[0].url.searchParams.get('grant_type'), 'ig_refresh_token');
+  assert.equal(calls[0].url.searchParams.get('access_token'), 'OLD_TOKEN');
+  assert.ok(!calls[0].url.searchParams.has('client_secret'));
+  assert.equal((await testing.refresh(due)).status, 'NOT_DUE');
+});
+
+test('refresh: a short-lived or malformed refreshed token is rejected and the old token kept', async () => {
+  for (const [name, body] of [['short', {access_token: 'X_SHORT_REFRESHED', expires_in: 3600}], ['no expiry', {access_token: 'X_NO_EXPIRY'}], ['no token', {expires_in: 5184000}]]) {
+    const env = mockEnv();
+    await seedToken(env);
+    installMeta({refresh: () => Response.json(body)});
+    const res = await testing.refresh(env);
+    assert.equal(res.status, 'REFRESH_FAILED', name);
+    assert.equal(tokenRow(env).last_refresh_error, 'invalid-refresh', name);
+    assert.equal(await testing.openSealed(tokenRow(env), env), 'OLD_TOKEN', name);
+  }
+});
+
+test('refresh: a REAUTH_REQUIRED token is never sent to Meta again, even when forced', async () => {
+  const env = mockEnv();
+  await seedToken(env, {status: 'REAUTH_REQUIRED'});
+  const before = tokenRow(env);
+  const calls = installMeta();
+  assert.equal((await testing.refresh(env, true)).status, 'REAUTH_REQUIRED');
+  assert.equal(calls.length, 0);
+  assert.deepEqual(tokenRow(env), before);
+});
+
+test('refresh: a successful refresh never overwrites a token re-authorized concurrently', async () => {
+  const env = mockEnv();
+  await seedToken(env);
+  installMeta();
+  const reauth = await testing.seal('REAUTHORIZED_TOKEN', env, IG_USER_ID);
+  sensitive.add('REAUTHORIZED_TOKEN');
+  const real = env.DB.prepare;
+  env.DB.prepare = sql => {
+    if (sql.startsWith('UPDATE instagram_tokens SET token_iv')) // Ana re-authorizes between refresh's read and write
+      env.DB.sqlite.prepare('UPDATE instagram_tokens SET token_iv=?, token_ciphertext=?').run(reauth.iv, reauth.ciphertext);
+    return real.call(env.DB, sql);
+  };
+  assert.equal((await testing.refresh(env)).status, 'CONCURRENT_UPDATE');
+  assert.equal(await testing.openSealed(tokenRow(env), env), 'REAUTHORIZED_TOKEN');
+});
+
+test('refresh: transient failure is recorded and keeps the old token; revoked token (190) requires reauth', async () => {
+  const env = mockEnv();
+  await seedToken(env);
+  installMeta({refresh: () => new Response('bad gateway', {status: 502})});
+  assert.equal((await testing.refresh(env)).status, 'REFRESH_FAILED');
+  let row = tokenRow(env);
+  assert.equal(row.connection_status, 'CONNECTED');
+  assert.equal(row.last_refresh_error, 'meta-non-json');
+  assert.ok(row.last_refresh_attempt_at > 0);
+  assert.equal(await testing.openSealed(row, env), 'OLD_TOKEN');
+  const status = await (await worker.fetch(adminReq('/admin/status'), env)).json();
+  assert.equal(status.last_refresh_error, 'meta-non-json', 'operator can see failing refreshes');
+  installMeta({refresh: metaError(190)});
+  assert.equal((await testing.refresh(env)).status, 'REAUTH_REQUIRED');
+  row = tokenRow(env);
+  assert.equal(row.connection_status, 'REAUTH_REQUIRED');
+  assert.equal(row.last_refresh_error, 'meta-190');
+  assert.equal((await worker.fetch(adminReq('/admin/probe'), env)).status, 409, 'revoked token is not used');
+});
+
+test('refresh: expired token is marked REAUTH_REQUIRED, but a concurrent re-authorization is never clobbered', async () => {
+  const env = mockEnv();
+  await seedToken(env, {issuedAgo: 61 * DAY, expiresIn: -DAY});
+  assert.equal((await testing.refresh(env)).status, 'REAUTH_REQUIRED');
+  assert.equal(tokenRow(env).connection_status, 'REAUTH_REQUIRED');
+  // Simulate: refresh read the stale row, then Ana re-authorized before refresh wrote.
+  const raced = mockEnv();
+  await seedToken(raced, {issuedAgo: 61 * DAY, expiresIn: -DAY});
+  const realFirst = raced.DB.prepare;
+  let swapped = false;
+  raced.DB.prepare = sql => {
+    if (!swapped && sql.startsWith('UPDATE instagram_tokens SET connection_status')) {
+      swapped = true;
+      raced.DB.sqlite.prepare("UPDATE instagram_tokens SET token_ciphertext='NEW', expires_at=?, connection_status='CONNECTED'").run(now() + 60 * DAY);
+    }
+    return realFirst.call(raced.DB, sql);
+  };
+  await testing.refresh(raced);
+  assert.equal(tokenRow(raced).connection_status, 'CONNECTED');
+});
+
+// =================== robustness / hygiene ===================
+test('async handler failures are caught: generic 500, no details', async () => {
+  const env = mockEnv({DB: {prepare() { return {bind() { return {first: async () => { throw Error('D1_ERROR: synthetic SELECT failure'); }, run: async () => { throw Error('D1_ERROR'); }}; }}; }}});
+  const r = await worker.fetch(adminReq('/admin/status'), env);
+  assert.equal(r.status, 500);
+  assert.deepEqual(await r.json(), {error: 'internal-error'});
+  const r2 = await worker.fetch(new Request(origin + '/instagram/start?invite=' + 'A'.repeat(43)), env);
+  assert.equal(r2.status, 500);
+});
+
+test('scheduled cleanup is FK-safe and survives errors', async () => {
+  const env = mockEnv();
+  const waits = [];
+  const ctx = {waitUntil: p => waits.push(p)};
+  const t = now();
+  const cutoff = t - DAY;
+  env.DB.sqlite.prepare('INSERT INTO oauth_invites (invite_hash, expires_at) VALUES (?,?)').run('old', cutoff - 10);
+  env.DB.sqlite.prepare('INSERT INTO oauth_attempts (state_hash,cookie_hash,invite_hash,expires_at) VALUES (?,?,?,?)').run('s1', 'c', 'old', cutoff + 300);
+  env.DB.sqlite.prepare('INSERT INTO oauth_invites (invite_hash, expires_at) VALUES (?,?)').run('older', cutoff - 5000);
+  env.DB.sqlite.prepare('INSERT INTO oauth_attempts (state_hash,cookie_hash,invite_hash,expires_at) VALUES (?,?,?,?)').run('s2', 'c', 'older', cutoff - 4400);
+  await worker.scheduled({}, env, ctx);
+  await Promise.all(waits);
+  assert.deepEqual(rows(env.DB, 'oauth_invites').map(r => r.invite_hash), ['old'], 'invite with a live attempt is kept');
+  assert.deepEqual(rows(env.DB, 'oauth_attempts').map(r => r.state_hash), ['s1']);
+  assert.ok(!logs.some(l => l.includes('cron-cleanup-error')));
+  const broken = mockEnv({DB: {prepare() { throw Error('D1 down'); }}});
+  const w2 = [];
+  await worker.scheduled({}, broken, {waitUntil: p => w2.push(p)});
+  await Promise.all(w2);
+  assert.ok(logs.some(l => l.includes('cron-refresh-error')));
+});
+
+test('no secret, token, code, state or invite ever appears in logs (whole suite)', async () => {
+  const env = mockEnv();
+  const a = await connect(env);
+  await worker.fetch(adminReq('/admin/probe'), env);
+  await worker.fetch(adminReq('/admin/insights-probe'), env);
+  assert.ok(logs.length > 0, 'log capture is live');
+  const all = logs.join('\n');
+  for (const s of [APP_SECRET, ADMIN_KEY, INTERNAL_KEY, LONG_TOKEN, SHORT_TOKEN, 'ROTATED_TOKEN', 'OLD_TOKEN', 'test-code', a.state, a.invite, '/instagram/callback?'])
+    assert.ok(!all.includes(s), 'log leak: ' + s);
+});

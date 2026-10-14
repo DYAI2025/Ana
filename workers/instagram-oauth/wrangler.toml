@@ -1,0 +1,32 @@
+name = "ana-instagram-oauth"
+main = "src/index.mjs"
+compatibility_date = "2026-10-01"
+
+# Only reachable via the custom domain: no *.workers.dev hostname, no preview URLs.
+workers_dev = false
+preview_urls = false
+# Before `wrangler deploy`: verify login.dyai.cloud has NO DNS record and NO Workers custom domain.
+# Non-interactive wrangler overrides existing records instead of prompting.
+routes = [{ pattern = "login.dyai.cloud", custom_domain = true }]
+
+# Callback URLs carry one-time OAuth codes and invite tokens in the query string,
+# and outbound Meta calls carry tokens/secrets in query strings (Meta-documented).
+# Keep the worker's own structured logs, but never the request URLs or traces.
+[observability]
+enabled = true
+redact_query_string = true
+
+[observability.logs]
+invocation_logs = false
+
+[observability.traces]
+enabled = false
+
+[triggers]
+crons = ["0 5 * * *"]
+
+[[d1_databases]]
+binding = "DB"
+database_name = "ana_instagram_oauth"
+database_id = "REPLACE_WITH_CLOUDFLARE_D1_DATABASE_UUID"
+migrations_dir = "migrations"
