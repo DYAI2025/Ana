@@ -2,8 +2,8 @@
  * LIVE Instagram runtime proof for ANA-38 — runs only by hand against a dashboard whose server is configured with the
  * real worker (SOCIAL_IG_WORKER_URL / SOCIAL_IG_INTERNAL_READ_KEY). Read-only: it never writes to Instagram or the worker.
  * The result file records states, counts and availability distributions only — never captions, ids, links or metric
- * values. Screenshots are taken only after every caption and thumbnail is blanked (PO decision: captions never in
- * screenshots); they still show real metric values, so LIVE_EVIDENCE_DIR is required and must be outside the repository.
+ * values. Screenshots are taken only after every caption is replaced and every thumbnail source removed (PO decision:
+ * captions never in screenshots); they still show real metric values, so LIVE_EVIDENCE_DIR is required and must be outside the repository.
  * SOCIAL_IG_INTERNAL_READ_KEY must be exported to this process too: the spec checks the BFF body never contains it.
  *
  *   LIVE_BASE_URL=http://127.0.0.1:3300 LIVE_EVIDENCE_DIR=<dir outside the repo> SOCIAL_IG_INTERNAL_READ_KEY=… \
@@ -15,8 +15,6 @@ import { expect, test } from "@playwright/test";
 
 const REPO = path.resolve(__dirname, "../../..");
 const DIR = process.env.LIVE_EVIDENCE_DIR ? path.resolve(process.env.LIVE_EVIDENCE_DIR) : "";
-/** Blanks everything that shows Ana's own content before any screenshot. */
-const REDACT = "[data-caption], [data-testid=content-row] img, [data-testid=row-detail] [data-caption] { visibility: hidden !important; }";
 const VIEWPORTS = [
   { width: 1440, height: 900 },
   { width: 1280, height: 800 },
@@ -76,12 +74,27 @@ test("live: the cockpit renders real Instagram data through the server-side work
   const commercial = tally(await page.locator('[data-testid^="commercial-"][data-state]').evaluateAll((els) => els.map((e) => e.getAttribute("data-state"))));
 
   await page.getByTestId("tab-observations").click();
-  await page.addStyleTag({ content: REDACT });
-  const visibleCaptions = await page.locator("[data-caption]").evaluateAll((els) => els.filter((e) => getComputedStyle(e).visibility !== "hidden").length);
-  expect(visibleCaptions, "no caption is visible in any screenshot").toBe(0);
+  // Redaction does not rely on the CSS cascade (an injected stylesheet was observed not to win reliably): caption text
+  // is replaced and thumbnail sources are removed in the DOM, then checked, right before every screenshot.
+  const redact = () =>
+    page.evaluate(() => {
+      for (const el of document.querySelectorAll<HTMLElement>("[data-caption]")) el.textContent = "▇▇▇ redacted ▇▇▇";
+      for (const img of document.querySelectorAll<HTMLImageElement>("[data-testid=content-row] img")) {
+        img.removeAttribute("src");
+        img.removeAttribute("srcset");
+      }
+    });
+  const unredacted = () =>
+    page.evaluate(
+      () =>
+        [...document.querySelectorAll("[data-caption]")].filter((e) => e.textContent !== "▇▇▇ redacted ▇▇▇").length +
+        [...document.querySelectorAll<HTMLImageElement>("[data-testid=content-row] img")].filter((i) => i.getAttribute("src")).length,
+    );
   for (const viewport of VIEWPORTS) {
     await page.setViewportSize(viewport);
     await page.waitForTimeout(300);
+    await redact();
+    expect(await unredacted(), "no caption or thumbnail survives into the screenshot").toBe(0);
     await page.screenshot({ path: path.join(DIR, `${viewport.width}x${viewport.height}-live-instagram.png`), fullPage: viewport.width === 1440 });
   }
 
