@@ -154,7 +154,8 @@ function metaOAuthURL(env, state) {
   u.searchParams.set('scope', SCOPES.join(','));
   u.searchParams.set('response_type', 'code');
   u.searchParams.set('state', state);
-  u.searchParams.set('force_reauth', 'true');
+  // No force_reauth: forcing a fresh login made Instagram run its SMS/backup-code security check on every
+  // attempt. A reused instagram.com session is safe because the callback pins user_id + username.
   return u.href;
 }
 async function exchangeCode(code, env) {
@@ -279,14 +280,19 @@ async function callback(req,env,url) {
     if(!isExpectedAccount(account,env)) throw Error('wrong-account');
     const token=await seal(exchanged.token,env,account.user_id);
     const t=nowSeconds();
-    // Token row and invitation consumption commit together: the invite is spent only on success.
-    await env.DB.batch([
-      env.DB.prepare(`INSERT INTO instagram_tokens (account_id,username,token_iv,token_ciphertext,granted_permissions,issued_at,expires_at,updated_at,connection_status)
-       VALUES (?,?,?,?,?,?,?,?,?) ON CONFLICT(account_id) DO UPDATE SET username=excluded.username,token_iv=excluded.token_iv,token_ciphertext=excluded.token_ciphertext,granted_permissions=excluded.granted_permissions,issued_at=excluded.issued_at,expires_at=excluded.expires_at,updated_at=excluded.updated_at,connection_status='CONNECTED',last_refresh_error=NULL`)
-        .bind(account.user_id,account.username,token.iv,token.ciphertext,JSON.stringify(exchanged.permissions),t,t+exchanged.expiresIn,t,'CONNECTED'),
+    // One transaction: the callback that claims the invitation is the only one that stores a token.
+    // changes() reads the claim statement directly before it, so a concurrent callback that lost the claim writes nothing.
+    const [claim]=await env.DB.batch([
       env.DB.prepare('UPDATE oauth_invites SET used_at=? WHERE invite_hash=? AND used_at IS NULL').bind(t,attempt.invite_hash),
+      env.DB.prepare(`INSERT INTO instagram_tokens (account_id,username,token_iv,token_ciphertext,granted_permissions,issued_at,expires_at,updated_at,connection_status)
+       SELECT ?,?,?,?,?,?,?,?,? WHERE changes()=1 ON CONFLICT(account_id) DO UPDATE SET username=excluded.username,token_iv=excluded.token_iv,token_ciphertext=excluded.token_ciphertext,granted_permissions=excluded.granted_permissions,issued_at=excluded.issued_at,expires_at=excluded.expires_at,updated_at=excluded.updated_at,connection_status='CONNECTED',last_refresh_error=NULL`)
+        .bind(account.user_id,account.username,token.iv,token.ciphertext,JSON.stringify(exchanged.permissions),t,t+exchanged.expiresIn,t,'CONNECTED'),
       env.DB.prepare('UPDATE oauth_attempts SET consumed_at=? WHERE invite_hash=? AND consumed_at IS NULL').bind(t,attempt.invite_hash)
     ]);
+    if (claim?.meta?.changes !== 1) {
+      logEvent('oauth-claim-lost');
+      return html('<h1>Bereits verwendet</h1>',410,{'Set-Cookie':clearSessionCookie()});
+    }
     logEvent('oauth-connected', {expires_at:t+exchanged.expiresIn, permissions:exchanged.permissions});
     return html('<h1>Instagram erfolgreich verbunden</h1><p>Du kannst dieses Fenster schließen. Es wurden keine Zugangsdaten an den Browser übergeben.</p>',200,{'Set-Cookie':clearSessionCookie()});
   } catch (e) {

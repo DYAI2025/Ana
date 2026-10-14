@@ -75,6 +75,8 @@ curl --fail-with-body -sS -X POST 'https://login.dyai.cloud/admin/invitations' \
 
 You get back a link valid for **30 minutes** that allows up to **3 attempts**. It is spent only when a token for the expected account has been stored. Send only the `url` to Ana. She should open it **in a browser (not inside the Instagram app)**, sign in as `@anasavu`, review the two permissions and accept. Each press of "Weiter" starts one attempt (so a double click uses two). A denial, the wrong account or an aborted attempt can be retried by reopening the same link. An attempt started within the 30 minutes may finish up to 10 minutes later. Once a token is stored, all other open attempts of that invitation are void. A different account can never be saved.
 
+**Recommended order (avoids Instagram's security check inside the 10-minute attempt):** the authorize URL does not force a fresh login, so Ana should first sign in at `instagram.com` as `@anasavu` in the same browser and complete any Instagram security check there (SMS, backup code from the Instagram app under Accounts Center → Password and security → Two-factor authentication, authenticator app), with no time pressure. Only then open the invitation. If that browser is signed in to a different Instagram account, the callback rejects it and nothing is stored; she should log out of that account first.
+
 ## Verification (Ben only)
 
 ```sh
