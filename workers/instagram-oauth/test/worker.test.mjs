@@ -327,6 +327,32 @@ test('after one attempt succeeds, the invitation\'s other open attempts are dead
   assert.ok(rows(env.DB, 'oauth_attempts').every(x => x.consumed_at !== null));
 });
 
+test('concurrent callbacks of one invitation: only the callback that claims the invitation succeeds or stores a token', async () => {
+  const env = mockEnv();
+  const inv = await createInvite(env);
+  const first = await startAttempt(env, inv.invite);
+  const second = await startAttempt(env, inv.invite);
+  // Both callbacks pass matchAttempt/consumeAttempt before either commits: hold every code exchange until both arrived.
+  let release;
+  const bothArrived = new Promise(r => { release = r; });
+  let arrived = 0;
+  let longTokens = 0;
+  installMeta({
+    exchange: async () => { if (++arrived === 2) release(); await bothArrived; return Response.json({data: [{access_token: SHORT_TOKEN, user_id: APP_SCOPED_ID, permissions: 'instagram_business_basic,instagram_business_manage_insights'}]}); },
+    long: () => Response.json({access_token: track(`RACE_TOKEN_${++longTokens}_${'z'.repeat(8)}`), token_type: 'bearer', expires_in: 5183944})
+  });
+  const results = await Promise.all([first, second].map(a => worker.fetch(callbackReq(`state=${a.state}&code=${uniqueCode()}`, a.cookie), env)));
+  const statuses = results.map(r => r.status).sort();
+  assert.deepEqual(statuses, [200, 410], 'exactly one callback reports success');
+  const loser = results.find(r => r.status === 410);
+  assert.match(await loser.text(), /Bereits verwendet/);
+  assert.equal(rows(env.DB, 'instagram_tokens').length, 1);
+  const stored = await testing.openSealed(tokenRow(env), env);
+  const winnerIndex = results.findIndex(r => r.status === 200);
+  assert.equal(stored, `RACE_TOKEN_${winnerIndex + 1}_${'z'.repeat(8)}`, 'stored token is the winner\'s, not overwritten by the loser');
+  assert.equal(rows(env.DB, 'oauth_invites').filter(i => i.used_at !== null).length, 1);
+});
+
 test('an open attempt of an already spent invitation is refused even if it was never marked consumed', async () => {
   const env = mockEnv();
   const a = await prepareAttempt(env);
