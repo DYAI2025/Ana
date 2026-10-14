@@ -1,0 +1,35 @@
+{
+  "drs_version": "1.0",
+  "jira": "ANA-38",
+  "state": "IN_PROGRESS",
+  "delivery_profile": "STANDARD_CODE",
+  "ic": {
+    "definition": "All acceptance criteria AC1-AC13 of Jira ANA-38 are implemented and each AC has at least one automated test named in docs/evidence/ANA-38/CHECKLIST.md. AC1 Pulse links to /pulse/social/instagram; no new top-level rail item. AC2 the page uses the existing LUMEN shell and the Confluence 89325569 row layout 5/7, 12, 7/5, 12, 7/5. AC3 a local authorized test fetches real Instagram content through the server-side worker adapter. AC4 the first view renders real thumbnails, captions (localhost only, never stored, logged, committed or screenshotted), permalinks and every metric the live API verifiably supports. AC5 coverage is explicit: retrieved posts, total where known, truncation/pagination state, last verification time. AC6 relative performance never mixes post types, reporting periods or content ages without disclosure; comparison population and n are shown. AC7 at least one content-to-hypothesis (H1/H4) inspection works end to end with supporting posts, counterexamples and limitations. AC8 history and unsupported metrics never show synthetic values; missing data renders UNAVAILABLE, UNSUPPORTED, INSUFFICIENT_EVIDENCE or NOT_CONNECTED, never 0. AC9 client bundles contain no worker key, Meta credential or token. AC10 unit, API-contract, error-state, access-control and UI interaction tests pass with exact expected values; worker tests run in CI. AC11 axe and contrast checks at 1440x900, 1280x800, 1024x768 and a mobile viewport; keyboard focus, reduced motion, EN/DE/IT. AC12 the Topbar shows a live-source label on this route, not Prototype. AC13 demonstrable locally with real data; the route answers on loopback only; committed screenshots, fixtures and logs are synthetic only.",
+    "state": "NOT_EVALUATED",
+    "claimed": null,
+    "evidence": []
+  },
+  "r2g": {
+    "definition": "On the exact candidate SHA: (1) GitHub Actions workflow 'dashboard' green: npm ci, lint, typecheck, unit tests, production build, client bundle secret scan, Playwright e2e against the fake Jira and fake Social worker boundaries (evidence_class integration-fake). (2) GitHub Actions workflow 'worker-instagram' green: node:test suite over the real migration SQL incl. pagination cap, insights isolation, caption exclusion where required and no token in output. (3) GitHub Actions workflow 'drs' green. (4) Client bundle scan of apps/dashboard/.next/static finds 0 occurrences of the Social worker key value, the SOCIAL_IG_* variable names, a Bearer authorization header and the worker internal path. (5) Live real-boundary proof on the candidate SHA (evidence_class real-boundary-smoke) with the deployed worker version recorded: the local BFF fetches real media and insights through the worker; output recorded as keys, types, counts and availability states only; recorded in a Jira ANA-38 comment. (6) Screenshots from synthetic fixtures at 1440x900, 1280x800, 1024x768 and 390x844. (7) The diff contains no secret and no G2/G3 data (no real caption, media id, permalink, thumbnail or metric value). Stale evidence (a run on another SHA) is not evidence.",
+    "state": "NOT_EVALUATED",
+    "claimed": null,
+    "candidate_sha": null,
+    "evidence": [],
+    "allowed_paths": [
+      "apps/dashboard/e2e/**",
+      "apps/dashboard/src/**/*.test.ts",
+      "apps/dashboard/src/**/*.test.tsx",
+      "workers/instagram-oauth/test/**",
+      "docs/**",
+      ".drs/**"
+    ]
+  },
+  "r4m": {
+    "definition": "The unchanged R2G candidate has: one independent DRS reviewer session (ROLE: DRS REVIEWER for ANA-38, not the implementing session) or the PO that verified the evidence on the exact candidate SHA; 0 open BLOCKS_CURRENT_GATE findings; PR mergeable with base at most 1 commit behind main; PR CI green on the exact SHA; the deployed worker version equals a build of the candidate's workers/instagram-oauth or the difference is recorded; and a PRE_MERGE reconcile of Jira, Confluence and GitHub without critical drift.",
+    "state": "NOT_EVALUATED",
+    "claimed": null,
+    "evidence": []
+  },
+  "synced_at": "2026-10-14T16:09:53Z",
+  "source": "offline: ANA Jira has no DRS custom fields; gate definitions are mirrored in a Jira ANA-38 comment and acceptance states are recorded in Jira and the pull request, not in this file"
+}
