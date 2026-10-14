@@ -17,7 +17,7 @@ Jira ANA-38 (ANA-SOCIAL-01A), DRS contract `.drs/ANA-38.json`. Every committed s
 | AC10 | Unit, API contract, error states, access control, UI interaction | `social.test.ts` (config, client, normalizer, service caching/STALE/permission, route loopback + not-configured + e2e control gate); `social.spec.ts` failure states (7 faults + EMPTY + STALE + permission-after-good-read); worker CI `worker-instagram` |
 | AC11 | axe + pixel contrast at 1440/1280/1024; mobile 390 layout; keyboard (inspector, tabs); reduced motion; EN/DE/IT | `quality.spec.ts` axe `/pulse/social/instagram`; `contrast.spec.ts` 5 instagram states × 3 viewports; `social.spec.ts` mobile, inspector keyboard, tabs, German; `src/i18n/i18n.test.ts` key/placeholder parity |
 | AC12 | Topbar says "Instagram live · read-only", not Prototype | `social.spec.ts` "AC2/AC12" |
-| AC13 | Loopback only; synthetic committed artefacts | `social.test.ts` "refuses a foreign Host before any worker call"; `src/server/boundary.test.ts` (shared `refuseNonLocal`); screenshots below |
+| AC13 | Loopback only on the localhost prototype; synthetic committed artefacts. Since LIVE-01 the deployed instance (ana.dyai.cloud) admits only a verified Cloudflare Access identity from the invite list | `social.test.ts` "refuses a foreign Host before any worker call"; `src/server/boundary.test.ts` (shared `refuseUnauthorized`); `src/server/access.test.ts` (Access JWT, invite list, fail-closed configuration); `dashboard-image` workflow (gate inside the container); screenshots below |
 
 ## Screenshots (synthetic fake worker)
 

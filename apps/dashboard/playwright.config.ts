@@ -42,7 +42,7 @@ export default defineConfig({
           timeout: 20_000,
         },
         {
-          command: `npm run build && npx next start --hostname 127.0.0.1 --port ${PORT}`,
+          command: `npm run build && ANA_ACCESS_MODE=loopback npx next start --hostname 127.0.0.1 --port ${PORT}`,
           url: `http://127.0.0.1:${PORT}`,
           env: {
             JIRA_BASE_URL: `http://127.0.0.1:${FAKE_JIRA_PORT}`,

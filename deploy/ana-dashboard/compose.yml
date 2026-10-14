@@ -14,6 +14,8 @@ services:
     image: ana-dashboard:${ANA_RELEASE:?set ANA_RELEASE in .env}
     restart: unless-stopped
     env_file: dashboard.env
+    environment:
+      ANA_ACCESS_MODE: cloudflare # pinned here so no env file can switch the deployment to Host-header trust
     read_only: true
     tmpfs:
       - /tmp

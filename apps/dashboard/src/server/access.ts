@@ -4,8 +4,10 @@ import { createRemoteJWKSet, jwtVerify, type JWTVerifyGetKey } from "jose";
 /**
  * Who may reach the dashboard (LIVE-01).
  *
- * - `ANA_ACCESS_MODE` unset: loopback mode. Only requests addressed to this machine are answered (loopback host names
- *   plus DASHBOARD_ALLOWED_HOSTS). This is the localhost prototype behaviour; DNS rebinding sends a foreign Host.
+ * - `ANA_ACCESS_MODE=loopback` (or unset outside production): loopback mode. Only requests addressed to this machine
+ *   are answered (loopback host names plus DASHBOARD_ALLOWED_HOSTS). This is the localhost prototype behaviour; DNS
+ *   rebinding sends a foreign Host. It trusts the Host header, so it is only safe on a server bound to 127.0.0.1.
+ * - unset on a production server (NODE_ENV=production): every request is refused, so a lost env line fails closed.
  * - `ANA_ACCESS_MODE=cloudflare`: the deployment sits behind Cloudflare Access. Every request must carry a
  *   `Cf-Access-Jwt-Assertion` whose RS256 signature verifies against the team's published keys, whose issuer is the
  *   team domain and whose audience is the Access application's AUD tag, and whose email is one of ANA_ALLOWED_EMAILS.
@@ -38,8 +40,10 @@ type ModeConfig = { mode: "loopback" } | { mode: "cloudflare"; config: Cloudflar
 
 export function readAccessConfig(env: Env = process.env): ModeConfig {
   const mode = (env.ANA_ACCESS_MODE ?? "").trim();
-  if (mode === "") return { mode: "loopback" };
-  if (mode !== "cloudflare") return { mode: "misconfigured", reason: "ANA_ACCESS_MODE must be unset or 'cloudflare'" };
+  if (mode === "loopback") return { mode: "loopback" };
+  // a production server never falls back to trusting the Host header silently: a lost env line must fail closed
+  if (mode === "") return env.NODE_ENV === "production" ? { mode: "misconfigured", reason: "ANA_ACCESS_MODE must be set on a production server" } : { mode: "loopback" };
+  if (mode !== "cloudflare") return { mode: "misconfigured", reason: "ANA_ACCESS_MODE must be 'loopback' or 'cloudflare'" };
   let issuer: string;
   try {
     const team = new URL((env.CF_ACCESS_TEAM_DOMAIN ?? "").trim());

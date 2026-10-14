@@ -78,8 +78,18 @@ describe("configuration fails closed", () => {
     expect(await checkAccess(headers({ host: "localhost", "cf-access-jwt-assertion": token }), env(extra))).toMatchObject({ ok: false, status: 503 });
   });
 
-  it("an unset mode is loopback mode", () => {
+  it("an unset mode is loopback mode outside production", () => {
     expect(readAccessConfig({})).toEqual({ mode: "loopback" });
+    expect(readAccessConfig({ NODE_ENV: "development" })).toEqual({ mode: "loopback" });
+  });
+
+  it("a production server with an unset mode refuses everything, even a loopback Host (no silent Host trust)", async () => {
+    expect(readAccessConfig({ NODE_ENV: "production" })).toMatchObject({ mode: "misconfigured" });
+    expect(await checkAccess(headers({ host: "localhost" }), { NODE_ENV: "production" })).toMatchObject({ ok: false, status: 503 });
+  });
+
+  it("a production server runs loopback mode only when it is asked for explicitly", () => {
+    expect(readAccessConfig({ NODE_ENV: "production", ANA_ACCESS_MODE: "loopback" })).toEqual({ mode: "loopback" });
   });
 });
 
