@@ -73,28 +73,54 @@ export type CandidateHypothesis = "H1" | "H4";
 export const CANDIDATES: readonly CandidateHypothesis[] = ["H1", "H4"];
 
 /**
- * H1 (Opportunity Drop) needs a specific creator/UGC/remote-work opportunity or job: an opportunity term AND a domain
- * term in the same caption. Travel, nomad, creator or UGC alone is not an opportunity; "apply" alone is not a job.
+ * H1 (Opportunity Drop) needs a specific creator/UGC/remote-work opportunity or job: an opportunity term next to a domain
+ * term (adjacent, or one word apart: "UGC jobs", "brands hiring", "jobs for creators"). Terms that merely co-occur
+ * ("remote island trip, what an opportunity", "quit my job to become a creator") do not qualify; neither do travel,
+ * nomad, creator or UGC alone, or "apply" alone. A few compact hashtags count on their own.
  */
-export const H1_OPPORTUNITY_TERMS = ["job", "jobs", "gig", "gigs", "opportunity", "opportunities", "hiring", "casting call", "open call", "job board", "job listing", "job listings", "position", "positions", "vacancy", "vacancies"] as const;
-export const H1_DOMAIN_TERMS = ["ugc", "creator", "creators", "influencer", "influencers", "remote", "remote work", "brand", "brands"] as const;
+export const H1_OPPORTUNITY_TERMS = ["job", "jobs", "gig", "gigs", "opportunity", "opportunities", "hiring", "casting call", "open call", "job board", "job listing", "job listings", "vacancy", "vacancies", "stellenangebot", "stellenangebote", "offerte di lavoro", "opportunità di lavoro"] as const;
+export const H1_DOMAIN_TERMS = ["ugc", "creator", "creators", "influencer", "influencers", "remote", "remoto", "brand", "brands"] as const;
+export const H1_HASHTAG_TERMS = ["ugcjob", "ugcjobs", "ugcopportunities", "creatorjobs", "creatoropportunity", "creatoropportunities", "remotejob", "remotejobs"] as const;
+/** At most this many words between the opportunity term and the domain term. */
+const H1_MAX_GAP = 1;
 /**
  * H4 (Working File) needs a specific reusable artifact: a template, checklist, worksheet, workflow or similar file.
- * Money, career, "tips", "guide", "how to" or "step by step" alone are not a reusable file.
+ * Money, career, "tips", "guide", "how to" or "step by step" alone are not a reusable file. Ambiguous words (Italian
+ * "modello" = model) are left out.
  */
-export const H4_ARTIFACT_TERMS = ["template", "templates", "checklist", "checklists", "worksheet", "worksheets", "spreadsheet", "spreadsheets", "toolkit", "swipe file", "media kit", "rate card", "workflow", "workflows", "sop", "printable", "vorlage", "vorlagen", "checkliste", "modello", "modelli"] as const;
+export const H4_ARTIFACT_TERMS = ["template", "templates", "checklist", "checklists", "worksheet", "worksheets", "spreadsheet", "spreadsheets", "toolkit", "swipe file", "media kit", "rate card", "workflow", "workflows", "sop", "printable", "vorlage", "vorlagen", "checkliste", "checklisten"] as const;
 
-const H1_OPP_RE = compile(H1_OPPORTUNITY_TERMS);
-const H1_DOM_RE = compile(H1_DOMAIN_TERMS);
-const H4_ART_RE = compile(H4_ARTIFACT_TERMS);
+/** Lower-case word tokens; punctuation, hyphens and "#" separate words ("ugc-job" = "ugc job", "#ugcjobs" = "ugcjobs"). */
+const tokenize = (caption: string) => caption.toLowerCase().split(/[^\p{L}\p{N}]+/u).filter(Boolean);
+
+/** Token ranges [start, end] where a (possibly multi-word) term occurs. */
+function occurrences(tokens: readonly string[], term: string): Array<[number, number]> {
+  const words = term.split(" ");
+  const found: Array<[number, number]> = [];
+  for (let i = 0; i + words.length <= tokens.length; i += 1) if (words.every((w, k) => tokens[i + k] === w)) found.push([i, i + words.length - 1]);
+  return found;
+}
+
+const present = (tokens: readonly string[], terms: readonly string[]) => terms.filter((t) => occurrences(tokens, t).length > 0);
 
 /** Caption keywords that make a post topically eligible, or [] (generic words only, never caption excerpts). */
 export function deriveTopicalFit(caption: string | null, hypothesis: CandidateHypothesis): readonly string[] {
   if (!caption) return [];
-  if (hypothesis === "H4") return hits(H4_ART_RE, caption);
-  const opportunity = hits(H1_OPP_RE, caption);
-  const domain = hits(H1_DOM_RE, caption);
-  return opportunity.length && domain.length ? [...opportunity, ...domain] : [];
+  const tokens = tokenize(caption);
+  if (hypothesis === "H4") return present(tokens, H4_ARTIFACT_TERMS);
+  const opportunity = new Set<string>();
+  const domain = new Set<string>();
+  for (const o of H1_OPPORTUNITY_TERMS)
+    for (const [os, oe] of occurrences(tokens, o))
+      for (const d of H1_DOMAIN_TERMS)
+        for (const [ds, de] of occurrences(tokens, d)) {
+          const gap = os > de ? os - de - 1 : ds - oe - 1;
+          if (gap >= 0 && gap <= H1_MAX_GAP) {
+            opportunity.add(o);
+            domain.add(d);
+          }
+        }
+  return [...present(tokens, H1_HASHTAG_TERMS), ...H1_OPPORTUNITY_TERMS.filter((t) => opportunity.has(t)), ...H1_DOMAIN_TERMS.filter((t) => domain.has(t))];
 }
 
 /** Hypothesis-specific analyst corrections for this browser session only: true = include, false = exclude. */

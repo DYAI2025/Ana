@@ -125,7 +125,10 @@ export interface HypothesisEvidence {
   commercialOutcome: { state: "NOT_CONNECTED"; signals: typeof COMMERCIAL_SIGNALS };
   /** informational next observations; none of them is executed, stored or sent from here */
   nextActions: NextActionId[];
-  /** the smallest permitted next step, or ABSTAIN when there is nothing specific to investigate */
+  /**
+   * the smallest permitted next step; ABSTAIN when no post has specific subject matter: there is nothing to read for
+   * this hypothesis yet, and reviewing captions stays available as an option rather than a recommendation
+   */
   suggested: Decision;
 }
 

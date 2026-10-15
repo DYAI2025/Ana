@@ -103,6 +103,24 @@ describe("AC2 · topical fit is specific; generic keywords never qualify a hypot
     expect(fitOf("Apply sunscreen before the beach", "H1")).toEqual([]);
   });
 
+  it("negative (review round 1): opportunity and domain words that only co-occur are not an H1 opportunity", () => {
+    for (const caption of ["Remote island trip, what an opportunity!", "Brands I love: a once in a lifetime opportunity to see Bali", "My position on brand collabs", "Quit my job to become a creator"]) {
+      expect(fitOf(caption, "H1"), caption).toEqual([]);
+    }
+  });
+
+  it("negative (review round 1): Italian 'modello' (model) is not a reusable file", () => {
+    expect(fitOf("Il modello di business dei creator", "H4")).toEqual([]);
+    expect(fitOf("Shot on my iPhone, modello Pro", "H4")).toEqual([]);
+  });
+
+  it("positive: compact hashtags and German/Italian job wording", () => {
+    expect(fitOf("New this week #ugcjobs #remotework", "H1")).toEqual(["ugcjobs"]);
+    expect(fitOf("Stellenangebote für Creator", "H1")).toEqual(["stellenangebote", "creator"]);
+    expect(fitOf("Opportunità di lavoro per creator UGC", "H1")).toEqual(["opportunità di lavoro", "creator"]);
+    expect(fitOf("Meine Checklisten für Kooperationen", "H4")).toEqual(["checklisten"]);
+  });
+
   it("negative: generic tips without a reusable artifact are not H4", () => {
     expect(fitOf("10 tips: how to grow, a step by step guide and my best resources", "H4")).toEqual([]);
   });

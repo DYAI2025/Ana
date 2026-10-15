@@ -266,6 +266,8 @@ function HypothesisCard({ e, open, onToggle, decision, onDecide, onSelect }: { e
   const tf = e.topicalFit;
   const res = e.contentResonance;
   const options: Decision[] = ["ABSTAIN", ...e.nextActions];
+  // a step chosen before the evidence changed (e.g. a session correction) no longer offered → nothing chosen
+  const chosen = decision !== undefined && options.includes(decision) ? decision : undefined;
   return (
     <article className={styles.hypothesis} data-testid={`hypothesis-${id}`} data-topical={tf.state} data-resonance={res.state}>
       <div className={styles.panelHead}>
@@ -312,26 +314,26 @@ function HypothesisCard({ e, open, onToggle, decision, onDecide, onSelect }: { e
           <span className={styles.note}>{t("social.offers.commercialNote")}</span>
         </li>
       </ul>
-      <fieldset className={styles.decision} data-testid={`decision-${id}`} data-suggested={e.suggested} data-chosen={decision ?? ""}>
+      <fieldset className={styles.decision} data-testid={`decision-${id}`} data-suggested={e.suggested} data-chosen={chosen ?? ""}>
         <legend>{t("social.offers.decisionLegend")}</legend>
         <p className={styles.note} data-testid={`suggested-${id}`}>
           {t("social.offers.suggested", { action: t(`social.offers.actions.${e.suggested}`) })}
         </p>
         {options.map((o) => (
           <label key={o} className={styles.checkbox}>
-            <input type="radio" name={`${base}-decision`} value={o} checked={decision === o} onChange={() => onDecide(o)} data-testid={`decide-${id}-${o}`} />
+            <input type="radio" name={`${base}-decision`} value={o} checked={chosen === o} onChange={() => onDecide(o)} data-testid={`decide-${id}-${o}`} />
             {t(`social.offers.actions.${o}`)}
           </label>
         ))}
         <p className={styles.note} role="status" data-testid={`decision-note-${id}`}>
-          {decision ? t("social.offers.decisionChosen", { action: t(`social.offers.actions.${decision}`) }) : t("social.offers.decisionNone")}
+          {chosen ? t("social.offers.decisionChosen", { action: t(`social.offers.actions.${chosen}`) }) : t("social.offers.decisionNone")}
         </p>
       </fieldset>
-      <button type="button" className={styles.linkButton} aria-expanded={open} aria-controls={`inspect-${id}`} onClick={onToggle} data-testid={`inspect-hypothesis-${id}`}>
+      <button type="button" className={styles.linkButton} aria-expanded={open} aria-controls={`${base}-inspect`} onClick={onToggle} data-testid={`inspect-hypothesis-${id}`}>
         {open ? t("social.offers.closeInspect") : t("social.offers.inspect", { id })}
       </button>
       {open ? (
-        <div id={`inspect-${id}`} className={styles.inspection} data-testid={`inspection-${id}`}>
+        <div id={`${base}-inspect`} className={styles.inspection} data-testid={`inspection-${id}`}>
           <p className={styles.detailTitle}>{t("social.offers.eligibleTitle", { n: tf.eligible.length })}</p>
           <ul className={styles.limits} data-testid={`eligible-${id}`}>
             {tf.eligible.length ? tf.eligible.slice(0, 12).map((x) => <FitRow key={x.p.post.media_id} x={x} onSelect={onSelect} />) : <li className={styles.muted}>{t("social.offers.topicalNone")}</li>}

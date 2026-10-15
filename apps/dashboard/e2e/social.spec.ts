@@ -234,6 +234,21 @@ test.describe("Instagram cockpit — real-data shape, honest states", () => {
     await expect(page.getByTestId("decision-H1")).toHaveAttribute("data-chosen", "comparable-observations");
   });
 
+  test("ANA-39 AC5 · a chosen step that the evidence no longer offers is not shown as chosen", async ({ page }) => {
+    await openCockpit(page);
+    await page.getByTestId("tab-offers").click();
+    await page.getByTestId("decide-H1-comparable-observations").check();
+    await expect(page.getByTestId("decision-H1")).toHaveAttribute("data-chosen", "comparable-observations");
+    // a third comparable Reel (session correction) gives H1 enough resonance observations: the step is no longer offered
+    const r = row(page, "syn005");
+    await r.getByTestId("row-toggle").click();
+    await r.getByTestId("fit-select-H1").selectOption("include");
+    await expect(page.getByTestId("lane-H1-CONTENT_RESONANCE")).toHaveAttribute("data-state", "OBSERVED");
+    await expect(page.getByTestId("decide-H1-comparable-observations")).toHaveCount(0);
+    await expect(page.getByTestId("decision-H1")).toHaveAttribute("data-chosen", "");
+    await expect(page.getByTestId("decision-note-H1")).toContainText("Nothing chosen.");
+  });
+
   test("keyboard: tabs move with arrow keys", async ({ page }) => {
     await openCockpit(page);
     await page.getByTestId("tab-observations").focus();
