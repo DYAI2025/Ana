@@ -13,6 +13,7 @@ services:
   dashboard:
     image: ana-dashboard:${ANA_RELEASE:?set ANA_RELEASE in .env}
     restart: unless-stopped
+    init: true # PID 1 reaps exited health check and exec children (node as PID 1 does not)
     env_file: dashboard.env
     environment:
       ANA_ACCESS_MODE: cloudflare # pinned here so no env file can switch the deployment to Host-header trust
@@ -31,6 +32,7 @@ services:
   tunnel:
     image: cloudflare/cloudflared:2026.9.3
     restart: unless-stopped
+    init: true
     command: ["tunnel", "--no-autoupdate", "run"]
     env_file: tunnel.env
     depends_on:

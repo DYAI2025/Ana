@@ -17,6 +17,7 @@ COPY --from=build --chown=node:node /app/.next/standalone ./
 COPY --from=build --chown=node:node /app/.next/static ./.next/static
 USER node
 EXPOSE 3000
-HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
+# generous budget: on the loaded VPS a `docker exec` alone took up to 4.7 s and other containers' 5 s checks time out
+HEALTHCHECK --interval=30s --timeout=20s --start-period=90s --retries=3 \
   CMD ["node", "-e", "fetch('http://127.0.0.1:3000/api/healthz').then(r=>process.exit(r.ok?0:1),()=>process.exit(1))"]
 CMD ["node", "server.js"]
