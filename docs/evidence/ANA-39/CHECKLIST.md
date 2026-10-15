@@ -12,7 +12,7 @@ PASS or FAIL is set by a separate acceptor on the exact candidate SHA (docs/deli
 
 | Area | Change |
 |---|---|
-| `themes.ts` | Themes stay a browsing aid. Hypothesis eligibility (TOPICAL_FIT) has its own rules: **H1** = opportunity/job term **and** creator/UGC/remote/brand domain term; **H4** = reusable-artifact term (template, checklist, worksheet, workflow, media kit, …). The ANA-38 family→hypothesis coupling (`opportunities` theme → H1 **and** H4) is removed. Session-only, hypothesis-specific corrections (`include` / `exclude` / caption rule). |
+| `themes.ts` | Themes stay a browsing aid. Hypothesis eligibility (TOPICAL_FIT) has its own rules: **H1** = opportunity/job term **adjacent to (or one word from)** a creator/UGC/remote/brand domain term, or a compact hashtag such as `#ugcjobs`; **H4** = reusable-artifact term (template, checklist, worksheet, workflow, media kit, …). The ANA-38 family→hypothesis coupling (`opportunities` theme → H1 **and** H4) is removed. Session-only, hypothesis-specific corrections (`include` / `exclude` / caption rule). |
 | `offers.ts` | Per hypothesis four independent lanes: CONTENT_RESONANCE, TOPICAL_FIT, AUDIENCE_NEED (NOT_CONNECTED), COMMERCIAL_OUTCOME (NOT_CONNECTED). No `supporting` / `contradicting`, no blended `SIGNAL`, no `lean`. Above/below same-format median = engagement and low-resonance comparators. Next evidence actions + `ABSTAIN`. `nextTest` (0.25 lean) replaced by a descriptive H1-only/H4-only comparison with the absolute index difference. |
 | `insights.ts` | Calculations unchanged; `high_intent_*` renamed `content_action_*`, semantics documented ((saves + shares) ÷ reach is an action ratio, can exceed 1; 7 days = maturity cutoff, not age matching). |
 | UI | `Patterns.tsx` four-lane card, decision fieldset, inspection with eligible/excluded posts, disclosure (formats + baseline n, not compared + reason, observed, period, ages) and limits. `ContentRows.tsx` per-post topical fit with provenance and session correction. `InstagramCockpit.tsx` holds corrections and passes `stale`. EN/DE/IT: no "high intent" wording. |
@@ -23,10 +23,10 @@ PASS or FAIL is set by a separate acceptor on the exact candidate SHA (docs/deli
 | AC | What is checked | Evidence |
 |---|---|---|
 | AC1 | Instagram read, native metrics, DTO, cockpit navigation unchanged | No change under `src/server`, `src/app/api`, `types.ts`; `insights.test.ts` pinned engine values unchanged (reel group n=18, median reach 3250, hidden winner syn004, practical-value 2.398, reuse 1.2615); `social.spec.ts` ANA-38 tests (AC1–AC10, failure states, mobile) green; real-boundary readback: **see "Live proof" — not run by the implementing session** |
-| AC2 | Negative/positive/ambiguous topical fit; theme override never qualifies; dual-topic overlap | `offers.test.ts` "AC2 · …" (11 tests: travel-only high-save ≠ H1, generic money ≠ H4, generic creator/UGC ≠ H1, opportunity word without domain ≠ H1, generic tips ≠ H4, unclear/missing caption UNCLASSIFIED, creator-job → DERIVED H1 only, template → DERIVED H4 only, ANA-38 coupling regression, dual-topic overlap counted once, hypothesis-specific session corrections, before/after on the ANA-38 fixture); `social.spec.ts` "ANA-39 AC2 · a broad 'opportunities' theme override never qualifies H1 or H4" |
+| AC2 | Negative/positive/ambiguous topical fit; theme override never qualifies; dual-topic overlap | `offers.test.ts` "AC2 · …" (14 tests: travel-only high-save ≠ H1, generic money ≠ H4, generic creator/UGC ≠ H1, opportunity word without domain ≠ H1, opportunity and domain words that only co-occur ≠ H1, Italian "modello" ≠ H4, hashtag and DE/IT positives, generic tips ≠ H4, unclear/missing caption UNCLASSIFIED, creator-job → DERIVED H1 only, template → DERIVED H4 only, ANA-38 coupling regression, dual-topic overlap counted once, hypothesis-specific session corrections, before/after on the ANA-38 fixture); `social.spec.ts` "ANA-39 AC2 · a broad 'opportunities' theme override never qualifies H1 or H4" |
 | AC3 | Four lanes, provenance, denominators, no product support/counterevidence | `offers.test.ts` "AC3 · …" (5 tests); `social.spec.ts` "ANA-39 AC2/AC3 · travel and money posts are no longer product evidence; four lanes…", "ANA-39 AC3/AC5 · session correction…" |
 | AC4 | Format n, observed, lifetime, maturity ≠ age matching, comparability; zero reach, missing saves/shares, zero median, <5, <3, <8, unequal ages, 49 Reels / 1 Feed, stale, overlap, absolute delta vs percentage | `offers.test.ts` "AC4 · comparability limits…" (9 tests) and "AC4 · H1-only vs H4-only comparison…" (3 tests); `social.spec.ts` "ANA-39 AC4 · a stale snapshot is disclosed…", disclosure assertions in "ANA-39 AC2/AC3" |
-| AC5 | Browser journey: H1/H4, source-post inspection, gaps, next step or ABSTAIN; before/after | `social.spec.ts` "AC7 · Substack offer signals…" (jump to post), "ANA-39 AC3/AC5 · … next step or ABSTAIN is selectable by keyboard"; screenshots below |
+| AC5 | Browser journey: H1/H4, source-post inspection, gaps, next step or ABSTAIN; before/after | `social.spec.ts` "AC7 · Substack offer signals…" (jump to post), "ANA-39 AC3/AC5 · … next step or ABSTAIN is selectable by keyboard", "ANA-39 AC5 · a chosen step that the evidence no longer offers is not shown as chosen"; screenshots below |
 | AC6 | ANA-38 regression, LUMEN, EN/DE/IT, keyboard, mobile, a11y, privacy | full Playwright suite; `quality.spec.ts` axe on `/pulse/social/instagram`; `contrast.spec.ts` instagram cockpit / row detail / offer signals × 3 viewports; `social.spec.ts` "ANA-39 AC6 · de/it…", "ANA-39 AC6 · offer signals: lanes and next-step choice fit the viewport" (390×844); `src/i18n/i18n.test.ts` key + placeholder parity |
 | AC7 | Exact-candidate gates, independent review, browser proof, real-boundary readback, Outcome Delta | This file + PR + Jira ANA-39 comments. Gate verdicts by the acceptor only. |
 
@@ -49,6 +49,14 @@ Measured on `e2e/fake-social/core.mjs` with the base model (`c7b2c06`) and the c
 Corrected false positives on the fixture: 14 of 18 hypothesis memberships (7 H1 + 7 H4) rested only on generic
 keywords and no longer count; all 10 "supporting" labels are gone, 6 of which were on posts without specific subject
 matter; no product lean can be produced any more.
+
+## Review
+
+Round 1 (separate reviewer agent, read-only, adversarial against the contract): 2 blocking findings — H1 accepted
+opportunity and domain words that only co-occur ("remote island trip, what an opportunity"), H4 accepted Italian
+"modello" (model) — fixed in `20cc999` with the reviewer's captions as negative tests; non-blocking: stale chosen step
+after evidence changes (fixed, e2e), hard-coded inspect ids (fixed), DE/IT and hashtag misses (partly added),
+ABSTAIN-vs-review-captions suggestion (kept, documented in `offers.ts`). This agent review is not the DRS acceptor.
 
 ## Remaining unknowns (not resolved by F1.I1)
 
