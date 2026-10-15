@@ -70,7 +70,21 @@ test("live: the cockpit renders real Instagram data through the server-side work
   await page.getByTestId("tab-offers").click();
   await page.getByTestId("inspect-hypothesis-H1").click();
   await expect(page.getByTestId("inspection-H1")).toBeVisible();
-  const hypotheses = Object.fromEntries(await page.locator('[data-testid^="hypothesis-"]').evaluateAll((els) => els.map((e) => [e.getAttribute("data-testid"), e.getAttribute("data-state")])));
+  // ANA-39: lane states, suggested next step and eligible counts only (no caption, keyword or post id leaves the page)
+  const hypotheses = Object.fromEntries(
+    await page.locator('[data-testid^="hypothesis-"]').evaluateAll((els) =>
+      els.map((e) => [
+        e.getAttribute("data-testid"),
+        {
+          lanes: Object.fromEntries([...e.querySelectorAll('[data-testid^="lane-"]')].map((l) => [l.getAttribute("data-testid")!.split("-").slice(2).join("-"), l.getAttribute("data-state")])),
+          suggested: e.querySelector('[data-testid^="decision-"]')?.getAttribute("data-suggested") ?? null,
+        },
+      ]),
+    ),
+  );
+  const h1Eligible = await page.getByTestId("eligible-H1").getByTestId("fit-row").count();
+  const h1Sources = tally(await page.getByTestId("eligible-H1").getByTestId("fit-row").evaluateAll((els) => els.map((e) => e.getAttribute("data-source"))));
+  const comparison = await page.getByTestId("engagement-comparison").getAttribute("data-state");
   const commercial = tally(await page.locator('[data-testid^="commercial-"][data-state]').evaluateAll((els) => els.map((e) => e.getAttribute("data-state"))));
 
   await page.getByTestId("tab-observations").click();
@@ -116,6 +130,9 @@ test("live: the cockpit renders real Instagram data through the server-side work
         thumbnails_rendered: thumbnails,
         patterns,
         hypotheses,
+        h1_eligible: h1Eligible,
+        h1_eligible_sources: h1Sources,
+        engagement_comparison: comparison,
         commercial,
       },
       null,

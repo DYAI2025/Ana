@@ -6,7 +6,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useI18n } from "@/components/providers/I18nProvider";
 import { Button } from "@/components/ui/Button";
 import { fetchInstagram } from "./api";
-import { ContentRows } from "./ContentRows";
+import { ContentRows, type OnCorrect } from "./ContentRows";
 import { formatDateTime } from "./format";
 import { InspectorProvider } from "./Inspector";
 import { analyze, heroReading, MATURE_AGE_DAYS, type ThemeId, type ThemeOf } from "./insights";
@@ -14,8 +14,8 @@ import { setSocialPhase } from "./phase";
 import { HeroInstrument, MetricCluster, StateChip } from "./Instruments";
 import { AudiencePanel, CommentsPanel, ContentMap, StreamPanel } from "./Panels";
 import { PatternsPanel } from "./Patterns";
-import type { FamilyOf } from "./offers";
-import { assignTheme, type ThemeOverrides } from "./themes";
+import type { TopicalFitOf } from "./offers";
+import { assignTheme, topicalFit, type HypothesisCorrections, type ThemeOverrides } from "./themes";
 import type { CockpitState, PostFormat, SocialResult, SocialSnapshot } from "./types";
 import styles from "./social.module.css";
 
@@ -151,8 +151,20 @@ function Loaded({ snapshot, stale }: { snapshot: SocialSnapshot; stale: boolean 
   const analysis = useMemo(() => analyze(snapshot), [snapshot]);
   const hero = useMemo(() => heroReading(analysis), [analysis]);
   const themeOf: ThemeOf = useCallback((post) => assignTheme(post, overrides).themes, [overrides]);
-  const familyOf: FamilyOf = useCallback((post) => assignTheme(post, overrides).families, [overrides]);
   const onOverride = useCallback((id: string, themes: readonly ThemeId[] | null) => setOverrides((o) => ({ ...o, [id]: themes ?? [] })), []);
+  // hypothesis topical fit is independent of themes: a theme override never changes it
+  const [corrections, setCorrections] = useState<HypothesisCorrections>({});
+  const fitOf: TopicalFitOf = useCallback((post, h) => topicalFit(post, h, corrections), [corrections]);
+  const onCorrect: OnCorrect = useCallback(
+    (id, h, value) =>
+      setCorrections((c) => {
+        const next = { ...c[id] };
+        if (value === null) delete next[h];
+        else next[h] = value;
+        return { ...c, [id]: next };
+      }),
+    [],
+  );
 
   return (
     <>
@@ -174,8 +186,8 @@ function Loaded({ snapshot, stale }: { snapshot: SocialSnapshot; stale: boolean 
           <StreamPanel />
           <ContentMap analysis={analysis} format={mapFormat} onFormat={setMapFormat} onSelect={setOpenId} selectedId={openId} />
           <AudiencePanel />
-          <ContentRows snapshot={snapshot} analysis={analysis} overrides={overrides} onOverride={onOverride} openId={openId} openSeq={open.seq} onOpen={setOpenId} />
-          <PatternsPanel analysis={analysis} themeOf={themeOf} familyOf={familyOf} onSelect={setOpenId} />
+          <ContentRows snapshot={snapshot} analysis={analysis} overrides={overrides} onOverride={onOverride} corrections={corrections} onCorrect={onCorrect} openId={openId} openSeq={open.seq} onOpen={setOpenId} />
+          <PatternsPanel analysis={analysis} themeOf={themeOf} fitOf={fitOf} stale={stale} onSelect={setOpenId} />
           <CommentsPanel />
         </div>
       )}

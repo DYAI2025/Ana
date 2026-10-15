@@ -1,6 +1,7 @@
 /**
  * ANA-38 — Instagram cockpit end to end through the production build, the server-side Social BFF and a local fake
  * Instagram worker (synthetic data only). Expected values come from e2e/fake-social/core.mjs.
+ * ANA-39 adds the F1.I1 evidence-lane journeys (topical fit, four lanes, next step / ABSTAIN).
  */
 import type { Page } from "@playwright/test";
 import { expect, socialSettled, test } from "./fixtures";
@@ -57,7 +58,7 @@ test.describe("Instagram cockpit — real-data shape, honest states", () => {
     await expect(page.getByTestId("hero-value")).toHaveText("1.60×");
     await expect(page.getByTestId("hero")).toContainText("1.00× = median of 18 mature Reel posts");
     await expect(page.getByTestId("coverage-priority")).toHaveText("Insights fetched first for posts at least 7 days old");
-    await expect(page.getByTestId("cluster-high-intent")).toContainText("n = 18");
+    await expect(page.getByTestId("cluster-content-action")).toContainText("n = 18");
     await expect(page.getByTestId("cluster-followers")).toContainText("12,400");
   });
 
@@ -117,7 +118,7 @@ test.describe("Instagram cockpit — real-data shape, honest states", () => {
     await r.getByTestId("row-toggle").click();
     const detail = r.getByTestId("row-detail");
     await expect(detail).toContainText("Caption shown on this computer only; not stored.");
-    await expect(detail.getByTestId("rate-high_intent_rate")).toContainText("6.67%");
+    await expect(detail.getByTestId("rate-content_action_rate")).toContainText("6.67%");
     await expect(detail.getByTestId("theme-provenance")).toHaveAttribute("data-source", "derived-keyword");
     await expect(detail.getByTestId("theme-provenance")).toContainText("ugc, rates, template, guide, step by step");
     await detail.getByTestId("edit-themes").click();
@@ -143,25 +144,94 @@ test.describe("Instagram cockpit — real-data shape, honest states", () => {
     await openCockpit(page);
     await page.getByTestId("tab-offers").click();
     const offers = page.getByTestId("offer-signals");
-    await expect(offers).toContainText("They are not customer demand.");
+    await expect(offers).toContainText("H1 and H4 are product hypotheses, not demand.");
     await expect(page.getByTestId("parked-H2")).toContainText("Parked");
     await expect(page.getByTestId("parked-H3")).toContainText("Parked");
     for (const c of ["substack-registrations", "paid-subscribers", "link-clicks", "sales"]) {
       await expect(page.getByTestId(`commercial-${c}`)).toHaveAttribute("data-state", "NOT_CONNECTED");
     }
-    await expect(page.getByTestId("next-test")).toContainText("within 14 days");
-    await expect(page.getByTestId("hypothesis-H1")).toHaveAttribute("data-state", "SIGNAL");
     await page.getByTestId("inspect-hypothesis-H1").click();
     const inspection = page.getByTestId("inspection-H1");
-    // exact for the synthetic fixture (see insights.test.ts): 4 supporting, 5 contradicting
-    await expect(page.getByTestId("supporting-H1").getByTestId("evidence-post")).toHaveCount(4);
-    await expect(page.getByTestId("contradicting-H1").getByTestId("evidence-post")).toHaveCount(5);
-    await expect(page.getByTestId("next-test-n")).toHaveText("Compared without overlap: 6 H1 posts, 6 H4 posts (needs 8 each for a lean).");
-    await expect(page.getByTestId("next-test")).toContainText("No current lean between H1 and H4.");
-    await expect(inspection).toContainText("Themes are keyword suggestions, not confirmed topics.");
+    // exact for the synthetic fixture (see offers.test.ts): syn002, syn008 (Reels) and syn022 (carousel)
+    await expect(page.getByTestId("eligible-H1").getByTestId("fit-row")).toHaveCount(3);
+    await expect(inspection).toContainText("Lifetime metrics keep growing");
     const first = inspection.getByTestId("evidence-post").first();
     await first.click();
     await expect(page.locator('[data-testid="content-row"] [data-testid="row-detail"]')).toHaveCount(1);
+  });
+
+  test("ANA-39 AC2/AC3 · travel and money posts are no longer product evidence; four lanes, engagement is not demand", async ({ page }) => {
+    await openCockpit(page);
+    await page.getByTestId("tab-offers").click();
+    for (const id of ["H1", "H4"]) {
+      const card = page.getByTestId(`hypothesis-${id}`);
+      await expect(card.getByTestId(`lane-${id}-TOPICAL_FIT`)).toHaveAttribute("data-state", "DERIVED");
+      await expect(card.getByTestId(`lane-${id}-CONTENT_RESONANCE`)).toHaveAttribute("data-state", "INSUFFICIENT_EVIDENCE");
+      await expect(card.getByTestId(`lane-${id}-AUDIENCE_NEED`)).toHaveAttribute("data-state", "NOT_CONNECTED");
+      await expect(card.getByTestId(`lane-${id}-COMMERCIAL_OUTCOME`)).toHaveAttribute("data-state", "NOT_CONNECTED");
+      await expect(card.getByTestId(`lane-${id}-CONTENT_RESONANCE`)).toContainText("2 of 3 eligible posts can be compared; at least 3 are needed.");
+      await expect(card).not.toContainText(/supporting|contradicting|high.intent|lean/i);
+    }
+    await expect(page.getByTestId("hypothesis-H1")).toContainText("Travel, nomad, creator or UGC alone does not qualify.");
+    await page.getByTestId("inspect-hypothesis-H1").click();
+    const rows = page.getByTestId("eligible-H1").getByTestId("fit-row");
+    await expect(rows.nth(0)).toHaveAttribute("data-media-id", "syn002");
+    await expect(rows.nth(0)).toContainText("caption keywords: job, opportunities, remote");
+    // the high-save island-trip and moving-abroad Reels that ANA-38 counted as H1 support are gone
+    for (const travel of ["syn003", "syn005", "syn011", "syn014"]) await expect(page.locator(`[data-testid="fit-row"][data-media-id="${travel}"]`)).toHaveCount(0);
+    const inspection = page.getByTestId("inspection-H1");
+    await expect(inspection).toContainText("Low resonance is not evidence against the product");
+    await expect(page.getByTestId("unindexed-H1")).toHaveText("too few posts of its format: 1");
+    await expect(page.getByTestId("disclosure-H1")).toContainText("Reel 2/2, n = 18 · Carousel 0/1, n = 3");
+    await expect(page.getByTestId("disclosure-H1")).toContainText("a maturity cutoff, not age matching");
+    await expect(page.getByTestId("limits-H1").locator('[data-limit="format-skew"]')).toHaveCount(1);
+    await expect(page.getByTestId("engagement-comparison")).toHaveAttribute("data-state", "INSUFFICIENT_EVIDENCE");
+    await expect(page.getByTestId("comparison-n")).toHaveText("Compared without overlap: 2 H1-only, 2 H4-only, 0 fitting both (needs 8 on each side).");
+    await expect(page.getByTestId("engagement-comparison")).toContainText("not a percentage");
+  });
+
+  test("ANA-39 AC2 · a broad 'opportunities' theme override never qualifies H1 or H4", async ({ page }) => {
+    await openCockpit(page);
+    const r = row(page, "syn005"); // "Island trip vlog part 1"
+    await r.getByTestId("row-toggle").click();
+    const detail = r.getByTestId("row-detail");
+    await detail.getByTestId("edit-themes").click();
+    await detail.getByLabel("Opportunities / Practical resources").check();
+    await expect(detail.getByTestId("theme-provenance")).toHaveAttribute("data-source", "manual-session");
+    for (const id of ["H1", "H4"]) await expect(detail.getByTestId(`fit-${id}`)).toHaveAttribute("data-eligible", "false");
+    await page.getByTestId("tab-offers").click();
+    await expect(page.getByTestId("lane-H1-TOPICAL_FIT")).toContainText("3 posts");
+    await expect(page.getByTestId("lane-H4-TOPICAL_FIT")).toContainText("3 posts");
+  });
+
+  test("ANA-39 AC3/AC5 · session correction is hypothesis-specific and visible; next step or ABSTAIN is selectable by keyboard", async ({ page }) => {
+    await openCockpit(page);
+    const r = row(page, "syn002");
+    await r.getByTestId("row-toggle").click();
+    const fit = r.getByTestId("fit-H1");
+    await expect(fit).toHaveAttribute("data-source", "derived-keyword");
+    await r.getByTestId("fit-select-H1").selectOption("exclude");
+    await expect(fit).toHaveAttribute("data-source", "manual-session");
+    await expect(fit).toHaveAttribute("data-eligible", "false");
+    await expect(r.getByTestId("fit-H4")).toHaveAttribute("data-source", "unclassified");
+    await page.getByTestId("tab-offers").click();
+    await expect(page.getByTestId("lane-H1-TOPICAL_FIT")).toContainText("2 posts: 2 by caption keywords, 0 by session correction");
+    await page.getByTestId("inspect-hypothesis-H1").click();
+    await expect(page.getByTestId("session-excluded-H1").getByTestId("fit-row")).toHaveAttribute("data-media-id", "syn002");
+    await expect(page.getByTestId("session-excluded-H1")).toContainText("excluded by session correction (caption keywords: job, opportunities, remote)");
+    const decision = page.getByTestId("decision-H1");
+    await expect(decision).toHaveAttribute("data-suggested", "comparable-observations");
+    await expect(page.getByTestId("decision-note-H1")).toContainText("Nothing chosen.");
+    await page.getByTestId("decide-H1-ABSTAIN").focus();
+    await page.keyboard.press("Space");
+    await expect(decision).toHaveAttribute("data-chosen", "ABSTAIN");
+    await page.keyboard.press("ArrowDown");
+    await expect(decision).toHaveAttribute("data-chosen", "comparable-observations");
+    await expect(page.getByTestId("decision-note-H1")).toContainText("Chosen for this session: Wait for more comparable mature posts on this specific subject. Nothing is collected, sent or stored from here.");
+    // the choice survives a tab switch (session state lives above the tab panels)
+    await page.getByTestId("tab-observations").click();
+    await page.getByTestId("tab-offers").click();
+    await expect(page.getByTestId("decision-H1")).toHaveAttribute("data-chosen", "comparable-observations");
   });
 
   test("keyboard: tabs move with arrow keys", async ({ page }) => {
@@ -180,7 +250,7 @@ test.describe("Instagram cockpit — real-data shape, honest states", () => {
     await expect(dialog).toContainText("saved, reach");
     await expect(dialog).toContainText("saves ÷ reach");
     await page.keyboard.press("Escape");
-    await page.getByTestId("inspect-high-intent").click();
+    await page.getByTestId("inspect-content-action").click();
     await expect(dialog).toContainText("median of (saves + shares) ÷ reach over 18 posts");
   });
 
@@ -226,6 +296,20 @@ test.describe("Instagram cockpit — real-data shape, honest states", () => {
     await page.getByTestId("inspect-rate-saves_per_reach").click();
     await expect(page.getByTestId("metric-inspector")).toContainText("Gespeichert ÷ Reichweite");
   });
+
+  for (const [locale, lane, abstain] of [
+    ["de", "Thematische Passung", "Enthalten — keine Produktentscheidung aus dieser Evidenz"],
+    ["it", "Pertinenza tematica", "Astenersi — nessuna decisione di prodotto da questa evidenza"],
+  ] as const) {
+    test(`ANA-39 AC6 · ${locale}: evidence lanes, next step and ABSTAIN are translated`, async ({ page }) => {
+      await page.addInitScript((l) => window.localStorage.setItem("ana.locale", l), locale);
+      await openCockpit(page);
+      await page.getByTestId("tab-offers").click();
+      await expect(page.getByTestId("lane-H1-TOPICAL_FIT")).toContainText(lane);
+      await expect(page.getByTestId("decision-H1")).toContainText(abstain);
+      await expect(page.getByTestId("offer-signals")).not.toContainText(/high.intent|alta intenzione/i);
+    });
+  }
 });
 
 test.describe("Instagram cockpit — failure states (AC10)", () => {
@@ -267,6 +351,16 @@ test.describe("Instagram cockpit — failure states (AC10)", () => {
     await expect(page.getByTestId("instagram-cockpit")).toHaveAttribute("data-state", "STALE");
     await expect(page.getByTestId("stale-banner")).toContainText("not current");
     await expect(page.getByTestId("prototype-flag")).toHaveText(/Instagram · older snapshot/);
+  });
+
+  test("ANA-39 AC4 · a stale snapshot is disclosed on the H1/H4 resonance reading", async ({ page, social }) => {
+    await openCockpit(page);
+    await social.fault({ status: 502, error: "instagram-media-fetch-failed" });
+    await page.getByTestId("refresh").click();
+    await expect(page.getByTestId("instagram-cockpit")).toHaveAttribute("data-state", "STALE");
+    await page.getByTestId("tab-offers").click();
+    await page.getByTestId("inspect-hypothesis-H4").click();
+    await expect(page.getByTestId("limits-H4").locator('[data-limit="stale-snapshot"]')).toContainText("not current");
   });
 
   test("a permission problem after a good read is not hidden behind the older snapshot", async ({ page, social }) => {
@@ -321,6 +415,23 @@ test.describe("Instagram cockpit — mobile 390×844", () => {
       await page.screenshot({ path: `${dir}/390x844-instagram-cockpit.png` });
       await page.getByTestId("content-rows").scrollIntoViewIfNeeded();
       await page.screenshot({ path: `${dir}/390x844-instagram-content.png` });
+    }
+  });
+
+  test("ANA-39 AC6 · offer signals: lanes and next-step choice fit the viewport", async ({ page }) => {
+    await openCockpit(page);
+    await page.getByTestId("tab-offers").click();
+    await page.getByTestId("inspect-hypothesis-H1").click();
+    await page.getByTestId("decide-H1-ABSTAIN").check();
+    const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+    expect(overflow).toBeLessThanOrEqual(0);
+    const box = await page.getByTestId("hypothesis-H1").boundingBox();
+    expect(box!.x).toBeGreaterThanOrEqual(0);
+    expect(box!.x + box!.width).toBeLessThanOrEqual(390);
+    const dir = process.env.EVIDENCE_DIR;
+    if (dir) {
+      await page.getByTestId("hypothesis-H1").scrollIntoViewIfNeeded();
+      await page.screenshot({ path: `${dir}/390x844-instagram-offer-signals.png` });
     }
   });
 });

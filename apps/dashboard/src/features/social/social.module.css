@@ -896,6 +896,93 @@
   gap: 8px;
 }
 
+/* ---------- evidence lanes (ANA-39): four independent claims, no blended score ---------- */
+
+.lanes {
+  list-style: none;
+  margin: 4px 0 0;
+  padding: 0;
+  width: 100%;
+  display: grid;
+  gap: 6px;
+}
+
+.lane {
+  display: grid;
+  gap: 2px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 1px solid var(--hairline);
+}
+
+.lane[data-state="NOT_CONNECTED"] {
+  border-style: dashed;
+}
+
+/* lanes and the decision sit on varying glass: a light ink backing plus the secondary tone keeps notes above 4.5:1 */
+.lane,
+.decision {
+  background: rgba(20, 15, 19, 0.2);
+}
+
+.lane .note,
+.decision .note {
+  color: var(--text-secondary);
+}
+
+.laneHead,
+.fitHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.decision {
+  width: 100%;
+  margin: 4px 0 0;
+  padding: 10px;
+  border-radius: 10px;
+  border: 1px solid var(--hairline);
+  display: grid;
+  gap: 4px;
+}
+
+.decision legend {
+  padding: 0 4px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.fitList {
+  list-style: none;
+  margin: 6px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.fitList li {
+  display: grid;
+  gap: 4px;
+}
+
+.fitSelect {
+  justify-self: start;
+  max-width: 100%;
+  padding: 4px 8px;
+  border-radius: 8px;
+  border: 1px solid var(--hairline);
+  background: var(--canvas-soft);
+  color: var(--text);
+  font: inherit;
+  font-size: 12.5px;
+}
+
 .commercial li {
   display: flex;
   align-items: center;

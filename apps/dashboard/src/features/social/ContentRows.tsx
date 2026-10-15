@@ -9,13 +9,13 @@ import { InspectButton, useObservationSpec } from "./Inspector";
 import { StateChip } from "./Instruments";
 import { RATE_INPUTS, verified, type Analysis, type PostAnalysis, type RateName, type ThemeId } from "./insights";
 import { Glyph } from "./Panels";
-import { assignTheme, THEMES, type ThemeOverrides } from "./themes";
+import { assignTheme, CANDIDATES, THEMES, topicalFit, type CandidateHypothesis, type HypothesisCorrections, type ThemeOverrides } from "./themes";
 import type { CanonicalMetric, PostFormat, SocialSnapshot } from "./types";
 import styles from "./social.module.css";
 
 const ROW_METRICS: readonly CanonicalMetric[] = ["reach", "views", "saves", "shares", "comments"];
 const DETAIL_METRICS: readonly CanonicalMetric[] = ["reach", "views", "saves", "shares", "likes", "comments", "total_interactions"];
-const RATES: readonly RateName[] = ["saves_per_reach", "shares_per_reach", "comments_per_reach", "high_intent_rate"];
+const RATES: readonly RateName[] = ["saves_per_reach", "shares_per_reach", "comments_per_reach", "content_action_rate"];
 const CAPTION_EXCERPT = 110;
 
 export function ContentRows({
@@ -23,6 +23,8 @@ export function ContentRows({
   analysis,
   overrides,
   onOverride,
+  corrections,
+  onCorrect,
   openId,
   openSeq,
   onOpen,
@@ -31,6 +33,8 @@ export function ContentRows({
   analysis: Analysis;
   overrides: ThemeOverrides;
   onOverride: (id: string, themes: readonly ThemeId[] | null) => void;
+  corrections: HypothesisCorrections;
+  onCorrect: OnCorrect;
   openId: string | null;
   /** increments on every selection, including re-selecting the open post */
   openSeq: number;
@@ -80,7 +84,7 @@ export function ContentRows({
       </div>
       <ul className={styles.rows}>
         {rows.map((p) => (
-          <ContentRow key={p.post.media_id} p={p} snapshot={snapshot} overrides={overrides} onOverride={onOverride} open={openId === p.post.media_id} onToggle={() => onOpen(openId === p.post.media_id ? null : p.post.media_id)} />
+          <ContentRow key={p.post.media_id} p={p} snapshot={snapshot} overrides={overrides} onOverride={onOverride} corrections={corrections} onCorrect={onCorrect} open={openId === p.post.media_id} onToggle={() => onOpen(openId === p.post.media_id ? null : p.post.media_id)} />
         ))}
       </ul>
     </section>
@@ -101,7 +105,28 @@ function Thumb({ p }: { p: PostAnalysis }) {
   );
 }
 
-function ContentRow({ p, snapshot, overrides, onOverride, open, onToggle }: { p: PostAnalysis; snapshot: SocialSnapshot; overrides: ThemeOverrides; onOverride: (id: string, themes: readonly ThemeId[] | null) => void; open: boolean; onToggle: () => void }) {
+/** Sets a session-only topical-fit correction for one post and hypothesis; null returns to the caption rule. */
+export type OnCorrect = (id: string, hypothesis: CandidateHypothesis, value: boolean | null) => void;
+
+function ContentRow({
+  p,
+  snapshot,
+  overrides,
+  onOverride,
+  corrections,
+  onCorrect,
+  open,
+  onToggle,
+}: {
+  p: PostAnalysis;
+  snapshot: SocialSnapshot;
+  overrides: ThemeOverrides;
+  onOverride: (id: string, themes: readonly ThemeId[] | null) => void;
+  corrections: HypothesisCorrections;
+  onCorrect: OnCorrect;
+  open: boolean;
+  onToggle: () => void;
+}) {
   const { t, locale } = useI18n();
   const specOf = useObservationSpec();
   const ref = useRef<HTMLLIElement>(null);
@@ -181,6 +206,7 @@ function ContentRow({ p, snapshot, overrides, onOverride, open, onToggle }: { p:
                 <dd>{post.published_at ? t("social.content.ageDays", { days: ageDays(post.published_at, snapshot.observed_at) }) : "—"}</dd>
               </div>
             </dl>
+            <TopicalFitEditor post={p.post} corrections={corrections} onCorrect={onCorrect} />
           </div>
           <div>
             <h3 className={styles.detailTitle}>{t("social.content.providerMetrics")}</h3>
@@ -250,5 +276,50 @@ function ContentRow({ p, snapshot, overrides, onOverride, open, onToggle }: { p:
         </div>
       ) : null}
     </li>
+  );
+}
+
+/** Hypothesis topical fit for one post: caption-rule provenance plus a session-only correction per hypothesis. */
+function TopicalFitEditor({ post, corrections, onCorrect }: { post: PostAnalysis["post"]; corrections: HypothesisCorrections; onCorrect: OnCorrect }) {
+  const { t } = useI18n();
+  const base = useId();
+  return (
+    <div data-testid="topical-fit">
+      <h3 className={styles.detailTitle}>{t("social.content.fitTitle")}</h3>
+      <p className={styles.note}>{t("social.content.fitNote")}</p>
+      <ul className={styles.fitList}>
+        {CANDIDATES.map((h) => {
+          const fit = topicalFit(post, h, corrections);
+          const value = corrections[post.media_id]?.[h];
+          const selectId = `${base}-${h}`;
+          return (
+            <li key={h} data-testid={`fit-${h}`} data-eligible={fit.eligible} data-source={fit.source}>
+              <span className={styles.fitHead}>
+                <span>{t(`social.offers.${h}`)}</span>
+                <StateChip state={fit.source === "manual-session" ? "MANUAL_SESSION" : fit.eligible ? "DERIVED" : "UNCLASSIFIED"} />
+              </span>
+              <span className={styles.note}>
+                {fit.matched.length ? t("social.content.fitMatched", { words: fit.matched.join(", ") }) : t("social.content.fitNoMatch")}
+                {fit.source === "manual-session" ? ` · ${fit.eligible ? t("social.content.fitIncluded") : t("social.content.fitExcluded")}` : ""}
+              </span>
+              <label htmlFor={selectId} className="visually-hidden">
+                {t("social.content.fitCorrect", { id: h })}
+              </label>
+              <select
+                id={selectId}
+                className={styles.fitSelect}
+                value={value === undefined ? "rule" : value ? "include" : "exclude"}
+                onChange={(e) => onCorrect(post.media_id, h, e.target.value === "rule" ? null : e.target.value === "include")}
+                data-testid={`fit-select-${h}`}
+              >
+                <option value="rule">{t("social.content.fitRule")}</option>
+                <option value="include">{t("social.content.fitInclude")}</option>
+                <option value="exclude">{t("social.content.fitExclude")}</option>
+              </select>
+            </li>
+          );
+        })}
+      </ul>
+    </div>
   );
 }
