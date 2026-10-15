@@ -1,0 +1,34 @@
+{
+  "drs_version": "1.0",
+  "jira": "ANA-39",
+  "state": "IN_PROGRESS",
+  "delivery_profile": "STANDARD_CODE",
+  "ic": {
+    "definition": "All blocking acceptance criteria AC1-AC7 of Jira ANA-39 (normative contract Confluence 108920834 v3) are implemented and each AC has at least one automated test named in docs/evidence/ANA-39/CHECKLIST.md. AC1 the existing authorized Instagram read, native metrics, SocialSnapshot DTO semantics and cockpit navigation are unchanged. AC2 synthetic positive/negative/ambiguous fixtures prove: travel-only high-save post is not H1; generic money is not H4; generic creator/UGC without a job or opportunity is not H1; generic tips without a reusable artifact is not H4; a specific creator-job caption yields DERIVED H1 topical fit only; a specific template/file caption yields DERIVED H4 topical fit only; a broad manual 'opportunities' theme correction never qualifies H1 or H4; genuine specific dual-topic evidence stays visible as overlap and is not counted as independent evidence. AC3 four independent evidence lanes CONTENT_RESONANCE, TOPICAL_FIT, AUDIENCE_NEED (NOT_CONNECTED), COMMERCIAL_OUTCOME (NOT_CONNECTED) with source, provenance (derived-keyword / manual-session, never durable review), qualification reason, denominators and missing states; above/below-median engagement is never supporting/contradicting product evidence. AC4 format, eligible n, observed_at, lifetime period, 7-day maturity cutoff (not age matching) and comparability limits are disclosed; tests cover zero reach, missing saves/shares, zero group median, <5 format observations, <3 themed observations, <8 H1-only/H4-only observations, unequal post ages, 49 Reels / 1 Feed, stale snapshot, overlapping membership and absolute index delta versus percentage semantics; no product lean exists. AC5 a browser journey exposes H1/H4, source-post inspection, evidence gaps and a selectable next evidence action or ABSTAIN; synthetic before/after screenshots show the suppressed false product signal. AC6 ANA-38 behaviour, LUMEN layout, EN/DE/IT, keyboard, mobile and a11y preserved; no 'high intent' wording for (saves+shares)/reach; no real captions, media ids, tokens or personal data in committed artefacts; no new route, OAuth scope, persistence or external processing. AC7 exact-candidate gates, independent review, browser proof and the permitted protected Instagram readback (or an honestly classified blocker) with a recorded decision-quality Outcome Delta.",
+    "state": "NOT_EVALUATED",
+    "claimed": null,
+    "evidence": []
+  },
+  "r2g": {
+    "definition": "On the exact candidate SHA: (1) GitHub Actions workflow 'dashboard' green: npm ci, lint, typecheck, unit tests, production build, client bundle secret scan, Playwright e2e against the fake Jira and fake Social worker boundaries (evidence_class integration-fake). (2) Workflow 'drs' green. (3) Locally on the same SHA: lint 0, typecheck 0, vitest all pass, full Playwright e2e all pass, including axe and contrast on the offer-signals state. (4) Synthetic before/after screenshots of the H1/H4 offer-signals panel at 1440x900 and 390x844 (before = base c7b2c06, after = candidate). (5) The diff contains no secret and no G2/G3 data (no real caption, media id, permalink, thumbnail or metric value). (6) Real-boundary readback on the candidate SHA (evidence_class real-boundary-smoke) through the unchanged BFF with counts and states only, run by the PO with the worker key outside the repository, recorded in a Jira ANA-39 comment; if not run, R2G records it as BLOCKED with the exact reason, never as PASS. Stale evidence (a run on another SHA) is not evidence.",
+    "state": "NOT_EVALUATED",
+    "claimed": null,
+    "candidate_sha": null,
+    "evidence": [],
+    "allowed_paths": [
+      "apps/dashboard/e2e/**",
+      "apps/dashboard/src/**/*.test.ts",
+      "apps/dashboard/src/**/*.test.tsx",
+      "docs/**",
+      ".drs/**"
+    ]
+  },
+  "r4m": {
+    "definition": "The unchanged R2G candidate has: one independent DRS reviewer session (ROLE: DRS REVIEWER for ANA-39, not the implementing session) or the PO that verified the evidence on the exact candidate SHA; 0 open BLOCKS_CURRENT_GATE findings; PR mergeable with base at most 1 commit behind main; PR CI green on the exact SHA; the integration disposition against LIVE-01 PR #12 recorded (no regression of its fail-closed access gate, no weakening of the Social API boundary); and a PRE_MERGE reconcile of Jira, Confluence and GitHub without critical drift.",
+    "state": "NOT_EVALUATED",
+    "claimed": null,
+    "evidence": []
+  },
+  "synced_at": "2026-10-15T20:00:00Z",
+  "source": "offline: ANA Jira has no DRS custom fields; gate definitions are mirrored in a Jira ANA-39 comment and acceptance states are recorded in Jira and the pull request, not in this file"
+}
