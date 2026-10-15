@@ -109,6 +109,32 @@ describe("AC2 · topical fit is specific; generic keywords never qualify a hypot
     }
   });
 
+  it("negative (falsification round 2): 'remote' + bare 'opportunity' or the author's own job is not an H1 opportunity", () => {
+    for (const caption of ["Remote opportunity to travel this summer", "I quit my remote job last year", "I left my old UGC job", "Mein Remote Job ist vorbei"]) {
+      expect(fitOf(caption, "H1"), caption).toEqual([]);
+    }
+    // remote WORK still qualifies, and a possessive elsewhere in the caption does not block a real opportunity
+    expect(fitOf("Remote work opportunities for editors", "H1")).toEqual(["opportunities", "remote work"]);
+    expect(fitOf("Opportunities list: remote work", "H1")).toEqual(["opportunities", "remote work"]);
+    expect(fitOf("Remote opportunity for UGC creators", "H1")).toEqual(["opportunity", "ugc"]);
+    expect(fitOf("My top 5 UGC jobs this week", "H1")).toEqual(["jobs", "ugc"]);
+    expect(fitOf("Our brand is hiring", "H1")).toEqual(["hiring", "brand"]);
+  });
+
+  it("negative (falsification round 2): a personal routine called 'workflow' is not a reusable file", () => {
+    expect(fitOf("My morning workout workflow", "H4")).toEqual([]);
+    expect(fitOf("My morning workout workflow", "H1")).toEqual([]);
+    // a workflow counts only with a reusable-file cue
+    expect(fitOf("My content workflow as a Notion file", "H4")).toEqual(["workflow", "file", "notion"]);
+  });
+
+  it("positive (falsification round 2): real H1/H4 captions stay DERIVED candidates", () => {
+    expect(fitOf("UGC jobs for creators", "H1")).toEqual(["jobs", "ugc", "creators"]);
+    expect(fitOf("Brands hiring UGC creators", "H1")).toEqual(["hiring", "ugc", "creators", "brands"]);
+    expect(fitOf("UGC rate card template", "H4")).toEqual(["template", "rate card"]);
+    expect(fitOf("UGC rate card template", "H1")).toEqual([]);
+  });
+
   it("negative (review round 1): Italian 'modello' (model) is not a reusable file", () => {
     expect(fitOf("Il modello di business dei creator", "H4")).toEqual([]);
     expect(fitOf("Shot on my iPhone, modello Pro", "H4")).toEqual([]);

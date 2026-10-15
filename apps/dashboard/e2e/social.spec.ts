@@ -176,7 +176,7 @@ test.describe("Instagram cockpit — real-data shape, honest states", () => {
     await page.getByTestId("inspect-hypothesis-H1").click();
     const rows = page.getByTestId("eligible-H1").getByTestId("fit-row");
     await expect(rows.nth(0)).toHaveAttribute("data-media-id", "syn002");
-    await expect(rows.nth(0)).toContainText("caption keywords: job, opportunities, remote");
+    await expect(rows.nth(0)).toContainText("caption keywords: job, remote");
     // the high-save island-trip and moving-abroad Reels that ANA-38 counted as H1 support are gone
     for (const travel of ["syn003", "syn005", "syn011", "syn014"]) await expect(page.locator(`[data-testid="fit-row"][data-media-id="${travel}"]`)).toHaveCount(0);
     const inspection = page.getByTestId("inspection-H1");
@@ -218,7 +218,7 @@ test.describe("Instagram cockpit — real-data shape, honest states", () => {
     await expect(page.getByTestId("lane-H1-TOPICAL_FIT")).toContainText("2 posts: 2 by caption keywords, 0 by session correction");
     await page.getByTestId("inspect-hypothesis-H1").click();
     await expect(page.getByTestId("session-excluded-H1").getByTestId("fit-row")).toHaveAttribute("data-media-id", "syn002");
-    await expect(page.getByTestId("session-excluded-H1")).toContainText("excluded by session correction (caption keywords: job, opportunities, remote)");
+    await expect(page.getByTestId("session-excluded-H1")).toContainText("excluded by session correction (caption keywords: job, remote)");
     const decision = page.getByTestId("decision-H1");
     await expect(decision).toHaveAttribute("data-suggested", "comparable-observations");
     await expect(page.getByTestId("decision-note-H1")).toContainText("Nothing chosen.");

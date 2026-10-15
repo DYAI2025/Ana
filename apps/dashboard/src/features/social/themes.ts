@@ -77,9 +77,22 @@ export const CANDIDATES: readonly CandidateHypothesis[] = ["H1", "H4"];
  * term (adjacent, or one word apart: "UGC jobs", "brands hiring", "jobs for creators"). Terms that merely co-occur
  * ("remote island trip, what an opportunity", "quit my job to become a creator") do not qualify; neither do travel,
  * nomad, creator or UGC alone, or "apply" alone. A few compact hashtags count on their own.
+ *
+ * Bare "remote" pairs only with job-specific terms (job, gig, hiring), not with a bare "opportunity" ("remote opportunity
+ * to travel"); "remote work" pairs with any opportunity term ("opportunities list: remote work"). The author's own job
+ * ("I quit my remote job", "my old UGC gig") is employment history, not an opportunity offered. When in doubt the rule
+ * abstains; an analyst can include the post for the session.
  */
 export const H1_OPPORTUNITY_TERMS = ["job", "jobs", "gig", "gigs", "opportunity", "opportunities", "hiring", "casting call", "open call", "job board", "job listing", "job listings", "vacancy", "vacancies", "stellenangebot", "stellenangebote", "offerte di lavoro", "opportunità di lavoro"] as const;
-export const H1_DOMAIN_TERMS = ["ugc", "creator", "creators", "influencer", "influencers", "remote", "remoto", "brand", "brands"] as const;
+export const H1_DOMAIN_TERMS = ["ugc", "creator", "creators", "influencer", "influencers", "remote work", "remote working", "remote", "remoto", "brand", "brands"] as const;
+/** Bare "remote" may mean a place ("remote opportunity to travel"); it needs a job-specific term. "remote work" does not. */
+const H1_WORK_ONLY_DOMAINS: ReadonlySet<string> = new Set(["remote", "remoto"]);
+const H1_GENERIC_OPPORTUNITY: ReadonlySet<string> = new Set(["opportunity", "opportunities"]);
+/** Job nouns that, after a first-person singular possessive ("my remote job"), name the author's own employment. */
+const H1_OWN_JOB_NOUNS: ReadonlySet<string> = new Set(["job", "jobs", "gig", "gigs"]);
+const FIRST_PERSON_POSSESSIVES: ReadonlySet<string> = new Set(["my", "mein", "meine", "meinen", "meinem", "meiner", "mio", "mia", "miei", "mie"]);
+/** How many tokens before "remote job" a possessive may stand ("my old remote job"). */
+const OWN_JOB_LOOKBACK = 2;
 export const H1_HASHTAG_TERMS = ["ugcjob", "ugcjobs", "ugcopportunities", "creatorjobs", "creatoropportunity", "creatoropportunities", "remotejob", "remotejobs"] as const;
 /** At most this many words between the opportunity term and the domain term. */
 const H1_MAX_GAP = 1;
@@ -88,7 +101,13 @@ const H1_MAX_GAP = 1;
  * Money, career, "tips", "guide", "how to" or "step by step" alone are not a reusable file. Ambiguous words (Italian
  * "modello" = model) are left out.
  */
-export const H4_ARTIFACT_TERMS = ["template", "templates", "checklist", "checklists", "worksheet", "worksheets", "spreadsheet", "spreadsheets", "toolkit", "swipe file", "media kit", "rate card", "workflow", "workflows", "sop", "printable", "vorlage", "vorlagen", "checkliste", "checklisten"] as const;
+export const H4_ARTIFACT_TERMS = ["template", "templates", "checklist", "checklists", "worksheet", "worksheets", "spreadsheet", "spreadsheets", "toolkit", "swipe file", "media kit", "rate card", "sop", "printable", "vorlage", "vorlagen", "checkliste", "checklisten"] as const;
+/**
+ * "Workflow" alone is usually a routine ("my morning workout workflow"), not a file. It counts only together with a cue
+ * that the workflow is a reusable file. Calls to action ("save this") are not cues: they move saves themselves.
+ */
+export const H4_WEAK_ARTIFACT_TERMS = ["workflow", "workflows"] as const;
+export const H4_REUSABLE_FILE_CUES = ["file", "files", "pdf", "download", "downloadable", "notion", "google doc", "google sheet", "reusable", "plug and play", "datei", "dateien"] as const;
 
 /** Lower-case word tokens; punctuation, hyphens and "#" separate words ("ugc-job" = "ugc job", "#ugcjobs" = "ugcjobs"). */
 const tokenize = (caption: string) => caption.toLowerCase().split(/[^\p{L}\p{N}]+/u).filter(Boolean);
@@ -107,7 +126,11 @@ const present = (tokens: readonly string[], terms: readonly string[]) => terms.f
 export function deriveTopicalFit(caption: string | null, hypothesis: CandidateHypothesis): readonly string[] {
   if (!caption) return [];
   const tokens = tokenize(caption);
-  if (hypothesis === "H4") return present(tokens, H4_ARTIFACT_TERMS);
+  if (hypothesis === "H4") {
+    const cues = present(tokens, H4_REUSABLE_FILE_CUES);
+    const weak = cues.length ? present(tokens, H4_WEAK_ARTIFACT_TERMS) : [];
+    return [...present(tokens, H4_ARTIFACT_TERMS), ...weak, ...(weak.length ? cues : [])];
+  }
   const opportunity = new Set<string>();
   const domain = new Set<string>();
   for (const o of H1_OPPORTUNITY_TERMS)
@@ -115,10 +138,11 @@ export function deriveTopicalFit(caption: string | null, hypothesis: CandidateHy
       for (const d of H1_DOMAIN_TERMS)
         for (const [ds, de] of occurrences(tokens, d)) {
           const gap = os > de ? os - de - 1 : ds - oe - 1;
-          if (gap >= 0 && gap <= H1_MAX_GAP) {
-            opportunity.add(o);
-            domain.add(d);
-          }
+          if (gap < 0 || gap > H1_MAX_GAP) continue;
+          if (H1_WORK_ONLY_DOMAINS.has(d) && H1_GENERIC_OPPORTUNITY.has(o)) continue;
+          if (gap === 0 && os > de && H1_OWN_JOB_NOUNS.has(o) && tokens.slice(Math.max(0, ds - OWN_JOB_LOOKBACK), ds).some((t) => FIRST_PERSON_POSSESSIVES.has(t))) continue;
+          opportunity.add(o);
+          domain.add(d);
         }
   return [...present(tokens, H1_HASHTAG_TERMS), ...H1_OPPORTUNITY_TERMS.filter((t) => opportunity.has(t)), ...H1_DOMAIN_TERMS.filter((t) => domain.has(t))];
 }
