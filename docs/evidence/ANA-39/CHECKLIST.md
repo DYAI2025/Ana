@@ -27,8 +27,39 @@ PASS or FAIL is set by a separate acceptor on the exact candidate SHA (docs/deli
 | AC3 | Four lanes, provenance, denominators, no product support/counterevidence | `offers.test.ts` "AC3 · …" (5 tests); `social.spec.ts` "ANA-39 AC2/AC3 · travel and money posts are no longer product evidence; four lanes…", "ANA-39 AC3/AC5 · session correction…" |
 | AC4 | Format n, observed, lifetime, maturity ≠ age matching, comparability; zero reach, missing saves/shares, zero median, <5, <3, <8, unequal ages, 49 Reels / 1 Feed, stale, overlap, absolute delta vs percentage | `offers.test.ts` "AC4 · comparability limits…" (9 tests) and "AC4 · H1-only vs H4-only comparison…" (3 tests); `social.spec.ts` "ANA-39 AC4 · a stale snapshot is disclosed…", disclosure assertions in "ANA-39 AC2/AC3" |
 | AC5 | Browser journey: H1/H4, source-post inspection, gaps, next step or ABSTAIN; before/after | `social.spec.ts` "AC7 · Substack offer signals…" (jump to post), "ANA-39 AC3/AC5 · … next step or ABSTAIN is selectable by keyboard", "ANA-39 AC5 · a chosen step that the evidence no longer offers is not shown as chosen"; screenshots below |
-| AC6 | ANA-38 regression, LUMEN, EN/DE/IT, keyboard, mobile, a11y, privacy | full Playwright suite; `quality.spec.ts` axe on `/pulse/social/instagram`; `contrast.spec.ts` instagram cockpit / row detail / offer signals × 3 viewports; `social.spec.ts` "ANA-39 AC6 · de/it…", "ANA-39 AC6 · offer signals: lanes and next-step choice fit the viewport" (390×844); `src/i18n/i18n.test.ts` key + placeholder parity |
+| AC6 | ANA-38 regression, LUMEN, EN/DE/IT, keyboard, mobile, a11y, privacy | full Playwright suite; `quality.spec.ts` axe on `/pulse/social/instagram`; `contrast.spec.ts` instagram cockpit / row detail / offer signals × 3 viewports, and "contrast 390 · ANA-39 evidence blocks" (phone-width scroll sweep, see below); `social.spec.ts` "ANA-39 AC6 · de/it…", "ANA-39 AC6 · offer signals: lanes and next-step choice fit the viewport" (390×844); `src/i18n/i18n.test.ts` key + placeholder parity |
 | AC7 | Exact-candidate gates, independent review, browser proof, real-boundary readback, Outcome Delta | This file + PR + Jira ANA-39 comments. Gate verdicts by the acceptor only. |
+
+## Phone-width contrast (AC6 repair)
+
+Below 391px the nav becomes a fixed bottom bar and the dusk atmosphere stays fixed behind translucent glass, so the
+background behind a note changes while the page scrolls. Measured on macOS, pinned Chromium 1243, 390×844, fake
+worker, the `contrast.spec.ts` pixel method (static position, plus a sweep over every scroll position), base
+`c7b2c06` against `c7d7bfd`; repeated runs gave identical values:
+
+| Reading | Base | `c7d7bfd` | Class |
+|---|---|---|---|
+| Offer-signal disclosure "Reel 2/2, n = 18 · Carousel 0/1, n = 3", 2.57:1 | — | 2.57 at the default scroll position only | measurement defect: the text box lies under the fixed bottom nav (covered, not shown) |
+| "Caption shown on this computer only; not stored." | 4.57 static, 3.20 worst while scrolling | 4.45 static, 3.20 worst while scrolling | pre-existing |
+| Row-detail "Reach" / "Shares" labels | 3.75 / 4.05 | 3.70 / 3.99 | pre-existing |
+| Topical-fit editor notes; H1 inspection fit-row reasons, "Low resonance…", disclosure labels | — (blocks are new) | 3.24–4.21 worst while scrolling | introduced by ANA-39, repaired |
+| H4 inspection "Low resonance…" and disclosure labels | — (block is new) | 4.48–4.49 worst while scrolling | introduced by ANA-39, repaired |
+| ANA-39 rule notes and reworded text in card slots that already failed on base: H1 rule note (base "Mapped keyword families"), H4 rule note, H1 description, offers intro | 3.15 / 4.28 / 3.64 / 2.95 | 3.03 / 4.41 / 3.55 / 2.91 | ANA-39 text in a pre-existing failing slot, **not repaired** (needs a card-level decision) |
+| Content-row metric value "8" | 4.51 | 4.48 | pre-existing failing column (sibling values down to 4.26 on base), crossed by the taller ANA-39 layout; **not repaired** |
+
+Repair: the inspection, the H1-only/H4-only comparison and the topical-fit editor get the ink backing and secondary
+note tone the lanes and decision already use (`social.module.css`). Guard: "contrast 390 · ANA-39 evidence blocks"
+sweeps the row-detail topical-fit editor and, per hypothesis card, the lanes, decision and inspection (plus the
+comparison) through the viewport in 40px steps, skips text under fixed chrome and fails if any scoped block had no
+measured text. It failed on `c7d7bfd` with 17 texts in 3 of 3 states (3.24–4.49:1) and passed 3 of 3 runs after the
+repair. Lowest ratio on these blocks after the repair (20px steps), 390 / 1024 / 1280 / 1440: topical fit and H1
+card 4.89 / 5.37 / 5.22 / 5.20, H4 card 6.03 / 6.04 / 7.04 / 7.26. The topical-fit `<select>` value is not
+pixel-measured by the method (option text); its opaque `--canvas-soft` background with `--text` computes to 10.70:1.
+
+Not repaired, pre-existing on base and outside the guard: across the Instagram cockpit at 390px many older texts
+measure below 4.5:1 at some scroll position (row metrics, eyebrows, H1/H4 card titles and descriptions, observation
+labels). The guard is scoped so those findings neither hide nor excuse a regression in the ANA-39 blocks; they need
+their own decision. This is a focused check, not a WCAG conformance claim for the dashboard.
 
 ## Outcome Delta (decision quality, synthetic fixture; no revenue claim)
 

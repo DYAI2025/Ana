@@ -852,8 +852,9 @@
 .inspection {
   width: 100%;
   margin-top: 6px;
-  padding-top: 10px;
-  border-top: 1px dashed var(--hairline);
+  padding: 10px;
+  border-radius: 10px;
+  border: 1px dashed var(--hairline);
 }
 
 .tableWrap {
@@ -921,15 +922,30 @@
   border-style: dashed;
 }
 
-/* lanes and the decision sit on varying glass: a light ink backing plus the secondary tone keeps notes above 4.5:1 */
+/* lanes, the decision, the comparison, the inspection and the topical-fit editor sit on varying glass: a light ink
+   backing plus the secondary tone keeps notes above 4.5:1 (at phone width the fixed atmosphere behind them shifts
+   while scrolling) */
 .lane,
-.decision {
+.decision,
+.nextTest,
+.inspection,
+.fitEditor {
   background: rgba(20, 15, 19, 0.2);
 }
 
 .lane .note,
-.decision .note {
+.decision .note,
+.nextTest .note,
+.inspection .note,
+.inspection .kv dt,
+.fitEditor .note {
   color: var(--text-secondary);
+}
+
+.fitEditor {
+  padding: 10px;
+  border-radius: 10px;
+  border: 1px solid var(--hairline);
 }
 
 .laneHead,

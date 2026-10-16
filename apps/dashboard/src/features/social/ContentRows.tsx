@@ -284,7 +284,7 @@ function TopicalFitEditor({ post, corrections, onCorrect }: { post: PostAnalysis
   const { t } = useI18n();
   const base = useId();
   return (
-    <div data-testid="topical-fit">
+    <div className={styles.fitEditor} data-testid="topical-fit">
       <h3 className={styles.detailTitle}>{t("social.content.fitTitle")}</h3>
       <p className={styles.note}>{t("social.content.fitNote")}</p>
       <ul className={styles.fitList}>

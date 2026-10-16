@@ -10,6 +10,8 @@ import { expect, test } from "./fixtures";
 
 interface Run {
   text: string;
+  /** index of the scope selector the text sits in (scoped measurements only) */
+  within?: number;
   color: [number, number, number, number];
   large: boolean;
   rects: { x: number; y: number; w: number; h: number }[];
@@ -22,15 +24,36 @@ const channel = (v: number) => {
 const luminance = (r: number, g: number, b: number) => 0.2126 * channel(r) + 0.7152 * channel(g) + 0.0722 * channel(b);
 const ratio = (a: number, b: number) => (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
 
-async function collectRuns(page: Page): Promise<Run[]> {
-  return page.evaluate(() => {
+interface Scope {
+  /** measure only text inside one of these selectors (a focused check of one surface) */
+  within?: string[];
+  /** drop text boxes under fixed chrome (the phone-width bottom nav): that text is covered, not shown */
+  skipFixedChrome?: boolean;
+  /** collects the indexes of the `within` selectors that had measured text, so a sweep cannot pass empty */
+  seen?: Set<number>;
+}
+
+async function collectRuns(page: Page, scope: Scope = {}): Promise<Run[]> {
+  return page.evaluate(({ within, skipFixedChrome }) => {
     const dialog = document.querySelector('[role="dialog"]');
+    // decorative full-viewport layers (atmosphere, grain: pointer-events none, viewport minus any scrollbar) are
+    // backgrounds, not chrome
+    const { clientWidth, clientHeight } = document.documentElement;
+    const chrome = (skipFixedChrome ? Array.from(document.querySelectorAll("body *")) : [])
+      .filter((e) => {
+        const s = getComputedStyle(e);
+        return s.position === "fixed" && s.pointerEvents !== "none" && s.display !== "none" && s.visibility !== "hidden";
+      })
+      .map((e) => ({ el: e, r: e.getBoundingClientRect() }))
+      .filter((c) => c.r.width > 0 && c.r.height > 0 && !(c.r.width >= clientWidth && c.r.height >= clientHeight));
     const runs: Run[] = [];
     const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
     for (let node = walker.nextNode(); node; node = walker.nextNode()) {
       const text = node.textContent?.trim() ?? "";
       const el = node.parentElement;
       if (!text || !el) continue;
+      const scopeIndex = within ? within.findIndex((s) => el.closest(s)) : -1;
+      if (within && scopeIndex < 0) continue;
       if (!/[\p{L}\p{N}]/u.test(text)) continue; // punctuation-only decoration is exempt (WCAG 1.4.3)
       if (el.closest(".visually-hidden, script, style, noscript, option, canvas, [hidden]")) continue;
       if (dialog && !dialog.contains(el)) continue; // background content is inert while a modal is open
@@ -57,6 +80,7 @@ async function collectRuns(page: Page): Promise<Run[]> {
       const rects = Array.from(range.getClientRects())
         .map(clip)
         .filter((r) => r.width > 1 && r.height > 1 && r.bottom > 0 && r.right > 0 && r.top < innerHeight && r.left < innerWidth)
+        .filter((r) => !chrome.some((c) => !c.el.contains(el) && r.left < c.r.right && r.right > c.r.left && r.top < c.r.bottom && r.bottom > c.r.top))
         .map((r) => ({ x: r.left, y: r.top, w: r.width, h: r.height }));
       if (rects.length === 0) continue;
       const m = style.color.match(/[\d.]+/g)!.map(Number);
@@ -65,18 +89,22 @@ async function collectRuns(page: Page): Promise<Run[]> {
       // effective opacity of ancestors (e.g. dimmed calendar days) multiplies the text alpha
       let opacity = 1;
       for (let a: Element | null = el; a; a = a.parentElement) opacity *= Number(getComputedStyle(a).opacity);
-      runs.push({ text: text.slice(0, 40), color: [m[0]!, m[1]!, m[2]!, (m[3] ?? 1) * opacity], large: size >= 24 || (size >= 18.66 && bold), rects });
+      runs.push({ text: text.slice(0, 40), ...(within ? { within: scopeIndex } : {}), color: [m[0]!, m[1]!, m[2]!, (m[3] ?? 1) * opacity], large: size >= 24 || (size >= 18.66 && bold), rects });
     }
     return runs;
-  }) as Promise<Run[]>;
+  }, { within: scope.within, skipFixedChrome: scope.skipFixedChrome ?? false }) as Promise<Run[]>;
 }
 
-async function measure(page: Page, label: string): Promise<string[]> {
+async function measure(page: Page, label: string, scope: Scope = {}): Promise<string[]> {
   await page.waitForTimeout(450);
-  const runs = await collectRuns(page);
-  await page.addStyleTag({ content: "*, *::before, *::after { color: transparent !important; text-shadow: none !important; -webkit-text-fill-color: transparent !important; caret-color: transparent !important; } ::placeholder { color: transparent !important; }" });
+  const runs = await collectRuns(page, scope);
+  for (const run of runs) if (run.within !== undefined) scope.seen?.add(run.within);
+  const hide = await page.addStyleTag({ content: "*, *::before, *::after { color: transparent !important; text-shadow: none !important; -webkit-text-fill-color: transparent !important; caret-color: transparent !important; } ::placeholder { color: transparent !important; }" });
   await page.waitForTimeout(80);
   const png = PNG.sync.read(await page.screenshot());
+  // text visible again, so a scroll sweep can measure its next position (and never reads the hidden colours)
+  await hide.evaluate((node) => (node as Element).remove());
+  await page.waitForFunction(() => getComputedStyle(document.body).color !== "rgba(0, 0, 0, 0)");
   const scale = png.width / page.viewportSize()!.width;
   const failures: string[] = [];
   for (const run of runs) {
@@ -156,3 +184,72 @@ for (const viewport of [{ width: 1440, height: 900 }, { width: 1280, height: 800
     }
   });
 }
+
+/**
+ * ANA-39 AC6 at phone width. Below 391px the nav becomes a fixed bottom bar and the dusk atmosphere stays fixed
+ * behind translucent glass, so the background behind a note changes as the page scrolls: each surface ANA-39 added
+ * is swept through the viewport and measured at every step (text under the fixed nav is covered, not shown).
+ * Scoped on purpose to the evidence blocks ANA-39 introduced: older cockpit text has its own pre-existing
+ * phone-width findings, which must neither hide nor excuse a regression here.
+ */
+const MOBILE_ANA39: { label: string; within: string[]; prepare: (page: Page) => Promise<unknown> }[] = [
+  {
+    label: "instagram row detail topical fit",
+    within: ['[data-testid="topical-fit"]'],
+    prepare: async (p) => {
+      await p.locator('[data-media-id="syn004"]').getByTestId("row-toggle").click();
+      await p.getByTestId("topical-fit").waitFor();
+    },
+  },
+  {
+    label: "instagram offer signals H1 evidence",
+    within: ['[data-testid^="lane-H1-"]', '[data-testid="decision-H1"]', '[data-testid="inspection-H1"]', '[data-testid="engagement-comparison"]'],
+    prepare: async (p) => {
+      await p.getByTestId("tab-offers").click();
+      await p.getByTestId("inspect-hypothesis-H1").click();
+      await p.getByTestId("inspection-H1").waitFor();
+    },
+  },
+  {
+    label: "instagram offer signals H4 evidence",
+    within: ['[data-testid^="lane-H4-"]', '[data-testid="decision-H4"]', '[data-testid="inspection-H4"]'],
+    prepare: async (p) => {
+      await p.getByTestId("tab-offers").click();
+      await p.getByTestId("inspect-hypothesis-H4").click();
+      await p.getByTestId("inspection-H4").waitFor();
+    },
+  },
+];
+
+test.describe("contrast 390 · ANA-39 evidence blocks", () => {
+  test.use({ viewport: { width: 390, height: 844 } });
+  for (const state of MOBILE_ANA39) {
+    test(`text contrast >= WCAG AA while scrolling: ${state.label}`, async ({ page }) => {
+      test.setTimeout(240_000);
+      await page.emulateMedia({ reducedMotion: "reduce" });
+      await page.goto("/pulse/social/instagram");
+      await page.waitForLoadState("networkidle");
+      await state.prepare(page);
+      const span = await page.evaluate((within) => {
+        const boxes = within.flatMap((s) => Array.from(document.querySelectorAll(s))).map((e) => e.getBoundingClientRect());
+        return { top: Math.min(...boxes.map((b) => b.top)) + scrollY, bottom: Math.max(...boxes.map((b) => b.bottom)) + scrollY, max: document.documentElement.scrollHeight - innerHeight };
+      }, state.within);
+      expect(span.bottom, "surface rendered").toBeGreaterThan(span.top);
+      // worst failing position per text, so a red run names each failing note once
+      const worst = new Map<string, { ratio: number; failure: string }>();
+      const seen = new Set<number>();
+      // from the surface's top entering at the bottom edge until its bottom leaves at the top edge
+      for (let y = Math.max(0, span.top - 844); y <= Math.min(span.max, span.bottom); y += 40) {
+        await page.evaluate((top) => window.scrollTo(0, top), y);
+        for (const failure of await measure(page, `${state.label} @${y}`, { within: state.within, skipFixedChrome: true, seen })) {
+          const text = failure.slice(failure.indexOf('"'), failure.lastIndexOf('"') + 1);
+          const ratio = parseFloat(failure.slice(failure.lastIndexOf('"') + 1));
+          const seen = worst.get(text);
+          if (!seen || ratio < seen.ratio) worst.set(text, { ratio, failure });
+        }
+      }
+      expect(state.within.filter((_, i) => !seen.has(i)), "every surface had measured text").toEqual([]);
+      expect([...worst.values()].map((w) => w.failure)).toEqual([]);
+    });
+  }
+});
