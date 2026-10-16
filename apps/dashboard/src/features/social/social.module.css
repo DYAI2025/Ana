@@ -174,10 +174,12 @@
   margin-bottom: 12px;
 }
 
+/* white, not --text: the glass sheen under a panel's top edge scales with panel height, and --text measured
+   4.26-4.59:1 there across heights and viewports; white keeps every height >= 4.6:1 (ANA-39 AC6) */
 .panelTitle {
   font-size: 17px;
   font-weight: 520;
-  color: var(--text);
+  color: #fff;
 }
 
 .eyebrow {
