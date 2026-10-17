@@ -44,8 +44,8 @@ worker, the `contrast.spec.ts` pixel method (static position, plus a sweep over 
 | Row-detail "Reach" / "Shares" labels | 3.75 / 4.05 | 3.70 / 3.99 | pre-existing |
 | Topical-fit editor notes; H1 inspection fit-row reasons, "Low resonance…", disclosure labels | — (blocks are new) | 3.24–4.21 worst while scrolling | introduced by ANA-39, repaired |
 | H4 inspection "Low resonance…" and disclosure labels | — (block is new) | 4.48–4.49 worst while scrolling | introduced by ANA-39, repaired |
-| ANA-39 rule notes and reworded text in card slots that already failed on base: H1 rule note (base "Mapped keyword families"), H4 rule note, H1 description, offers intro | 3.15 / 4.28 / 3.64 / 2.95 | 3.03 / 4.41 / 3.55 / 2.91 | ANA-39 text in a pre-existing failing slot, **not repaired** (needs a card-level decision) |
-| Content-row metric value "8" | 4.51 | 4.48 | pre-existing failing column (sibling values down to 4.26 on base), crossed by the taller ANA-39 layout; **not repaired** |
+| ANA-39 rule notes and reworded text in card slots that already failed on base: H1 rule note (base "Mapped keyword families"), H4 rule note, H1 description, offers intro | 3.15 / 4.28 / 3.64 / 2.95 | 3.03 / 4.41 (3.75 with H4 inspected) / 3.55 / 2.91 | ANA-39 text in a pre-existing failing slot; repaired in the card stabilization below |
+| Content-row metric value "8" | 4.51 | 4.48 with the row detail open, 4.51 in every other state | pre-existing failing column (siblings "20", "10", "41", "0.92×" at 4.26–4.43 on base and candidate); the 0.03 shift comes from the taller row detail (topical-fit editor) moving the glass sheen; **not repaired** — fixing it means re-styling every metric row |
 
 Repair: the inspection, the H1-only/H4-only comparison and the topical-fit editor get the ink backing and secondary
 note tone the lanes and decision already use (`social.module.css`). Guard: "contrast 390 · ANA-39 evidence blocks"
@@ -56,8 +56,22 @@ repair. Lowest ratio on these blocks after the repair (20px steps), 390 / 1024 /
 card 4.89 / 5.37 / 5.22 / 5.20, H4 card 6.03 / 6.04 / 7.04 / 7.26. The topical-fit `<select>` value is not
 pixel-measured by the method (option text); its opaque `--canvas-soft` background with `--text` computes to 10.70:1.
 
+Card stabilization (second pass, measured against `a6e8151` at 20px sweep steps, base and `c7d7bfd` alongside): the
+H1/H4 cards and the offers intro get the same ink backing at 0.28 and the secondary note tone; the intro gets a
+padded, rounded box. That padding makes the offers panel 16px taller, which moved the theme-table head "Theme" from
+4.53 to 4.49 at 390px (4px sweep: 4.534 → 4.488; already 4.49 on `a6e8151` with an inspection open, 4.16–4.41 on
+base), so that head inside `.offers` takes the secondary tone as well (now 5.26). The guard's H1 and H4 states now
+also cover the card itself and the intro (listed after the blocks, which keep their own measured-text check). Red on
+the `a6e8151` styles with the extended guard: H1 state "H1 and H4 are product hypotheses…" 2.91, H1 rule note 3.03,
+H1 description 3.55, card title 4.38; H4 state rule note 3.75, description 4.34; both failing at the contrast
+assertion with every surface measured. Canary: an intro selector that matches nothing fails "every surface had
+measured text". Green 3 of 3 runs after the repair. Lowest ratio after the repair, 390 / 1024 / 1280 / 1440: card
+text 5.37 / 5.71 / 5.63 / 5.57, intro 5.29 / 5.57 / 5.56 / 5.54; no text in the offers panel under 4.5:1 at any of
+the four widths, and no text in the swept range worse than on `a6e8151` by more than 0.05. Still under 4.5:1 there
+at 390px and unchanged: the "Observations" tab label (4.32), pre-existing.
+
 Not repaired, pre-existing on base and outside the guard: across the Instagram cockpit at 390px many older texts
-measure below 4.5:1 at some scroll position (row metrics, eyebrows, H1/H4 card titles and descriptions, observation
+measure below 4.5:1 at some scroll position (row metrics, eyebrows, tab labels, observation
 labels). The guard is scoped so those findings neither hide nor excuse a regression in the ANA-39 blocks; they need
 their own decision. This is a focused check, not a WCAG conformance claim for the dashboard.
 

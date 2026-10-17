@@ -203,7 +203,16 @@ const MOBILE_ANA39: { label: string; within: string[]; prepare: (page: Page) => 
   },
   {
     label: "instagram offer signals H1 evidence",
-    within: ['[data-testid^="lane-H1-"]', '[data-testid="decision-H1"]', '[data-testid="inspection-H1"]', '[data-testid="engagement-comparison"]'],
+    // the card itself (title, description, rule note) and the offers intro carry ANA-39 wording too; listed last, so
+    // the blocks above keep their own "measured text" check
+    within: [
+      '[data-testid^="lane-H1-"]',
+      '[data-testid="decision-H1"]',
+      '[data-testid="inspection-H1"]',
+      '[data-testid="engagement-comparison"]',
+      '[data-testid="hypothesis-H1"]',
+      '[data-testid="offer-signals"] > p:first-child',
+    ],
     prepare: async (p) => {
       await p.getByTestId("tab-offers").click();
       await p.getByTestId("inspect-hypothesis-H1").click();
@@ -212,7 +221,7 @@ const MOBILE_ANA39: { label: string; within: string[]; prepare: (page: Page) => 
   },
   {
     label: "instagram offer signals H4 evidence",
-    within: ['[data-testid^="lane-H4-"]', '[data-testid="decision-H4"]', '[data-testid="inspection-H4"]'],
+    within: ['[data-testid^="lane-H4-"]', '[data-testid="decision-H4"]', '[data-testid="inspection-H4"]', '[data-testid="hypothesis-H4"]'],
     prepare: async (p) => {
       await p.getByTestId("tab-offers").click();
       await p.getByTestId("inspect-hypothesis-H4").click();

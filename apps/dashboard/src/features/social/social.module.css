@@ -924,7 +924,8 @@
 
 /* lanes, the decision, the comparison, the inspection and the topical-fit editor sit on varying glass: a light ink
    backing plus the secondary tone keeps notes above 4.5:1 (at phone width the fixed atmosphere behind them shifts
-   while scrolling) */
+   while scrolling); the hypothesis cards and the offers intro hold longer note text directly, so their backing is a
+   little denser */
 .lane,
 .decision,
 .nextTest,
@@ -933,12 +934,30 @@
   background: rgba(20, 15, 19, 0.2);
 }
 
+.hypothesis,
+.offers > .note:first-child {
+  background: rgba(20, 15, 19, 0.28);
+}
+
+.hypothesis > .note,
 .lane .note,
 .decision .note,
 .nextTest .note,
 .inspection .note,
 .inspection .kv dt,
-.fitEditor .note {
+.fitEditor .note,
+.offers > .note:first-child {
+  color: var(--text-secondary);
+}
+
+.offers > .note:first-child {
+  padding: 8px 10px;
+  border-radius: 10px;
+}
+
+/* the intro's padding makes the offers panel taller, which shifts the glass sheen behind the theme table: its head
+   takes the secondary tone so the move cannot push it under 4.5:1 */
+.offers .table thead th {
   color: var(--text-secondary);
 }
 
