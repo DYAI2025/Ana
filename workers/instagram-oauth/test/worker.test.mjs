@@ -3,6 +3,7 @@
 import assert from 'node:assert/strict';
 import {test, beforeEach, afterEach, after} from 'node:test';
 import {readFileSync} from 'node:fs';
+import {inspect} from 'node:util';
 import worker, {testing} from '../src/index.mjs';
 import {createD1, rows, MIGRATION_FILES} from './d1-sqlite.mjs';
 
@@ -43,13 +44,18 @@ const sensitive = new Set([APP_SECRET, ADMIN_KEY, INTERNAL_KEY, SHORT_TOKEN, LON
 const track = v => { if (v && v.length >= 8) sensitive.add(v); return v; };
 let codeCounter = 0;
 const uniqueCode = () => track(`synthetic-oauth-code-${++codeCounter}-${'q'.repeat(8)}`);
-beforeEach(() => { for (const k of CONSOLE) console[k] = (...a) => logs.push(a.map(String).join(' ')); });
+// Non-string arguments are captured in full (object fields, Error cause and stack), as the Workers runtime logs them.
+beforeEach(() => { for (const k of CONSOLE) console[k] = (...a) => logs.push(a.map(x => typeof x === 'string' ? x : inspect(x, {depth: null})).join(' ')); });
 afterEach(() => { for (const k of CONSOLE) console[k] = oldConsole[k]; globalThis.fetch = oldFetch; });
+// Application logs carry event names and error classes only: no URL (with scheme, protocol-relative or a bare
+// host with a path) and no query string.
+const URL_OR_QUERY = /[a-z][a-z0-9+.-]*:\/\/|\/\/[\w-]+\.[\w-]|\b[\w-]+(?:\.[\w-]+)+\/|[?&][\w.-]+=/i;
 after(() => {
   assert.ok(logs.length > 0, 'log capture is live');
   const all = logs.join('\n');
   for (const s of sensitive) assert.ok(!all.includes(s), 'log leak: ' + s.slice(0, 12) + '…');
   assert.ok(!all.includes('/instagram/callback?') && !all.includes('access_token='), 'no URLs in logs');
+  assert.deepEqual(logs.filter(l => URL_OR_QUERY.test(l)), [], 'no URL or query string in logs');
 });
 
 // ---- Meta mock: documented response shapes, records every outbound call ----
@@ -896,6 +902,30 @@ function setHealth(env, h) {
   const keys = Object.keys(h);
   env.DB.sqlite.prepare(`UPDATE instagram_tokens SET ${keys.map(k => k + '=?').join(', ')}`).run(...keys.map(k => h[k]));
 }
+// Records the SQL of every executed statement (run(), first(), all(), also inside batch()) that touches
+// instagram_tokens and is not a plain SELECT, whatever its case or quoting.
+function captureTokenWrites(env) {
+  const writes = [], realPrepare = env.DB.prepare;
+  const isWrite = sql => /\binstagram_tokens\b/i.test(sql) && !/^\s*select\b/i.test(sql);
+  const wrap = (s, sql) => ({...s, bind: (...a) => wrap(s.bind(...a), sql),
+    ...Object.fromEntries(['run', 'first', 'all'].map(k => [k, (...a) => { if (isWrite(sql)) writes.push(sql); return s[k](...a); }]))});
+  env.DB.prepare = sql => wrap(realPrepare.call(env.DB, sql), sql);
+  return {writes, restore: () => { env.DB.prepare = realPrepare; }};
+}
+// AC6: a successful refresh rotates the ciphertext and resets every health field in one UPDATE bound to the
+// ciphertext it read; a second, separate health write (even one guarded by the new ciphertext) is not atomic.
+function assertAtomicRefreshWrite(writes, name) {
+  assert.equal(writes.length, 1, name + ': exactly one token write');
+  const m = writes[0].match(/^UPDATE instagram_tokens SET (.*) WHERE (.*)$/);
+  assert.ok(m, name + ': an UPDATE');
+  // the exact SET list: every rotation and health column gets a new value (bound values are checked on the row)
+  assert.deepEqual(Object.fromEntries(m[1].split(', ').map(x => x.split('='))), {
+    token_iv: '?', token_ciphertext: '?', issued_at: '?', expires_at: '?', updated_at: '?', connection_status: '?',
+    last_refresh_attempt_at: '?', last_refresh_error: 'NULL', last_check_at: '?', last_check_result: "'OK'",
+    last_check_error_class: 'NULL', last_health_ok_at: '?', last_health_ok_source: "'refresh'"
+  }, name + ': rotation and health reset in one SET list');
+  assert.equal(m[2], 'account_id=? AND token_ciphertext=?', name + ': bound to the ciphertext read');
+}
 // Ana re-authorizes while a check is in flight: new ciphertext and values the code under test never writes.
 async function reauthorizeNow(env) {
   const sealed = await testing.seal('REAUTHORIZED_TOKEN', env, IG_USER_ID);
@@ -1053,7 +1083,10 @@ test('health: refresh day makes exactly one Meta call (the refresh), never an ex
   const ok = mockEnv();
   await seedToken(ok);
   let calls = installMeta();
+  const captured = captureTokenWrites(ok);
   await runCron(ok);
+  captured.restore();
+  assertAtomicRefreshWrite(captured.writes, 'cron refresh');
   assert.deepEqual(calls.map(c => c.url.pathname), ['/refresh_access_token']);
   assert.equal(await testing.openSealed(tokenRow(ok), ok), 'ROTATED_TOKEN');
   assert.deepEqual(healthOf(tokenRow(ok)), {connection_status: 'CONNECTED', last_check_at: T0, last_check_result: 'OK', last_check_error_class: null, last_health_ok_at: T0, last_health_ok_source: 'refresh'});
@@ -1069,6 +1102,69 @@ test('health: refresh day makes exactly one Meta call (the refresh), never an ex
     assert.deepEqual(healthOf(row), {connection_status: 'CONNECTED', last_check_at: T0, last_check_result: 'UNVERIFIABLE', last_check_error_class: errorClass, last_health_ok_at: null, last_health_ok_source: null}, name);
     assert.deepEqual([row.last_refresh_attempt_at, row.last_refresh_error], [T0, errorClass], name);
     assert.equal(await testing.openSealed(row, env), 'OLD_TOKEN', name);
+  }
+});
+
+// AC3 at the refresh path: only 190 invalidates a token, so permission codes 10/200 and every other failure of a due
+// refresh are UNVERIFIABLE with their error class, keep token and status, and are the run's only Meta call.
+const UNVERIFIABLE_REFRESH = [
+  ['permission code 10', metaError(10, 403), 'meta-10'],
+  ['permission code 200', metaError(200, 403), 'meta-200'],
+  ['other code 100', metaError(100), 'meta-100'],
+  ['timeout', () => { throw new DOMException('synthetic', 'TimeoutError'); }, 'TimeoutError'],
+  ['network error', () => { throw new TypeError('fetch failed'); }, 'TypeError'],
+  ['HTTP 500 JSON without code', () => Response.json({error: {message: 'synthetic'}}, {status: 500}), 'meta-rejected'],
+  ['HTTP 200 non-JSON', () => new Response('not json', {status: 200}), 'meta-non-json'],
+  ['rate limit 17', metaError(17), 'meta-17'],
+  ['rate limit 32', metaError(32), 'meta-32'],
+  ['rate limit 613', metaError(613), 'meta-613']
+];
+test('health: permission codes 10/200 and other non-190 refresh failures -> UNVERIFIABLE, token and status kept, one Meta call', async t => {
+  freeze(t);
+  for (const [name, refresh, errorClass] of UNVERIFIABLE_REFRESH) {
+    const env = mockEnv();
+    await seedToken(env); // due
+    setHealth(env, {last_check_at: T0 - 3600, last_check_result: 'OK', last_health_ok_at: T0 - 3600, last_health_ok_source: 'cron'});
+    const calls = installMeta({refresh});
+    await runCron(env);
+    assert.deepEqual(calls.map(c => c.url.pathname), ['/refresh_access_token'], name + ': only the refresh, no /me');
+    const row = tokenRow(env);
+    assert.deepEqual(healthOf(row), {connection_status: 'CONNECTED', last_check_at: T0, last_check_result: 'UNVERIFIABLE', last_check_error_class: errorClass, last_health_ok_at: T0 - 3600, last_health_ok_source: 'cron'}, name);
+    assert.deepEqual([row.last_refresh_attempt_at, row.last_refresh_error], [T0, errorClass], name);
+    assert.equal(await testing.openSealed(row, env), 'OLD_TOKEN', name + ': old token kept');
+    const s = await readStatusJson(env);
+    assert.deepEqual([s.status, s.connected, s.health.last_check_result, s.health.last_check_error_class], ['CONNECTED', true, 'UNVERIFIABLE', errorClass], name);
+  }
+  // the same rule for a forced POST /admin/refresh
+  for (const code of [10, 200]) {
+    const env = mockEnv();
+    await seedToken(env, {issuedAgo: 2 * DAY, expiresIn: 58 * DAY});
+    const calls = installMeta({refresh: metaError(code, 403)});
+    const r = await worker.fetch(adminReq('/admin/refresh', 'POST'), env);
+    assert.deepEqual(await r.json(), {status: 'REFRESH_FAILED', reason: `meta-${code}`});
+    assert.deepEqual(calls.map(c => c.url.pathname), ['/refresh_access_token'], `POST code ${code}`);
+    assert.deepEqual([tokenRow(env).connection_status, tokenRow(env).last_check_result, tokenRow(env).last_check_error_class], ['CONNECTED', 'UNVERIFIABLE', `meta-${code}`], `POST code ${code}`);
+    assert.equal(await testing.openSealed(tokenRow(env), env), 'OLD_TOKEN', `POST code ${code}`);
+  }
+});
+
+// Meta refuses to refresh a token younger than 24 h: with at most 15 days left it still gets the /me check, and from
+// exactly 24 h on the refresh is the run's only Meta call.
+test('health: 24 h refresh guard with at most 15 days left — younger than 24 h -> /me only, exactly 24 h -> refresh only', async t => {
+  freeze(t);
+  for (const [name, seed, path, source, token] of [
+    ['24 h - 1 s old, 15 days left', {issuedAgo: DAY - 1, expiresIn: 15 * DAY}, '/v26.0/me', 'cron', 'OLD_TOKEN'],
+    ['1 h old, 1 day left', {issuedAgo: 3600, expiresIn: DAY}, '/v26.0/me', 'cron', 'OLD_TOKEN'],
+    ['exactly 24 h old, 15 days left', {issuedAgo: DAY, expiresIn: 15 * DAY}, '/refresh_access_token', 'refresh', 'ROTATED_TOKEN'],
+    ['exactly 24 h old, 1 day left', {issuedAgo: DAY, expiresIn: DAY}, '/refresh_access_token', 'refresh', 'ROTATED_TOKEN']
+  ]) {
+    const env = mockEnv();
+    await seedToken(env, seed);
+    const calls = installMeta({me: () => Response.json({user_id: IG_USER_ID})});
+    await runCron(env);
+    assert.deepEqual(calls.map(c => c.url.pathname), [path], name);
+    assert.deepEqual(healthOf(tokenRow(env)), {connection_status: 'CONNECTED', last_check_at: T0, last_check_result: 'OK', last_check_error_class: null, last_health_ok_at: T0, last_health_ok_source: source}, name);
+    assert.equal(await testing.openSealed(tokenRow(env), env), token, name);
   }
 });
 
@@ -1156,7 +1252,10 @@ test('health: a successful POST /admin/refresh is fresh at once and resets the p
   setHealth(env, {last_check_at: T0 - 600, last_check_result: 'UNVERIFIABLE', last_check_error_class: 'meta-4', last_health_ok_at: T0 - 3 * DAY, last_health_ok_source: 'cron'});
   assert.equal((await readStatusJson(env)).status, 'UNVERIFIED');
   const calls = installMeta();
+  const captured = captureTokenWrites(env);
   const r = await worker.fetch(adminReq('/admin/refresh', 'POST'), env);
+  captured.restore();
+  assertAtomicRefreshWrite(captured.writes, 'POST /admin/refresh');
   assert.deepEqual(await r.json(), {status: 'REFRESHED'});
   assert.deepEqual(calls.map(c => c.url.pathname), ['/refresh_access_token']);
   assert.deepEqual(healthOf(tokenRow(env)), {connection_status: 'CONNECTED', last_check_at: T0, last_check_result: 'OK', last_check_error_class: null, last_health_ok_at: T0, last_health_ok_source: 'refresh'});
@@ -1306,4 +1405,11 @@ test('no secret, token, code, state or invite ever appears in logs (whole suite)
   const all = logs.join('\n');
   for (const s of [APP_SECRET, ADMIN_KEY, INTERNAL_KEY, LONG_TOKEN, SHORT_TOKEN, 'ROTATED_TOKEN', 'OLD_TOKEN', 'test-code', a.state, a.invite, '/instagram/callback?'])
     assert.ok(!all.includes(s), 'log leak: ' + s);
+  // the URL guard can fail: it catches Meta URLs and bare query strings, but not the structured events themselves
+  for (const bad of ['https://graph.instagram.com/v26.0/me?fields=user_id', '//graph.instagram.com/v26.0/me', 'graph.instagram.com/v26.0/me', '/refresh_access_token?grant_type=ig_refresh_token', 'x&limit=3'])
+    assert.ok(URL_OR_QUERY.test(bad), bad);
+  for (const arg of [{url: 'https://graph.instagram.com/v26.0/me'}, new Error('check failed', {cause: 'https://graph.instagram.com/v26.0/me'})])
+    assert.ok(URL_OR_QUERY.test(inspect(arg, {depth: null})), 'object and Error.cause arguments are captured in full');
+  for (const event of ['token-health', 'token-refresh', 'oauth-connected']) assert.ok(logs.some(l => l.includes(`"event":"${event}"`)), event + ' was logged and checked');
+  assert.deepEqual(logs.filter(l => URL_OR_QUERY.test(l)), [], 'no URL or query string in any log line');
 });
