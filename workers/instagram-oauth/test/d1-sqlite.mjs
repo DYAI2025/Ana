@@ -1,14 +1,17 @@
 // Minimal D1 binding over node:sqlite so tests execute the real migration SQL
 // (constraints, foreign keys, ON CONFLICT) instead of a hand-written fake.
 import {DatabaseSync} from 'node:sqlite';
-import {readFileSync} from 'node:fs';
+import {readFileSync, readdirSync} from 'node:fs';
 
-const MIGRATION = readFileSync(new URL('../migrations/0001_init.sql', import.meta.url), 'utf8');
+// Every migration, in the order wrangler applies them (file name order), as on the deployed database.
+const MIGRATIONS_DIR = new URL('../migrations/', import.meta.url);
+export const MIGRATION_FILES = readdirSync(MIGRATIONS_DIR).filter(f => f.endsWith('.sql')).sort();
+const MIGRATIONS = MIGRATION_FILES.map(f => readFileSync(new URL(f, MIGRATIONS_DIR), 'utf8'));
 
 export function createD1() {
   const db = new DatabaseSync(':memory:');
   db.exec('PRAGMA foreign_keys = ON'); // D1 enforces foreign keys by default
-  db.exec(MIGRATION);
+  for (const sql of MIGRATIONS) db.exec(sql);
   const statement = (sql, args = []) => ({
     bind: (...a) => statement(sql, a),
     first: async () => { const r = db.prepare(sql).get(...args); return r ? {...r} : null; },
