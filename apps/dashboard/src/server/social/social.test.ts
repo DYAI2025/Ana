@@ -289,6 +289,6 @@ describe("GET /api/social/instagram", () => {
   it("the route reads only through the server-side service (no client-side worker access)", () => {
     const route = readFileSync("src/app/api/social/instagram/route.ts", "utf8");
     expect(route).toMatch(/socialServiceFromEnv\(\)/);
-    expect(route).toMatch(/refuseNonLocal\(request\)/);
+    expect(route).toMatch(/await refuseUnauthorized\(request\)/);
   });
 });

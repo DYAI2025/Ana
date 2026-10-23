@@ -17,7 +17,6 @@ interface ContextObject {
   title: string;
   status: string;
   subtitle?: string;
-  tier: "primary" | "secondary";
 }
 
 /** Pointer-following specular highlight on glass (purely decorative). */
@@ -44,18 +43,16 @@ export function NowView() {
       title: t("now.lastSession"),
       status: `${formatDate(session.date!, locale)} · ${session.start}`,
       subtitle: text(session.title),
-      tier: "primary",
     },
     {
       id: "work",
       icon: Columns3,
       title: t("now.work"),
       status: counts ? t("now.workStatus", { active: counts.active, review: counts.review }) : t("now.workStatusUnknown"),
-      tier: "primary",
     },
-    { id: "business", icon: BriefcaseBusiness, title: t("now.business"), status: t("now.businessStatus"), tier: "secondary" },
-    { id: "knowledge", icon: BookOpenText, title: t("now.knowledge"), status: t("now.knowledgeStatus", { count: RECENT_KNOWLEDGE.length }), tier: "secondary" },
-    { id: "community", icon: Users, title: t("now.community"), status: t("now.communityStatus"), tier: "secondary" },
+    { id: "business", icon: BriefcaseBusiness, title: t("now.business"), status: t("now.businessStatus") },
+    { id: "knowledge", icon: BookOpenText, title: t("now.knowledge"), status: t("now.knowledgeStatus", { count: RECENT_KNOWLEDGE.length }) },
+    { id: "community", icon: Users, title: t("now.community"), status: t("now.communityStatus") },
   ];
 
   return (
@@ -85,7 +82,7 @@ export function NowView() {
         </ol>
       </section>
 
-      <section className={styles.stage3d} aria-label={t("now.contextLabel")}>
+      <section className={styles.stack} aria-label={t("now.contextLabel")}>
         {objects.map((object) => {
           const Icon = object.icon;
           return (
@@ -93,7 +90,6 @@ export function NowView() {
               key={object.id}
               type="button"
               className={`glass ${styles.object} ${styles[`object_${object.id}`]}`}
-              data-tier={object.tier}
               data-selected={lens === object.id ? "true" : undefined}
               aria-haspopup="dialog"
               aria-expanded={lens === object.id}
@@ -109,11 +105,13 @@ export function NowView() {
                 </span>
                 <span className={styles.objectTitle}>{object.title}</span>
               </span>
-              <span className={styles.objectStatus}>
-                {object.id === "work" && work.phase === "ready" ? <span className={styles.liveDot} aria-hidden="true" /> : null}
-                {object.status}
+              <span className={styles.objectBody}>
+                <span className={styles.objectStatus}>
+                  {object.id === "work" && work.phase === "ready" ? <span className={styles.liveDot} aria-hidden="true" /> : null}
+                  {object.status}
+                </span>
+                {object.subtitle ? <span className={styles.objectSubtitle}>{object.subtitle}</span> : null}
               </span>
-              {object.subtitle ? <span className={styles.objectSubtitle}>{object.subtitle}</span> : null}
               <span className={styles.objectAction} aria-hidden="true">
                 {t("common.open")} <ArrowRight size={12} />
               </span>

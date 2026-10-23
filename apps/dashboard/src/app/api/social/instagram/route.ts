@@ -1,5 +1,5 @@
 import type { SocialResult } from "@/features/social/types";
-import { refuseNonLocal } from "@/server/http";
+import { refuseUnauthorized } from "@/server/http";
 import { NOT_CONFIGURED, socialServiceFromEnv } from "@/server/social/service";
 
 // always answered by the server process: never a build-time copy
@@ -9,11 +9,11 @@ const json = (body: SocialResult) => Response.json(body, { headers: { "Cache-Con
 
 /**
  * GET /api/social/instagram — the Instagram snapshot for the Social cockpit (ANA-38). Read-only; `?refresh=1` asks for a
- * new worker read (rate-limited server-side). Loopback only until the dashboard authentication slice exists.
+ * new worker read (rate-limited server-side). Loopback only, or a verified invited identity when deployed (LIVE-01).
  */
 export async function GET(request: Request) {
-  const nonLocal = refuseNonLocal(request);
-  if (nonLocal) return nonLocal;
+  const refused = await refuseUnauthorized(request);
+  if (refused) return refused;
   // a read can start a costly worker call with the stored Instagram token: only the dashboard's own pages may ask
   const site = request.headers.get("sec-fetch-site");
   const origin = request.headers.get("origin");
