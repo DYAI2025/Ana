@@ -43,9 +43,12 @@ jobs:
           grep -qx 'Environment=NODE_ENV=production NEXT_TELEMETRY_DISABLED=1 HOSTNAME=127.0.0.1 PORT=3410' "$u"
           grep -qx 'Environment=ANA_ACCESS_MODE=cloudflare ANA_CONTAINER=1 HOME=/run/dyai/ana-dashboard' "$u"
           grep -qx 'ExecStart=/usr/bin/node --env-file=%d/dashboard_env server.js' "$u"
-          if grep -q '^EnvironmentFile' "$u" "$t"; then echo "FAIL: EnvironmentFile= would override the pinned Environment="; exit 1; fi
+          if grep -qE '^[[:space:]]*EnvironmentFile' "$u" "$t"; then echo "FAIL: EnvironmentFile= would override the pinned Environment="; exit 1; fi
+          # exactly the two pinned lines: a later Environment= line could override or reset them
+          [ "$(grep -cE '^[[:space:]]*Environment=' "$u")" = 2 ] || { echo "FAIL: unexpected Environment= lines"; exit 1; }
+          [ "$(grep -cE '^[^#]*(HOSTNAME|ANA_ACCESS_MODE|ANA_CONTAINER)=' "$u")" = 2 ] || { echo "FAIL: access settings set more than once"; exit 1; }
           # (`! cmd` would not trip set -e, hence the explicit ifs)
-          if grep -q '^MemoryDenyWriteExecute' "$u"; then echo "FAIL: MemoryDenyWriteExecute aborts V8"; exit 1; fi
+          if grep -qE '^[[:space:]]*MemoryDenyWriteExecute' "$u"; then echo "FAIL: MemoryDenyWriteExecute aborts V8"; exit 1; fi
           if grep -qiE '^Environment=.*(TOKEN|KEY|AUD|EMAIL)' "$u" "$t"; then echo "FAIL: secret-like Environment= line"; exit 1; fi
           grep -qx 'ExecStart=/usr/bin/cloudflared tunnel --no-autoupdate --metrics 127.0.0.1:20242 run --token-file %d/tunnel_token' "$t"
           bash -n deploy/ana-dashboard/release.sh
@@ -115,6 +118,7 @@ jobs:
           (cd run && env NODE_ENV=production NEXT_TELEMETRY_DISABLED=1 HOSTNAME=127.0.0.1 PORT=3410 ANA_ACCESS_MODE=cloudflare ANA_CONTAINER=1 \
             node --env-file=../dashboard_env server.js > ../native.log 2>&1 &)
           for _ in $(seq 30); do [ "$(code localhost /api/healthz)" = 200 ] && break; sleep 1; done
+          [ "$(code localhost /api/healthz)" = 200 ] || { cat native.log; exit 1; }
           node --version
           for host in localhost ana.dyai.cloud; do
             for p in / /pulse/social/instagram /api/social/instagram /api/work; do

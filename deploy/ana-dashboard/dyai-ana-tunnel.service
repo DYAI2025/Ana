@@ -22,6 +22,8 @@ DynamicUser=yes
 RuntimeDirectory=dyai/ana-tunnel
 RuntimeDirectoryMode=0750
 Environment=HOME=/run/dyai/ana-tunnel
+# no --config: keep cloudflared from picking up a host-wide default config written later for another tunnel
+InaccessiblePaths=-/etc/cloudflared -/usr/local/etc/cloudflared
 MemoryHigh=128M
 MemoryMax=192M
 MemorySwapMax=0

@@ -35,7 +35,7 @@ Cloudflare (dashboard, account of `dyai.cloud`):
 1. Zero Trust → Networks → Tunnels → `ana-dashboard` → Public hostname: `ana.dyai.cloud` → `http://127.0.0.1:3410`.
    This also creates the proxied CNAME `ana.dyai.cloud`. Under Additional settings → Access: "Protect with Access"
    for the ANA LUMEN application (cloudflared then refuses requests without a valid assertion as well).
-2. Copy the tunnel's connector token (Install connector → the `eyJ…` value) for step 4.
+2. Copy the tunnel's connector token (Install connector → the `eyJ…` value) for the host setup below.
 3. Access application ANA LUMEN: AUD tag and team domain for `dashboard_env`; the allow policy holds exactly the
    three invited emails, and `ANA_ALLOWED_EMAILS` lists the same three. Do not set an HTTP Host header override on the
    route: the Jira write and Instagram read checks compare Origin with the Host `ana.dyai.cloud`.
@@ -45,8 +45,10 @@ Host (attended root shell, e.g. `ssh -t arch sudo -i`):
 ```bash
 install -d -m 755 /srv/dyai/runtime/ana-dashboard /srv/dyai/runtime/ana-dashboard/releases
 install -d -m 700 /etc/dyai/credentials/ana-dashboard
-install -m 600 /dev/null /etc/dyai/credentials/ana-dashboard/dashboard_env   # then fill it from dashboard.env.example
-install -m 600 /dev/null /etc/dyai/credentials/ana-dashboard/tunnel_token    # then paste the token (one line)
+install -m 600 /dev/null /etc/dyai/credentials/ana-dashboard/dashboard_env   # then fill it with an editor (not echo)
+install -m 600 /dev/null /etc/dyai/credentials/ana-dashboard/tunnel_token
+# paste the token without it reaching the shell history or the screen:
+read -rs T && printf '%s\n' "$T" > /etc/dyai/credentials/ana-dashboard/tunnel_token && unset T
 # from a checkout of this repo, copied to the host first:
 install -m 644 dyai-ana-dashboard.service dyai-ana-tunnel.service /etc/systemd/system/
 install -m 755 release.sh /srv/dyai/runtime/ana-dashboard/release.sh
@@ -58,20 +60,26 @@ systemd-analyze verify /etc/systemd/system/dyai-ana-dashboard.service /etc/syste
 
 ```bash
 SHA=<full git sha of main>
-gh run download -R DYAI2025/Ana -n ana-dashboard-$SHA -D /tmp/ana-$SHA
+# only the artifact of the successful push run on main for that commit (a PR run builds the merge ref)
+RUN=$(gh run list -R DYAI2025/Ana -w dashboard-image.yml -b main -e push -c "$SHA" -s success --json databaseId -q '.[0].databaseId')
+[ -n "$RUN" ] && gh run download "$RUN" -R DYAI2025/Ana -n ana-dashboard-$SHA -D /tmp/ana-$SHA
 scp /tmp/ana-$SHA/ana-dashboard-app-$SHA.tar.gz{,.sha256} arch:/tmp/
-ssh -t arch sudo /srv/dyai/runtime/ana-dashboard/release.sh $SHA /tmp
+# runs as a transient unit, so a dropped ssh session cannot kill it half way
+ssh -t arch sudo systemd-run --unit=ana-release --wait --collect /srv/dyai/runtime/ana-dashboard/release.sh $SHA /tmp
+ssh arch journalctl -u ana-release -o cat -n 50
 ```
 
-`release.sh` takes a lock, refuses credential files that are not root:root/600, a team domain whose signing keys are
-not reachable from the host, and a bundle whose checksum does not match. It unpacks the bundle read-only under
-`releases/<sha>` (`.next/cache` points at the unit's CacheDirectory), switches `current` atomically, restarts the
-dashboard and counts the release as verified only when `/api/healthz` answers 200 **and** the access gate answers 401
-to a request without an Access assertion (503 = Access settings missing or wrong). A release that fails is switched
-back to the previous one at once (on a first deploy: dashboard and tunnel are stopped). Only a verified release
-enables the tunnel and is appended to `.release.history`. A wrong but well-formed AUD passes these checks; only a real
-login proves it (see Verify). Safe to re-run after a dropped ssh session (the host uplink is WLAN and drops at times):
-an unpacked release is reused, not unpacked again.
+`release.sh` takes a lock, refuses credential files that are empty or not root:root/600, a team domain whose signing
+keys are not reachable from the host, a bundle whose checksum does not match and a bundle with symlinks that leave it.
+It unpacks the bundle read-only under `releases/<sha>` (`.next/cache` points at the unit's CacheDirectory), switches
+`current` atomically, restarts the dashboard (after `reset-failed`, so an earlier crash loop cannot block the start)
+and counts the release as verified only when the unit is active, `/api/healthz` answers 200 from the unit's own
+process **and** the access gate answers 401 to a request without an Access assertion (503 = Access settings missing
+or wrong). A failing release is replaced at once by the newest verified release in `.release.history`, which is
+checked the same way; if there is none or it fails too, dashboard and tunnel are disabled and the output says
+`SITE DOWN`. Only a verified release enables the tunnel, which must then report a connection on `127.0.0.1:20242/ready`,
+and is appended to `.release.history`. A wrong but well-formed AUD passes these checks; only a real login proves it
+(see Verify). Re-running with the same sha reuses the unpacked release.
 
 ## Rollback
 
@@ -79,11 +87,13 @@ an unpacked release is reused, not unpacked again.
 ssh -t arch sudo /srv/dyai/runtime/ana-dashboard/release.sh --rollback
 ```
 
-Goes to the most recent verified release other than the current one; a failed release is never a target. With no
-earlier verified release (first deploy) it refuses and changes nothing.
+Goes to the most recent verified release other than the current one; a failed release is never a target. A rollback
+is itself recorded as a release, so a second `--rollback` returns to the release you just left. With no earlier
+verified release (first deploy) it refuses and changes nothing. Run it through `systemd-run` like a release.
 
 Emergency stop (the hostname then shows a Cloudflare error, nothing is exposed):
-`ssh -t arch sudo systemctl disable --now dyai-ana-tunnel.service`. Full removal additionally disables
+`ssh -t arch sudo systemctl mask --now dyai-ana-tunnel.service`. Masked, the tunnel stays off even when release.sh runs
+(it then stops with "tunnel ... could not start"); `systemctl unmask` undoes it. Full removal additionally disables
 `dyai-ana-dashboard.service` and deletes the two unit files, `/srv/dyai/runtime/ana-dashboard` and
 `/etc/dyai/credentials/ana-dashboard`; the public hostname is removed in the tunnel's settings.
 
@@ -96,5 +106,5 @@ Emergency stop (the hostname then shows a Cloudflare error, nothing is exposed):
   `ss -ltn` shows `127.0.0.1:3410` and `127.0.0.1:20242`, nothing new on `0.0.0.0`;
   `curl -s http://127.0.0.1:20242/ready` → `{"status":200,…}` with at least one connection
 
-Known limit: systemd restarts the dashboard when it exits, not when it hangs while alive; `release.sh <current sha>`
-restarts it.
+Known limit: systemd restarts the dashboard when it exits, not when it hangs while alive; restart it with
+`ssh -t arch sudo systemctl restart dyai-ana-dashboard.service`.
