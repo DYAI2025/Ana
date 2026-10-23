@@ -1,7 +1,100 @@
-# ANA LUMEN on ana.dyai.cloud (LIVE-01, ANA-DASH-GOLIVE-01)
+# ANA LUMEN release contract (ANA-41, ADR-ANA-001)
 
-Private deployment of `apps/dashboard` on the Arch host (`ssh arch`, Arch Linux x86_64, systemd, no Docker).
-Only the identities on the invite list can reach it.
+Ownership follows [ADR-ANA-001](https://dyai2026.atlassian.net/wiki/spaces/Ana/pages/124977153) (ACCEPTED):
+
+- **ANA owns** the application, its build, its app-level security and this release contract (sections 1 and 2).
+- **ArchServer owns** the host: systemd installation, ingress and tunnel, TLS, DNS, secret provisioning, monitoring,
+  recovery and the actual deployment (section 3).
+
+Section 4 is one tested way to meet the contract on the Arch host. It is a nonbinding example: ArchServer may adopt,
+change or replace it. Nothing in this directory authorizes a deployment, a DNS change or a host change.
+
+## 1. Mandatory app-level invariants
+
+These hold for every deployment of `apps/dashboard`, whatever host, supervisor or ingress runs it. CI tests the app
+side: `.github/workflows/dashboard.yml` runs the unit tests of the access gate (401 without or with an invalid
+assertion, 403 for an uninvited identity, signature, issuer, AUD, expiry) and of the Origin-against-Host check, and
+scans the client bundle for secrets; `.github/workflows/dashboard-image.yml` tests the real image and the extracted
+bundle (503 without settings or in any other mode, 401 without an assertion, pinned mode against a hostile credential
+file, loopback bind, Node 24) and publishes the bundle with its sha256. Whether a deployment meets the invariants is
+shown only by its evidence (section 2).
+
+1. **Artifact.** Release only `ana-dashboard-app-<sha>.tar.gz` with its `.sha256` from a **successful push run of
+   `dashboard-image` on `main`** for that commit, and verify the checksum before unpacking. A pull_request run builds
+   the synthetic merge ref, so its `<sha>` names a merge commit, not the PR head: such artifacts are test output,
+   never a release. The bundle is the `/app` of the image whose access gate CI tested; it is built for linux/amd64
+   only, and its only native code is `sharp` for linux-x64/glibc.
+2. **Runtime.** A Node version the bundle was tested with. The app declares Node >= 22.12; CI builds and tests the
+   image on Node 22 and runs the extracted bundle under v24.22.0 (the reference host's Node), checking that the
+   listening process executes that binary. Any other major is untested until CI covers it; the host confirms a
+   compatible runtime (ADR-ANA-001).
+3. **Pinned security mode.** The process environment, set by the supervisor, contains `ANA_ACCESS_MODE=cloudflare`
+   and `ANA_CONTAINER=1`, and no file a deployment reads may override them. With `ANA_CONTAINER=1` the app refuses
+   every other mode with 503, so a lost or wrong setting fails closed. `node --env-file` keeps variables already in
+   the environment (CI proves this with a hostile file that tries `ANA_ACCESS_MODE=loopback` and
+   `HOSTNAME=0.0.0.0`); systemd's `EnvironmentFile=` would instead override `Environment=` and must not carry these
+   settings.
+4. **Access enforcement.** Required settings: `CF_ACCESS_TEAM_DOMAIN`, `CF_ACCESS_AUD` and `ANA_ALLOWED_EMAILS`
+   (exactly the invitees of the Access policy), see `dashboard.env.example`. The proxy and every data API route verify
+   the Cloudflare Access JWT (RS256 signature against the team's keys, issuer, AUD, expiry, invited email). Missing or
+   incomplete settings answer 503; a request without a valid assertion answers 401, a valid one for an identity that
+   is not invited 403. An assertion the app cannot verify is refused, so without the team's keys nobody gets in; keys
+   fetched earlier stay in use for the key cache's lifetime (jose default, 10 minutes).
+5. **No direct origin.** The app's port must not be reachable from outside except through an ingress that enforces
+   Cloudflare Access for the app's hostname. The ingress must not rewrite the Host header: the Jira write and
+   Instagram read checks compare Origin with Host.
+6. **Secret isolation.** Secrets never appear in the repository, the image, the client bundle, argv, unit files or
+   logs, and on the host only the service and its operator can read them. How they get there is ArchServer's choice
+   (section 3).
+7. **Health and gate signals.** `/api/healthz` answers 200; `/` without an assertion answers 401 (503 = Access
+   settings missing or wrong). Both together are the minimum for a release to count as started. A wrong but
+   well-formed AUD passes both; only a real login proves it (section 2).
+
+## 2. Evidence required for an actual deployment
+
+A deployment counts as done only with this evidence, recorded by whoever runs it (ArchServer) and kept out of the
+public repository (private evidence):
+
+- the commit sha, the `dashboard-image` push run id on `main` and a matching sha256 of the bundle (invariant 1);
+- the host's `node --version` (invariant 2) and the supervisor configuration showing the pinned settings of
+  invariant 3;
+- on the host, `/api/healthz` → 200 and `/` without an assertion → 401 (invariant 7);
+- listening sockets on the host: the app port is not bound to a public interface or otherwise reachable around the
+  ingress (invariant 5);
+- from outside, without a login: `https://<hostname>/` redirects to `<team>.cloudflareaccess.com` (no app content)
+  and `/api/social/instagram` does not answer 200 (invariants 4, 5);
+- each invited account logs in and sees Now, Pulse → Instagram and the Board; an uninvited account is refused
+  (invariant 4);
+- the ingress configuration shows no Host header override, and once Jira is configured one Board write succeeds
+  (the Origin-against-Host check passes) (invariant 5);
+- where the secrets are held and who can read them, and that the process arguments, the unit or supervisor files and
+  the logs since the start contain no secret value, checked by length or hash only, never by printing it
+  (invariant 6);
+- the rollback target (the previous verified release) and how it is reached.
+
+## 3. Host and operator decisions (ArchServer, separate approval)
+
+Open here and decided by ArchServer under its own approvals; the ArchServer ingress ADR is open:
+
+- ingress type and its configuration (Cloudflare Tunnel or another way in), tunnel name, hostname and DNS;
+- the Cloudflare Access application and policy setup (the policy's invitees must equal `ANA_ALLOWED_EMAILS`);
+- supervisor and unit names, paths, service user, resource limits and hardening;
+- how secrets are provisioned and rotated;
+- monitoring, backups, recovery, the release and rollback mechanism, and when a release goes out.
+
+## 4. Optional reference implementation (Arch host, nonbinding)
+
+`dyai-ana-dashboard.service`, `dyai-ana-tunnel.service` and `release.sh` show one way to satisfy section 1 on the Arch
+host (`ssh arch`, Arch Linux x86_64, systemd, no Docker). Their names, paths, the tunnel and the way cloudflared is
+invoked are this example's choices, not requirements. CI lints these files, not the host, and each check proves only
+what it states. In the dashboard unit it pins the two `Environment=` lines and the single `ExecStart=` the
+native-bundle test also starts with (invariants 3, 5, 6) and refuses `EnvironmentFile=`, `UnsetEnvironment=`,
+`PassEnvironment=`, further `Environment=` or `ExecStart=` lines and `MemoryDenyWriteExecute=` (V8 aborts under it);
+HOME and the node path are pinned only so that a change to them gets reviewed. In the tunnel unit it checks only
+that the token is read from the unit's systemd credential, that no `EnvironmentFile=` and no secret-like
+`Environment=` line (TOKEN, KEY, AUD, EMAIL) is used, and that metrics are served on `127.0.0.1:20242`, where
+`release.sh` polls them. It does not lint how cloudflared is invoked otherwise: that is ArchServer's ingress, so
+review any other change to the tunnel unit by hand against invariants 5 and 6.
 
 ```
 browser ──▶ Cloudflare Access (application ANA LUMEN, policy: exactly the three invited emails)
@@ -14,21 +107,15 @@ browser ──▶ Cloudflare Access (application ANA LUMEN, policy: exactly the 
 - Nothing listens on a public interface: the dashboard binds 127.0.0.1:3410, cloudflared connects outbound. No router,
   firewall or SSH change. The canary units (`dyai-canary-*`, tunnel `dyai-archcanary`) and Hermes are not touched.
 - `ANA_ACCESS_MODE=cloudflare`, `ANA_CONTAINER=1`, `HOSTNAME=127.0.0.1` and `PORT=3410` are pinned with `Environment=`
-  in the unit. Secrets reach node as a credential file read with `node --env-file`, and variables already in the
-  environment win over that file, so a stray line in it cannot switch to Host-header trust or another bind address
-  (CI proves this with a hostile file). With `ANA_CONTAINER=1` the app refuses every other mode (503): a lost setting
-  fails closed. There is deliberately no `EnvironmentFile=`, which would override `Environment=`.
+  in the unit. Secrets reach node as a credential file read with `node --env-file`, so a stray line in it cannot
+  switch to Host-header trust or another bind address. There is deliberately no `EnvironmentFile=`.
 - Secrets live only in `/etc/dyai/credentials/ana-dashboard/` (root:root, dir 700, files 600): `dashboard_env`
   (see `dashboard.env.example`) and `tunnel_token` (the connector token of the tunnel, one line). Both reach the
   services only through `LoadCredential=`, as with the canary units; nothing secret is in argv, unit files or the journal.
 - Jira is not configured until the least-privilege integration account of ANA-33 exists; the Jira views then show
   "not configured".
-- The bundle is the `/app` of the image built by the `dashboard-image` workflow (amd64, access gate tested inside the
-  container, and the extracted bundle tested again under Node 24, the Node of the Arch host). Its only native code is
-  `sharp` for linux-x64/glibc. Release only artifacts of **push runs on main**: a pull_request run builds the merge
-  ref, so its `<sha>` names a merge commit, not the PR head.
 
-## One-time setup (owner, root on the Arch host)
+### One-time setup (owner, root on the Arch host)
 
 Cloudflare (dashboard, account of `dyai.cloud`):
 
@@ -38,7 +125,7 @@ Cloudflare (dashboard, account of `dyai.cloud`):
 2. Copy the tunnel's connector token (Install connector → the `eyJ…` value) for the host setup below.
 3. Access application ANA LUMEN: AUD tag and team domain for `dashboard_env`; the allow policy holds exactly the
    three invited emails, and `ANA_ALLOWED_EMAILS` lists the same three. Do not set an HTTP Host header override on the
-   route: the Jira write and Instagram read checks compare Origin with the Host `ana.dyai.cloud`.
+   route (invariant 5).
 
 Host (attended root shell, e.g. `ssh -t arch sudo -i`):
 
@@ -56,11 +143,11 @@ systemctl daemon-reload
 systemd-analyze verify /etc/systemd/system/dyai-ana-dashboard.service /etc/systemd/system/dyai-ana-tunnel.service
 ```
 
-## Release
+### Release
 
 ```bash
 SHA=<full git sha of main>
-# only the artifact of the successful push run on main for that commit (a PR run builds the merge ref)
+# only the artifact of the successful push run on main for that commit (invariant 1)
 RUN=$(gh run list -R DYAI2025/Ana -w dashboard-image.yml -b main -e push -c "$SHA" -s success --json databaseId -q '.[0].databaseId')
 [ -n "$RUN" ] && gh run download "$RUN" -R DYAI2025/Ana -n ana-dashboard-$SHA -D /tmp/ana-$SHA
 scp /tmp/ana-$SHA/ana-dashboard-app-$SHA.tar.gz{,.sha256} arch:/tmp/
@@ -81,7 +168,7 @@ checked the same way; if there is none or it fails too, dashboard and tunnel are
 and is appended to `.release.history`. A wrong but well-formed AUD passes these checks; only a real login proves it
 (see Verify). Re-running with the same sha reuses the unpacked release.
 
-## Rollback
+### Rollback
 
 ```bash
 ssh -t arch sudo /srv/dyai/runtime/ana-dashboard/release.sh --rollback
@@ -97,7 +184,9 @@ Emergency stop (the hostname then shows a Cloudflare error, nothing is exposed):
 `dyai-ana-dashboard.service` and deletes the two unit files, `/srv/dyai/runtime/ana-dashboard` and
 `/etc/dyai/credentials/ana-dashboard`; the public hostname is removed in the tunnel's settings.
 
-## Verify after every release
+### Verify after every release
+
+Part of the section 2 evidence, in this example's terms; record the rest of section 2 as well:
 
 - `curl -sI https://ana.dyai.cloud/` → redirect to `<team>.cloudflareaccess.com` (no app content)
 - `curl -s -o /dev/null -w '%{http_code}' https://ana.dyai.cloud/api/social/instagram` → not 200 without a login

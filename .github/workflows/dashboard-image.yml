@@ -1,8 +1,9 @@
 name: dashboard-image
 
-# LIVE-01 / ANA-DASH-GOLIVE-01: builds the production image of apps/dashboard on amd64, proves the access gate inside
-# the real container, extracts its /app as the native bundle for the Arch host (systemd, no Docker), proves the same
-# gate with that bundle under the Arch host's Node major, and keeps both as the workflow artifact ana-dashboard-<sha>.
+# LIVE-01 / ANA-41: builds the production image of apps/dashboard on amd64, proves the access gate inside the real
+# container, extracts its /app as the native bundle for hosts without Docker, proves the same gate with that bundle
+# under Node 24, and keeps both as the workflow artifact ana-dashboard-<sha>. This is the app side of the release
+# contract in deploy/ana-dashboard/README.md; host, units, ingress and tunnel are ArchServer's (ADR-ANA-001).
 # Release only artifacts of push runs on main: a pull_request run builds the merge ref, so <sha> is not the PR head.
 # No registry, no secrets, no deploy step.
 # Keep the push and pull_request path lists identical.
@@ -31,27 +32,48 @@ jobs:
       - uses: actions/checkout@v4
       - name: Build
         run: docker build --platform linux/amd64 -t "ana-dashboard:${GITHUB_SHA}" apps/dashboard
-      - name: Runtime settings (health check budget, systemd units)
+      - name: Image health check budget
         shell: bash
         run: |
           set -euo pipefail
           docker inspect -f '{{json .Config.Healthcheck}}' "ana-dashboard:${GITHUB_SHA}" \
             | jq -e '.Timeout == 20000000000 and .StartPeriod == 90000000000 and .Interval == 30000000000 and .Retries == 3'
-          # the Arch units: access settings pinned in Environment= (they win over node --env-file), loopback only,
-          # secrets only as credential files, no MemoryDenyWriteExecute for node (V8 aborts)
+      - name: Optional Arch reference units (example, not a host requirement)
+        shell: bash
+        run: |
+          set -euo pipefail
+          # README section 4: one tested way to meet the contract on the Arch host. CI lints these example files, not
+          # the host: unit names, paths, ingress and tunnel are ArchServer's choice (ADR-ANA-001). Each check proves only
+          # what its message says; any other change to the examples is reviewed by hand against README section 1.
           u=deploy/ana-dashboard/dyai-ana-dashboard.service t=deploy/ana-dashboard/dyai-ana-tunnel.service
-          grep -qx 'Environment=NODE_ENV=production NEXT_TELEMETRY_DISABLED=1 HOSTNAME=127.0.0.1 PORT=3410' "$u"
-          grep -qx 'Environment=ANA_ACCESS_MODE=cloudflare ANA_CONTAINER=1 HOME=/run/dyai/ana-dashboard' "$u"
-          grep -qx 'ExecStart=/usr/bin/node --env-file=%d/dashboard_env server.js' "$u"
-          if grep -qE '^[[:space:]]*EnvironmentFile' "$u" "$t"; then echo "FAIL: EnvironmentFile= would override the pinned Environment="; exit 1; fi
-          # exactly the two pinned lines: a later Environment= line could override or reset them
-          [ "$(grep -cE '^[[:space:]]*Environment=' "$u")" = 2 ] || { echo "FAIL: unexpected Environment= lines"; exit 1; }
-          [ "$(grep -cE '^[^#]*(HOSTNAME|ANA_ACCESS_MODE|ANA_CONTAINER)=' "$u")" = 2 ] || { echo "FAIL: access settings set more than once"; exit 1; }
+          r=deploy/ana-dashboard/release.sh
+          fail() { echo "FAIL: $*"; exit 1; }
+          for f in "$u" "$t" "$r"; do [ -f "$f" ] || fail "$f is missing (a renamed example must be renamed here too)"; done
           # (`! cmd` would not trip set -e, hence the explicit ifs)
-          if grep -qE '^[[:space:]]*MemoryDenyWriteExecute' "$u"; then echo "FAIL: MemoryDenyWriteExecute aborts V8"; exit 1; fi
-          if grep -qiE '^Environment=.*(TOKEN|KEY|AUD|EMAIL)' "$u" "$t"; then echo "FAIL: secret-like Environment= line"; exit 1; fi
-          grep -qx 'ExecStart=/usr/bin/cloudflared tunnel --no-autoupdate --metrics 127.0.0.1:20242 run --token-file %d/tunnel_token' "$t"
-          bash -n deploy/ana-dashboard/release.sh
+          # dashboard example: the settings the native-bundle step below also starts with, pinned in exactly these two
+          # Environment= lines (they win over node --env-file); no EnvironmentFile=, UnsetEnvironment=, PassEnvironment=
+          # or further Environment= lines; secrets only as a credential file; no MemoryDenyWriteExecute for node (V8
+          # aborts). HOME and the node path are pinned only so that a change to them is reviewed.
+          grep -qx 'Environment=NODE_ENV=production NEXT_TELEMETRY_DISABLED=1 HOSTNAME=127.0.0.1 PORT=3410' "$u" || fail "dashboard: bind settings changed"
+          grep -qx 'Environment=ANA_ACCESS_MODE=cloudflare ANA_CONTAINER=1 HOME=/run/dyai/ana-dashboard' "$u" || fail "dashboard: access settings changed"
+          grep -qx 'ExecStart=/usr/bin/node --env-file=%d/dashboard_env server.js' "$u" || fail "dashboard: ExecStart changed"
+          if grep -qE '^[[:space:]]*(EnvironmentFile|UnsetEnvironment|PassEnvironment)[[:space:]]*=' "$u"; then fail "dashboard: EnvironmentFile=, UnsetEnvironment= or PassEnvironment= could override or drop the pinned settings"; fi
+          # exactly the two pinned lines: a later Environment= line could override or reset them
+          [ "$(grep -cE '^[[:space:]]*Environment[[:space:]]*=' "$u")" = 2 ] || fail "dashboard: unexpected Environment= lines"
+          [ "$(grep -cE '^[^#]*(HOSTNAME|ANA_ACCESS_MODE|ANA_CONTAINER)=' "$u")" = 2 ] || fail "dashboard: access settings set more than once"
+          # exactly the pinned ExecStart=: an empty ExecStart= reset followed by another command would replace it
+          [ "$(grep -cE '^[[:space:]]*ExecStart[[:space:]]*=' "$u")" = 1 ] || fail "dashboard: more than one ExecStart= line"
+          if grep -qE '^[[:space:]]*MemoryDenyWriteExecute[[:space:]]*=' "$u"; then fail "dashboard: MemoryDenyWriteExecute aborts V8"; fi
+          if grep -qiE '^[[:space:]]*Environment[[:space:]]*=.*(TOKEN|KEY|AUD|EMAIL)' "$u" "$t"; then fail "secret-like Environment= line"; fi
+          # tunnel example: how cloudflared is invoked is ArchServer's ingress and is not linted here. Checked only: the
+          # example reads its token from its systemd credential, keeps its settings in the unit, and serves metrics where
+          # release.sh polls them
+          grep -qE '^[[:space:]]*LoadCredential[[:space:]]*=[[:space:]]*tunnel_token:' "$t" || fail "tunnel: no LoadCredential=tunnel_token:"
+          grep -qE '^[[:space:]]*ExecStart[[:space:]]*=.*--token-file[[:space:]=]+%d/tunnel_token([[:space:]]|$)' "$t" || fail "tunnel: example does not read its token from %d/tunnel_token"
+          if grep -qE '^[[:space:]]*EnvironmentFile[[:space:]]*=' "$t"; then fail "tunnel: EnvironmentFile= (the example keeps every setting visible in the unit)"; fi
+          grep -qF 'http://127.0.0.1:20242/ready' "$r" || fail "release.sh no longer polls 127.0.0.1:20242"
+          grep -qE '^[[:space:]]*ExecStart[[:space:]]*=.*--metrics[[:space:]=]+127\.0\.0\.1:20242([[:space:]]|$)' "$t" || fail "tunnel: metrics not on 127.0.0.1:20242, where release.sh polls"
+          bash -n "$r"
       - name: Access gate inside the container
         shell: bash
         run: |
