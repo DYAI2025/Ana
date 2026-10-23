@@ -169,6 +169,19 @@ async function layoutProblems(page: Page): Promise<string[]> {
   });
 }
 
+// Now's card column at widths between the evidence viewports: phones, the side-rail breakpoint and tablet portrait
+for (const width of [320, 390, 761, 800, 834]) {
+  test(`now at ${width}px: no overlap, no horizontal scroll`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 900 });
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await page.goto("/");
+    await page.waitForLoadState("networkidle");
+    const problems = await layoutProblems(page);
+    // at <= 760px the rail is a bottom dock over the content by design, so the side-rail checks do not apply
+    expect(width <= 760 ? problems.filter((p) => !p.startsWith("rail ")) : problems).toEqual([]);
+  });
+}
+
 for (const viewport of VIEWPORTS) {
   test.describe(`${viewport.width}×${viewport.height}`, () => {
     test.use({ viewport });

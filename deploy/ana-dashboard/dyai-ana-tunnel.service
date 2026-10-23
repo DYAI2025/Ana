@@ -1,0 +1,60 @@
+# /etc/systemd/system/dyai-ana-tunnel.service — connector of the remotely managed Cloudflare Tunnel `ana-dashboard`.
+#
+# Its ingress (ana.dyai.cloud → http://127.0.0.1:3410, everything else 404) is configured in the Cloudflare dashboard,
+# not here. The tunnel token arrives only through LoadCredential= (file root:root 0600); it never appears in argv,
+# the environment or the journal. Metrics on 127.0.0.1:20242 (dyai-canary-tunnel holds 20241).
+# release.sh enables this unit only after the dashboard passed its health and access-gate checks.
+[Unit]
+Description=Cloudflare Tunnel ana-dashboard (cloudflared) carrying ana.dyai.cloud to dyai-ana-dashboard
+Wants=network-online.target
+After=network-online.target dyai-ana-dashboard.service
+StartLimitIntervalSec=600
+StartLimitBurst=5
+
+[Service]
+Type=exec
+ExecStart=/usr/bin/cloudflared tunnel --no-autoupdate --metrics 127.0.0.1:20242 run --token-file %d/tunnel_token
+LoadCredential=tunnel_token:/etc/dyai/credentials/ana-dashboard/tunnel_token
+Restart=always
+RestartSec=10
+TimeoutStopSec=30
+DynamicUser=yes
+RuntimeDirectory=dyai/ana-tunnel
+RuntimeDirectoryMode=0750
+Environment=HOME=/run/dyai/ana-tunnel
+# no --config: keep cloudflared from picking up a host-wide default config written later for another tunnel
+InaccessiblePaths=-/etc/cloudflared -/usr/local/etc/cloudflared
+MemoryHigh=128M
+MemoryMax=192M
+MemorySwapMax=0
+CPUQuota=50%
+TasksMax=64
+OOMPolicy=stop
+UMask=0077
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+ProtectClock=yes
+ProtectHostname=yes
+ProtectProc=invisible
+RestrictNamespaces=yes
+RestrictRealtime=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+RemoveIPC=yes
+MemoryDenyWriteExecute=yes
+CapabilityBoundingSet=
+AmbientCapabilities=
+SystemCallArchitectures=native
+SystemCallFilter=@system-service
+SystemCallFilter=~@privileged @resources
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6 AF_NETLINK
+
+[Install]
+WantedBy=multi-user.target

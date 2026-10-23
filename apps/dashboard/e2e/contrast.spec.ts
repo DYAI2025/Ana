@@ -139,6 +139,10 @@ async function measure(page: Page, label: string, scope: Scope = {}): Promise<st
 
 const STATES: { label: string; route: string; jira?: Record<string, unknown>; social?: Record<string, unknown>; prepare?: (page: Page) => Promise<unknown> }[] = [
   { label: "now", route: "/" },
+  // the card column runs below the fold: measure the lower cards in view, at rest and with the hover tint raised
+  { label: "now lower cards", route: "/", prepare: (p) => p.getByTestId("context-community").scrollIntoViewIfNeeded() },
+  { label: "now hover knowledge", route: "/", prepare: (p) => p.getByTestId("context-knowledge").hover() },
+  { label: "now hover community", route: "/", prepare: (p) => p.getByTestId("context-community").hover() },
   { label: "lens work", route: "/", prepare: (p) => p.getByTestId("context-work").click() },
   { label: "lens session", route: "/", prepare: (p) => p.getByTestId("context-session").click() },
   { label: "lens knowledge", route: "/", prepare: (p) => p.getByTestId("context-knowledge").click() },

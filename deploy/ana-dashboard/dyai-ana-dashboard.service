@@ -1,0 +1,66 @@
+# /etc/systemd/system/dyai-ana-dashboard.service — ANA LUMEN on the Arch host (ANA-DASH-GOLIVE-01).
+#
+# Serves the Next.js standalone bundle (the /app of the CI-tested image, see README.md) on 127.0.0.1:3410 only.
+# The only way in from outside is the Cloudflare Tunnel `ana-dashboard` (dyai-ana-tunnel.service), behind
+# Cloudflare Access; the app verifies the Access JWT on every request as well.
+#
+# Secrets arrive only as a credential file (LoadCredential=, like the canary units) that node reads with --env-file.
+# Variables already in the environment win over that file, so the pinned access settings below cannot be changed
+# by it. ANA_CONTAINER=1 makes the app refuse every mode other than cloudflare (503), so a lost setting fails closed.
+# Hardening follows dyai-canary-web.service except MemoryDenyWriteExecute, which aborts V8 (its JIT needs W+X pages).
+[Unit]
+Description=ANA LUMEN dashboard (Next.js standalone) on loopback for the Cloudflare Tunnel ana-dashboard
+Wants=network-online.target
+After=network-online.target
+StartLimitIntervalSec=300
+StartLimitBurst=5
+
+[Service]
+Type=exec
+WorkingDirectory=/srv/dyai/runtime/ana-dashboard/current
+LoadCredential=dashboard_env:/etc/dyai/credentials/ana-dashboard/dashboard_env
+Environment=NODE_ENV=production NEXT_TELEMETRY_DISABLED=1 HOSTNAME=127.0.0.1 PORT=3410
+Environment=ANA_ACCESS_MODE=cloudflare ANA_CONTAINER=1 HOME=/run/dyai/ana-dashboard
+ExecStart=/usr/bin/node --env-file=%d/dashboard_env server.js
+Restart=always
+RestartSec=5
+TimeoutStopSec=30
+DynamicUser=yes
+RuntimeDirectory=dyai/ana-dashboard
+RuntimeDirectoryMode=0750
+# the release links .next/cache here (release.sh); everything else of the release is read-only
+CacheDirectory=dyai/ana-dashboard
+CacheDirectoryMode=0700
+MemoryHigh=384M
+MemoryMax=512M
+MemorySwapMax=0
+CPUQuota=100%
+TasksMax=128
+OOMPolicy=stop
+UMask=0077
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+ProtectClock=yes
+ProtectHostname=yes
+ProtectProc=invisible
+RestrictNamespaces=yes
+RestrictRealtime=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+RemoveIPC=yes
+CapabilityBoundingSet=
+AmbientCapabilities=
+SystemCallArchitectures=native
+SystemCallFilter=@system-service
+SystemCallFilter=~@privileged @resources
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6 AF_NETLINK
+
+[Install]
+WantedBy=multi-user.target

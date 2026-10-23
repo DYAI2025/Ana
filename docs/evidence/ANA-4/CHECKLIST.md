@@ -18,7 +18,7 @@ npm run dev            # repository root; Node >= 22.12; first run installs deps
 
 | # | Try this | Expected | Automated proof (apps/dashboard/e2e) | Screenshot |
 |---|---|---|---|---|
-| 1 | Open `/` | Current Focus statement first; Work and Last Session larger/brighter; Business, Knowledge, Community smaller | journeys `1 ·` | `*-now.jpg` |
+| 1 | Open `/` | Current Focus statement first; below it Last Session, Work, Business, Knowledge, Community as one column of equal glass cards, each with its own subtle tint, same order at every width | journeys `1 ·`, contrast `now*`, visual `now at` | `*-now.jpg` (shows the earlier spatial layout until the evidence set is regenerated) |
 | 2 | Click **Work**, then Esc; click **Last session**, close ×; click **Community**, click outside | Side lens opens with focus inside, Tab stays in it, closes three ways, focus returns to the card | journeys `2 ·` | `*-now-lens-work.jpg` |
 | 3 | Rail → **Board** | Kanban NEXT / DOING / REVIEW / DONE, tickets show Ana / Ben / Vince by name | journeys `3–5` | `*-board.jpg` |
 | 4 | Filter **Ana**, **Ben**, **Vince**, **All** | Only that person's tickets; empty columns say so | journeys `3–5` | — (`*-it-board.jpg` shows the board in Italian) |
