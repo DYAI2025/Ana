@@ -1,8 +1,10 @@
 name: dashboard-image
 
-# LIVE-01: builds the production container image of apps/dashboard on amd64 (the VPS is too loaded to build),
-# proves the access gate inside the real container, and keeps the image as a workflow artifact
-# (ana-dashboard-<sha>.tar.gz) for the operator to load on the VPS. No registry, no secrets, no deploy step.
+# LIVE-01 / ANA-DASH-GOLIVE-01: builds the production image of apps/dashboard on amd64, proves the access gate inside
+# the real container, extracts its /app as the native bundle for the Arch host (systemd, no Docker), proves the same
+# gate with that bundle under the Arch host's Node major, and keeps both as the workflow artifact ana-dashboard-<sha>.
+# Release only artifacts of push runs on main: a pull_request run builds the merge ref, so <sha> is not the PR head.
+# No registry, no secrets, no deploy step.
 # Keep the push and pull_request path lists identical.
 on:
   push:
@@ -29,21 +31,24 @@ jobs:
       - uses: actions/checkout@v4
       - name: Build
         run: docker build --platform linux/amd64 -t "ana-dashboard:${GITHUB_SHA}" apps/dashboard
-      - name: Runtime settings (health check budget, init process)
+      - name: Runtime settings (health check budget, systemd units)
         shell: bash
         run: |
           set -euo pipefail
-          # the VPS shows multi-second `docker exec` latency under CPU steal: a 5 s health check timed out there
           docker inspect -f '{{json .Config.Healthcheck}}' "ana-dashboard:${GITHUB_SHA}" \
             | jq -e '.Timeout == 20000000000 and .StartPeriod == 90000000000 and .Interval == 30000000000 and .Retries == 3'
-          # both services run under an init process that reaps exited health check and exec children
-          touch deploy/ana-dashboard/dashboard.env deploy/ana-dashboard/tunnel.env
-          config="$(ANA_RELEASE=ci docker compose -f deploy/ana-dashboard/compose.yml config --format json)"
-          rm deploy/ana-dashboard/dashboard.env deploy/ana-dashboard/tunnel.env
-          jq -e '.services.dashboard.init == true and .services.tunnel.init == true' <<<"$config"
-          # cloudflared starts under the same init and hardening as in compose.yml
-          docker run --rm --init --read-only --cap-drop ALL --security-opt no-new-privileges:true \
-            "$(jq -r .services.tunnel.image <<<"$config")" --version
+          # the Arch units: access settings pinned in Environment= (they win over node --env-file), loopback only,
+          # secrets only as credential files, no MemoryDenyWriteExecute for node (V8 aborts)
+          u=deploy/ana-dashboard/dyai-ana-dashboard.service t=deploy/ana-dashboard/dyai-ana-tunnel.service
+          grep -qx 'Environment=NODE_ENV=production NEXT_TELEMETRY_DISABLED=1 HOSTNAME=127.0.0.1 PORT=3410' "$u"
+          grep -qx 'Environment=ANA_ACCESS_MODE=cloudflare ANA_CONTAINER=1 HOME=/run/dyai/ana-dashboard' "$u"
+          grep -qx 'ExecStart=/usr/bin/node --env-file=%d/dashboard_env server.js' "$u"
+          if grep -q '^EnvironmentFile' "$u" "$t"; then echo "FAIL: EnvironmentFile= would override the pinned Environment="; exit 1; fi
+          # (`! cmd` would not trip set -e, hence the explicit ifs)
+          if grep -q '^MemoryDenyWriteExecute' "$u"; then echo "FAIL: MemoryDenyWriteExecute aborts V8"; exit 1; fi
+          if grep -qiE '^Environment=.*(TOKEN|KEY|AUD|EMAIL)' "$u" "$t"; then echo "FAIL: secret-like Environment= line"; exit 1; fi
+          grep -qx 'ExecStart=/usr/bin/cloudflared tunnel --no-autoupdate --metrics 127.0.0.1:20242 run --token-file %d/tunnel_token' "$t"
+          bash -n deploy/ana-dashboard/release.sh
       - name: Access gate inside the container
         shell: bash
         run: |
@@ -61,7 +66,7 @@ jobs:
             expect "$(code 3001 "$host" /api/social/instagram)" 503 "no Access settings, Host $host, social API"
           done
 
-          # cloudflare mode under the production container constraints of deploy/ana-dashboard/compose.yml
+          # cloudflare mode under hardened container constraints (read-only root, no capabilities, init)
           docker run -d --name cf -p 127.0.0.1:3002:3000 --init --read-only --tmpfs /tmp --tmpfs /app/.next/cache \
             --cap-drop ALL --security-opt no-new-privileges:true -e ANA_ACCESS_MODE=cloudflare \
             -e CF_ACCESS_TEAM_DOMAIN=https://ci.cloudflareaccess.com -e CF_ACCESS_AUD="$AUD" -e ANA_ALLOWED_EMAILS=a@example.test \
@@ -85,6 +90,40 @@ jobs:
 
           docker inspect -f '{{.Config.User}}' "ana-dashboard:${GITHUB_SHA}" | grep -qx node
           docker rm -f bare cf mode3003 mode3004 mode3005
+      - name: Native bundle for the Arch host
+        shell: bash
+        run: |
+          set -euo pipefail
+          cid="$(docker create "ana-dashboard:${GITHUB_SHA}")"
+          mkdir bundle && docker cp "$cid:/app/." bundle/ && docker rm "$cid"
+          tar -C bundle --owner=0 --group=0 --numeric-owner -czf "ana-dashboard-app-${GITHUB_SHA}.tar.gz" .
+          sha256sum "ana-dashboard-app-${GITHUB_SHA}.tar.gz" | tee "ana-dashboard-app-${GITHUB_SHA}.tar.gz.sha256"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24.22.0" # nodejs-lts-krypton on the Arch host
+      - name: Access gate of the native bundle under Node 24
+        shell: bash
+        run: |
+          set -euo pipefail
+          AUD=$(printf 'a%.0s' $(seq 64))
+          expect() { [ "$1" = "$2" ] || { echo "FAIL: $3 -> $1, expected $2"; exit 1; }; echo "ok: $3 -> $1"; }
+          code() { curl -s -o /dev/null -w '%{http_code}' -H "Host: $1" "http://127.0.0.1:3410$2"; }
+          mkdir -p run && tar -xzf "ana-dashboard-app-${GITHUB_SHA}.tar.gz" -C run
+          # as dyai-ana-dashboard.service starts it: pinned environment + credential file read with --env-file. The file
+          # also tries to switch to loopback mode on all interfaces; the pinned environment must win.
+          printf 'CF_ACCESS_TEAM_DOMAIN=https://ci.cloudflareaccess.com\nCF_ACCESS_AUD=%s\nANA_ALLOWED_EMAILS=a@example.test\nANA_ACCESS_MODE=loopback\nHOSTNAME=0.0.0.0\n' "$AUD" > dashboard_env
+          (cd run && env NODE_ENV=production NEXT_TELEMETRY_DISABLED=1 HOSTNAME=127.0.0.1 PORT=3410 ANA_ACCESS_MODE=cloudflare ANA_CONTAINER=1 \
+            node --env-file=../dashboard_env server.js > ../native.log 2>&1 &)
+          for _ in $(seq 30); do [ "$(code localhost /api/healthz)" = 200 ] && break; sleep 1; done
+          node --version
+          for host in localhost ana.dyai.cloud; do
+            for p in / /pulse/social/instagram /api/social/instagram /api/work; do
+              expect "$(code "$host" "$p")" 401 "native bundle, Host $host, no assertion, $p"
+            done
+          done
+          expect "$(code localhost /api/healthz)" 200 "native bundle health check"
+          ss -ltn | awk '$4 ~ /:3410$/ {print $4}' | grep -qx '127.0.0.1:3410'
+          pkill -f '^next-server' || true # Next renames its process title
       - name: Save image
         shell: bash
         run: |
@@ -95,5 +134,8 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: ana-dashboard-${{ github.sha }}
-          path: ana-dashboard-${{ github.sha }}.tar.gz
+          path: |
+            ana-dashboard-${{ github.sha }}.tar.gz
+            ana-dashboard-app-${{ github.sha }}.tar.gz
+            ana-dashboard-app-${{ github.sha }}.tar.gz.sha256
           retention-days: 30

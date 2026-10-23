@@ -1,53 +1,97 @@
 #!/usr/bin/env bash
-# ANA LUMEN release and rollback on the VPS (Linux: GNU stat). Run as root from /opt/ana-dashboard.
+# ANA LUMEN release and rollback on the Arch host (systemd, no Docker). Run as root, e.g.
+#   ssh -t arch sudo /srv/dyai/runtime/ana-dashboard/release.sh <full git sha of main> <dir with the CI bundle>
+#   ssh -t arch sudo /srv/dyai/runtime/ana-dashboard/release.sh --rollback
 #
-#   ./release.sh <full git sha>   switch to ana-dashboard:<sha> (already loaded with `docker load`)
-#   ./release.sh --rollback       switch to the most recent VERIFIED release other than the current one
+# The bundle is ana-dashboard-app-<sha>.tar.gz plus its .sha256 file from the dashboard-image workflow run of that
+# main commit: the /app of the image whose access gate CI tested, and which CI also ran under Node 24 (the Arch Node).
 #
-# A release counts as verified only when the container is healthy AND the access gate answers 401 to a request
-# without a Cloudflare Access assertion (503 would mean the Access settings are missing or wrong). Only verified
-# releases are appended to .release.history, so a failed release can never become a rollback target.
+# A release counts as verified only when /api/healthz answers 200 AND the access gate answers 401 to a request
+# without a Cloudflare Access assertion (503 = Access settings missing or wrong) AND the team's signing keys are
+# reachable from this host. A wrong but well-formed AUD still passes these checks; only a real login proves it.
+# Only verified releases are appended to .release.history, so a failed release can never become a rollback target,
+# and a failed release is switched back to the previous one at once. The tunnel is enabled only after the first
+# verified release. Safe to re-run after a dropped ssh session: an unpacked release is reused, not unpacked twice.
 set -euo pipefail
-cd "$(dirname "$0")"
+
+base=/srv/dyai/runtime/ana-dashboard
+creds=/etc/dyai/credentials/ana-dashboard
+port=3410
+unit=dyai-ana-dashboard.service
+tunnel=dyai-ana-tunnel.service
 
 fail() { echo "release: $*" >&2; exit 1; }
+[[ "$(id -u)" == 0 ]] || fail "run as root"
+cd "$base"
+exec 9>.release.lock
+flock -n 9 || fail "another release.sh is running"
 
-current() { sed -n 's/^ANA_RELEASE=//p' .env 2>/dev/null | tail -1; }
+current() { basename "$(readlink current 2>/dev/null || echo none)"; }
+code() { curl -s -o /dev/null -m 10 -w '%{http_code}' "http://127.0.0.1:$port$1" || true; }
 
 if [[ "${1:-}" == "--rollback" ]]; then
   cur="$(current)"
-  sha="$(tac .release.history 2>/dev/null | grep -vx "${cur:-none}" | head -1 || true)"
+  sha="$(tac .release.history 2>/dev/null | grep -vx "$cur" | head -1 || true)"
   [[ -n "$sha" ]] || fail "no verified earlier release in .release.history to roll back to"
-  echo "rolling back from ${cur:-none} to $sha"
+  [[ -d "releases/$sha" ]] || fail "release directory releases/$sha is gone"
+  echo "rolling back from $cur to $sha"
 else
   sha="${1:-}"
+  src="${2:-}"
+  [[ "$sha" =~ ^[0-9a-f]{40}$ && -n "$src" ]] || fail "usage: release.sh <full git sha> <bundle dir> | --rollback"
 fi
-[[ "$sha" =~ ^[0-9a-f]{40}$ ]] || fail "usage: release.sh <full git sha> | --rollback"
-docker image inspect "ana-dashboard:$sha" >/dev/null 2>&1 || fail "image ana-dashboard:$sha is not loaded (docker load first)"
-for f in dashboard.env tunnel.env; do
-  [[ -f "$f" && "$(stat -c '%U:%a' "$f")" == "root:600" ]] || fail "$f must exist, root-owned, mode 600"
+[[ "$sha" =~ ^[0-9a-f]{40}$ ]] || fail "not a full git sha: $sha"
+
+for f in dashboard_env tunnel_token; do
+  [[ -f "$creds/$f" && "$(stat -c '%U:%G:%a' "$creds/$f")" == "root:root:600" ]] || fail "$creds/$f must exist, root:root, mode 600"
 done
+team="$(sed -n 's/^CF_ACCESS_TEAM_DOMAIN=//p' "$creds/dashboard_env" | tail -1)"
+[[ "$team" =~ ^https://[a-z0-9-]+\.cloudflareaccess\.com$ ]] || fail "CF_ACCESS_TEAM_DOMAIN in $creds/dashboard_env must be https://<team>.cloudflareaccess.com"
+# (no `curl | grep -q` here: grep closes the pipe early, curl exits 23, pipefail turns a success into a failure)
+certs="$(curl -sf -m 10 "$team/cdn-cgi/access/certs" || true)"
+[[ "$certs" == *'"keys"'* ]] || fail "the Access signing keys at $team/cdn-cgi/access/certs are not reachable from this host"
 
-# switch ANA_RELEASE atomically, keeping any other lines of .env
-tmp="$(mktemp .env.XXXXXX)"
-{ grep -v '^ANA_RELEASE=' .env 2>/dev/null || true; printf 'ANA_RELEASE=%s\n' "$sha"; } > "$tmp"
-chmod 600 "$tmp" && mv "$tmp" .env
+if [[ ! -d "releases/$sha" ]]; then
+  tarball="$src/ana-dashboard-app-$sha.tar.gz"
+  [[ -f "$tarball" && -f "$tarball.sha256" ]] || fail "$tarball and its .sha256 file must exist"
+  want="$(awk '{print $1}' "$tarball.sha256")"
+  have="$(sha256sum "$tarball" | awk '{print $1}')"
+  [[ "$want" =~ ^[0-9a-f]{64}$ && "$want" == "$have" ]] || fail "checksum mismatch for $tarball"
+  tmp="$(mktemp -d "releases/.$sha.XXXXXX")"
+  tar -xzf "$tarball" -C "$tmp" --no-same-owner --no-same-permissions
+  [[ -f "$tmp/server.js" && -f "$tmp/.next/BUILD_ID" ]] || { rm -rf "$tmp"; fail "bundle has no server.js or .next/BUILD_ID"; }
+  # Next writes its cache below .next/cache: point it at the unit's CacheDirectory, keep the release itself read-only
+  rm -rf "$tmp/.next/cache" && ln -s /var/cache/dyai/ana-dashboard "$tmp/.next/cache"
+  chown -R root:root "$tmp" && chmod -R u=rwX,go=rX "$tmp"
+  mv -T "$tmp" "releases/$sha"
+fi
 
-hint="roll back with: ./release.sh --rollback"
-docker compose up -d --force-recreate dashboard || fail "docker compose could not start ana-dashboard:$sha; $hint"
+prev="$(readlink current 2>/dev/null || true)"
+switch() { ln -sfn "$1" .current.new && mv -T .current.new current; }
+# a release that fails its checks does not stay live: switch back to what ran before (if anything) and restart it
+revert() {
+  if [[ -n "$prev" && "$prev" != "releases/$sha" ]]; then
+    switch "$prev" && systemctl restart "$unit" && echo "release: switched back to $(basename "$prev")" >&2
+  else
+    systemctl stop "$tunnel" "$unit" && echo "release: no earlier release to switch back to; dashboard and tunnel stopped" >&2
+  fi
+  fail "$1"
+}
 
-state=""
+switch "releases/$sha"
+{ systemctl enable "$unit" >/dev/null && systemctl restart "$unit"; } || revert "systemd could not start $unit for $sha"
+
+health=""
 for _ in $(seq 45); do
-  cid="$(docker compose ps -q dashboard 2>/dev/null || true)"
-  state="$( [[ -n "$cid" ]] && docker inspect -f '{{.State.Health.Status}}' "$cid" 2>/dev/null || true)"
-  [[ "$state" == healthy ]] && break
+  health="$(code /api/healthz)"
+  [[ "$health" == 200 ]] && break
   sleep 2
 done
-[[ "$state" == healthy ]] || fail "ana-dashboard:$sha did not become healthy (last state: ${state:-none}); $hint"
+[[ "$health" == 200 ]] || revert "release $sha did not become healthy (last /api/healthz: ${health:-none})"
 
-gate="$(docker compose exec -T dashboard node -e "fetch('http://127.0.0.1:3000/').then(r=>console.log(r.status),()=>console.log('error'))" 2>/dev/null || true)"
-[[ "$gate" == 401 ]] || fail "access gate answered '${gate:-nothing}' instead of 401 (503 = Access settings missing or wrong); $hint"
+gate="$(code /)"
+[[ "$gate" == 401 ]] || revert "access gate of $sha answered '${gate:-nothing}' instead of 401 (503 = Access settings missing or wrong)"
 
-docker compose up -d tunnel || fail "docker compose could not start the tunnel; $hint"
+systemctl enable --now "$tunnel" || fail "systemd could not start $tunnel (dashboard $sha is verified and running)"
 [[ "$(tail -1 .release.history 2>/dev/null || true)" == "$sha" ]] || printf '%s\n' "$sha" >> .release.history
-echo "release: ana-dashboard:$sha verified (healthy, access gate 401 without assertion)"
+echo "release: ana-dashboard $sha verified (healthz 200, access gate 401 without assertion, Access keys reachable); tunnel enabled"
