@@ -115,11 +115,17 @@ jobs:
           # as dyai-ana-dashboard.service starts it: pinned environment + credential file read with --env-file. The file
           # also tries to switch to loopback mode on all interfaces; the pinned environment must win.
           printf 'CF_ACCESS_TEAM_DOMAIN=https://ci.cloudflareaccess.com\nCF_ACCESS_AUD=%s\nANA_ALLOWED_EMAILS=a@example.test\nANA_ACCESS_MODE=loopback\nHOSTNAME=0.0.0.0\n' "$AUD" > dashboard_env
+          # prove the server runs on Node 24.22, not just that a node 24 is on PATH: pin the binary, then check the
+          # executable of the process that owns the listening socket
+          NODE="$(readlink -f "$(command -v node)")"
+          [ "$("$NODE" --version)" = v24.22.0 ] || { echo "FAIL: $NODE is $("$NODE" --version), expected v24.22.0"; exit 1; }
           (cd run && env NODE_ENV=production NEXT_TELEMETRY_DISABLED=1 HOSTNAME=127.0.0.1 PORT=3410 ANA_ACCESS_MODE=cloudflare ANA_CONTAINER=1 \
-            node --env-file=../dashboard_env server.js > ../native.log 2>&1 &)
+            "$NODE" --env-file=../dashboard_env server.js > ../native.log 2>&1 &)
           for _ in $(seq 30); do [ "$(code localhost /api/healthz)" = 200 ] && break; sleep 1; done
           [ "$(code localhost /api/healthz)" = 200 ] || { cat native.log; exit 1; }
-          node --version
+          pid="$(ss -ltnpH 'sport = :3410' | sed -n 's/.*pid=\([0-9]*\),.*/\1/p' | head -1)"
+          [ -n "$pid" ] || { echo "FAIL: no process owns 127.0.0.1:3410"; exit 1; }
+          expect "$(readlink -f "/proc/$pid/exe")" "$NODE" "executable of the server process (pid $pid, $("$NODE" --version))"
           for host in localhost ana.dyai.cloud; do
             for p in / /pulse/social/instagram /api/social/instagram /api/work; do
               expect "$(code "$host" "$p")" 401 "native bundle, Host $host, no assertion, $p"
@@ -142,4 +148,5 @@ jobs:
             ana-dashboard-${{ github.sha }}.tar.gz
             ana-dashboard-app-${{ github.sha }}.tar.gz
             ana-dashboard-app-${{ github.sha }}.tar.gz.sha256
+          if-no-files-found: error # the v4 default only warns
           retention-days: 30
