@@ -31,7 +31,18 @@ jobs:
       run:
         working-directory: apps/dashboard
     steps:
+      # test the PR head itself, not GitHub's synthetic merge commit (GITHUB_SHA on pull_request)
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Assert checked-out source SHA
+        shell: bash
+        env:
+          SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          actual="$(git rev-parse HEAD)"
+          echo "event=${GITHUB_EVENT_NAME} event_sha=${GITHUB_SHA} source_sha=${SOURCE_SHA} checked_out=${actual}"
+          [[ "$SOURCE_SHA" =~ ^[0-9a-f]{40}$ && "$actual" == "$SOURCE_SHA" ]] || { echo "::error::checked out ${actual}, expected ${SOURCE_SHA}"; exit 1; }
       - uses: actions/setup-node@v4
         with:
           node-version-file: .nvmrc

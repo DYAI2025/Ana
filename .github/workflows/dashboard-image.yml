@@ -4,7 +4,8 @@ name: dashboard-image
 # container, extracts its /app as the native bundle for hosts without Docker, proves the same gate with that bundle
 # under Node 24, and keeps both as the workflow artifact ana-dashboard-<sha>. This is the app side of the release
 # contract in deploy/ana-dashboard/README.md; host, units, ingress and tunnel are ArchServer's (ADR-ANA-001).
-# Release only artifacts of push runs on main: a pull_request run builds the merge ref, so <sha> is not the PR head.
+# Release only artifacts of push runs on main. A pull_request run builds and tests the PR head and names its artifact
+# and files ana-dashboard-pr-test-<head sha> instead: test output, never a release.
 # No registry, no secrets, no deploy step.
 # Keep the push and pull_request path lists identical.
 on:
@@ -28,15 +29,29 @@ jobs:
   image:
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    env:
+      # the commit this job checks out, builds and tests: the PR head on pull_request, otherwise the event's commit.
+      # GITHUB_SHA is the event's commit, on pull_request GitHub's synthetic merge commit, and names nothing here.
+      SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+      # release-shaped names (README invariant 1) only outside pull_request, so a PR bundle never matches release.sh
+      BUNDLE: ${{ github.event_name == 'pull_request' && 'ana-dashboard-pr-test' || 'ana-dashboard' }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.SOURCE_SHA }}
+      - name: Assert checked-out source SHA
+        shell: bash
+        run: |
+          actual="$(git rev-parse HEAD)"
+          echo "event=${GITHUB_EVENT_NAME} event_sha=${GITHUB_SHA} source_sha=${SOURCE_SHA} checked_out=${actual} bundle=${BUNDLE}"
+          [[ "$SOURCE_SHA" =~ ^[0-9a-f]{40}$ && "$actual" == "$SOURCE_SHA" ]] || { echo "::error::checked out ${actual}, expected ${SOURCE_SHA}"; exit 1; }
       - name: Build
-        run: docker build --platform linux/amd64 -t "ana-dashboard:${GITHUB_SHA}" apps/dashboard
+        run: docker build --platform linux/amd64 -t "ana-dashboard:${SOURCE_SHA}" apps/dashboard
       - name: Image health check budget
         shell: bash
         run: |
           set -euo pipefail
-          docker inspect -f '{{json .Config.Healthcheck}}' "ana-dashboard:${GITHUB_SHA}" \
+          docker inspect -f '{{json .Config.Healthcheck}}' "ana-dashboard:${SOURCE_SHA}" \
             | jq -e '.Timeout == 20000000000 and .StartPeriod == 90000000000 and .Interval == 30000000000 and .Retries == 3'
       - name: Optional Arch reference units (example, not a host requirement)
         shell: bash
@@ -84,7 +99,7 @@ jobs:
           expect() { [ "$1" = "$2" ] || { echo "FAIL: $3 -> $1, expected $2"; exit 1; }; echo "ok: $3 -> $1"; }
 
           # the image without any Access settings: everything refused, even a spoofed loopback Host
-          docker run -d --name bare -p 127.0.0.1:3001:3000 "ana-dashboard:${GITHUB_SHA}"
+          docker run -d --name bare -p 127.0.0.1:3001:3000 "ana-dashboard:${SOURCE_SHA}"
           wait_healthy bare
           for host in localhost 127.0.0.1 ana.dyai.cloud; do
             expect "$(code 3001 "$host" /)" 503 "no Access settings, Host $host, page"
@@ -95,7 +110,7 @@ jobs:
           docker run -d --name cf -p 127.0.0.1:3002:3000 --init --read-only --tmpfs /tmp --tmpfs /app/.next/cache \
             --cap-drop ALL --security-opt no-new-privileges:true -e ANA_ACCESS_MODE=cloudflare \
             -e CF_ACCESS_TEAM_DOMAIN=https://ci.cloudflareaccess.com -e CF_ACCESS_AUD="$AUD" -e ANA_ALLOWED_EMAILS=a@example.test \
-            "ana-dashboard:${GITHUB_SHA}"
+            "ana-dashboard:${SOURCE_SHA}"
           wait_healthy cf
           for p in / /pulse/social/instagram /api/social/instagram /api/work; do
             expect "$(code 3002 localhost "$p")" 401 "cloudflare mode, no assertion, $p"
@@ -106,23 +121,23 @@ jobs:
           # any mode other than cloudflare is refused inside the container (it listens on all interfaces)
           port=3003
           for mode in open "" loopback; do
-            docker run -d --name "mode$port" -p "127.0.0.1:$port:3000" -e "ANA_ACCESS_MODE=$mode" "ana-dashboard:${GITHUB_SHA}"
+            docker run -d --name "mode$port" -p "127.0.0.1:$port:3000" -e "ANA_ACCESS_MODE=$mode" "ana-dashboard:${SOURCE_SHA}"
             wait_healthy "mode$port"
             expect "$(code "$port" localhost /)" 503 "ANA_ACCESS_MODE='$mode', spoofed loopback Host, page"
             expect "$(code "$port" localhost /api/social/instagram)" 503 "ANA_ACCESS_MODE='$mode', spoofed loopback Host, social API"
             port=$((port + 1))
           done
 
-          docker inspect -f '{{.Config.User}}' "ana-dashboard:${GITHUB_SHA}" | grep -qx node
+          docker inspect -f '{{.Config.User}}' "ana-dashboard:${SOURCE_SHA}" | grep -qx node
           docker rm -f bare cf mode3003 mode3004 mode3005
       - name: Native bundle for the Arch host
         shell: bash
         run: |
           set -euo pipefail
-          cid="$(docker create "ana-dashboard:${GITHUB_SHA}")"
+          cid="$(docker create "ana-dashboard:${SOURCE_SHA}")"
           mkdir bundle && docker cp "$cid:/app/." bundle/ && docker rm "$cid"
-          tar -C bundle --owner=0 --group=0 --numeric-owner -czf "ana-dashboard-app-${GITHUB_SHA}.tar.gz" .
-          sha256sum "ana-dashboard-app-${GITHUB_SHA}.tar.gz" | tee "ana-dashboard-app-${GITHUB_SHA}.tar.gz.sha256"
+          tar -C bundle --owner=0 --group=0 --numeric-owner -czf "${BUNDLE}-app-${SOURCE_SHA}.tar.gz" .
+          sha256sum "${BUNDLE}-app-${SOURCE_SHA}.tar.gz" | tee "${BUNDLE}-app-${SOURCE_SHA}.tar.gz.sha256"
       - uses: actions/setup-node@v4
         with:
           node-version: "24.22.0" # nodejs-lts-krypton on the Arch host
@@ -133,7 +148,7 @@ jobs:
           AUD=$(printf 'a%.0s' $(seq 64))
           expect() { [ "$1" = "$2" ] || { echo "FAIL: $3 -> $1, expected $2"; exit 1; }; echo "ok: $3 -> $1"; }
           code() { curl -s -o /dev/null -w '%{http_code}' -H "Host: $1" "http://127.0.0.1:3410$2"; }
-          mkdir -p run && tar -xzf "ana-dashboard-app-${GITHUB_SHA}.tar.gz" -C run
+          mkdir -p run && tar -xzf "${BUNDLE}-app-${SOURCE_SHA}.tar.gz" -C run
           # as dyai-ana-dashboard.service starts it: pinned environment + credential file read with --env-file. The file
           # also tries to switch to loopback mode on all interfaces; the pinned environment must win.
           printf 'CF_ACCESS_TEAM_DOMAIN=https://ci.cloudflareaccess.com\nCF_ACCESS_AUD=%s\nANA_ALLOWED_EMAILS=a@example.test\nANA_ACCESS_MODE=loopback\nHOSTNAME=0.0.0.0\n' "$AUD" > dashboard_env
@@ -160,15 +175,15 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          docker save "ana-dashboard:${GITHUB_SHA}" | gzip -1 > "ana-dashboard-${GITHUB_SHA}.tar.gz"
-          gunzip -t "ana-dashboard-${GITHUB_SHA}.tar.gz"
-          sha256sum "ana-dashboard-${GITHUB_SHA}.tar.gz"
+          docker save "ana-dashboard:${SOURCE_SHA}" | gzip -1 > "${BUNDLE}-${SOURCE_SHA}.tar.gz"
+          gunzip -t "${BUNDLE}-${SOURCE_SHA}.tar.gz"
+          sha256sum "${BUNDLE}-${SOURCE_SHA}.tar.gz"
       - uses: actions/upload-artifact@v4
         with:
-          name: ana-dashboard-${{ github.sha }}
+          name: ${{ env.BUNDLE }}-${{ env.SOURCE_SHA }}
           path: |
-            ana-dashboard-${{ github.sha }}.tar.gz
-            ana-dashboard-app-${{ github.sha }}.tar.gz
-            ana-dashboard-app-${{ github.sha }}.tar.gz.sha256
+            ${{ env.BUNDLE }}-${{ env.SOURCE_SHA }}.tar.gz
+            ${{ env.BUNDLE }}-app-${{ env.SOURCE_SHA }}.tar.gz
+            ${{ env.BUNDLE }}-app-${{ env.SOURCE_SHA }}.tar.gz.sha256
           if-no-files-found: error # the v4 default only warns
           retention-days: 30
