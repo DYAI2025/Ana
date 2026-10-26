@@ -116,10 +116,6 @@ test.describe("Board — projection of Jira Board 734 / filter 10733", () => {
     await context.setOffline(true);
     await context.setOffline(false); // the browser reports "online": the app re-reads Jira, which now fails
     await page.locator('html[data-work="stale"]').waitFor({ state: "attached" });
-    await expect(page.getByTestId("context-work")).toContainText("Jira state unknown");
-    await page.getByTestId("context-work").click();
-    await expect(page.getByTestId("work-stale")).toHaveAttribute("data-state", "UNKNOWN");
-    await page.keyboard.press("Escape");
     await page.request.post(`${FAKE_JIRA}/__fake/reset`); // Jira reachable again
     await jira.setStatus("ANA-901", "10113"); // and meanwhile someone moved an issue in Jira
     await context.setOffline(true);

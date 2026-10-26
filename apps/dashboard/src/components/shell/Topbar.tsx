@@ -67,7 +67,8 @@ export function Topbar({ onOpenSearch }: { onOpenSearch: () => void }) {
             {jiraLabel}
             <span className="visually-hidden"> — {jiraDetail}</span>
           </span>
-        ) : (
+        ) : view === "now" ? null : (
+          // the ASADA home carries no prototype flag (ANA-42): it shows no prototype data, only honest Under Construction
           <span className={styles.prototypeFlag} title={t("top.prototypeFlagDetail")} data-testid="prototype-flag">
             <FlaskConical size={13} aria-hidden="true" />
             {t("top.prototypeFlag")}
