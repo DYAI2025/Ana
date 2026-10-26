@@ -15,3 +15,13 @@ export function cockpitStateOf(result: SocialResult | null): CockpitState {
 export function isConnected(state: CockpitState): boolean {
   return state === "CONNECTED" || state === "EMPTY";
 }
+
+/** Most to least severe: a tile that knows two answers shows the one that claims less. */
+const SEVERITY: CockpitState[] = ["PERMISSION_REQUIRED", "ERROR", "STALE", "EMPTY", "CONNECTED", "LOADING"];
+
+/** The less reassuring of two states (null counts as "no knowledge"). */
+export function worstState(a: CockpitState | null, b: CockpitState | null): CockpitState | null {
+  if (a === null) return b;
+  if (b === null) return a;
+  return SEVERITY.indexOf(a) <= SEVERITY.indexOf(b) ? a : b;
+}

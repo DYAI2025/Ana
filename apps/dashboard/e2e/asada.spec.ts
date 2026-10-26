@@ -87,10 +87,12 @@ test.describe("UI-01 · ASADA home", () => {
       expect(await tile.innerText()).not.toMatch(/\d/); // no numbers: nothing invented
     }
     const dimmedOpacity = await page.getByTestId("context-initiatives").evaluate((el) => getComputedStyle(el).opacity);
-    const activeShadow = await page.getByTestId("context-social").evaluate((el) => getComputedStyle(el).boxShadow);
-    const dimmedShadow = await page.getByTestId("context-initiatives").evaluate((el) => getComputedStyle(el).boxShadow);
     expect(dimmedOpacity).toBe("1"); // dimming never comes from opacity, so the text keeps its contrast
-    expect(dimmedShadow).not.toBe(activeShadow);
+    // the material is dimmed through the registered --tint-strength property that scales every tinted layer
+    const tint = (id: string) => page.getByTestId(id).evaluate((el) => parseFloat(getComputedStyle(el).getPropertyValue("--tint-strength")));
+    const active = await tint("context-social");
+    expect(active).toBeGreaterThanOrEqual(1);
+    for (const id of TILE_ORDER.slice(1)) expect(await tint(`context-${id}`), `${id} is dimmed`).toBeLessThanOrEqual(active * 0.6);
   });
 
   test("AC05 · the Instagram state on the tile comes from the real adapter answer", async ({ page }) => {
@@ -110,27 +112,34 @@ test.describe("UI-01 · ASADA home", () => {
       const tile = page.getByTestId("context-social");
       await expect(tile).toHaveAttribute("data-instagram", c.state, { timeout: 20_000 });
       await expect(tile).toContainText(c.text);
-      await expect(tile).not.toContainText(/Connected|Live/);
+      await expect(tile).not.toContainText(/connected|live/i);
       await expect(page.getByTestId("asada-title")).toHaveText("ASADA");
       await expect(page.getByTestId("context-community")).toContainText("Under Construction");
       // the tile still opens the picker, which shows the same honest state on the Instagram row
       await tile.click();
       await expect(page.getByTestId("channel-instagram")).toHaveAttribute("data-instagram", c.state);
+      await expect(page.getByTestId("channel-note")).toContainText(c.text.replace("Instagram · ", ""));
+      await expect(page.getByTestId("channel-note")).not.toContainText(/live/i);
     });
   }
 
-  test("AC05 · the home never claims more than the Social API answers right now", async ({ page, social }) => {
+  test("AC05 · a failed refresh over an older snapshot is STALE on the home and in the picker, not connected", async ({ page, social }) => {
     await page.goto("/pulse/social/instagram");
     await expect(page.getByTestId("instagram-cockpit")).toHaveAttribute("data-state", "CONNECTED");
     await social.fault({ status: 502, error: "instagram-media-fetch-failed" });
     await page.getByTestId("refresh").click();
     await expect(page.getByTestId("instagram-cockpit")).toHaveAttribute("data-state", "STALE");
-    // the home performs its own read; whatever the server answers now is what the tile says, nothing more
+    // the server still serves the older snapshot as ok; the home must not turn that into "connected" when the cockpit just saw the worker fail
     const answer = await (await page.request.get("/api/social/instagram")).json();
-    const expected = !answer.ok ? (answer.failure?.state === "PERMISSION_REQUIRED" ? "PERMISSION_REQUIRED" : "ERROR") : answer.stale ? "STALE" : answer.snapshot.posts.length === 0 ? "EMPTY" : "CONNECTED";
+    expect(answer.ok).toBe(true);
     await page.getByTestId("nav-now").click();
-    await expect(page.getByTestId("context-social")).toHaveAttribute("data-instagram", expected);
-    await expect(page.getByTestId("context-social")).not.toContainText(/\bLive\b/);
+    await expect(page.getByTestId("context-social")).toHaveAttribute("data-instagram", "STALE");
+    await expect(page.getByTestId("context-social")).toContainText("Instagram · Stale");
+    await expect(page.getByTestId("context-social")).not.toContainText(/connected|live/i);
+    await page.getByTestId("context-social").click();
+    await expect(page.getByTestId("channel-instagram")).toHaveAttribute("data-instagram", "STALE");
+    await expect(page.getByTestId("channel-note")).toContainText("Stale");
+    await expect(page.getByTestId("channel-note")).not.toContainText(/live/i);
   });
 
   test("AC06 · glass and aluminium stay: translucent blurred tiles, metal glyph tiles, the rail and topbar icons", async ({ page }) => {
@@ -208,7 +217,7 @@ test.describe("UI-01 · ASADA home", () => {
       await page.waitForTimeout(200);
       const clipped = await page.evaluate(() =>
         Array.from(document.querySelectorAll('[data-testid^="context-"]')).flatMap((tile) =>
-          Array.from(tile.querySelectorAll("span")).filter((el) => el.scrollHeight > el.clientHeight + 2 && getComputedStyle(el).overflow === "hidden" && getComputedStyle(el).whiteSpace === "normal").map((el) => el.textContent),
+          [tile, ...Array.from(tile.querySelectorAll("span"))].filter((el) => el.scrollWidth > el.clientWidth + 1 || el.scrollHeight > el.clientHeight + 2).map((el) => el.textContent?.slice(0, 40)),
         ),
       );
       expect(clipped).toEqual([]);
@@ -349,7 +358,13 @@ test.describe("UI-02 · Social Media Business channel picker", () => {
     await page.getByTestId("context-social").click();
     await expect(page.getByTestId("channel-instagram")).toHaveAttribute("data-instagram", "PERMISSION_REQUIRED", { timeout: 20_000 });
     await expect(page.getByTestId("channel-instagram")).toContainText("Permission required");
-    await expect(page.getByRole("dialog")).not.toContainText(/\bLive\b/);
+    await expect(page.getByTestId("channel-note")).toContainText("currently reports: Permission required");
+    await expect(page.getByRole("dialog")).not.toContainText(/live/i);
+    await page.keyboard.press("Escape");
+    await page.getByTestId("lang-de").click();
+    await page.getByTestId("context-social").click();
+    await expect(page.getByTestId("channel-note")).toContainText("aktueller Stand: Berechtigung nötig");
+    await expect(page.getByRole("dialog")).not.toContainText(/live/i);
   });
 
   test("AC07 · DE / EN / IT: dialog title, subtitle and Under Construction in the chosen language, Inter throughout", async ({ page }) => {

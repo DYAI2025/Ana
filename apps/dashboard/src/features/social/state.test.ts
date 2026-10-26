@@ -1,4 +1,4 @@
-import { cockpitStateOf, isConnected } from "./state";
+import { cockpitStateOf, isConnected, worstState } from "./state";
 import type { SocialResult, SocialSnapshot } from "./types";
 
 const snapshot = (posts: number) => ({ posts: Array.from({ length: posts }, (_, i) => ({ media_id: `m${i}` })) }) as unknown as SocialSnapshot;
@@ -32,5 +32,22 @@ describe("cockpitStateOf (UI01-AC05 / UI02-AC06)", () => {
     expect(isConnected("EMPTY")).toBe(true);
     expect(isConnected("LOADING")).toBe(false);
     expect(isConnected("STALE")).toBe(false);
+  });
+});
+
+describe("worstState", () => {
+  it("prefers the less reassuring of two states", () => {
+    expect(worstState("CONNECTED", "STALE")).toBe("STALE");
+    expect(worstState("STALE", "CONNECTED")).toBe("STALE");
+    expect(worstState("ERROR", "STALE")).toBe("ERROR");
+    expect(worstState("PERMISSION_REQUIRED", "ERROR")).toBe("PERMISSION_REQUIRED");
+    expect(worstState("EMPTY", "CONNECTED")).toBe("EMPTY");
+  });
+
+  it("treats null as no knowledge and LOADING as weaker than any answer", () => {
+    expect(worstState(null, "CONNECTED")).toBe("CONNECTED");
+    expect(worstState("STALE", null)).toBe("STALE");
+    expect(worstState(null, null)).toBeNull();
+    expect(worstState("LOADING", "CONNECTED")).toBe("CONNECTED");
   });
 });

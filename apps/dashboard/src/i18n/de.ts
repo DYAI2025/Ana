@@ -74,6 +74,7 @@ export const de: Messages = {
       subtitle: "Wähle einen Kanal",
       instagramAction: "Instagram-Cockpit öffnen",
       note: "Instagram öffnet das bestehende Live-Cockpit.",
+      noteDown: "Instagram öffnet das bestehende Cockpit; aktueller Stand: {state}.",
     },
   },
   board: {

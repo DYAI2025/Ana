@@ -415,7 +415,7 @@
 }
 
 .crosshair {
-  stroke: #a88791;
+  stroke: rgba(70, 80, 95, 0.55);
   stroke-width: 1;
   stroke-dasharray: 4 4;
 }

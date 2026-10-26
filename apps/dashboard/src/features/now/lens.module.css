@@ -105,7 +105,8 @@
   overflow: auto;
   list-style: none;
   margin: 0;
-  padding: 0 22px 8px;
+  padding: 6px 22px 8px;
+  scroll-padding: 6px 0;
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -113,8 +114,9 @@
 
 .channel {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 14px;
+  gap: 10px 14px;
   min-height: 64px;
   padding: 12px 14px 12px 12px;
   border-radius: 18px;
@@ -273,7 +275,7 @@
   }
 
   .channels {
-    padding: 0 16px 8px;
+    padding: 6px 16px 8px;
   }
 
   .note {

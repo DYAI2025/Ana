@@ -203,9 +203,7 @@
   font-weight: 500;
   line-height: 1.35;
   color: var(--text-secondary);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
 }
 
 .objectActive .objectStatus {
@@ -217,9 +215,7 @@
   font-size: 12.5px;
   line-height: 1.4;
   color: var(--text-muted);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
 }
 
 /* chevron in the lower right of the active tile */
@@ -298,11 +294,6 @@
 
   .objectAction {
     display: none;
-  }
-
-  .objectStatus,
-  .objectSubtitle {
-    white-space: normal;
   }
 }
 

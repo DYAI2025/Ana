@@ -78,6 +78,7 @@ export const en = {
       subtitle: "Choose a channel",
       instagramAction: "Open the Instagram cockpit",
       note: "Instagram opens the existing live cockpit.",
+      noteDown: "Instagram opens the existing cockpit; it currently reports: {state}.",
     },
   },
   board: {

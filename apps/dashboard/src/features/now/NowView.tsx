@@ -57,7 +57,7 @@ export function NowView() {
                 className={`glass ${styles.object} ${styles.objectActive}`}
                 aria-haspopup="dialog"
                 aria-expanded={open}
-                aria-label={`${title}: ${t("now.socialState", { state: instagramLabel })}. ${t("now.openSocial")}`}
+                aria-label={`${title}: ${t("now.socialState", { state: instagramLabel })}. ${OTHER_CHANNELS.join(", ")}: ${t("now.underConstruction")}. ${t("now.openSocial")}`}
                 onClick={() => setOpen(true)}
                 onPointerMove={trackPointer}
                 data-selected={open ? "true" : undefined}
@@ -88,8 +88,6 @@ export function NowView() {
             <div
               key={tile.id}
               className={`glass ${styles.object} ${styles.objectDimmed}`}
-              role="group"
-              aria-label={`${title}: ${t("now.underConstruction")}`}
               data-testid={`context-${tile.id}`}
               data-state="under-construction"
             >

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { useI18n } from "@/components/providers/I18nProvider";
 import { StateChip } from "@/features/social/Instruments";
+import { isConnected } from "@/features/social/state";
 import type { CockpitState } from "@/features/social/types";
 import { useFocusTrap } from "@/lib/hooks/useFocusTrap";
 import { useReducedMotion } from "@/lib/hooks/useReducedMotion";
@@ -117,8 +118,10 @@ export function ChannelLens({ open, instagram, onClose }: { open: boolean; insta
             ),
           )}
         </ul>
-        <p className={styles.note}>
-          {t("now.channels.note")} <code className={styles.route}>{CHANNELS[0].href}</code>
+        <p className={styles.note} data-testid="channel-note" data-instagram={instagram}>
+          {/* "live" is said only while the adapter is verified connected; otherwise the note names the real state */}
+          {isConnected(instagram) ? t("now.channels.note") : t("now.channels.noteDown", { state: t(`social.states.${instagram}`) })}{" "}
+          <code className={styles.route}>{CHANNELS[0].href}</code>
         </p>
       </aside>
     </div>
