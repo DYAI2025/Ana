@@ -19,10 +19,13 @@ let seenObservedAt: string | null = null;
 const listeners = new Set<() => void>();
 
 export function setSocialPhase(next: CockpitState | null, observedAt: string | null = null) {
-  if (observedAt !== null) seenObservedAt = observedAt;
-  if (next === phase) return;
+  if (observedAt !== null && Number.isFinite(Date.parse(observedAt)) &&
+      (seenObservedAt === null || Date.parse(observedAt) > Date.parse(seenObservedAt))) seenObservedAt = observedAt;
+  const changedReport = next !== null && next !== "LOADING" &&
+    (lastKnown?.state !== next || lastKnown?.observedAt !== seenObservedAt);
+  if (next === phase && !changedReport) return;
   phase = next;
-  if (next !== null && next !== "LOADING") lastKnown = { state: next, observedAt: seenObservedAt };
+  if (changedReport) lastKnown = { state: next, observedAt: seenObservedAt };
   for (const l of listeners) l();
 }
 

@@ -37,6 +37,7 @@ export const en = {
     liveInstagramReading: "Reading Instagram",
     liveInstagramDown: "Instagram not connected",
     liveInstagramStale: "Instagram · older snapshot",
+    liveInstagramEmpty: "Instagram · no posts · read-only",
     language: "Language",
     languageChanged: "Language changed to English",
     team: "Team: Ana, Ben and Vince",

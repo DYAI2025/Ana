@@ -33,6 +33,7 @@ export const de: Messages = {
     liveInstagramReading: "Instagram wird gelesen",
     liveInstagramDown: "Instagram nicht verbunden",
     liveInstagramStale: "Instagram · älterer Stand",
+    liveInstagramEmpty: "Instagram · keine Beiträge · nur lesend",
     language: "Sprache",
     languageChanged: "Sprache geändert zu Deutsch",
     team: "Team: Ana, Ben und Vince",

@@ -38,8 +38,9 @@ export interface KnownPhase {
 
 /** True when `fresh` was observed by the worker after `seen` (unparsable stamps never count as newer: fail closed). */
 function observedAfter(fresh: string, seen: string | null): boolean {
-  if (seen === null) return true;
   const a = Date.parse(fresh);
+  if (!Number.isFinite(a)) return false;
+  if (seen === null) return true;
   const b = Date.parse(seen);
   return Number.isFinite(a) && Number.isFinite(b) && a > b;
 }

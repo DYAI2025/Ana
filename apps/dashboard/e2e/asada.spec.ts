@@ -178,6 +178,7 @@ test.describe("UI-01 · ASADA home", () => {
     await social.fault({ observedAt: "2026-10-11T12:00:00.000Z" });
     expect((await page.request.get("/api/social/instagram?__reset")).status()).toBe(204);
     await page.getByTestId("nav-pulse").click();
+    await expect(page).toHaveURL(/\/pulse$/); // the home must unmount before it mounts again, so its read happens after the reset
     await page.getByTestId("nav-now").click();
     const tile = page.getByTestId("context-social");
     await expect(tile).toHaveAttribute("data-instagram", "CONNECTED", { timeout: 20_000 });
@@ -302,6 +303,12 @@ test.describe("UI-02 · Social Media Business channel picker", () => {
     await expect(dialog.getByRole("heading", { level: 2 })).toHaveText("Social Media Business");
     await expect(dialog).toContainText("Choose a channel");
     await expect(page.getByTestId("asada-title")).toBeVisible(); // the home stays as orientation behind the glass
+    // ... and is dimmed behind it: every tile except the selected trigger is faded and blurred (now.module.css [data-lens-open])
+    for (const id of TILE_ORDER.slice(1)) {
+      const dimmed = await page.getByTestId(`context-${id}`).evaluate((el) => ({ opacity: parseFloat(getComputedStyle(el).opacity), filter: getComputedStyle(el).filter }));
+      expect(dimmed.opacity, `${id} opacity`).toBeLessThanOrEqual(0.6);
+      expect(dimmed.filter, `${id} filter`).toMatch(/blur/);
+    }
     const names = await Promise.all(CHANNEL_ORDER.map((id) => page.getByTestId(`channel-${id}`).locator("span").nth(2).innerText()));
     expect(names).toEqual(["Instagram", "Substack", "TikTok", "YouTube", "Facebook"]);
     await expect(page.getByTestId("channel-instagram")).toHaveAttribute("href", "/pulse/social/instagram");
@@ -317,13 +324,15 @@ test.describe("UI-02 · Social Media Business channel picker", () => {
     await expect(page.getByTestId("context-social")).toHaveAttribute("aria-expanded", "true");
   });
 
-  test("AC01 · keyboard: Enter on the tile opens the picker with the Instagram row focused", async ({ page }) => {
-    await page.goto("/");
-    await page.getByTestId("context-social").focus();
-    await page.keyboard.press("Enter");
-    await expect(page.getByRole("dialog")).toBeVisible();
-    await expect(page.getByTestId("channel-instagram")).toBeFocused();
-  });
+  for (const key of ["Enter", "Space"]) {
+    test(`AC01 · keyboard: ${key} on the tile opens the picker with the Instagram row focused`, async ({ page }) => {
+      await page.goto("/");
+      await page.getByTestId("context-social").focus();
+      await page.keyboard.press(key);
+      await expect(page.getByRole("dialog")).toBeVisible();
+      await expect(page.getByTestId("channel-instagram")).toBeFocused();
+    });
+  }
 
   test("AC04 · Instagram is two interactions away; back returns to ASADA", async ({ page }) => {
     await page.goto("/");

@@ -102,6 +102,8 @@ describe("homeState (UI01-AC05 / UI01-AC10): the home reconciles the cockpit's l
 
   it("fails closed on an unreadable snapshot timestamp: it never counts as newer", () => {
     expect(homeState(known("STALE", OLD), ok("not-a-date"))).toBe("STALE");
+    expect(homeState(known("ERROR", null), ok("not-a-date"))).toBe("ERROR");
+    expect(homeState(known("PERMISSION_REQUIRED", null), ok(""))).toBe("PERMISSION_REQUIRED");
     expect(homeState(known("STALE", "not-a-date"), ok(NEW))).toBe("STALE");
   });
 });

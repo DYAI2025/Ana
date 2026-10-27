@@ -33,6 +33,7 @@ export const it: Messages = {
     liveInstagramReading: "Lettura di Instagram",
     liveInstagramDown: "Instagram non connesso",
     liveInstagramStale: "Instagram · stato precedente",
+    liveInstagramEmpty: "Instagram · nessun post · sola lettura",
     language: "Lingua",
     languageChanged: "Lingua cambiata in italiano",
     team: "Team: Ana, Ben e Vince",

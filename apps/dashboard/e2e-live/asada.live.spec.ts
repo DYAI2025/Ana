@@ -13,18 +13,23 @@
  *   LIVE_STORAGE_STATE must name a readable Playwright storage-state file outside the repository that holds an
  *                      unexpired Cloudflare Access cookie (CF_Authorization) for ana.dyai.cloud
  *   LIVE_EVIDENCE_DIR  must name a directory outside the repository (states and measurements only, no Instagram content)
- *   LIVE_ORIGIN_HOST   must be the public IP literal of the origin VPS (its ports are probed from the outside in P02)
+ *   LIVE_ORIGIN_HOST   must be the PUBLIC IP literal of the origin VPS (no loopback, private or link-local address); P02
+ *                      first proves the address is a live host (its SSH port answers with an identification string, nothing
+ *                      is logged in) and only then that the dashboard and tunnel ports are closed from the outside
  *
  *   LIVE_BASE_URL=https://ana.dyai.cloud LIVE_STORAGE_STATE=<file outside the repo> LIVE_EVIDENCE_DIR=<dir outside the repo> \
  *     LIVE_ORIGIN_HOST=<vps public ip> npx playwright test -c playwright.live.config.ts asada.live
  *
- * Results go to LIVE_EVIDENCE_DIR/asada-live-result.json (states and measurements only — no Instagram content).
- * When a precondition is missing the result file records `verdict: "BLOCKED"` with the failed precondition names.
+ * Results go to LIVE_EVIDENCE_DIR/asada-live-result.json (states and measurements only — no Instagram content) with
+ * `verdict` PASS (every test of this file ran and passed), FAIL, PARTIAL (a filtered run: not every test ran) or BLOCKED
+ * (a precondition failed; `preconditionsFailed` names it). The file is written only when LIVE_EVIDENCE_DIR names a
+ * directory outside the repository; otherwise the exit code alone carries the verdict (never a file inside the repo).
  */
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import net from "node:net";
 import path from "node:path";
 import { expect, request as playwrightRequest, test, type Page } from "@playwright/test";
+import { isOutsideRepository, isPublicIp, liveVerdict } from "../src/test/asada-proof";
 
 const REPO = path.resolve(__dirname, "../../..");
 /** The one production host this acceptance is about; any other LIVE_BASE_URL is a wrong target, not a variant. */
@@ -41,33 +46,59 @@ const VIEWPORTS = [
   { width: 1024, height: 768 },
   { width: 390, height: 844 },
 ];
+/** P01–P05, P06 × VIEWPORTS, P07–P11: a run that executed fewer (a title filter, --last-failed) can never record PASS. */
+const EXPECTED_TESTS = 10 + VIEWPORTS.length;
 const result: Record<string, unknown> = { base: BASE, startedAt: new Date().toISOString(), verdict: "BLOCKED", preconditionsFailed: ["not checked"] };
+const outside = (p: string) => isOutsideRepository(p, REPO);
 
 const settled = (page: Page) => page.locator('[data-testid="context-social"]:not([data-instagram="LOADING"])').waitFor({ timeout: 60_000 });
 const overflowX = (page: Page) => page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
-const shot = (page: Page, name: string) => page.screenshot({ path: path.join(DIR, `${name}.png`) });
+const shot = (page: Page, name: string) => {
+  const target = path.join(DIR, `${name}.png`);
+  expect(outside(target), "screenshot path must stay outside the repository, including symlinks").toBe(true);
+  return page.screenshot({ path: target });
+};
 
 /**
  * TCP probe of an origin port from the outside: the dashboard and tunnel ports must not accept connections.
  * Only an active refusal or a silent drop counts as closed; "no route" or any other error means the probe did not
  * reach the host under test and is reported as such (never as closed).
  */
-function probe(host: string, port: number): Promise<"refused" | "timeout" | "open" | `unreachable:${string}`> {
+type ProbeState = "refused" | "timeout" | "open" | `unreachable:${string}`;
+function probe(host: string, port: number): Promise<{ state: ProbeState; banner: string | null }> {
   return new Promise((resolve) => {
     const socket = net.connect({ host, port, timeout: 4000 });
-    socket.once("connect", () => (socket.destroy(), resolve("open")));
-    socket.once("timeout", () => (socket.destroy(), resolve("timeout")));
-    socket.once("error", (error: NodeJS.ErrnoException) => resolve(error.code === "ECONNREFUSED" ? "refused" : error.code === "ETIMEDOUT" ? "timeout" : `unreachable:${error.code ?? "unknown"}`));
+    let connected = false;
+    let banner = "";
+    let settled = false;
+    const done = (state: ProbeState) => {
+      if (settled) return;
+      settled = true;
+      socket.destroy();
+      resolve({ state, banner: banner ? banner.split(/\r?\n/)[0]!.slice(0, 80) : null });
+    };
+    // an open port is reported with the first line the service sends (e.g. an SSH identification string), if any
+    socket.on("connect", () => {
+      connected = true;
+      socket.setTimeout(3000);
+    });
+    socket.on("data", (chunk) => {
+      banner += chunk.toString("latin1");
+      if (banner.includes("\n")) done("open");
+    });
+    // before connect a timeout is a dropped SYN (closed); after connect it only ends the banner wait on an open port
+    socket.on("timeout", () => done(connected ? "open" : "timeout"));
+    socket.on("error", (error: NodeJS.ErrnoException) => done(connected ? "open" : error.code === "ECONNREFUSED" ? "refused" : error.code === "ETIMEDOUT" ? "timeout" : `unreachable:${error.code ?? "unknown"}`));
+    socket.on("close", () => done(connected ? "open" : "unreachable:closed"));
   });
 }
 
 /** Every precondition that is not met, by name. Empty means the run may start. */
 function failedPreconditions(): string[] {
   const failed: string[] = [];
-  const outside = (p: string) => !(path.resolve(p).startsWith(REPO + path.sep) || path.resolve(p) === REPO);
   if (BASE !== PRODUCTION) failed.push(`LIVE_BASE_URL must be ${PRODUCTION} (got ${JSON.stringify(BASE)})`);
   if (!DIR) failed.push("LIVE_EVIDENCE_DIR is required");
-  else if (!outside(DIR)) failed.push("LIVE_EVIDENCE_DIR must be outside the repository");
+  else if (!outside(DIR) || !outside(path.join(DIR, "asada-live-result.json"))) failed.push("LIVE_EVIDENCE_DIR and its result file must be outside the repository (including symlinks)");
   const session = process.env.LIVE_STORAGE_STATE ?? "";
   if (!session) failed.push("LIVE_STORAGE_STATE (Access session, outside the repo) is required");
   else if (!outside(session)) failed.push("LIVE_STORAGE_STATE must be outside the repository");
@@ -87,6 +118,7 @@ function failedPreconditions(): string[] {
   }
   if (!ORIGIN_HOST) failed.push("LIVE_ORIGIN_HOST (public IP of the origin VPS) is required");
   else if (net.isIP(ORIGIN_HOST) === 0) failed.push("LIVE_ORIGIN_HOST must be an IP literal, not a name");
+  else if (!isPublicIp(ORIGIN_HOST)) failed.push("LIVE_ORIGIN_HOST must be a public address (loopback, private and link-local ranges are not the origin)");
   return failed;
 }
 
@@ -101,16 +133,23 @@ test.beforeAll(() => {
 });
 
 const failedTests: string[] = [];
+const passedTests = new Set<string>();
+let ranTests = 0;
 test.afterEach(({}, testInfo) => {
-  if (testInfo.status !== testInfo.expectedStatus) failedTests.push(`${testInfo.title}: ${testInfo.status}`);
+  ranTests += 1;
+  if (testInfo.status === "passed") passedTests.add(testInfo.title);
+  else if (testInfo.status !== "skipped") failedTests.push(`${testInfo.title}: ${testInfo.status}`);
 });
 
 test.afterAll(() => {
   result.finishedAt = new Date().toISOString();
   result.failedTests = failedTests;
-  // the file carries a verdict only for a run whose preconditions held; a blocked run stays BLOCKED, never PASS
-  if (result.verdict === "RUNNING") result.verdict = failedTests.length === 0 ? "PASS" : "FAIL";
-  if (DIR) {
+  result.testsRun = ranTests;
+  result.testsExpected = EXPECTED_TESTS;
+  // the file carries a verdict only for a run whose preconditions held; a blocked run stays BLOCKED, never PASS,
+  // and PASS needs every test of this file to have run (a filtered run is PARTIAL)
+  result.verdict = liveVerdict(result.verdict === "RUNNING", failedTests.length, passedTests.size, EXPECTED_TESTS);
+  if (DIR && outside(DIR) && outside(path.join(DIR, "asada-live-result.json"))) {
     mkdirSync(DIR, { recursive: true });
     writeFileSync(path.join(DIR, "asada-live-result.json"), JSON.stringify(result, null, 2));
   }
@@ -131,9 +170,15 @@ test("P01 · without an Access session the origin is not served; with it the das
   await expect(page.getByTestId("asada-title")).toHaveText("ASADA");
 });
 
-test("P02 · origin ports are closed from the outside (never skipped: LIVE_ORIGIN_HOST is a precondition)", async () => {
+test("P02 · the origin host is reachable and its dashboard and tunnel ports are closed from the outside (never skipped)", async () => {
+  // reachability first: an unrouted or wrong address would make every port look "closed"; the origin's SSH service must
+  // answer with its identification string (a TCP read, no login attempt) before closed ports count as evidence
+  const ssh = await probe(ORIGIN_HOST, 22);
+  result.originReach = { host: ORIGIN_HOST, port22: ssh.state, banner: ssh.banner };
+  expect(ssh.state, "LIVE_ORIGIN_HOST answers on port 22").toBe("open");
+  expect(ssh.banner ?? "", "SSH identification string").toMatch(/^SSH-2\.0-/);
   const ports: Record<number, string> = {};
-  for (const port of [3410, 3300, 3100, 20242]) ports[port] = await probe(ORIGIN_HOST, port);
+  for (const port of [3410, 3300, 3100, 20242]) ports[port] = (await probe(ORIGIN_HOST, port)).state;
   result.originPorts = ports;
   // "refused" (RST) or "timeout" (dropped) prove a closed port on a reachable host; anything else is not evidence
   for (const [port, state] of Object.entries(ports)) expect(["refused", "timeout"], `origin port ${port}`).toContain(state);
