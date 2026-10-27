@@ -30,11 +30,11 @@ describe("dictionaries", () => {
 
 describe("translate", () => {
   it("interpolates named placeholders", () => {
-    expect(translate("en", "now.workStatus", { active: 2, review: 1 })).toBe("2 active · 1 in review");
+    expect(translate("en", "now.socialState", { state: "Connected" })).toBe("Instagram · Connected");
   });
 
   it("leaves unknown placeholders visible instead of hiding them", () => {
-    expect(translate("en", "now.workStatus", { active: 2 })).toBe("2 active · {review} in review");
+    expect(translate("en", "now.socialState", {})).toBe("Instagram · {state}");
   });
 
   it("returns the key itself for a missing key so the gap is visible", () => {

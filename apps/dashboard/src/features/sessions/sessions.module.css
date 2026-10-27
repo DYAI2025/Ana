@@ -21,7 +21,7 @@
   top: 10px;
   bottom: 0;
   width: 1px;
-  background: linear-gradient(180deg, rgba(245, 237, 228, 0.3), rgba(245, 237, 228, 0.09) 75%, transparent);
+  background: linear-gradient(180deg, rgba(70, 80, 95, 0.3), rgba(70, 80, 95, 0.09) 75%, transparent);
 }
 
 .event {
@@ -309,7 +309,7 @@
 }
 
 .bullets li::marker {
-  color: var(--rose-taupe);
+  color: var(--ink-warm);
 }
 
 .actions {
@@ -385,7 +385,7 @@
   font-size: 12px;
   line-height: 1.65;
   color: var(--text-secondary);
-  background: rgba(28, 23, 27, 0.45);
+  background: var(--surface-veil);
   border: 1px solid rgba(255, 255, 255, 0.08);
 }
 

@@ -41,7 +41,7 @@ test("keyboard focus is visible (outline) on rail, buttons and context objects",
   await expect(page.getByTestId("nav-now")).toBeFocused();
   expect(await outline()).toMatchObject({ style: "solid" });
   expect((await outline()).width).toBeGreaterThanOrEqual(2);
-  await page.getByTestId("context-work").focus();
+  await page.getByTestId("context-social").focus();
   expect((await outline()).style).toBe("solid");
 });
 
@@ -56,7 +56,7 @@ test("prefers-reduced-motion: no auto-rotation and near-instant transitions", as
   await expect(canvas).toHaveAttribute("data-yaw", yaw!);
 
   await page.goto("/");
-  await page.getByTestId("context-work").click();
+  await page.getByTestId("context-social").click();
   const duration = await page.getByRole("dialog").evaluate((el) => parseFloat(getComputedStyle(el).animationDuration));
   expect(duration).toBeLessThan(0.01);
   await page.keyboard.press("Escape");
@@ -71,7 +71,7 @@ test("without reduced motion the Brain auto-rotates and the lens animates", asyn
   const yaw = Number(await canvas.getAttribute("data-yaw"));
   await expect.poll(async () => Number(await canvas.getAttribute("data-yaw"))).toBeGreaterThan(yaw + 0.02);
   await page.goto("/");
-  await page.getByTestId("context-work").click();
+  await page.getByTestId("context-social").click();
   const duration = await page.getByRole("dialog").evaluate((el) => parseFloat(getComputedStyle(el).animationDuration));
   expect(duration).toBeGreaterThan(0.2);
 });
@@ -104,8 +104,7 @@ test("prototype state resets on reload (nothing is persisted except language)", 
 });
 
 const OVERLAY_STATES: { label: string; route: string; jira?: Record<string, unknown>; prepare: (page: import("@playwright/test").Page) => Promise<unknown> }[] = [
-  { label: "lens work", route: "/", prepare: (p) => p.getByTestId("context-work").click() },
-  { label: "lens session", route: "/", prepare: (p) => p.getByTestId("context-session").click() },
+  { label: "channel picker", route: "/", prepare: (p) => p.getByTestId("context-social").click() },
   { label: "search with results", route: "/", prepare: async (p) => { await p.getByTestId("search-open").click(); await p.getByTestId("search-input").fill("workshop"); } },
   { label: "search without results", route: "/", prepare: async (p) => { await p.getByTestId("search-open").click(); await p.getByTestId("search-input").fill("zzzz"); } },
   { label: "backlog form with error", route: "/backlog", prepare: async (p) => { await p.getByTestId("add-idea").click(); await p.getByTestId("idea-submit").click(); } },
@@ -117,10 +116,7 @@ const OVERLAY_STATES: { label: string; route: string; jira?: Record<string, unkn
   { label: "session transcript", route: "/sessions/working-session-01?tab=transcript", prepare: async () => undefined },
   { label: "session json", route: "/sessions/working-session-01?tab=json", prepare: async () => undefined },
   { label: "brain selected", route: "/brain?node=workshop-02", prepare: async () => undefined },
-  { label: "lens knowledge", route: "/", prepare: (p) => p.getByTestId("context-knowledge").click() },
-  { label: "lens business", route: "/", prepare: (p) => p.getByTestId("context-business").click() },
-  { label: "lens community", route: "/", prepare: (p) => p.getByTestId("context-community").click() },
-  { label: "search over lens", route: "/", prepare: async (p) => { await p.getByTestId("context-work").click(); await p.keyboard.press("ControlOrMeta+k"); await p.getByTestId("search-input").fill("loop"); await expect(p.getByTestId("context-lens")).toBeVisible(); await expect(p.getByTestId("search-result").first()).toBeVisible(); } },
+  { label: "search over lens", route: "/", prepare: async (p) => { await p.getByTestId("context-social").click(); await p.keyboard.press("ControlOrMeta+k"); await p.getByTestId("search-input").fill("loop"); await expect(p.getByTestId("channel-lens")).toBeVisible(); await expect(p.getByTestId("search-result").first()).toBeVisible(); } },
   { label: "whiteboard editing a note", route: "/whiteboard", prepare: async (p) => { await p.getByTestId("wb-note").first().focus(); await p.keyboard.press("Enter"); await expect(p.getByTestId("wb-note").first().locator("textarea")).toBeFocused(); } },
 ];
 

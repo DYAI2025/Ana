@@ -3,7 +3,7 @@
  *
  *   node e2e/fake-social/server.mjs     (port FAKE_SOCIAL_PORT, default 3198; key FAKE_SOCIAL_KEY)
  *
- * Control: POST /__fake/reset · POST /__fake/fault {status,error}|{hang}|{network}|{invalid}|{empty} · GET /__fake/state · GET /__fake/health
+ * Control: POST /__fake/reset · POST /__fake/fault {status,error}|{hang}|{network}|{invalid}|{empty}|{observedAt} · GET /__fake/state · GET /__fake/health
  */
 import http from "node:http";
 import { createFakeSocial } from "./core.mjs";

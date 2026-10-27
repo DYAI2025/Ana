@@ -11,6 +11,7 @@ import { formatDateTime } from "./format";
 import { InspectorProvider } from "./Inspector";
 import { analyze, heroReading, MATURE_AGE_DAYS, type ThemeId, type ThemeOf } from "./insights";
 import { setSocialPhase } from "./phase";
+import { cockpitStateOf } from "./state";
 import { HeroInstrument, MetricCluster, StateChip } from "./Instruments";
 import { AudiencePanel, CommentsPanel, ContentMap, StreamPanel } from "./Panels";
 import { PatternsPanel } from "./Patterns";
@@ -41,12 +42,13 @@ export function InstagramCockpit() {
     };
   }, []);
 
-  const state: CockpitState = result === null ? "LOADING" : !result.ok ? (result.failure.state === "PERMISSION_REQUIRED" ? "PERMISSION_REQUIRED" : "ERROR") : result.stale ? "STALE" : result.snapshot.posts.length === 0 ? "EMPTY" : "CONNECTED";
+  const state: CockpitState = cockpitStateOf(result);
   const snapshot = result?.ok ? result.snapshot : null;
 
+  const observedAt = snapshot?.observed_at ?? null;
   useEffect(() => {
-    setSocialPhase(state);
-  }, [state]);
+    setSocialPhase(state, observedAt); // the newest snapshot seen travels with the state (see phase.ts)
+  }, [state, observedAt]);
   useEffect(() => () => setSocialPhase(null), []);
 
   return (

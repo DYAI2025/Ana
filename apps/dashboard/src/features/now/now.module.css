@@ -1,3 +1,4 @@
+/* ASADA home (ANA-42): bright silver glass, one calm column, honest Under Construction. */
 .now {
   flex: 1;
   display: flex;
@@ -7,98 +8,24 @@
   padding: 18px 0 4px;
 }
 
-/* ---------- current focus: first visual anchor ---------- */
-.focus {
+/* ---------- product name: the only heading ---------- */
+.hero {
   width: min(100%, 860px);
   margin: 0 auto;
   text-align: center;
 }
 
-.focusEyebrow {
-  display: inline-flex;
-  align-items: center;
-  gap: 9px;
-  color: var(--text-secondary);
-}
-
-.focusMarker {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--accent);
-  box-shadow: 0 0 12px rgba(255, 113, 91, 0.5);
-}
-
-.statement {
-  max-width: 800px;
-  margin: 16px auto 0;
-  font-size: clamp(28px, 2.5vw, 36px);
-  line-height: 1.18;
-  letter-spacing: -0.028em;
-  font-weight: 560;
-  text-wrap: balance;
+.title {
+  font-size: clamp(42px, 5vw, 62px);
+  line-height: 1.05;
+  letter-spacing: 0.12em;
+  font-weight: 620;
   color: var(--text);
-  text-shadow: 0 1px 24px rgba(255, 237, 228, 0.08);
+  /* polished chrome: dark steel with a hairline of light under the glyphs; solid fill so contrast is measurable */
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.7);
 }
 
-.subline {
-  margin-top: 14px;
-  font-size: 13px;
-  letter-spacing: 0.01em;
-  color: var(--text-muted);
-}
-
-.stages {
-  position: relative;
-  list-style: none;
-  width: min(100%, 500px);
-  margin: 26px auto 0;
-  padding: 0;
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-}
-
-.stages::before {
-  content: "";
-  position: absolute;
-  top: 5px;
-  left: 12.5%;
-  right: 12.5%;
-  height: 1px;
-  background: linear-gradient(90deg, rgba(255, 255, 255, 0.3), rgba(255, 255, 255, 0.12));
-}
-
-.stage {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 8px;
-  font-size: 12px;
-  color: var(--text-muted);
-}
-
-.stageDot {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  background: #655960;
-  border: 2px solid rgba(51, 44, 50, 0.95);
-  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.14);
-}
-
-.stage[data-state="current"] {
-  color: var(--pearl);
-  font-weight: 600;
-}
-
-/* current step: larger coral dot with a ring — shape + weight + colour */
-.stage[data-state="current"] .stageDot {
-  background: var(--accent);
-  box-shadow: 0 0 0 3px rgba(255, 113, 91, 0.2), 0 0 14px rgba(255, 113, 91, 0.45);
-}
-
-/* ---------- context objects: one calm column of identical glass cards ---------- */
+/* ---------- tiles: one material, five identical glass cards ---------- */
 .stack {
   --card-height: 116px;
   position: relative;
@@ -111,219 +38,203 @@
   gap: 14px;
 }
 
-/* quiet veil: dims the background refraction behind the column so the cards read calmly */
+/* soft light pool behind the column so the glass reads against the silver canvas */
 .stack::before {
   content: "";
   position: absolute;
-  /* the veil's box counts as scroll overflow: it only reaches past the column where there is room */
   inset: -36px -16px;
   z-index: -1;
   border-radius: 50%;
-  background: radial-gradient(ellipse at center, rgba(36, 29, 34, 0.34), rgba(36, 29, 34, 0.12) 55%, transparent 74%);
+  background: radial-gradient(ellipse at center, rgba(255, 255, 255, 0.55), rgba(255, 255, 255, 0.2) 55%, transparent 74%);
   filter: blur(26px);
   pointer-events: none;
 }
 
 /*
- * One material, five tints. Every card shares geometry, spacing, blur, edge and shadow; only --tint
- * (an "r g b" triplet) differs. --tint-strength (registered in globals.css so it can transition)
- * scales every tinted layer together on hover and while the card's lens is open.
+ * One material, two tints: the active tile carries a cool steel tint, dimmed tiles a neutral silver one.
+ * --tint-strength (registered in globals.css) scales every tinted layer together on hover.
  */
 .object {
-  --tint: 245 237 228;
+  --tint: 168 176 188;
   --tint-strength: 1;
-  --tint-ink: color-mix(in srgb, rgb(var(--tint)) 42%, var(--pearl));
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: auto minmax(0, 1fr) auto;
   grid-template-rows: auto 1fr;
   grid-template-areas:
-    "glyph title"
-    "body action";
-  column-gap: 18px;
-  row-gap: 10px;
+    "glyph title chip"
+    "glyph body action";
+  column-gap: 16px;
+  row-gap: 6px;
+  align-items: center;
   width: 100%;
   min-width: 0;
-  padding: 17px 20px 16px 18px;
+  padding: 18px 20px 17px 18px;
   border-radius: var(--radius-lg);
-  border-color: rgb(var(--tint) / calc(0.2 + 0.06 * var(--tint-strength)));
+  border-color: rgb(var(--tint) / calc(0.35 + 0.15 * var(--tint-strength)));
   text-align: left;
   color: var(--text);
   background:
     /* pointer-following specular highlight */
-    radial-gradient(circle at var(--pointer-x) var(--pointer-y), rgb(255 255 255 / calc(0.05 * var(--tint-strength))), transparent 42%),
+    radial-gradient(circle at var(--pointer-x, 22%) var(--pointer-y, 18%), rgb(255 255 255 / calc(0.5 * var(--tint-strength))), transparent 42%),
     /* faint colour pooling in the lower right */
-    radial-gradient(120% 150% at 100% 100%, rgb(var(--tint) / calc(0.1 * var(--tint-strength))), transparent 58%),
-    /* soft metallic sheen band */
-    linear-gradient(104deg, transparent 28%, rgb(var(--tint) / calc(0.045 * var(--tint-strength))) 46%, transparent 64%),
-    /* smoked-glass body, tinted from the lit corner */
-    linear-gradient(145deg, rgb(var(--tint) / calc(0.14 * var(--tint-strength))), rgb(var(--tint) / 0.05) 46%, rgb(255 255 255 / 0.02));
+    radial-gradient(120% 150% at 100% 100%, rgb(var(--tint) / calc(0.16 * var(--tint-strength))), transparent 58%),
+    /* brushed sheen band */
+    linear-gradient(104deg, transparent 28%, rgb(255 255 255 / calc(0.45 * var(--tint-strength))) 46%, transparent 64%),
+    /* glass body */
+    linear-gradient(145deg, rgb(255 255 255 / 0.82), rgb(255 255 255 / 0.6) 46%, rgb(var(--tint) / 0.16));
   box-shadow:
-    inset 0 1px 0 rgb(var(--tint) / calc(0.22 + 0.1 * var(--tint-strength))),
-    inset 0 -1px 0 rgba(255, 255, 255, 0.04),
-    inset 0 0 32px rgb(var(--tint) / calc(0.035 * var(--tint-strength))),
-    0 18px 42px rgba(24, 16, 21, 0.24);
+    inset 0 1px 0 rgba(255, 255, 255, 0.95),
+    inset 0 -1px 0 rgb(var(--tint) / 0.22),
+    0 18px 42px rgba(60, 72, 90, 0.14);
   transition:
     --tint-strength 0.32s var(--ease),
     transform 0.26s var(--ease),
-    opacity 0.21s var(--ease),
-    filter 0.21s var(--ease),
     box-shadow 0.26s var(--ease),
     border-color 0.26s var(--ease);
 }
 
-.object_session {
-  --tint: 136 202 166;
+.objectActive {
+  --tint: 126 160 200;
+  border-color: rgb(var(--tint) / 0.6);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 1),
+    inset 0 -1px 0 rgb(var(--tint) / 0.3),
+    0 0 0 1px rgba(255, 255, 255, 0.6),
+    0 22px 48px rgba(60, 80, 110, 0.2);
 }
 
-.object_work {
-  --tint: 222 174 154;
-}
-
-.object_business {
-  --tint: 128 170 214;
-}
-
-.object_knowledge {
-  --tint: 214 224 240;
-}
-
-.object_community {
-  --tint: 198 170 222;
-}
-
-.object:hover,
-.object[data-selected] {
+.objectActive:hover {
   --tint-strength: 1.5;
-}
-
-.object:hover {
   transform: translateY(-1px);
   box-shadow:
-    inset 0 1px 0 rgb(var(--tint) / calc(0.22 + 0.1 * var(--tint-strength))),
-    inset 0 -1px 0 rgba(255, 255, 255, 0.05),
-    inset 0 0 32px rgb(var(--tint) / calc(0.035 * var(--tint-strength))),
-    0 22px 50px rgba(24, 16, 21, 0.3);
+    inset 0 1px 0 rgba(255, 255, 255, 1),
+    inset 0 -1px 0 rgb(var(--tint) / 0.34),
+    0 0 0 1px rgba(255, 255, 255, 0.7),
+    0 26px 54px rgba(60, 80, 110, 0.26);
 }
 
-.object:active {
+.objectActive:active {
   transform: translateY(0) scale(0.992);
 }
 
-.object:focus-visible {
+.objectActive:focus-visible {
   outline: 2px solid var(--accent-bright);
   outline-offset: 4px;
 }
 
-/* head: icon upper left, title right-aligned */
-.objectHead {
-  display: contents;
+/* dimmed: flatter glass, greyer edge, no highlight, no pointer affordance */
+.objectDimmed {
+  --tint-strength: 0.55;
+  border-color: rgb(var(--tint) / 0.4);
+  background: linear-gradient(145deg, rgb(255 255 255 / 0.5), rgb(255 255 255 / 0.32) 50%, rgb(var(--tint) / 0.14));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.7),
+    0 10px 26px rgba(60, 72, 90, 0.08);
+  cursor: default;
 }
 
+.objectDimmed .glyph {
+  filter: saturate(0.6);
+  opacity: 0.85;
+}
+
+/* brushed aluminium glyph tile */
 .glyph {
   grid-area: glyph;
-  justify-self: start;
+  align-self: start;
   display: grid;
   place-items: center;
-  width: 32px;
-  height: 32px;
-  border-radius: 11px;
-  background: rgb(var(--tint) / 0.12);
-  border: 1px solid rgb(var(--tint) / 0.24);
-  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.12);
-  color: var(--tint-ink);
+  width: 38px;
+  height: 38px;
+  border-radius: 12px;
+  color: var(--text-secondary);
 }
 
-/* spans the head row so only the action sizes the right column and the summary keeps its width */
 .objectTitle {
-  grid-area: 1 / 1 / 2 / -1;
-  align-self: center;
-  justify-self: end;
-  font-size: 11px;
-  font-weight: 650;
+  grid-area: title;
+  align-self: end;
+  font-size: 16px;
+  font-weight: 600;
   line-height: 1.2;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
+  letter-spacing: -0.01em;
+  color: var(--text-secondary);
+}
+
+/* the integrated tile carries the strongest title on the page (UI01-AC03) */
+.objectActive .objectTitle {
+  font-size: 18px;
+  font-weight: 680;
   color: var(--text);
 }
 
-/* body: the key summary, closing on the same baseline as the action in every card */
+.objectChip {
+  grid-area: chip;
+  justify-self: end;
+  align-self: start;
+}
+
+.ucChip {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 11px;
+  border-radius: 999px;
+  border: 1px solid var(--hairline-strong);
+  background: linear-gradient(160deg, rgba(255, 255, 255, 0.9), rgba(215, 221, 228, 0.8));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 1);
+  font-size: 11.5px;
+  font-weight: 560;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  color: var(--text);
+}
+
 .objectBody {
   grid-area: body;
-  align-self: end;
+  align-self: start;
   display: flex;
   flex-direction: column;
   gap: 3px;
   min-width: 0;
 }
 
-/* a block (not flex) container, so a long summary ends in an ellipsis instead of a hard clip */
 .objectStatus {
   max-width: 100%;
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 500;
   line-height: 1.35;
-  letter-spacing: -0.005em;
-  color: var(--text);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  color: var(--text-secondary);
+  overflow-wrap: anywhere;
 }
 
-.liveDot {
-  display: inline-block;
-  margin-right: 8px;
-  vertical-align: 0.18em;
-  width: 5px;
-  height: 5px;
-  border-radius: 50%;
-  background: var(--accent);
+.objectActive .objectStatus {
+  color: var(--text);
 }
 
 .objectSubtitle {
   max-width: 100%;
   font-size: 12.5px;
   line-height: 1.4;
-  color: var(--text-secondary);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  color: var(--text-muted);
+  overflow-wrap: anywhere;
 }
 
-/* action: understated pill in the lower right */
+/* chevron in the lower right of the active tile */
 .objectAction {
   grid-area: action;
   align-self: end;
   justify-self: end;
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  padding: 4px 10px 4px 12px;
-  border-radius: 999px;
-  border: 1px solid rgb(var(--tint) / 0.18);
-  background: rgb(var(--tint) / 0.06);
-  font-size: 11.5px;
-  letter-spacing: 0.04em;
+  display: inline-grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
   color: var(--text-secondary);
-  transition:
-    color 0.26s var(--ease),
-    border-color 0.26s var(--ease),
-    background-color 0.26s var(--ease);
-}
-
-.objectAction svg {
   transition: transform 0.26s var(--ease);
 }
 
-.object:hover .objectAction,
-.object:focus-visible .objectAction {
-  color: var(--pearl);
-  border-color: rgb(var(--tint) / 0.32);
-  background: rgb(var(--tint) / 0.11);
-}
-
-.object:hover .objectAction svg,
-.object:focus-visible .objectAction svg {
+.objectActive:hover .objectAction,
+.objectActive:focus-visible .objectAction {
   transform: translateX(2px);
+  color: var(--text);
 }
 
 /* lens open: everything except the opener recedes */
@@ -332,23 +243,16 @@
   opacity: 0.5;
 }
 
-.statusRail {
+.team {
   display: flex;
   justify-content: center;
-  align-items: center;
-  gap: 13px;
   margin-top: auto;
   padding-top: 10px;
-  font-size: 12px;
-  letter-spacing: 0.02em;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
   color: var(--text-muted);
-}
-
-.statusSep {
-  width: 3px;
-  height: 3px;
-  border-radius: 50%;
-  background: rgba(229, 211, 190, 0.55);
 }
 
 @media (min-width: 900px) {
@@ -368,33 +272,39 @@
 
   .object {
     padding: 16px 16px 15px;
-    column-gap: 14px;
-  }
-
-  .statusRail {
-    flex-wrap: wrap;
+    column-gap: 12px;
   }
 }
 
-/* phones: the action takes its own row so the summary keeps the full card width */
+/* phones: the chip takes its own row under the title so the title keeps the full width */
 @media (max-width: 480px) {
   .object {
-    grid-template-rows: auto 1fr auto;
+    grid-template-columns: auto minmax(0, 1fr);
+    grid-template-rows: auto auto 1fr;
     grid-template-areas:
       "glyph title"
-      "body body"
-      ". action";
+      "glyph chip"
+      "body body";
+    row-gap: 6px;
+  }
+
+  .objectChip {
+    justify-self: start;
+  }
+
+  .objectAction {
+    display: none;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .object:hover,
-  .object:active {
+  .objectActive:hover,
+  .objectActive:active {
     transform: none;
   }
 
-  .object:hover .objectAction svg,
-  .object:focus-visible .objectAction svg {
+  .objectActive:hover .objectAction,
+  .objectActive:focus-visible .objectAction {
     transform: none;
   }
 }

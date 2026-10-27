@@ -7,7 +7,7 @@ export declare function buildSnapshot(options?: { count?: number; observedAt?: s
   media: { items: Array<Record<string, unknown> & { id: string; caption: string; insights: { state: string; metrics: Array<{ name: string; value: number | null; state: string }> } }> };
 };
 
-export type FakeSocialFault = { status: number; error?: string } | { hang: true } | { network: true } | { invalid: true } | { empty: true };
+export type FakeSocialFault = { status: number; error?: string } | { hang: true } | { network: true } | { invalid: true } | { empty: true; observedAt?: string } | { observedAt: string };
 
 export declare function createFakeSocial(): {
   reset(): void;

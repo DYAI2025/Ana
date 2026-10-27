@@ -19,7 +19,7 @@
   border-radius: 15px;
   font-size: 13px;
   color: var(--text);
-  background: linear-gradient(145deg, rgba(70, 58, 66, 0.92), rgba(52, 44, 50, 0.92));
+  background: linear-gradient(145deg, rgba(252, 253, 254, 0.95), rgba(238, 241, 245, 0.97));
   animation: toast-in 0.24s var(--ease) both;
 }
 

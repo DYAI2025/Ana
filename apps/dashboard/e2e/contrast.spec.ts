@@ -112,13 +112,10 @@ async function measure(page: Page, label: string): Promise<string[]> {
 const STATES: { label: string; route: string; jira?: Record<string, unknown>; social?: Record<string, unknown>; prepare?: (page: Page) => Promise<unknown> }[] = [
   { label: "now", route: "/" },
   // the card column runs below the fold: measure the lower cards in view, at rest and with the hover tint raised
-  { label: "now lower cards", route: "/", prepare: (p) => p.getByTestId("context-community").scrollIntoViewIfNeeded() },
-  { label: "now hover knowledge", route: "/", prepare: (p) => p.getByTestId("context-knowledge").hover() },
-  { label: "now hover community", route: "/", prepare: (p) => p.getByTestId("context-community").hover() },
-  { label: "lens work", route: "/", prepare: (p) => p.getByTestId("context-work").click() },
-  { label: "lens session", route: "/", prepare: (p) => p.getByTestId("context-session").click() },
-  { label: "lens knowledge", route: "/", prepare: (p) => p.getByTestId("context-knowledge").click() },
-  { label: "lens business", route: "/", prepare: (p) => p.getByTestId("context-business").click() },
+  { label: "now lower cards", route: "/", prepare: (p) => p.getByTestId("context-social").scrollIntoViewIfNeeded() },
+  { label: "now hover social", route: "/", prepare: (p) => p.getByTestId("context-social").hover() },
+  { label: "channel picker", route: "/", prepare: (p) => p.getByTestId("context-social").click() },
+  { label: "channel picker instagram error", route: "/", social: { status: 500, error: "boom" }, prepare: async (p) => { await p.getByTestId("context-social").click(); await p.locator('[data-testid="channel-instagram"][data-instagram="ERROR"]').waitFor(); } },
   { label: "search", route: "/", prepare: async (p) => { await p.getByTestId("search-open").click(); await p.getByTestId("search-input").fill("workshop"); } },
   { label: "board", route: "/board" },
   { label: "backlog form", route: "/backlog", prepare: (p) => p.getByTestId("add-idea").click() },
