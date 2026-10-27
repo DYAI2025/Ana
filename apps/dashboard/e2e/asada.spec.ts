@@ -105,6 +105,8 @@ test.describe("UI-01 · ASADA home", () => {
     { fault: { status: 502, error: "instagram-media-fetch-failed" }, state: "ERROR", text: "Instagram · Error" },
     { fault: { status: 409, error: "reauth-required" }, state: "PERMISSION_REQUIRED", text: "Instagram · Permission required" },
     { fault: { hang: true }, state: "ERROR", text: "Instagram · Error" },
+    // a verified read of nothing is EMPTY: honest, but never "Connected" or "Live" (Owner rule: Live only while CONNECTED)
+    { fault: { empty: true }, state: "EMPTY", text: "Instagram · No posts" },
   ]) {
     test(`AC05/AC10 · ${JSON.stringify(c.fault)} → ${c.state}: never shown as connected, the home stays understandable`, async ({ page, social }) => {
       await social.fault(c.fault);
@@ -140,6 +142,46 @@ test.describe("UI-01 · ASADA home", () => {
     await expect(page.getByTestId("channel-instagram")).toHaveAttribute("data-instagram", "STALE");
     await expect(page.getByTestId("channel-note")).toContainText("Stale");
     await expect(page.getByTestId("channel-note")).not.toContainText(/live/i);
+  });
+
+  test("AC05/AC10 · ERROR → the worker recovers → the home reads CONNECTED again (an old failure never outlives a newer successful read)", async ({ page, social }) => {
+    await social.fault({ status: 502, error: "instagram-media-fetch-failed" });
+    await page.goto("/pulse/social/instagram");
+    await expect(page.getByTestId("instagram-cockpit")).toHaveAttribute("data-state", "ERROR", { timeout: 20_000 });
+    await expect(page.getByTestId("prototype-flag")).toHaveText(/Instagram not connected/);
+    // the worker is healthy again; the dashboard holds no snapshot after the failure, so the home's own read reaches the worker
+    await social.fault(null);
+    await page.getByTestId("nav-now").click();
+    const tile = page.getByTestId("context-social");
+    await expect(tile).toHaveAttribute("data-instagram", "CONNECTED", { timeout: 20_000 });
+    await expect(tile).toContainText("Instagram · Connected");
+    await tile.click();
+    await expect(page.getByTestId("channel-instagram")).toHaveAttribute("data-instagram", "CONNECTED");
+    await expect(page.getByTestId("channel-note")).toContainText("live cockpit");
+    await page.keyboard.press("Escape");
+    // and the cockpit itself confirms the recovery on the next visit
+    await page.getByTestId("context-social").click();
+    await page.getByTestId("channel-instagram").click();
+    await expect(page.getByTestId("instagram-cockpit")).toHaveAttribute("data-state", "CONNECTED");
+  });
+
+  test("AC05 · STALE → the server reads a newer snapshot → the home is CONNECTED; the cached copy of the old one stayed STALE", async ({ page, social }) => {
+    await page.goto("/pulse/social/instagram");
+    await expect(page.getByTestId("instagram-cockpit")).toHaveAttribute("data-state", "CONNECTED");
+    await social.fault({ status: 502, error: "instagram-media-fetch-failed" });
+    await page.getByTestId("refresh").click();
+    await expect(page.getByTestId("instagram-cockpit")).toHaveAttribute("data-state", "STALE");
+    await page.getByTestId("nav-now").click();
+    await expect(page.getByTestId("context-social")).toHaveAttribute("data-instagram", "STALE"); // the cache hit proves nothing
+    // the worker answers again with a snapshot observed AFTER the one the cockpit saw, and the dashboard cache has expired
+    // (the e2e reset control stands in for the 10 min TTL): the home's read now carries real news
+    await social.fault({ observedAt: "2026-10-11T12:00:00.000Z" });
+    expect((await page.request.get("/api/social/instagram?__reset")).status()).toBe(204);
+    await page.getByTestId("nav-pulse").click();
+    await page.getByTestId("nav-now").click();
+    const tile = page.getByTestId("context-social");
+    await expect(tile).toHaveAttribute("data-instagram", "CONNECTED", { timeout: 20_000 });
+    await expect(tile).toContainText("Instagram · Connected");
   });
 
   test("AC06 · glass and aluminium stay: translucent blurred tiles, metal glyph tiles, the rail and topbar icons", async ({ page }) => {
@@ -364,6 +406,21 @@ test.describe("UI-02 · Social Media Business channel picker", () => {
     await page.getByTestId("lang-de").click();
     await page.getByTestId("context-social").click();
     await expect(page.getByTestId("channel-note")).toContainText("aktueller Stand: Berechtigung nötig");
+    await expect(page.getByRole("dialog")).not.toContainText(/live/i);
+    await page.keyboard.press("Escape");
+    // EMPTY: a verified read with no posts is distinguishable and is not "live" either (Owner rule: Live only while CONNECTED)
+    await social.fault({ empty: true });
+    expect((await page.request.get("/api/social/instagram?__reset")).status()).toBe(204);
+    await page.goto("/");
+    await page.getByTestId("context-social").click();
+    await expect(page.getByTestId("channel-instagram")).toHaveAttribute("data-instagram", "EMPTY", { timeout: 20_000 });
+    await expect(page.getByTestId("channel-instagram")).toContainText("Keine Beiträge");
+    await expect(page.getByTestId("channel-note")).toContainText("aktueller Stand: Keine Beiträge");
+    await expect(page.getByRole("dialog")).not.toContainText(/live/i);
+    await page.keyboard.press("Escape");
+    await page.getByTestId("lang-en").click();
+    await page.getByTestId("context-social").click();
+    await expect(page.getByTestId("channel-note")).toContainText("currently reports: No posts");
     await expect(page.getByRole("dialog")).not.toContainText(/live/i);
   });
 

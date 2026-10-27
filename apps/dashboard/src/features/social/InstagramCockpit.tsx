@@ -45,9 +45,10 @@ export function InstagramCockpit() {
   const state: CockpitState = cockpitStateOf(result);
   const snapshot = result?.ok ? result.snapshot : null;
 
+  const observedAt = snapshot?.observed_at ?? null;
   useEffect(() => {
-    setSocialPhase(state);
-  }, [state]);
+    setSocialPhase(state, observedAt); // the newest snapshot seen travels with the state (see phase.ts)
+  }, [state, observedAt]);
   useEffect(() => () => setSocialPhase(null), []);
 
   return (

@@ -110,7 +110,8 @@ export function createFakeSocial() {
       if (fault?.network) return { network: true };
       if (fault?.status) return { status: fault.status, body: { error: fault.error ?? "fault" } };
       if (fault?.invalid) return { status: 200, body: { snapshot_version: 99 } };
-      if (fault?.empty) return { status: 200, body: buildSnapshot({ count: 0 }) };
+      // {empty} answers with no posts; {observedAt} stamps the snapshot (a later stamp models a genuinely newer worker read)
+      if (fault?.empty || fault?.observedAt) return { status: 200, body: buildSnapshot({ count: fault.empty ? 0 : undefined, observedAt: fault.observedAt }) };
       return { status: 200, body: buildSnapshot() };
     },
   };
