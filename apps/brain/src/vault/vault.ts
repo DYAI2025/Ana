@@ -283,11 +283,14 @@ export class Vault {
 
   private commit(action: string, id: string, actor: string): void {
     if (this.opts.git === false || !existsSync(path.join(this.root, ".git"))) return;
+    // the service user of a fresh host has no git identity: without one every commit fails and the history stops
+    const identity = ["-c", "user.name=ANA Brain", "-c", "user.email=ana-brain@localhost"];
     try {
       execFileSync("git", ["-C", this.root, "add", "-A"], { stdio: "ignore" });
-      execFileSync("git", ["-C", this.root, "commit", "-q", "-m", `${action} ${id} by ${actor}`], { stdio: "ignore" });
+      execFileSync("git", ["-C", this.root, ...identity, "commit", "-q", "-m", `${action} ${id} by ${actor}`], { stdio: "ignore" });
     } catch {
-      /* best effort */
+      // the write stands (it is on disk and audited); say loudly that it is missing from the vault history
+      console.error(`vault: git commit of ${action} ${id} failed; the change is on disk but not in the vault history`);
     }
   }
 

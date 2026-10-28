@@ -1,7 +1,7 @@
 import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, symlinkSync, writeFileSync } from "node:fs";
 import path from "node:path";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { Vault } from "../src/vault/vault.js";
 import { seed, syntheticVault, tmpDir } from "./helpers.js";
 
@@ -151,6 +151,32 @@ describe("vault", () => {
       "kn-dangling-refs: relation target missing: kn-gone-note",
       "kn-dangling-refs: correction names a missing block: ^obs-20260101000000-gone",
     ]);
+  });
+
+  it("commits with its own identity on a host that has none, and says so when a commit fails", async () => {
+    const root = tmpDir();
+    execFileSync("git", ["init", "-q", root]);
+    // a fresh service user: no user.name/user.email anywhere, and git may not guess one
+    execFileSync("git", ["-C", root, "config", "user.useConfigOnly", "true"]);
+    const env = { GIT_CONFIG_GLOBAL: process.env.GIT_CONFIG_GLOBAL, GIT_CONFIG_NOSYSTEM: process.env.GIT_CONFIG_NOSYSTEM };
+    process.env.GIT_CONFIG_GLOBAL = "/dev/null";
+    process.env.GIT_CONFIG_NOSYSTEM = "1";
+    const errors: string[] = [];
+    const spy = vi.spyOn(console, "error").mockImplementation((m: unknown) => void errors.push(String(m)));
+    try {
+      const v = new Vault(root);
+      await v.createNote("ana", { id: "kn-fresh-host", title: "F", type: "tool", status: "CANDIDATE", body: "b" });
+      expect(execFileSync("git", ["-C", root, "log", "--format=%s|%cn"]).toString().trim()).toBe("create_note kn-fresh-host by ana|ANA Brain");
+      expect(errors).toEqual([]);
+      // a commit that cannot happen (index locked) is reported, the write itself stands
+      writeFileSync(path.join(root, ".git", "index.lock"), "");
+      await v.createNote("ana", { id: "kn-locked-host", title: "L", type: "tool", status: "CANDIDATE", body: "b" });
+      expect(existsSync(path.join(root, "knowledge", "kn-locked-host.md"))).toBe(true);
+      expect(errors.join("\n")).toMatch(/git commit of create_note kn-locked-host failed/);
+    } finally {
+      spy.mockRestore();
+      for (const [k, val] of Object.entries(env)) if (val === undefined) delete process.env[k]; else process.env[k] = val;
+    }
   });
 
   it("reports invalid notes on load", () => {
