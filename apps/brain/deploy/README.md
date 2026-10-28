@@ -89,25 +89,23 @@ request, so it is rebuilt automatically.
 
 Read-only access to raw evidence in Drive (scope exactly `https://www.googleapis.com/auth/drive.readonly`),
 confined in code to files under `ANA_DRIVE_ROOT_ID` (parent chain ≤ 12 hops; trashed/outside files refused).
-Drive is off unless `ANA_DRIVE_ROOT_ID` is set and `ANA_DRIVE_OAUTH_FILE` (default
-`/etc/ana-brain/drive-oauth.json`) exists. `/healthz` never calls Drive.
+The Brain reads Drive as its own **service account** (PO decision 2), never with a person's Google token: it
+sees only the folders shared with it. Drive is off when `ANA_DRIVE_ROOT_ID` is unset. When it is set, the key
+`ANA_DRIVE_SA_KEY_FILE` (default `/etc/ana-brain/drive-sa.json`) must exist, or the service refuses to start.
+The retired personal-token setting `ANA_DRIVE_OAUTH_FILE` is refused at startup. `/healthz` never calls Drive.
 
-1. Google Cloud console: OAuth client of type **Desktop app**; the consent screen must be **In production**
-   (in *Testing*, refresh tokens expire after 7 days).
-2. On the Mac (browser available), with the downloaded client file:
+1. Google Cloud console (project owned by the operator): create a service account without any project role, enable
+   the Drive API, create one JSON key. Domain-wide delegation stays **off** (the Brain never sets `sub`).
+2. In Drive, share the `ANA Evidence Root` folder (ANA-3) with the service account's e-mail as **Viewer** — nothing
+   else is shared with it.
+3. Install the key on the host and delete every other copy (the downloaded file included):
    ```bash
-   cd apps/brain && npm run build
-   node dist/cli.js drive-auth --client ~/Downloads/client_secret_XXX.json --out ~/drive-oauth.json
-   ```
-   It prints only the consent URL (PKCE + state, loopback on 127.0.0.1), then `saved refresh token to …` and the
-   granted scope. The file is written with mode 0600; `--force` is needed to overwrite.
-3. Copy it to the VPS and lock it down, then delete the local copy:
-   ```bash
-   scp ~/drive-oauth.json root@<vps>:/etc/ana-brain/drive-oauth.json
-   ssh root@<vps> 'chown root:ana-brain /etc/ana-brain/drive-oauth.json && chmod 0640 /etc/ana-brain/drive-oauth.json'
-   rm ~/drive-oauth.json
+   scp <key.json> root@<host>:/root/drive-sa.json
+   ssh root@<host> 'install -m 0640 -o root -g ana-brain /root/drive-sa.json /etc/ana-brain/drive-sa.json && shred -u /root/drive-sa.json'
+   rm <key.json>
    ```
 4. Set `ANA_DRIVE_ROOT_ID` (and optionally `ANA_DRIVE_TRANSCRIPTS_ID`) in `/etc/ana-brain/env`, restart `ana-brain`.
+   Verify: `ana-brain drive-list` lists the root; a file id outside the root is refused with `outside ANA Evidence Root`.
 5. Use (as the service user, env loaded):
    ```bash
    ana-brain drive-list [folderId]                       # JSON lines; default folder = root

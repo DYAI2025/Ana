@@ -139,9 +139,12 @@ Unauthenticated requests get 401.
 | `brain_read_source` | read | bounded text slice (`offset`, `max_chars` ≤ 60000, default 20000) of a `drive_*` source whose locator lies under the ANA Evidence Root; Google Docs (exported as text) and text/transcript files only; recordings/binaries refused; text is returned to the caller only, never stored or logged |
 
 **Google Drive (ANA Evidence Root).** Raw evidence stays canonical in Google Drive; the vault holds only source
-records and derived knowledge. The service uses one OAuth refresh token with exactly the scope
-`https://www.googleapis.com/auth/drive.readonly` and enables Drive only when `ANA_DRIVE_ROOT_ID` is set and the
-credentials file exists. Root guard: every Drive operation exposed via MCP or CLI first resolves the file's parent
+records and derived knowledge. The service authenticates as the ANA Brain **service account** (PO decision 2):
+an RS256-signed JWT-bearer grant (RFC 7523) with exactly the scope `https://www.googleapis.com/auth/drive.readonly`,
+no `sub` (no user is impersonated), assertion lifetime ≤ 1 h, access tokens cached in memory only. The service
+account sees only what is shared with it — the `ANA Evidence Root`. Personal OAuth credentials are not accepted
+(`ANA_DRIVE_OAUTH_FILE` is refused at startup). Drive is off when `ANA_DRIVE_ROOT_ID` is unset; when it is set,
+the key file `ANA_DRIVE_SA_KEY_FILE` must exist or the service refuses to start (fail closed). Root guard: every Drive operation exposed via MCP or CLI first resolves the file's parent
 chain (max 12 hops) to `ANA_DRIVE_ROOT_ID`; files outside the root, trashed files and deeper chains are refused
 with `outside ANA Evidence Root`. `brain_register_source` with a `drive_*` kind verifies the locator (Drive file id)
 through the guard and takes `original_title`, `retrieved_at` and `checksum` (sha256 of the readable text, when

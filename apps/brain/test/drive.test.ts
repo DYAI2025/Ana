@@ -1,4 +1,5 @@
-import { existsSync, readFileSync, statSync, writeFileSync } from "node:fs";
+import { generateKeyPairSync, verify } from "node:crypto";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import path from "node:path";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
@@ -6,9 +7,10 @@ import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { KeyStore } from "../src/auth/keys.js";
 import { DriveClient, OUTSIDE_ROOT } from "../src/drive/client.js";
-import { runConsent } from "../src/drive/consent.js";
-import { DRIVE_SCOPE, DriveTokenProvider, loadDriveCredentials } from "../src/drive/oauth.js";
+import { loadConfig } from "../src/config.js";
+import { DRIVE_SCOPE, DriveTokenProvider, JWT_BEARER, loadServiceAccountKey, type ServiceAccountKey } from "../src/drive/oauth.js";
 import { registerDriveSource } from "../src/drive/register.js";
+import { driveFromConfig, requireDrive } from "../src/drive/setup.js";
 import { createApp } from "../src/http/app.js";
 import { TOOL_NAMES } from "../src/mcp/tools.js";
 import { Vault } from "../src/vault/vault.js";
@@ -16,7 +18,10 @@ import { listen, MemoryStore, syntheticVault, tmpDir } from "./helpers.js";
 
 // ---------- fake Google token + Drive v3 server (127.0.0.1 only, fake credentials) ----------
 
-const FAKE_CREDS = { client_id: "fake-client.apps.example", client_secret: "fake-secret-not-real", refresh_token: "fake-refresh-not-real" };
+// an in-test key pair: the fake token endpoint verifies the assertion signature with the public half
+const pair = () => generateKeyPairSync("rsa", { modulusLength: 2048, publicKeyEncoding: { type: "spki", format: "pem" }, privateKeyEncoding: { type: "pkcs8", format: "pem" } });
+const KEYS = pair();
+const FAKE_SA: ServiceAccountKey = { client_email: "ana-brain@fake-project.iam.example", private_key: KEYS.privateKey, private_key_id: "fake-kid-1" };
 const DOC_TEXT = "SECRET-TRANSCRIPT-LINE alpha beta gamma. ".repeat(10);
 const VTT_TEXT = "WEBVTT\n\n00:00.000 --> 00:01.000\nfake caption line\n";
 const ROOT = "rootfolder1";
@@ -36,7 +41,8 @@ for (let i = 1; i <= 13; i++) add({ id: `deepfold${i}`, name: `d${i}`, mimeType:
 add({ id: "deepfile01", name: "too deep.txt", mimeType: "text/plain", parents: ["deepfold13"], content: "deep" });
 add({ id: "okdeepfile", name: "ok deep.txt", mimeType: "text/plain", parents: ["deepfold5"], content: "ok deep" });
 
-const stats = { token: 0, meta: 0, lists: 0 };
+const stats = { token: 0, meta: 0, lists: 0, nonGet: 0 };
+let lastGrant: { header: Record<string, unknown>; claims: Record<string, unknown>; form: string[] } | undefined;
 let validToken = "";
 
 function body(req: IncomingMessage): Promise<string> {
@@ -52,15 +58,16 @@ async function handle(req: IncomingMessage, res: ServerResponse): Promise<void> 
   const u = new URL(req.url ?? "/", "http://127.0.0.1");
   if (u.pathname === "/token") {
     const p = new URLSearchParams(await body(req));
-    if (p.get("grant_type") === "authorization_code") {
-      if (p.get("code") !== "fake-code" || !p.get("code_verifier")) return json(res, 400, { error: "invalid_grant" });
-      return json(res, 200, { access_token: "at-x", refresh_token: "fake-refresh-from-consent", scope: DRIVE_SCOPE, expires_in: 3600 });
-    }
-    if (p.get("refresh_token") !== FAKE_CREDS.refresh_token || p.get("client_secret") !== FAKE_CREDS.client_secret) return json(res, 400, { error: "invalid_grant" });
+    const [h, c, s] = (p.get("assertion") ?? "").split(".");
+    if (p.get("grant_type") !== JWT_BEARER || !h || !c || !s) return json(res, 400, { error: "invalid_grant" });
+    const decode = (part: string) => JSON.parse(Buffer.from(part, "base64url").toString("utf8")) as Record<string, unknown>;
+    lastGrant = { header: decode(h), claims: decode(c), form: [...p.keys()].sort() };
+    if (!verify("sha256", Buffer.from(`${h}.${c}`), KEYS.publicKey, Buffer.from(s, "base64url"))) return json(res, 400, { error: "invalid_grant" });
     stats.token++;
     validToken = `access-${stats.token}`;
     return json(res, 200, { access_token: validToken, expires_in: 3600, token_type: "Bearer" });
   }
+  if (req.method !== "GET") stats.nonGet++;
   if (req.headers.authorization !== `Bearer ${validToken}`) return json(res, 401, { error: { code: 401 } });
   const m = /^\/drive\/v3\/files(?:\/([^/]+))?(\/export)?$/.exec(u.pathname);
   if (!m) return json(res, 404, {});
@@ -96,16 +103,23 @@ beforeAll(async () => {
 afterAll(() => fake.close());
 
 const newDrive = (root = ROOT) => {
-  const tokens = new DriveTokenProvider(FAKE_CREDS, `${base}/token`);
+  const tokens = new DriveTokenProvider(FAKE_SA, `${base}/token`);
   return { tokens, drive: new DriveClient(tokens, root, `${base}/drive/v3`) };
 };
 
-describe("drive oauth", () => {
-  it("refreshes once and caches the access token until expiry - 60s", async () => {
+describe("drive service-account auth", () => {
+  it("signs an RS256 JWT-bearer grant for drive.readonly as the service account itself (no sub) and caches it", async () => {
     let t = 1_000_000;
-    const tokens = new DriveTokenProvider(FAKE_CREDS, `${base}/token`, () => t);
+    const tokens = new DriveTokenProvider(FAKE_SA, `${base}/token`, () => t);
     const before = stats.token;
     const a = await tokens.accessToken();
+    expect(stats.token).toBe(before + 1);
+    expect(lastGrant!.form).toEqual(["assertion", "grant_type"]);
+    expect(lastGrant!.header).toEqual({ alg: "RS256", typ: "JWT", kid: "fake-kid-1" });
+    const claims = lastGrant!.claims;
+    expect(claims).toEqual({ iss: FAKE_SA.client_email, scope: DRIVE_SCOPE, aud: `${base}/token`, iat: 1000, exp: 4600 });
+    expect(claims).not.toHaveProperty("sub");
+    expect((claims.exp as number) - (claims.iat as number)).toBeLessThanOrEqual(3600);
     expect(await tokens.accessToken()).toBe(a);
     expect(stats.token).toBe(before + 1);
     t += (3600 - 59) * 1000;
@@ -113,23 +127,41 @@ describe("drive oauth", () => {
     expect(stats.token).toBe(before + 2);
   });
 
-  it("never includes secrets in refresh errors", async () => {
-    const tokens = new DriveTokenProvider({ ...FAKE_CREDS, refresh_token: "wrong-refresh-token-xyz" }, `${base}/token`);
+  it("a grant signed with another key is refused, and the error carries no key material", async () => {
+    const other = pair();
+    const tokens = new DriveTokenProvider({ ...FAKE_SA, private_key: other.privateKey }, `${base}/token`);
     const err = await tokens.accessToken().catch((e: Error) => e);
     expect(err).toBeInstanceOf(Error);
     expect((err as Error).message).toMatch(/HTTP 400 \(invalid_grant\)/);
-    expect((err as Error).message).not.toMatch(/wrong-refresh|fake-secret/);
+    expect((err as Error).message).not.toMatch(/PRIVATE KEY|fake-kid|ana-brain@/);
   });
 
-  it("loads the credentials file and rejects incomplete files without echoing content", () => {
+  it("loads a service-account key file; refuses personal OAuth credentials and incomplete files without echoing content", () => {
     const dir = tmpDir("drv-");
-    const good = path.join(dir, "c.json");
-    writeFileSync(good, JSON.stringify(FAKE_CREDS));
-    expect(loadDriveCredentials(good)).toEqual(FAKE_CREDS);
-    const bad = path.join(dir, "b.json");
-    writeFileSync(bad, JSON.stringify({ client_id: "x", client_secret: "fake-secret-not-real" }));
-    expect(() => loadDriveCredentials(bad)).toThrow(/missing refresh_token/);
-    expect(() => loadDriveCredentials(bad)).not.toThrow(/fake-secret/);
+    const good = path.join(dir, "sa.json");
+    writeFileSync(good, JSON.stringify({ type: "service_account", project_id: "fake-project", ...FAKE_SA, client_id: "123" }));
+    expect(loadServiceAccountKey(good)).toEqual(FAKE_SA);
+    const personal = path.join(dir, "oauth.json");
+    writeFileSync(personal, JSON.stringify({ client_id: "x", client_secret: "fake-secret-not-real", refresh_token: "fake-refresh-not-real" }));
+    expect(() => loadServiceAccountKey(personal)).toThrow(/not a service-account key/);
+    expect(() => loadServiceAccountKey(personal)).not.toThrow(/fake-secret|fake-refresh/);
+    const partial = path.join(dir, "partial.json");
+    writeFileSync(partial, JSON.stringify({ type: "service_account", client_email: "x@fake.example" }));
+    expect(() => loadServiceAccountKey(partial)).toThrow(/missing private_key/);
+    expect(() => loadServiceAccountKey(path.join(dir, "absent.json"))).toThrow(/cannot read/);
+  });
+
+  it("Drive is off without a root id, and fails closed when the root id is set but the key file is missing", () => {
+    const absent = path.join(tmpDir("drv-"), "absent.json");
+    expect(driveFromConfig({ driveRootId: undefined, driveSaKeyFile: absent })).toBeUndefined();
+    expect(() => driveFromConfig({ driveRootId: ROOT, driveSaKeyFile: absent })).toThrow(/service-account key/);
+    expect(() => requireDrive({ driveRootId: undefined, driveSaKeyFile: absent })).toThrow(/ANA_DRIVE_ROOT_ID is not set/);
+  });
+
+  it("config takes the key file from ANA_DRIVE_SA_KEY_FILE and refuses the retired personal-token setting", () => {
+    expect(loadConfig({ BRAIN_VAULT_DIR: "/srv/v" }).driveSaKeyFile).toBe("/etc/ana-brain/drive-sa.json");
+    expect(loadConfig({ BRAIN_VAULT_DIR: "/srv/v", ANA_DRIVE_SA_KEY_FILE: "/etc/x/sa.json" }).driveSaKeyFile).toBe("/etc/x/sa.json");
+    expect(() => loadConfig({ BRAIN_VAULT_DIR: "/srv/v", ANA_DRIVE_OAUTH_FILE: "/etc/ana-brain/drive-oauth.json" })).toThrow(/ANA_DRIVE_OAUTH_FILE/);
   });
 });
 
@@ -197,35 +229,6 @@ describe("drive-register", () => {
     expect(vid.source?.checksum).toBeUndefined();
     await expect(registerDriveSource(vault, drive, "ben", { fileId: "outfile001", id: "src-drive-outside", title: "x" })).rejects.toThrow(OUTSIDE_ROOT);
     expect(existsSync(path.join(root, "sources", "src-drive-outside.md"))).toBe(false);
-  });
-});
-
-describe("drive-auth consent", () => {
-  it("runs the loopback PKCE flow and writes a 0600 credentials file; refuses overwrite", async () => {
-    const dir = tmpDir("consent-");
-    const clientFile = path.join(dir, "client_secret.json");
-    writeFileSync(clientFile, JSON.stringify({ installed: { client_id: FAKE_CREDS.client_id, client_secret: FAKE_CREDS.client_secret } }));
-    const out = path.join(dir, "drive-oauth.json");
-    let seen: URL | undefined;
-    const run = () => runConsent({
-      clientFile, outFile: out, authUrl: `${base}/auth`, tokenUrl: `${base}/token`, timeoutMs: 5000,
-      openUrl: (url) => {
-        seen = new URL(url);
-        const cb = new URL(seen.searchParams.get("redirect_uri")!);
-        cb.searchParams.set("code", "fake-code");
-        cb.searchParams.set("state", seen.searchParams.get("state")!);
-        void fetch(cb);
-      },
-    });
-    expect(await run()).toEqual({ scope: DRIVE_SCOPE });
-    expect(seen!.searchParams.get("scope")).toBe(DRIVE_SCOPE);
-    expect(seen!.searchParams.get("code_challenge_method")).toBe("S256");
-    expect(seen!.searchParams.get("access_type")).toBe("offline");
-    expect(seen!.searchParams.get("prompt")).toBe("consent");
-    expect(seen!.toString()).not.toContain(FAKE_CREDS.client_secret);
-    expect(statSync(out).mode & 0o777).toBe(0o600);
-    expect(JSON.parse(readFileSync(out, "utf8"))).toEqual({ ...FAKE_CREDS, refresh_token: "fake-refresh-from-consent" });
-    await expect(run()).rejects.toThrow(/--force/);
   });
 });
 
@@ -324,5 +327,12 @@ describe("mcp without drive", () => {
     expect(rd.isError).toBe(true);
     await c.close();
     server.close();
+  });
+});
+
+describe("drive is read-only on the wire", () => {
+  it("no request in this file reached Drive with a method other than GET", () => {
+    expect(stats.meta + stats.lists).toBeGreaterThan(0);
+    expect(stats.nonGet).toBe(0);
   });
 });

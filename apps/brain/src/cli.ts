@@ -1,9 +1,7 @@
 #!/usr/bin/env node
-import { spawn } from "node:child_process";
 import { DashboardToken, KeyStore } from "./auth/keys.js";
 import { loadConfig } from "./config.js";
 import { HUMANS, type SourceBlock } from "./contract/schema.js";
-import { runConsent } from "./drive/consent.js";
 import { registerDriveSource } from "./drive/register.js";
 import { driveFromConfig, requireDrive } from "./drive/setup.js";
 import { createApp } from "./http/app.js";
@@ -14,7 +12,6 @@ import { Vault } from "./vault/vault.js";
 
 const USAGE = [
   "usage: ana-brain <serve | index [--full] | validate | issue-key <ana|ben|vince> | issue-dashboard-token | stats",
-  "  | drive-auth --client <client_secret.json> --out <file> [--force]",
   "  | drive-list [folderId]",
   "  | drive-register <fileId> --id <src-id> --title <title> --actor <ana|ben|vince> [--data-class G0..G3|UNKNOWN] [--access restricted|internal|public] [--topics a,b] [--workshops a,b]>",
 ].join("\n");
@@ -47,20 +44,6 @@ async function main(argv: string[]): Promise<number> {
   if (!cmd || cmd === "--help" || cmd === "-h") {
     console.log(USAGE);
     return cmd ? 0 : 2;
-  }
-  if (cmd === "drive-auth") {
-    const { opt } = flags(rest);
-    const out = str(opt.out, "out");
-    const { scope } = await runConsent({
-      clientFile: str(opt.client, "client"), outFile: out, force: opt.force === true,
-      openUrl: (url) => {
-        console.log(`Open this URL to grant read-only Drive access:\n${url}`);
-        if (process.platform === "darwin") spawn("open", [url], { stdio: "ignore", detached: true }).on("error", () => undefined).unref();
-      },
-    });
-    console.log(`saved refresh token to ${out}`);
-    console.log(`granted scope: ${scope}`);
-    return 0;
   }
   const cfg = loadConfig();
   if (cmd === "drive-list") {

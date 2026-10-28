@@ -10,9 +10,10 @@ export interface Config {
   dashboardTokenSha256?: string;
   port: number;
   host: string;
-  /** ANA Evidence Root folder id; Drive access is enabled only when set and the OAuth file exists. */
+  /** ANA Evidence Root folder id; Drive access is enabled only when set (and then needs the service-account key). */
   driveRootId?: string;
-  driveOauthFile: string;
+  /** Google service-account JSON key of the ANA Brain (PO decision 2); never a personal OAuth token. */
+  driveSaKeyFile: string;
   /** Optional transcripts folder (must lie under the root). */
   driveTranscriptsId?: string;
 }
@@ -20,6 +21,8 @@ export interface Config {
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
   const vaultDir = env.BRAIN_VAULT_DIR;
   if (!vaultDir) throw new Error("BRAIN_VAULT_DIR is required");
+  if (env.ANA_DRIVE_OAUTH_FILE)
+    throw new Error("ANA_DRIVE_OAUTH_FILE (personal Drive OAuth token) is no longer supported; set ANA_DRIVE_SA_KEY_FILE to the service-account key");
   return {
     vaultDir: path.resolve(vaultDir),
     stateDir: path.resolve(env.BRAIN_STATE_DIR ?? path.join(vaultDir, "..", "ana-brain-state")),
@@ -31,7 +34,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     port: Number(env.PORT ?? 8790),
     host: env.HOST ?? "127.0.0.1",
     driveRootId: env.ANA_DRIVE_ROOT_ID || undefined,
-    driveOauthFile: env.ANA_DRIVE_OAUTH_FILE || "/etc/ana-brain/drive-oauth.json",
+    driveSaKeyFile: env.ANA_DRIVE_SA_KEY_FILE || "/etc/ana-brain/drive-sa.json",
     driveTranscriptsId: env.ANA_DRIVE_TRANSCRIPTS_ID || undefined,
   };
 }
