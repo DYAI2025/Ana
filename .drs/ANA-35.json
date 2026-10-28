@@ -38,7 +38,9 @@
       "apps/dashboard/src/i18n/en.ts",
       "apps/dashboard/src/i18n/de.ts",
       "apps/dashboard/src/i18n/it.ts",
-      "apps/dashboard/src/test/**"
+      "apps/dashboard/src/test/**",
+      ".github/workflows/dashboard.yml",
+      "apps/dashboard/scripts/scan-client-bundle.mjs"
     ]
   },
   "r4m": {
@@ -47,7 +49,7 @@
     "claimed": null,
     "evidence": []
   },
-  "scope_note": "Change scope set 2026-10-07 after PO decisions (first canonical vault, ANA Evidence Root, mcp.ana.dyai.cloud): new Brain service apps/brain (contract, vault, BGE-M3/Qdrant indexer, authenticated MCP, projection API, deploy templates), its CI workflow, and the dashboard Brain route/data path plus the files that import the Brain fixture (search, i18n, e2e). Contract: docs/brain/CONTRACT.md. Private Brain content and credentials are outside the repository.",
+  "scope_note": "Change scope set 2026-10-07 after PO decisions (first canonical vault, ANA Evidence Root, mcp.ana.dyai.cloud): new Brain service apps/brain (contract, vault, BGE-M3/Qdrant indexer, authenticated MCP, projection API, deploy templates), its CI workflow, and the dashboard Brain route/data path plus the files that import the Brain fixture (search, i18n, e2e). Contract: docs/brain/CONTRACT.md. Private Brain content and credentials are outside the repository. Scope addendum 2026-10-28 (ANA-35 M2 repair R1-R9, PO decision 2026-10-28): the bundle scan and its CI step (AC13 Brain token rules), and for the Contabo release kit deploy/ana-brain/** and the BRAIN_* lines of deploy/ana-dashboard/dashboard.env.example.",
   "synced_at": "2026-10-07T12:40:00Z",
   "source": "offline: ANA Jira has no DRS custom fields; gate definitions are mirrored in Jira ANA-35 comment 17391 and acceptance states are recorded in Jira and the pull request, not in this file"
 }

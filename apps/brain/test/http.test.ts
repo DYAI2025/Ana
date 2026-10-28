@@ -1,11 +1,12 @@
 import { createHash, randomBytes } from "node:crypto";
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { createServer, type Server } from "node:http";
 import path from "node:path";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { DashboardToken, KeyStore } from "../src/auth/keys.js";
+import { DashboardToken, KeyStore, sha256hex } from "../src/auth/keys.js";
+import { revokeActor } from "../src/auth/oauth.js";
 import { createApp } from "../src/http/app.js";
 import { Indexer } from "../src/index/indexer.js";
 import { OllamaEmbedder } from "../src/index/ollama.js";
@@ -48,6 +49,23 @@ async function connect(token: string): Promise<Client> {
 }
 const text = (r: unknown) => ((r as { content: { text: string }[] }).content[0]?.text ?? "");
 const audit = () => readFileSync(path.join(root, ".ana", "audit.jsonl"), "utf8").trim().split("\n").map((l) => JSON.parse(l) as Record<string, string>);
+
+/** Authorization code + PKCE with a personal key; returns the token pair and the client id. */
+async function oauthLogin(accessKey: string): Promise<{ access_token: string; refresh_token: string; client_id: string }> {
+  const redirect = "http://127.0.0.1:9/callback";
+  const reg = (await (await fetch(`${base}/register`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ redirect_uris: [redirect], client_name: "Test", token_endpoint_auth_method: "none" }) })).json()) as { client_id: string };
+  const verifier = randomBytes(32).toString("base64url");
+  const params = { client_id: reg.client_id, redirect_uri: redirect, response_type: "code", code_challenge: createHash("sha256").update(verifier).digest("base64url"), code_challenge_method: "S256" };
+  const ok = await fetch(`${base}/authorize`, { method: "POST", redirect: "manual", body: new URLSearchParams({ ...params, access_key: accessKey }) });
+  expect(ok.status).toBe(302);
+  const code = new URL(ok.headers.get("location")!).searchParams.get("code")!;
+  const tok = (await (await fetch(`${base}/token`, { method: "POST", body: new URLSearchParams({ grant_type: "authorization_code", code, code_verifier: verifier, client_id: reg.client_id, redirect_uri: redirect }) })).json()) as { access_token: string; refresh_token: string };
+  return { ...tok, client_id: reg.client_id };
+}
+const refresh = (refreshToken: string, clientId: string) =>
+  fetch(`${base}/token`, { method: "POST", body: new URLSearchParams({ grant_type: "refresh_token", refresh_token: refreshToken, client_id: clientId }) });
+const mcpStatus = async (token: string) =>
+  (await fetch(`${base}/mcp`, { method: "POST", headers: { authorization: `Bearer ${token}`, "content-type": "application/json", accept: "application/json, text/event-stream" }, body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/list" }) })).status;
 
 describe("http + mcp", () => {
   it("healthz is public and data-free", async () => {
@@ -153,5 +171,57 @@ describe("http + mcp", () => {
     const oauthFile = readFileSync(path.join(stateDir, "oauth.json"), "utf8");
     expect(oauthFile).not.toContain(tok.access_token);
     expect(readFileSync(path.join(stateDir, "keys.json"), "utf8")).not.toContain(keys.vince);
+  });
+
+  it("OAuth tokens die with the key that authorized them, even when it is removed by hand (B-7)", async () => {
+    const ks = new KeyStore(stateDir);
+    const anaKey = ks.issue("ana");
+    const t1 = await oauthLogin(anaKey);
+    expect(await mcpStatus(t1.access_token)).toBe(200);
+    const r1 = await refresh(t1.refresh_token, t1.client_id);
+    expect(r1.status).toBe(200);
+    const t2 = (await r1.json()) as { access_token: string; refresh_token: string };
+    // hand-edit keys.json the old way: drop ana's key, leave oauth.json alone
+    const file = path.join(stateDir, "keys.json");
+    writeFileSync(file, JSON.stringify((JSON.parse(readFileSync(file, "utf8")) as { actor: string }[]).filter((r) => r.actor !== "ana")));
+    const r2 = await refresh(t2.refresh_token, t1.client_id);
+    expect(r2.status).toBe(400);
+    expect(((await r2.json()) as { error: string }).error).toBe("invalid_grant");
+    expect(await mcpStatus(t2.access_token)).toBe(401);
+    expect(await mcpStatus(keys.vince)).toBe(200);
+  });
+
+  it("revoke-key removes every key and token of one person and nobody else's", async () => {
+    const ks = new KeyStore(stateDir);
+    const anaKey = ks.issue("ana");
+    const t = await oauthLogin(anaKey);
+    const other = await oauthLogin(keys.ben);
+    expect(revokeActor(stateDir, "ana")).toEqual({ keys: 1, tokens: 2 });
+    expect(ks.verify(anaKey)).toBeUndefined();
+    expect(await mcpStatus(anaKey)).toBe(401);
+    expect(await mcpStatus(t.access_token)).toBe(401);
+    expect((await refresh(t.refresh_token, t.client_id)).status).toBe(400);
+    expect(readFileSync(path.join(stateDir, "oauth.json"), "utf8")).not.toMatch(/"actor": "ana"/);
+    expect(await mcpStatus(other.access_token)).toBe(200);
+    expect(revokeActor(stateDir, "ana")).toEqual({ keys: 0, tokens: 0 });
+    expect(() => revokeActor(stateDir, "agent:x")).toThrow(/ana, ben, vince/);
+  });
+
+  it("refuses a stored token that is not bound to a key", async () => {
+    const raw = randomBytes(32).toString("base64url");
+    const file = path.join(stateDir, "oauth.json");
+    const s = JSON.parse(readFileSync(file, "utf8")) as { tokens: Record<string, unknown> };
+    s.tokens[sha256hex(raw)] = { kind: "access", actor: "vince", client_id: "legacy", scopes: [], expires_at: Math.floor(Date.now() / 1000) + 600 };
+    writeFileSync(file, JSON.stringify(s));
+    expect(await mcpStatus(raw)).toBe(401);
+  });
+
+  it("every path the shipped nginx configs proxy is served by the app", async () => {
+    const dirs = [path.join(import.meta.dirname, "..", "deploy"), path.join(import.meta.dirname, "..", "..", "..", "deploy", "ana-brain")];
+    const confs = dirs.flatMap((d) => { try { return readdirSync(d).filter((f) => f.endsWith(".conf")).map((f) => path.join(d, f)); } catch { return []; } });
+    expect(confs.length).toBeGreaterThan(0);
+    const paths = new Set(confs.flatMap((f) => [...readFileSync(f, "utf8").matchAll(/location = (\/[a-z/._-]+)\s*\{\s*proxy_pass/g)].map((m) => m[1]!)));
+    expect(paths).toContain("/mcp");
+    for (const p of paths) expect((await fetch(`${base}${p}`)).status, p).not.toBe(404);
   });
 });

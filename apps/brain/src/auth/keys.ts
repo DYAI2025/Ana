@@ -39,6 +39,20 @@ export class KeyStore {
     return key;
   }
 
+  /** Whether a key with this SHA-256 is still issued (OAuth tokens are bound to the key that authorized them). */
+  has(sha256: string): boolean {
+    return this.list().some((r) => hashEquals(sha256, r.sha256));
+  }
+
+  /** Remove every key of a person; returns how many were removed. */
+  revoke(actor: string): number {
+    if (!(HUMANS as readonly string[]).includes(actor)) throw new Error(`actor must be one of ${HUMANS.join(", ")}`);
+    const all = this.list();
+    const kept = all.filter((r) => r.actor !== actor);
+    if (kept.length !== all.length) writeJsonAtomic(this.file, kept);
+    return all.length - kept.length;
+  }
+
   verify(key: string): Human | undefined {
     if (typeof key !== "string" || key.length < 16 || key.length > 200) return undefined;
     const h = sha256hex(key);

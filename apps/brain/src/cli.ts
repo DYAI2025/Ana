@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { DashboardToken, KeyStore } from "./auth/keys.js";
+import { revokeActor } from "./auth/oauth.js";
 import { loadConfig } from "./config.js";
 import { HUMANS, type SourceBlock } from "./contract/schema.js";
 import { registerDriveSource } from "./drive/register.js";
@@ -11,7 +12,7 @@ import { QdrantStore } from "./index/qdrant.js";
 import { Vault } from "./vault/vault.js";
 
 const USAGE = [
-  "usage: ana-brain <serve | index [--full] | validate | issue-key <ana|ben|vince> | issue-dashboard-token | stats",
+  "usage: ana-brain <serve | index [--full] | validate | issue-key <ana|ben|vince> | revoke-key <ana|ben|vince> | issue-dashboard-token | stats",
   "  | drive-list [folderId]",
   "  | drive-register <fileId> --id <src-id> --title <title> --actor <ana|ben|vince> [--data-class G0..G3|UNKNOWN] [--access restricted|internal|public] [--topics a,b] [--workshops a,b]>",
 ].join("\n");
@@ -56,6 +57,12 @@ async function main(argv: string[]): Promise<number> {
     if (!actor) throw new Error("issue-key requires an actor (ana|ben|vince)");
     process.stdout.write(`${new KeyStore(cfg.stateDir).issue(actor)}\n`);
     console.error(`Issued key for ${actor}. It is shown once; only its hash is stored.`);
+    return 0;
+  }
+  if (cmd === "revoke-key") {
+    const actor = rest[0] ?? "";
+    const { keys, tokens } = revokeActor(cfg.stateDir, actor);
+    console.log(`revoked ${keys} key(s) and ${tokens} OAuth token(s) of ${actor}; effective at the next request, no restart needed`);
     return 0;
   }
   if (cmd === "issue-dashboard-token") {

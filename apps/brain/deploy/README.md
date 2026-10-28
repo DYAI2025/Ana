@@ -37,7 +37,9 @@ Run every CLI command as the service user with the env file loaded, e.g.
 - `issue-key ana|ben|vince` — prints a new personal access key **once**; hand it over privately. Only the SHA-256 is
   stored. The key works as `Authorization: Bearer <key>` for CLI clients and is typed into the `/authorize` form when
   connecting Claude Desktop / claude.ai (custom connector URL `https://mcp.ana.dyai.cloud/mcp`).
-- Revoke: remove the person's entry from `state/keys.json` (and their tokens from `state/oauth.json`), restart.
+- `revoke-key ana|ben|vince` — removes every key of that person and their OAuth tokens; effective at the next
+  request, no restart. OAuth tokens are bound to the key that authorized them, so a key removed any other way also
+  ends its tokens. Issue a new key with `issue-key` afterwards if the person keeps access.
 - `issue-dashboard-token` — token for the dashboard server only (`/projection`). Alternatively set
   `BRAIN_DASHBOARD_TOKEN_SHA256`.
 

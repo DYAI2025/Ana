@@ -136,7 +136,8 @@ The body holds a short description and, where authorized, a summary — not a co
 Authentication: OAuth 2.1 (authorization code + PKCE, dynamic client registration) for Claude Desktop / claude.ai
 connectors, where the authorization step asks for the caller's personal access key; or `Authorization: Bearer`
 with that key for CLI clients. One key per person (`ana`, `ben`, `vince`); only hashes are stored server-side.
-Unauthenticated requests get 401.
+Unauthenticated requests get 401. OAuth access and refresh tokens are bound to the key that authorized them and stop
+working as soon as that key is gone; `revoke-key <person>` removes a person's keys and tokens without a restart.
 
 | Tool | Kind | Notes |
 |---|---|---|

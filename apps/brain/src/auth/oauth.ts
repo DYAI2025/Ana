@@ -7,16 +7,17 @@ import type { AuthorizationParams, OAuthServerProvider } from "@modelcontextprot
 import type { AuthInfo } from "@modelcontextprotocol/sdk/server/auth/types.js";
 import { InvalidGrantError, InvalidTokenError } from "@modelcontextprotocol/sdk/server/auth/errors.js";
 import type { OAuthClientInformationFull, OAuthTokens } from "@modelcontextprotocol/sdk/shared/auth.js";
-import type { Human } from "../contract/schema.js";
-import { sha256hex, writeJsonAtomic, type KeyStore } from "./keys.js";
+import { HUMANS, type Human } from "../contract/schema.js";
+import { KeyStore, sha256hex, writeJsonAtomic } from "./keys.js";
 
 const ACCESS_TTL = 3600;
 const REFRESH_TTL = 30 * 24 * 3600;
 const CODE_TTL = 300;
 
-interface TokenRec { kind: "access" | "refresh"; actor: Human; client_id: string; scopes: string[]; expires_at: number; resource?: string }
+/** key_sha256: the personal key that authorized the grant; the token dies with that key (B-7). */
+interface TokenRec { kind: "access" | "refresh"; actor: Human; key_sha256?: string; client_id: string; scopes: string[]; expires_at: number; resource?: string }
 interface OAuthState { clients: Record<string, OAuthClientInformationFull>; tokens: Record<string, TokenRec> }
-interface CodeRec { actor: Human; client_id: string; challenge: string; redirect_uri: string; scopes: string[]; expires_at: number; resource?: string }
+interface CodeRec { actor: Human; key_sha256: string; client_id: string; challenge: string; redirect_uri: string; scopes: string[]; expires_at: number; resource?: string }
 
 const esc = (s: string) => s.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
 const nowS = () => Math.floor(Date.now() / 1000);
@@ -34,8 +35,23 @@ export class BrainOAuthProvider implements OAuthServerProvider {
   }
   private save(s: OAuthState): void {
     const t = nowS();
-    for (const [k, v] of Object.entries(s.tokens)) if (v.expires_at < t) delete s.tokens[k];
+    for (const [k, v] of Object.entries(s.tokens)) if (v.expires_at < t || !this.bound(v)) delete s.tokens[k];
     writeJsonAtomic(this.file, s);
+  }
+
+  /** A token is valid only while the key that authorized it is still issued; unbound (pre-B-7) tokens never are. */
+  private bound(rec: { key_sha256?: string }): boolean {
+    return typeof rec.key_sha256 === "string" && this.keys.has(rec.key_sha256);
+  }
+
+  /** Delete every OAuth token of a person; returns how many were deleted. */
+  revokeTokensOf(actor: Human): number {
+    const s = this.load();
+    const before = Object.keys(s.tokens).length;
+    for (const [k, v] of Object.entries(s.tokens)) if (v.actor === actor) delete s.tokens[k];
+    const removed = before - Object.keys(s.tokens).length;
+    writeJsonAtomic(this.file, s);
+    return removed;
   }
 
   get clientsStore(): OAuthRegisteredClientsStore {
@@ -56,11 +72,12 @@ export class BrainOAuthProvider implements OAuthServerProvider {
     const body = (req.method === "POST" ? req.body : {}) as Record<string, unknown>;
     let error = "";
     if (typeof body.access_key === "string") {
-      const actor = this.keys.verify(body.access_key.trim());
+      const key = body.access_key.trim();
+      const actor = this.keys.verify(key);
       if (actor) {
         const code = randomBytes(32).toString("base64url");
         this.codes.set(sha256hex(code), {
-          actor, client_id: client.client_id, challenge: params.codeChallenge, redirect_uri: params.redirectUri,
+          actor, key_sha256: sha256hex(key), client_id: client.client_id, challenge: params.codeChallenge, redirect_uri: params.redirectUri,
           scopes: params.scopes ?? [], expires_at: nowS() + CODE_TTL, resource: params.resource?.href,
         });
         const url = new URL(params.redirectUri);
@@ -100,27 +117,28 @@ ${error ? `<p role="alert" style="color:#b00">${esc(error)}</p>` : ""}
     const h = sha256hex(code);
     const rec = this.codes.get(h);
     this.codes.delete(h);
-    if (!rec || rec.client_id !== client.client_id || rec.expires_at < nowS()) throw new InvalidGrantError("invalid authorization code");
+    if (!rec || rec.client_id !== client.client_id || rec.expires_at < nowS() || !this.bound(rec)) throw new InvalidGrantError("invalid authorization code");
     if (redirectUri !== undefined && redirectUri !== rec.redirect_uri) throw new InvalidGrantError("redirect_uri mismatch");
-    return this.issue(rec.actor, client.client_id, rec.scopes, rec.resource);
+    return this.issue(rec.actor, rec.key_sha256, client.client_id, rec.scopes, rec.resource);
   }
 
   async exchangeRefreshToken(client: OAuthClientInformationFull, refreshToken: string, scopes?: string[]): Promise<OAuthTokens> {
     const s = this.load();
     const h = sha256hex(refreshToken);
     const rec = s.tokens[h];
-    if (!rec || rec.kind !== "refresh" || rec.client_id !== client.client_id || rec.expires_at < nowS()) throw new InvalidGrantError("invalid refresh token");
+    if (!rec || rec.kind !== "refresh" || rec.client_id !== client.client_id || rec.expires_at < nowS() || !this.bound(rec))
+      throw new InvalidGrantError("invalid refresh token");
     delete s.tokens[h];
     this.save(s);
-    return this.issue(rec.actor, client.client_id, scopes ?? rec.scopes, rec.resource);
+    return this.issue(rec.actor, rec.key_sha256!, client.client_id, scopes ?? rec.scopes, rec.resource);
   }
 
-  private issue(actor: Human, clientId: string, scopes: string[], resource?: string): OAuthTokens {
+  private issue(actor: Human, keySha256: string, clientId: string, scopes: string[], resource?: string): OAuthTokens {
     const access = randomBytes(32).toString("base64url");
     const refresh = randomBytes(32).toString("base64url");
     const s = this.load();
-    s.tokens[sha256hex(access)] = { kind: "access", actor, client_id: clientId, scopes, expires_at: nowS() + ACCESS_TTL, resource };
-    s.tokens[sha256hex(refresh)] = { kind: "refresh", actor, client_id: clientId, scopes, expires_at: nowS() + REFRESH_TTL, resource };
+    s.tokens[sha256hex(access)] = { kind: "access", actor, key_sha256: keySha256, client_id: clientId, scopes, expires_at: nowS() + ACCESS_TTL, resource };
+    s.tokens[sha256hex(refresh)] = { kind: "refresh", actor, key_sha256: keySha256, client_id: clientId, scopes, expires_at: nowS() + REFRESH_TTL, resource };
     this.save(s);
     return { access_token: access, token_type: "bearer", expires_in: ACCESS_TTL, refresh_token: refresh, scope: scopes.join(" ") || undefined };
   }
@@ -130,7 +148,15 @@ ${error ? `<p role="alert" style="color:#b00">${esc(error)}</p>` : ""}
     const actor = this.keys.verify(token);
     if (actor) return { token, clientId: `key:${actor}`, scopes: [], expiresAt: nowS() + ACCESS_TTL, extra: { actor } };
     const rec = this.load().tokens[sha256hex(token)];
-    if (!rec || rec.kind !== "access" || rec.expires_at < nowS()) throw new InvalidTokenError("invalid or expired token");
+    if (!rec || rec.kind !== "access" || rec.expires_at < nowS() || !this.bound(rec)) throw new InvalidTokenError("invalid or expired token");
     return { token, clientId: rec.client_id, scopes: rec.scopes, expiresAt: rec.expires_at, extra: { actor: rec.actor } };
   }
+}
+
+/** `revoke-key <actor>`: every key and OAuth token of one person; effective at their next request, no restart. */
+export function revokeActor(stateDir: string, actor: string): { keys: number; tokens: number } {
+  if (!(HUMANS as readonly string[]).includes(actor)) throw new Error(`actor must be one of ${HUMANS.join(", ")}`);
+  const ks = new KeyStore(stateDir);
+  const keys = ks.revoke(actor);
+  return { keys, tokens: new BrainOAuthProvider(stateDir, ks).revokeTokensOf(actor as Human) };
 }
