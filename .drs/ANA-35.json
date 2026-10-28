@@ -44,7 +44,8 @@
       "deploy/ana-brain/**",
       "deploy/ana-dashboard/dashboard.env.example",
       "apps/dashboard/src/components/shell/Topbar.tsx",
-      "apps/dashboard/README.md"
+      "apps/dashboard/README.md",
+      "apps/dashboard/src/i18n/i18n.test.ts"
     ]
   },
   "r4m": {
