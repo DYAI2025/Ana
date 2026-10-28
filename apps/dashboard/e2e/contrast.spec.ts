@@ -132,6 +132,7 @@ const STATES: { label: string; route: string; jira?: Record<string, unknown>; so
   { label: "brain blocked", route: "/brain", brain: "down", prepare: (p) => p.locator('[data-testid="brain-error"][data-state="BLOCKED"]').waitFor() },
   { label: "brain unknown", route: "/brain", brain: "invalid", prepare: (p) => p.locator('[data-testid="brain-error"][data-state="UNKNOWN"]').waitFor() },
   { label: "brain empty", route: "/brain", brain: "empty", prepare: (p) => p.getByTestId("brain-empty").waitFor() },
+  { label: "brain unindexed", route: "/brain", brain: "unindexed", prepare: (p) => p.getByTestId("brain-unindexed").waitFor() },
   { label: "whiteboard", route: "/whiteboard" },
   { label: "calendar form", route: "/calendar", prepare: (p) => p.getByTestId("cal-add").click() },
   { label: "pulse", route: "/pulse" },

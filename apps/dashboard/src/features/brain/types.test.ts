@@ -17,6 +17,13 @@ describe("parseProjection", () => {
     expect(JSON.stringify(parsed.value)).not.toContain("leak");
   });
 
+  it("passes the unindexed count through (notes the Brain could not place yet)", () => {
+    const raw = clone();
+    raw.unindexed = 3;
+    const parsed = parseProjection(raw);
+    expect(parsed.ok && parsed.value.unindexed).toBe(3);
+  });
+
   it("accepts a source with data_class UNKNOWN and a null source", () => {
     const raw = clone();
     const src = raw.nodes.find((n) => n.source)!;
@@ -38,6 +45,10 @@ describe("parseProjection", () => {
     ["edge to unknown node", () => { const r = clone(); r.edges[0]!.to = "missing"; return r; }],
     ["bad relation type", () => { const r = clone(); r.edges[0]!.type = "likes"; return r; }],
     ["malformed source", () => { const r = clone(); r.nodes.find((n) => n.source)!.source = { kind: "x" }; return r; }],
+    ["missing unindexed count", () => ({ ...clone(), unindexed: undefined })],
+    ["negative unindexed count", () => ({ ...clone(), unindexed: -1 })],
+    ["fractional unindexed count", () => ({ ...clone(), unindexed: 1.5 })],
+    ["a node without a cluster", () => { const r = clone(); r.nodes[0]!.cluster = null; return r; }],
   ])("rejects %s", (_name, make) => {
     expect(parseProjection(make()).ok).toBe(false);
   });

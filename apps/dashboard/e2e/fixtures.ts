@@ -12,7 +12,7 @@ export interface FakeSocialControl {
 
 /** Control surface of the local fake Brain service (e2e/fake-brain/server.mjs) — synthetic data only. */
 export const FAKE_BRAIN = `http://127.0.0.1:${process.env.FAKE_BRAIN_PORT ?? 3197}`;
-export type FakeBrainMode = "ok" | "mirrored" | "empty" | "down" | "unauthorized" | "invalid" | "slow";
+export type FakeBrainMode = "ok" | "mirrored" | "empty" | "unindexed" | "pending" | "down" | "unauthorized" | "invalid" | "slow";
 
 export interface FakeBrainControl {
   mode(mode: FakeBrainMode): Promise<void>;

@@ -4,14 +4,15 @@
  *   node e2e/fake-brain/server.mjs            (port FAKE_BRAIN_PORT, default 3197; token FAKE_BRAIN_TOKEN)
  *
  * GET /projection (Bearer token) · control: POST /__fake/reset · POST /__fake/mode {mode} · GET /__fake/health
- * Modes: ok · mirrored (positions changed) · empty · down (socket destroyed) · unauthorized · invalid · slow
+ * Modes: ok · mirrored (positions changed) · empty · unindexed (2 notes not placed yet) · pending (nothing placed, 5 waiting)
+ *   · down (socket destroyed) · unauthorized · invalid · slow
  */
 import http from "node:http";
 import { baseProjection, mirrored } from "./data.mjs";
 
 const port = Number(process.env.FAKE_BRAIN_PORT ?? 3197);
 const token = process.env.FAKE_BRAIN_TOKEN ?? "e2e-fake-brain-token";
-const MODES = new Set(["ok", "mirrored", "empty", "down", "unauthorized", "invalid", "slow"]);
+const MODES = new Set(["ok", "mirrored", "empty", "unindexed", "pending", "down", "unauthorized", "invalid", "slow"]);
 let mode = "ok";
 
 function send(res, status, body) {
@@ -44,6 +45,8 @@ const server = http.createServer(async (req, res) => {
   if (mode === "slow") await new Promise((resolve) => setTimeout(resolve, 5_000));
   const projection = baseProjection();
   if (mode === "empty") return send(res, 200, { ...projection, clusters: [], nodes: [], edges: [] });
+  if (mode === "unindexed") return send(res, 200, { ...projection, unindexed: 2 });
+  if (mode === "pending") return send(res, 200, { ...projection, clusters: [], nodes: [], edges: [], unindexed: 5 });
   return send(res, 200, mode === "mirrored" ? mirrored(projection) : projection);
 });
 

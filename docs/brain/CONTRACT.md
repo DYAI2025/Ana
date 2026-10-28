@@ -176,7 +176,8 @@ and in `.ana/audit.jsonl` (no raw payloads in the audit log).
     "source_refs": [{ "source": "src-claude-capcut-deep-research", "locator": "§3 Hook" }],
     "source": null
   }],
-  "edges": [{ "from": "kn-hook-first-cut-brief", "to": "kn-cut-brief-structure", "type": "supports" }]
+  "edges": [{ "from": "kn-hook-first-cut-brief", "to": "kn-cut-brief-structure", "type": "supports" }],
+  "unindexed": 0
 }
 ```
 
@@ -185,4 +186,8 @@ and in `.ana/audit.jsonl` (no raw payloads in the audit log).
 - `cluster`: k-means over the same embeddings; `label` = the most common topic title in the cluster.
 - `source` (only for `type: source`): `{ kind, access, data_class, locator_display }` — `locator_display` is a
   human-readable reference; restricted locators are shown only as kind + title.
-- `edges`: explicit relations only.
+- `edges`: explicit relations only, between notes present in `nodes`.
+- `unindexed`: notes in the vault that have no embedding yet (written since the last index run). They are not in
+  `nodes` or `edges` — a note without embeddings has no semantic position or cluster and is never placed at a
+  default point. Every node in `nodes` carries a cluster id. The dashboard shows the count and, when nothing is
+  indexed yet, says so instead of reporting an empty vault.

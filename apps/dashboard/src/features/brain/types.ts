@@ -66,6 +66,8 @@ export interface BrainProjection {
   clusters: BrainCluster[];
   nodes: BrainNode[];
   edges: BrainEdge[];
+  /** Notes written since the last index run: the Brain counts them but cannot place them yet. */
+  unindexed: number;
 }
 
 export type BrainFailureKind = "not-configured" | "unreachable" | "unauthorized" | "invalid-response";
@@ -143,6 +145,7 @@ export function parseProjection(raw: unknown): Check<BrainProjection> {
     return { ok: false, error: "generated_at, embed_model or index_version missing" };
   }
   if (!Array.isArray(raw.clusters) || !Array.isArray(raw.nodes) || !Array.isArray(raw.edges)) return { ok: false, error: "clusters, nodes or edges missing" };
+  if (!Number.isInteger(raw.unindexed) || (raw.unindexed as number) < 0) return { ok: false, error: "unindexed is not a count" };
   const clusters: BrainCluster[] = [];
   for (const [i, c] of raw.clusters.entries()) {
     if (!isObject(c) || !isString(c.id) || !isString(c.label) || !isFiniteNumber(c.size)) return { ok: false, error: `clusters[${i}] is malformed` };
@@ -162,7 +165,10 @@ export function parseProjection(raw: unknown): Check<BrainProjection> {
     if (!ids.has(e.from) || !ids.has(e.to)) return { ok: false, error: `edges[${i}] points to an unknown node` };
     edges.push({ from: e.from, to: e.to, type: e.type as RelationType });
   }
-  return { ok: true, value: { version: 1, generated_at: raw.generated_at, embed_model: raw.embed_model, index_version: raw.index_version, clusters, nodes, edges } };
+  return {
+    ok: true,
+    value: { version: 1, generated_at: raw.generated_at, embed_model: raw.embed_model, index_version: raw.index_version, clusters, nodes, edges, unindexed: raw.unindexed as number },
+  };
 }
 
 /** Explicit neighbours of a node (both directions). */

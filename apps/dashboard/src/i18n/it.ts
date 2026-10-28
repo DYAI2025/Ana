@@ -209,6 +209,8 @@ export const it: Messages = {
     supersededHint: "Sostituita — conservata per la storia, non attuale.",
     loading: "Lettura della proiezione del Brain…",
     empty: "La proiezione del Brain non contiene ancora note.",
+    emptyUnindexed: "Nessuna nota ha ancora una posizione: {count} note attendono la prossima indicizzazione.",
+    unindexed: "{count} note non sono ancora indicizzate e non vengono mostrate",
     retry: "Riprova",
     statusLine: "{nodes} note · {edges} relazioni · {clusters} cluster · modello {model} · generato {time}",
     focusCluster: "Metti a fuoco il cluster {label}",

@@ -11,6 +11,10 @@
   color: var(--text-secondary);
 }
 
+.unindexed {
+  color: var(--ink-warm);
+}
+
 .loading,
 .empty {
   margin: 8px 0;

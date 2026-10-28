@@ -209,6 +209,8 @@ export const de: Messages = {
     supersededHint: "Ersetzt — zur Nachvollziehbarkeit behalten, nicht aktuell.",
     loading: "Brain-Projektion wird gelesen…",
     empty: "Die Brain-Projektion enthält noch keine Notizen.",
+    emptyUnindexed: "Noch keine Notiz hat einen Platz: {count} Notizen warten auf den nächsten Indexlauf.",
+    unindexed: "{count} Notizen sind noch nicht indexiert und werden nicht gezeigt",
     retry: "Erneut versuchen",
     statusLine: "{nodes} Notizen · {edges} Relationen · {clusters} Cluster · Modell {model} · erzeugt {time}",
     focusCluster: "Cluster {label} fokussieren",

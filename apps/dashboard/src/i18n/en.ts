@@ -213,6 +213,8 @@ export const en = {
     supersededHint: "Superseded — kept for history, not current.",
     loading: "Reading the Brain projection…",
     empty: "The Brain projection has no notes yet.",
+    emptyUnindexed: "No note has a place yet: {count} notes wait for the next index run.",
+    unindexed: "{count} notes are not indexed yet and not shown",
     retry: "Try again",
     statusLine: "{nodes} notes · {edges} relations · {clusters} clusters · model {model} · generated {time}",
     focusCluster: "Focus cluster {label}",

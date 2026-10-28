@@ -24,8 +24,9 @@ describe("projection", () => {
       const opts = { summary: (n: { fm: { id: string } }) => vault.summary(n.fm.id), generatedAt: a.generated_at };
       const b = buildProjection(vault.all(), emb, opts);
       expect(b).toEqual(a);
-      expect(Object.keys(a).sort()).toEqual(["clusters", "edges", "embed_model", "generated_at", "index_version", "nodes", "version"]);
+      expect(Object.keys(a).sort()).toEqual(["clusters", "edges", "embed_model", "generated_at", "index_version", "nodes", "unindexed", "version"]);
       expect(a.nodes).toHaveLength(9);
+      expect(a.unindexed).toBe(0);
       for (const n of a.nodes) {
         const { x, y, z } = n.position;
         expect(Math.hypot(x, y, z)).toBeLessThanOrEqual(1.0001);
@@ -59,6 +60,49 @@ describe("projection", () => {
     expect(pca([[1, 2, 3]])).toEqual([[0, 0, 0]]);
     expect(kmeans([[1], [2]], 1)).toEqual([0, 0]);
     expect(buildProjection([], new Map(), { summary: () => "" }).nodes).toEqual([]);
+  });
+});
+
+describe("unindexed notes", () => {
+  it("are left out of nodes and edges and only counted, so no node is ever clusterless or parked at the origin", async () => {
+    const { validateFrontmatter } = await import("../src/contract/note.js");
+    const at = "2026-10-07T12:00:00Z";
+    const fm = (id: string, relations: { type: string; target: string; by: string; at: string }[]) => ({
+      ana_brain: 1, id, title: `T ${id}`, type: "concept", status: "CANDIDATE", created: at, updated: at, created_by: "ben",
+      topics: [], workshops: [], source_refs: [], relations, superseded_by: null, provenance: { method: "manual", actor: "ben", at },
+    });
+    const notes = [
+      fm("kn-alpha-note", [{ type: "supports", target: "kn-beta-note", by: "ben", at }]),
+      fm("kn-beta-note", []),
+      fm("kn-fresh-note", [{ type: "relates_to", target: "kn-alpha-note", by: "ben", at }]),
+    ].map((f) => ({ fm: validateFrontmatter(f), body: "Body.\n" }));
+    const emb = new Map([
+      ["kn-alpha-note", [1, 0, 0, 0]],
+      ["kn-beta-note", [0.9, 0.1, 0, 0]],
+    ]);
+    const p = buildProjection(notes, emb, { summary: () => "", generatedAt: at });
+    expect(p.nodes.map((n) => n.id)).toEqual(["kn-alpha-note", "kn-beta-note"]);
+    expect(p.unindexed).toBe(1);
+    for (const n of p.nodes) expect(n.cluster).toMatch(/^c\d$/);
+    expect(p.edges).toEqual([{ from: "kn-alpha-note", to: "kn-beta-note", type: "supports" }]);
+    expect(p.clusters.reduce((s, c) => s + c.size, 0)).toBe(2);
+  });
+
+  it("an empty index reports every note as unindexed and draws nothing", async () => {
+    const { validateFrontmatter } = await import("../src/contract/note.js");
+    const at = "2026-10-07T12:00:00Z";
+    const notes = ["kn-first-note", "kn-second-note"].map((id) => ({
+      fm: validateFrontmatter({
+        ana_brain: 1, id, title: `T ${id}`, type: "concept", status: "CANDIDATE", created: at, updated: at, created_by: "ben",
+        topics: [], workshops: [], source_refs: [], relations: [], superseded_by: null, provenance: { method: "manual", actor: "ben", at },
+      }),
+      body: "Body.\n",
+    }));
+    const p = buildProjection(notes, new Map(), { summary: () => "", generatedAt: at });
+    expect(p.unindexed).toBe(2);
+    expect(p.nodes).toEqual([]);
+    expect(p.clusters).toEqual([]);
+    expect(buildProjection([], new Map(), { summary: () => "" }).unindexed).toBe(0);
   });
 });
 

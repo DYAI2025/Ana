@@ -46,7 +46,7 @@ export function BrainView({ initialNode }: { initialNode?: string }) {
           <StatusLine projection={state.projection} />
           {state.projection.nodes.length === 0 ? (
             <p className={`glass ${styles.empty}`} data-testid="brain-empty">
-              {t("brain.empty")}
+              {state.projection.unindexed > 0 ? t("brain.emptyUnindexed", { count: state.projection.unindexed }) : t("brain.empty")}
             </p>
           ) : (
             <BrainGraph projection={state.projection} initialNode={initialNode} />
@@ -74,6 +74,13 @@ function StatusLine({ projection }: { projection: BrainProjection }) {
         model: projection.embed_model,
         time: formatStamp(projection.generated_at, locale),
       })}
+      {/* notes without a semantic position are never parked somewhere on the canvas; they are only counted */}
+      {projection.unindexed > 0 && projection.nodes.length > 0 ? (
+        <span className={styles.unindexed} data-testid="brain-unindexed" data-count={projection.unindexed}>
+          {" · "}
+          {t("brain.unindexed", { count: projection.unindexed })}
+        </span>
+      ) : null}
     </p>
   );
 }

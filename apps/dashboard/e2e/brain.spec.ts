@@ -26,6 +26,18 @@ test("status line shows node/edge counts and the embed model from the projection
   await expect(status).toHaveAttribute("data-edges", "16");
   await expect(status).toContainText("20 notes · 16 relations · 4 clusters · model bge-m3:latest");
   await expect(page.locator('[data-testid^="brain-node-"]')).toHaveCount(20);
+  await expect(page.getByTestId("brain-unindexed")).toHaveCount(0);
+});
+
+test("notes the Brain has not indexed yet are counted, not drawn, and the view stays usable", async ({ page, brain }) => {
+  await brain.mode("unindexed");
+  await page.goto("/brain");
+  await expect(page.getByTestId("brain-status")).toHaveAttribute("data-nodes", "20");
+  await expect(page.getByTestId("brain-error")).toHaveCount(0);
+  const notice = page.getByTestId("brain-unindexed");
+  await expect(notice).toHaveAttribute("data-count", "2");
+  await expect(notice).toContainText("2 notes are not indexed yet");
+  await expect(page.locator('[data-testid^="brain-node-"]')).toHaveCount(20);
 });
 
 test("node positions come from the projection: a mirrored layout moves the canvas hotspots", async ({ page, brain }) => {
@@ -120,6 +132,15 @@ test("an empty projection shows the empty state, not example notes", async ({ pa
   await page.goto("/brain");
   await expect(page.getByTestId("brain-empty")).toBeVisible();
   await expect(page.getByTestId("brain-status")).toHaveAttribute("data-nodes", "0");
+  await expect(page.getByTestId("brain-canvas")).toHaveCount(0);
+});
+
+test("a Brain whose notes all wait for the index says so instead of claiming an empty vault", async ({ page, brain }) => {
+  await brain.mode("pending");
+  await page.goto("/brain");
+  const empty = page.getByTestId("brain-empty");
+  await expect(empty).toContainText("5 notes wait for the next index run");
+  await expect(page.getByTestId("brain-unindexed")).toHaveCount(0);
   await expect(page.getByTestId("brain-canvas")).toHaveCount(0);
 });
 

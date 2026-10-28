@@ -100,7 +100,7 @@ export function baseProjection() {
     { id: "c2", label: "Tools and sources", size: 5 },
     { id: "c3", label: "Open questions", size: 4 },
   ];
-  return { version: 1, generated_at: T, embed_model: "bge-m3:latest", index_version: 1, clusters, nodes, edges };
+  return { version: 1, generated_at: T, embed_model: "bge-m3:latest", index_version: 1, clusters, nodes, edges, unindexed: 0 };
 }
 
 /** Same notes, positions mirrored on x and z: a different semantic layout from the same graph. */

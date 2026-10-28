@@ -12,7 +12,7 @@ export interface ProjectionNode {
   title: string;
   type: Frontmatter["type"];
   status: Frontmatter["status"];
-  cluster: string | null;
+  cluster: string;
   position: { x: number; y: number; z: number };
   topics: string[];
   workshops: string[];
@@ -30,6 +30,8 @@ export interface Projection {
   clusters: { id: string; label: string; size: number }[];
   nodes: ProjectionNode[];
   edges: { from: string; to: string; type: string }[];
+  /** Notes without embeddings yet (written since the last index run): counted, never drawn. */
+  unindexed: number;
 }
 
 export function locatorDisplay(s: SourceBlock): string {
@@ -58,8 +60,9 @@ export async function noteEmbeddings(vault: Vault, store: VectorStore): Promise<
 
 export function buildProjection(notes: Note[], embeddings: Map<string, Vec>, opts: { summary: (n: Note) => string; generatedAt?: string; embedModel?: string }): Projection {
   const sorted = [...notes].sort((a, b) => a.fm.id.localeCompare(b.fm.id));
-  const ids = new Set(sorted.map((n) => n.fm.id));
+  // only embedded notes have a semantic position and a cluster; the rest wait for the next index run
   const embedded = sorted.filter((n) => embeddings.has(n.fm.id));
+  const ids = new Set(embedded.map((n) => n.fm.id));
   const rows = embedded.map((n) => {
     const v = embeddings.get(n.fm.id)!;
     const l = Math.sqrt(v.reduce((s, x) => s + x * x, 0)) || 1;
@@ -101,17 +104,16 @@ export function buildProjection(notes: Note[], embeddings: Map<string, Vec>, opt
   }
   const clusters = raw.map((c) => ({ id: `c${c.ci}`, label: labels.get(c.ci)!, size: c.size })).filter((c) => c.size > 0);
 
-  const posById = new Map(embedded.map((n, i) => [n.fm.id, { p: pos[i] ?? [0, 0, 0], c: `c${assign[i]}` }]));
-  const nodes: ProjectionNode[] = sorted.map((n) => {
+  const nodes: ProjectionNode[] = embedded.map((n, i) => {
     const fm = n.fm;
-    const e = posById.get(fm.id);
+    const p = pos[i]!;
     return {
       id: fm.id,
       title: fm.title,
       type: fm.type,
       status: fm.status,
-      cluster: e ? e.c : null,
-      position: { x: r4(e?.p[0] ?? 0), y: r4(e?.p[1] ?? 0), z: r4(e?.p[2] ?? 0) },
+      cluster: `c${assign[i]}`,
+      position: { x: r4(p[0]!), y: r4(p[1]!), z: r4(p[2]!) },
       topics: fm.topics,
       workshops: fm.workshops,
       summary: opts.summary(n),
@@ -123,7 +125,7 @@ export function buildProjection(notes: Note[], embeddings: Map<string, Vec>, opt
         : null,
     };
   });
-  const edges = sorted.flatMap((n) => n.fm.relations.filter((r) => ids.has(r.target)).map((r) => ({ from: n.fm.id, to: r.target, type: r.type })));
+  const edges = embedded.flatMap((n) => n.fm.relations.filter((r) => ids.has(r.target)).map((r) => ({ from: n.fm.id, to: r.target, type: r.type })));
   return {
     version: 1,
     generated_at: opts.generatedAt ?? new Date().toISOString().replace(/\.\d{3}Z$/, "Z"),
@@ -132,6 +134,7 @@ export function buildProjection(notes: Note[], embeddings: Map<string, Vec>, opt
     clusters,
     nodes,
     edges,
+    unindexed: sorted.length - embedded.length,
   };
 }
 
