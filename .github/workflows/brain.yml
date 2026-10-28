@@ -1,14 +1,21 @@
 name: brain
 
+# ANA-35: checks apps/brain, lints the Contabo kit in deploy/ana-brain, and builds the native bundle
+# ana-brain-app-<sha>.tar.gz that deploy/ana-brain/release.sh installs on the Contabo VPS vmi3693936. The bundle is
+# started under the host's Node and its auth gates are tested before it is kept as the artifact ana-brain-<sha>.
+# Release only artifacts of push runs on main: a pull_request run builds the merge ref, so <sha> is not the PR head.
+# No secrets, no deploy step. Keep the push and pull_request path lists identical.
 on:
   push:
     branches: [main]
     paths:
       - "apps/brain/**"
+      - "deploy/ana-brain/**"
       - ".github/workflows/brain.yml"
   pull_request:
     paths:
       - "apps/brain/**"
+      - "deploy/ana-brain/**"
       - ".github/workflows/brain.yml"
 
 permissions:
@@ -32,3 +39,120 @@ jobs:
       - run: npm run typecheck
       - run: npm test
       - run: npm run build
+
+  contabo-kit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Contabo units, nginx and scripts (lint)
+        shell: bash
+        run: |
+          set -euo pipefail
+          # deploy/ana-brain/README.md section 1. CI lints these files, not the host. Each check proves only what its
+          # message says; any other change to these files is reviewed by hand against the README.
+          d=deploy/ana-brain
+          b=$d/dyai-ana-brain.service i=$d/dyai-ana-brain-index.service q=$d/dyai-ana-qdrant.service o=$d/dyai-ana-ollama.service
+          fail() { echo "FAIL: $*"; exit 1; }
+          for f in "$b" "$i" "$q" "$o" "$d/qdrant.yaml" "$d/release.sh" "$d/brain.sh" "$d/nginx-mcp.ana.dyai.cloud.conf"; do
+            [ -f "$f" ] || fail "$f is missing (a renamed file must be renamed here too)"
+          done
+          # server and index: the same three pinned Environment= lines (they win over node --env-file), one ExecStart=,
+          # secrets only as credential files, no EnvironmentFile=/UnsetEnvironment=/PassEnvironment=
+          for u in "$b" "$i"; do
+            grep -qx 'Environment=NODE_ENV=production HOST=127.0.0.1 PORT=8790 BRAIN_PUBLIC_URL=https://mcp.ana.dyai.cloud' "$u" || fail "$u: bind settings changed"
+            grep -qx 'Environment=BRAIN_VAULT_DIR=/var/lib/ana-brain/vault BRAIN_STATE_DIR=/var/lib/ana-brain/state' "$u" || fail "$u: data paths changed"
+            grep -qx 'Environment=OLLAMA_URL=http://127.0.0.1:11434 QDRANT_URL=http://127.0.0.1:6333 ANA_DRIVE_SA_KEY_FILE=%d/drive_sa' "$u" || fail "$u: backend URLs changed"
+            [ "$(grep -cE '^[[:space:]]*Environment[[:space:]]*=' "$u")" = 3 ] || fail "$u: unexpected Environment= lines"
+            if grep -qE '^[[:space:]]*(EnvironmentFile|UnsetEnvironment|PassEnvironment)[[:space:]]*=' "$u"; then fail "$u: EnvironmentFile=, UnsetEnvironment= or PassEnvironment= could override the pinned settings"; fi
+            [ "$(grep -cE '^[[:space:]]*ExecStart[[:space:]]*=' "$u")" = 1 ] || fail "$u: more than one ExecStart= line"
+            grep -qE '^ExecStart=/usr/bin/node --env-file=%d/brain_env dist/cli\.js (serve|index)$' "$u" || fail "$u: ExecStart changed"
+            grep -qx 'LoadCredential=brain_env:/etc/dyai/credentials/ana-brain/brain_env' "$u" || fail "$u: brain_env credential changed"
+            if grep -qE '^[[:space:]]*MemoryDenyWriteExecute[[:space:]]*=' "$u"; then fail "$u: MemoryDenyWriteExecute aborts V8"; fi
+          done
+          # brain.sh runs the CLI with the server's environment (ANA_DRIVE_SA_KEY_FILE is set inside the transient unit)
+          diff <(sed -n 's/^Environment=//p' "$b" | sed 's/ ANA_DRIVE_SA_KEY_FILE=%d\/drive_sa$//') \
+               <(sed -n 's/.*-p "Environment=\([^"]*\)".*/\1/p' "$d/brain.sh") || fail "brain.sh environment differs from $b"
+          # Qdrant and Ollama: loopback only; Qdrant without gRPC and telemetry, its key only from the credential file
+          grep -qx '  host: 127.0.0.1' "$d/qdrant.yaml" || fail "qdrant.yaml: host is not 127.0.0.1"
+          grep -qx '  grpc_port: null' "$d/qdrant.yaml" || fail "qdrant.yaml: gRPC not disabled"
+          grep -qx 'telemetry_disabled: true' "$d/qdrant.yaml" || fail "qdrant.yaml: telemetry not disabled"
+          grep -qE '^Environment=.*QDRANT__SERVICE__HOST=127\.0\.0\.1( |$)' "$q" || fail "qdrant unit: bind not pinned to 127.0.0.1"
+          grep -qE '^LoadCredential=qdrant_api_key:' "$q" || fail "qdrant unit: no qdrant_api_key credential"
+          grep -qF 'QDRANT__SERVICE__API_KEY="$$(cat %d/qdrant_api_key)"' "$q" || fail "qdrant unit: API key not read from its credential"
+          grep -qE '^Environment=OLLAMA_HOST=127\.0\.0\.1:11434( |$)' "$o" || fail "ollama unit: bind not pinned to 127.0.0.1:11434"
+          if grep -qiE '^[[:space:]]*Environment[[:space:]]*=.*(TOKEN|SECRET|PASSWORD|API_KEY=)' "$d"/*.service; then fail "secret-like Environment= line"; fi
+          # nginx: every upstream is the Brain on loopback, /projection is denied
+          bad="$(grep -hE 'proxy_pass' "$d"/*.conf | grep -v 'proxy_pass http://127.0.0.1:8790; }' || true)"
+          [ -z "$bad" ] || fail "nginx: upstream other than 127.0.0.1:8790: $bad"
+          grep -qF 'location = /projection { deny all; }' "$d/nginx-mcp.ana.dyai.cloud.conf" || fail "nginx: /projection not denied"
+          # release.sh refuses public Qdrant/Ollama/Brain listeners and the legacy Drive credential
+          for p in 6333 11434; do grep -qF "loopback_only $p" "$d/release.sh" || fail "release.sh no longer checks port $p"; done
+          grep -qF 'drive-oauth.json' "$d/release.sh" || fail "release.sh no longer refuses the legacy Drive credential"
+          bash -n "$d/release.sh"; bash -n "$d/brain.sh"
+          shellcheck -S warning "$d/release.sh" "$d/brain.sh"
+
+  bundle:
+    runs-on: ubuntu-latest
+    needs: check
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: apps/brain/package-lock.json
+      - name: Native bundle for the Contabo host
+        shell: bash
+        working-directory: apps/brain
+        run: |
+          set -euo pipefail
+          npm ci
+          npm run build
+          npm prune --omit=dev
+          mkdir ../../bundle
+          cp -R dist node_modules package.json package-lock.json ../../bundle/
+          cd ../..
+          tar -C bundle --owner=0 --group=0 --numeric-owner -czf "ana-brain-app-${GITHUB_SHA}.tar.gz" .
+          sha256sum "ana-brain-app-${GITHUB_SHA}.tar.gz" | tee "ana-brain-app-${GITHUB_SHA}.tar.gz.sha256"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24.22.0" # node on the Contabo VPS vmi3693936 (observed 2026-10-27, Jira ANA-42 comment 18133)
+      - name: Auth gates of the native bundle under Node 24
+        shell: bash
+        run: |
+          set -euo pipefail
+          expect() { [ "$1" = "$2" ] || { echo "FAIL: $3 -> $1, expected $2"; exit 1; }; echo "ok: $3 -> $1"; }
+          code() { curl -s -o /dev/null -w '%{http_code}' "$@"; }
+          mkdir -p run data/vault data/state && tar -xzf "ana-brain-app-${GITHUB_SHA}.tar.gz" -C run
+          git init -q data/vault
+          # as dyai-ana-brain.service starts it: pinned environment + credential file read with --env-file. The file
+          # also tries to move the bind address, the port and the data; the pinned environment must win.
+          printf 'QDRANT_API_KEY=%s\nHOST=0.0.0.0\nPORT=9790\nBRAIN_VAULT_DIR=/tmp/elsewhere\n' "$(openssl rand -hex 32)" > brain_env
+          NODE="$(readlink -f "$(command -v node)")"
+          [ "$("$NODE" --version)" = v24.22.0 ] || { echo "FAIL: $NODE is $("$NODE" --version), expected v24.22.0"; exit 1; }
+          (cd run && env NODE_ENV=production HOST=127.0.0.1 PORT=8790 BRAIN_PUBLIC_URL=https://mcp.ana.dyai.cloud \
+            BRAIN_VAULT_DIR="$PWD/../data/vault" BRAIN_STATE_DIR="$PWD/../data/state" \
+            OLLAMA_URL=http://127.0.0.1:11434 QDRANT_URL=http://127.0.0.1:6333 ANA_DRIVE_SA_KEY_FILE=/nonexistent \
+            "$NODE" --env-file=../brain_env dist/cli.js serve > ../native.log 2>&1 &)
+          for _ in $(seq 30); do [ "$(code http://127.0.0.1:8790/healthz)" = 200 ] && break; sleep 1; done
+          [ "$(code http://127.0.0.1:8790/healthz)" = 200 ] || { cat native.log; exit 1; }
+          pid="$(ss -ltnpH 'sport = :8790' | sed -n 's/.*pid=\([0-9]*\),.*/\1/p' | head -1)"
+          [ -n "$pid" ] || { echo "FAIL: no process owns 127.0.0.1:8790"; exit 1; }
+          expect "$(readlink -f "/proc/$pid/exe")" "$NODE" "executable of the server process (pid $pid, $("$NODE" --version))"
+          expect "$(code -X POST -H 'content-type: application/json' -d '{}' http://127.0.0.1:8790/mcp)" 401 "native bundle, /mcp without a key"
+          expect "$(code http://127.0.0.1:8790/projection)" 401 "native bundle, /projection without a token"
+          expect "$(code -H 'authorization: Bearer x' http://127.0.0.1:8790/projection)" 401 "native bundle, /projection with a wrong token"
+          expect "$(code http://127.0.0.1:8790/.well-known/oauth-authorization-server)" 200 "native bundle, OAuth metadata"
+          expect "$(ss -ltnH 'sport = :8790' | awk '{print $4}')" 127.0.0.1:8790 "listening address"
+          expect "$(ss -ltnH 'sport = :9790' | wc -l)" 0 "listeners on the port the credential file asked for"
+          [ ! -e /tmp/elsewhere ] || { echo "FAIL: the credential file moved the vault"; exit 1; }
+          kill "$pid"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ana-brain-${{ github.sha }}
+          path: |
+            ana-brain-app-${{ github.sha }}.tar.gz
+            ana-brain-app-${{ github.sha }}.tar.gz.sha256
+          if-no-files-found: error # the v4 default only warns
+          retention-days: 30

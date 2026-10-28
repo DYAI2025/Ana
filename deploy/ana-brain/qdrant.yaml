@@ -1,0 +1,14 @@
+# /etc/dyai/ana-qdrant/config.yaml — dedicated ANA Qdrant (dyai-ana-qdrant.service). Root-owned, 0644, no secrets:
+# the API key comes from the unit's credential as QDRANT__SERVICE__API_KEY.
+log_level: INFO
+storage:
+  storage_path: /var/lib/ana-qdrant/storage
+  snapshots_path: /var/lib/ana-qdrant/snapshots
+service:
+  host: 127.0.0.1
+  http_port: 6333
+  # null disables gRPC; the Brain uses REST only
+  grpc_port: null
+  enable_cors: false
+  enable_snapshot_url_recovery: false
+telemetry_disabled: true

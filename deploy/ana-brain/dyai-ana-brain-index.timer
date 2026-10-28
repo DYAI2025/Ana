@@ -1,0 +1,11 @@
+# /etc/systemd/system/dyai-ana-brain-index.timer — enabled by release.sh after a verified release.
+[Unit]
+Description=Run the ANA Brain incremental index 5 minutes after the previous run
+
+[Timer]
+OnBootSec=2min
+OnUnitInactiveSec=5min
+Persistent=true
+
+[Install]
+WantedBy=timers.target

@@ -1,0 +1,13 @@
+# /etc/systemd/system/dyai-ana-brain-backup.service — nightly local backup of the ANA Brain vault and service state.
+# vault = canonical Markdown with its own git history; state = key/token hashes and index state. Qdrant is not
+# backed up: it is a rebuildable projection (`brain.sh index --full`). Off-host copies are an operator decision
+# (README.md section 3); this unit only keeps 30 days on the host. %% and $$ are literal % and $ for the shell.
+[Unit]
+Description=Nightly backup of the ANA Brain vault and service state
+
+[Service]
+Type=oneshot
+ExecStartPre=/usr/bin/install -d -o root -g root -m 0700 /var/backups/ana-brain
+ExecStart=/bin/sh -c 'tar -C /var/lib/ana-brain -czf /var/backups/ana-brain/ana-brain-$$(date +%%F).tar.gz vault state && find /var/backups/ana-brain -name "ana-brain-*.tar.gz" -mtime +30 -delete'
+UMask=0077
+Nice=10

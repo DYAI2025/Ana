@@ -1,5 +1,10 @@
 # ANA Brain — operations
 
+> **Legacy host `srv1308064`.** This directory describes the Brain as it still runs on the legacy host. Its
+> replacement on the Contabo VPS `vmi3693936` is [`deploy/ana-brain/`](../../../deploy/ana-brain/README.md) (PO decision
+> ANA35-HOST-002, 2026-10-28). Nothing here is installed on Contabo; this directory goes when the legacy Brain is
+> retired (gate M5).
+
 Contract: [`docs/brain/CONTRACT.md`](../../../docs/brain/CONTRACT.md). The Markdown vault is canonical; Qdrant points,
 coordinates and clusters are rebuildable projections. No Brain content, keys or tokens belong in this repository.
 

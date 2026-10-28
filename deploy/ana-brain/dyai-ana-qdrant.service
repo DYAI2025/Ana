@@ -1,0 +1,41 @@
+# /etc/systemd/system/dyai-ana-qdrant.service — the dedicated ANA Qdrant (collection ana_brain_v1) on loopback.
+#
+# Qdrant binds 0.0.0.0 by default: the bind address is pinned here with QDRANT__SERVICE__HOST (environment overrides
+# every config file) and in qdrant.yaml, which also disables gRPC and telemetry. The API key arrives as a credential
+# file and is put into the process environment only, never into argv or a unit file.
+[Unit]
+Description=ANA Qdrant (dedicated, loopback only)
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=exec
+DynamicUser=yes
+StateDirectory=ana-qdrant
+StateDirectoryMode=0700
+WorkingDirectory=/var/lib/ana-qdrant
+LoadCredential=qdrant_api_key:/etc/dyai/credentials/ana-brain/qdrant_api_key
+Environment=QDRANT__SERVICE__HOST=127.0.0.1 QDRANT__SERVICE__HTTP_PORT=6333 QDRANT__TELEMETRY_DISABLED=true
+# %d = this unit's credentials directory; $$ is a literal $ for the shell (systemd would expand $VAR itself)
+ExecStart=/bin/sh -c 'QDRANT__SERVICE__API_KEY="$$(cat %d/qdrant_api_key)" exec /opt/ana-qdrant/current/qdrant --config-path /etc/dyai/ana-qdrant/config.yaml'
+Restart=always
+RestartSec=5
+LimitNOFILE=65536
+MemoryMax=2G
+UMask=0077
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+CapabilityBoundingSet=
+SystemCallArchitectures=native
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+
+[Install]
+WantedBy=multi-user.target

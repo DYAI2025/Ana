@@ -40,7 +40,9 @@
       "apps/dashboard/src/i18n/it.ts",
       "apps/dashboard/src/test/**",
       ".github/workflows/dashboard.yml",
-      "apps/dashboard/scripts/scan-client-bundle.mjs"
+      "apps/dashboard/scripts/scan-client-bundle.mjs",
+      "deploy/ana-brain/**",
+      "deploy/ana-dashboard/dashboard.env.example"
     ]
   },
   "r4m": {

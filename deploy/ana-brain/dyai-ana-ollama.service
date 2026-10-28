@@ -1,0 +1,35 @@
+# /etc/systemd/system/dyai-ana-ollama.service — the dedicated ANA Ollama (bge-m3 embeddings, CPU) on loopback.
+# The pinned release is unpacked under /opt/ana-ollama/<version> (bin/ollama + lib/ollama); models live in the
+# unit's state directory. Pull or check models through the loopback API only (README.md section 4).
+[Unit]
+Description=ANA Ollama (dedicated, loopback only)
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=exec
+DynamicUser=yes
+StateDirectory=ana-ollama
+StateDirectoryMode=0700
+Environment=OLLAMA_HOST=127.0.0.1:11434 OLLAMA_MODELS=/var/lib/ana-ollama/models HOME=/var/lib/ana-ollama
+Environment=OLLAMA_NOHISTORY=1
+ExecStart=/opt/ana-ollama/current/bin/ollama serve
+Restart=always
+RestartSec=5
+MemoryMax=6G
+UMask=0077
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+CapabilityBoundingSet=
+SystemCallArchitectures=native
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+
+[Install]
+WantedBy=multi-user.target

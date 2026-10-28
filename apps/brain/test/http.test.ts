@@ -218,8 +218,9 @@ describe("http + mcp", () => {
 
   it("every path the shipped nginx configs proxy is served by the app", async () => {
     const dirs = [path.join(import.meta.dirname, "..", "deploy"), path.join(import.meta.dirname, "..", "..", "..", "deploy", "ana-brain")];
-    const confs = dirs.flatMap((d) => { try { return readdirSync(d).filter((f) => f.endsWith(".conf")).map((f) => path.join(d, f)); } catch { return []; } });
-    expect(confs.length).toBeGreaterThan(0);
+    // both kits must be found: the legacy one (apps/brain/deploy) and the Contabo one (deploy/ana-brain)
+    const confs = dirs.flatMap((d) => readdirSync(d).filter((f) => f.endsWith(".conf")).map((f) => path.join(d, f)));
+    for (const d of dirs) expect(confs.some((f) => path.dirname(f) === d), d).toBe(true);
     const paths = new Set(confs.flatMap((f) => [...readFileSync(f, "utf8").matchAll(/location = (\/[a-z/._-]+)\s*\{\s*proxy_pass/g)].map((m) => m[1]!)));
     expect(paths).toContain("/mcp");
     for (const p of paths) expect((await fetch(`${base}${p}`)).status, p).not.toBe(404);

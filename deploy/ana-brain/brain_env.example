@@ -1,0 +1,16 @@
+# /etc/dyai/credentials/ana-brain/brain_env — root:root 0600, read by node --env-file through the units' credential
+# (LoadCredential=brain_env). Values here never override the units' pinned Environment= (bind address, port, data
+# paths, Ollama/Qdrant URLs, public URL): node --env-file does not replace a variable that is already set.
+# Never commit real values. Nothing in this file is copied from the legacy host srv1308064.
+
+# The same value as /etc/dyai/credentials/ana-brain/qdrant_api_key (release.sh compares them), freshly generated:
+#   openssl rand -hex 32
+QDRANT_API_KEY=
+
+# Optional. Without it the dashboard token is the one issued with `brain.sh issue-dashboard-token` (hash in state).
+BRAIN_DASHBOARD_TOKEN_SHA256=
+
+# Google Drive (ANA Evidence Root), read-only, as the Brain service account. Drive is off while ANA_DRIVE_ROOT_ID is
+# empty; once it is set, /etc/dyai/credentials/ana-brain/drive_sa must hold the service-account key (release.sh checks).
+ANA_DRIVE_ROOT_ID=
+ANA_DRIVE_TRANSCRIPTS_ID=
