@@ -64,6 +64,8 @@ export const zFrontmatter = z
   .superRefine((fm, ctx) => {
     if ((fm.status === "SOURCE") !== (fm.type === "source"))
       ctx.addIssue({ code: "custom", path: ["status"], message: "status SOURCE is required for and only allowed on type source" });
+    if (fm.status === "DERIVED" && fm.source_refs.length === 0)
+      ctx.addIssue({ code: "custom", path: ["source_refs"], message: "DERIVED requires at least one source_ref (use CANDIDATE for an unsupported claim)" });
     if (fm.status === "SUPERSEDED" && !fm.superseded_by)
       ctx.addIssue({ code: "custom", path: ["superseded_by"], message: "SUPERSEDED requires superseded_by" });
     if (fm.type === "source" && !fm.source) ctx.addIssue({ code: "custom", path: ["source"], message: "type source requires a source block" });

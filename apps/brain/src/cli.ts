@@ -84,18 +84,9 @@ async function main(argv: string[]): Promise<number> {
   }
   if (cmd === "validate") {
     for (const e of vault.loadErrors) console.error(`${e.file}: ${e.error}`);
-    const ids = new Set(vault.all().map((n) => n.fm.id));
-    let dangling = 0;
-    const report = (msg: string) => {
-      dangling++;
-      console.error(msg);
-    };
-    for (const n of vault.all()) {
-      for (const r of n.fm.relations) if (!ids.has(r.target)) report(`${n.fm.id}: relation target missing: ${r.target}`);
-      for (const s of n.fm.source_refs) if (!ids.has(s.source)) report(`${n.fm.id}: source missing: ${s.source}`);
-      if (n.fm.superseded_by && !ids.has(n.fm.superseded_by)) report(`${n.fm.id}: superseded_by missing`);
-    }
-    const errors = vault.loadErrors.length + dangling;
+    const dangling = vault.referenceErrors();
+    for (const e of dangling) console.error(e);
+    const errors = vault.loadErrors.length + dangling.length;
     console.log(`${vault.all().length} valid notes, ${errors} error(s)`);
     return errors ? 1 : 0;
   }

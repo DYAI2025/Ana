@@ -6,11 +6,17 @@ const parse = (fm: Record<string, unknown>, body = "Body\n") => parseNote(noteTe
 
 describe("frontmatter v1", () => {
   it("accepts a valid derived note and round-trips the body", () => {
-    const n = parse(baseFm("kn-valid-note", "method"), "Para one.\n\n## Observations\n- x\n");
+    const n = parse(baseFm("kn-valid-note", "method", { source_refs: [{ source: "src-valid", locator: "UNKNOWN" }] }), "Para one.\n\n## Observations\n- x\n");
     expect(n.fm.status).toBe("DERIVED");
     const again = parseNote(serializeNote(n));
     expect(again.body).toBe(n.body);
     expect(again.fm).toEqual(n.fm);
+  });
+
+  it("DERIVED requires at least one source ref; CANDIDATE and CONFIRMED do not (AC2)", () => {
+    expect(() => parse(baseFm("kn-no-refs", "concept", { status: "DERIVED" }))).toThrow(/DERIVED requires at least one source_ref/);
+    expect(parse(baseFm("kn-no-refs", "concept")).fm.status).toBe("CANDIDATE");
+    expect(parse(baseFm("kn-no-refs", "preference", { status: "CONFIRMED" })).fm.status).toBe("CONFIRMED");
   });
 
   it("accepts a valid source record", () => {

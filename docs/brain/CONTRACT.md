@@ -71,6 +71,10 @@ Body in Markdown.
 
 Missing metadata is written as `UNKNOWN`, never invented.
 
+References are checked on every write and by `validate`: `topics` name `topic` notes, `workshops` name `workshop`
+notes, `source_refs` name `source` records, relation targets and `superseded_by` exist, and a correction names an
+observation block that exists in the same note.
+
 ### 2.1 Types
 
 `source`, `concept`, `method`, `tool`, `preference`, `observation`, `workshop`, `topic`, `question`.
@@ -81,7 +85,7 @@ Missing metadata is written as `UNKNOWN`, never invented.
 |---|---|
 | `SOURCE` | A source record. Only `type: source` may carry it. |
 | `CONFIRMED` | A human (Ana for her own preferences) explicitly confirmed it. Never set by an agent alone. |
-| `DERIVED` | Derived from cited sources; not confirmed. |
+| `DERIVED` | Derived from cited sources; not confirmed. Requires at least one `source_ref` (enforced by the schema); a DERIVED observation needs a note that cites a source. |
 | `CANDIDATE` | Plausible, needs more evidence. |
 | `SUPERSEDED` | Replaced; `superseded_by` must be set. The note is kept. |
 
@@ -143,7 +147,7 @@ Unauthenticated requests get 401.
 | `brain_create_note` | write | schema-validated derived note; refuses existing ids; never `CONFIRMED` unless the caller is human and says so |
 | `brain_register_source` | write | source record with locator; no raw content |
 | `brain_add_relation` | write | typed relation, both ids must exist |
-| `brain_append_observation` | write | append-only observation or correction |
+| `brain_append_observation` | write | append-only observation or correction; `corrects` must name an existing block |
 | `brain_read_source` | read | bounded text slice (`offset`, `max_chars` ≤ 60000, default 20000) of a `drive_*` source whose locator lies under the ANA Evidence Root; Google Docs (exported as text) and text/transcript files only; recordings/binaries refused; text is returned to the caller only, never stored or logged |
 
 **Google Drive (ANA Evidence Root).** Raw evidence stays canonical in Google Drive; the vault holds only source

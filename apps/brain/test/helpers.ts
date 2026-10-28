@@ -106,9 +106,11 @@ export function noteText(fm: Record<string, unknown>, body: string): string {
   return `---\n${lines.join("\n")}\n---\n${body}`;
 }
 
+/** Status defaults to SOURCE for sources, DERIVED when the note cites a source, CANDIDATE otherwise (CONTRACT §2.2). */
 export function baseFm(id: string, type: string, extra: Record<string, unknown> = {}): Record<string, unknown> {
+  const cites = Array.isArray(extra.source_refs) && extra.source_refs.length > 0;
   return {
-    ana_brain: 1, id, title: `Title ${id}`, type, status: type === "source" ? "SOURCE" : "DERIVED",
+    ana_brain: 1, id, title: `Title ${id}`, type, status: type === "source" ? "SOURCE" : cites ? "DERIVED" : "CANDIDATE",
     created: ISO, updated: ISO, created_by: "agent:test", topics: [], workshops: [], source_refs: [], relations: [],
     superseded_by: null, provenance: { method: "seed", actor: "agent:test", at: ISO },
     ...(type === "source" ? { source: { kind: "url", locator: "https://example.org/x", original_title: "Example", access: "public", data_class: "G0" } } : {}),

@@ -74,7 +74,7 @@ describe("http + mcp", () => {
   it("records distinct caller identities from auth, never from input", async () => {
     const ben = await connect(keys.ben);
     const vince = await connect(keys.vince);
-    const r1 = await ben.callTool({ name: "brain_create_note", arguments: { id: "kn-by-ben", title: "Ben", type: "concept", status: "DERIVED", body: "Synthetic.", created_by: "ana" } });
+    const r1 = await ben.callTool({ name: "brain_create_note", arguments: { id: "kn-by-ben", title: "Ben", type: "concept", status: "DERIVED", body: "Synthetic.", source_refs: [{ source: "src-synthetic-report", locator: "UNKNOWN" }], created_by: "ana" } });
     expect(r1.isError).toBeFalsy();
     const r2 = await vince.callTool({ name: "brain_append_observation", arguments: { id: "kn-by-ben", text: "Synthetic observation." } });
     expect(r2.isError).toBeFalsy();

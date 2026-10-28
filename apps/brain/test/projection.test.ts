@@ -123,7 +123,7 @@ describe("cluster labels", () => {
     const { validateFrontmatter } = await import("../src/contract/note.js");
     const at = "2026-10-07T12:00:00Z";
     const fm = (id: string, type: string, topics: string[]) => ({
-      ana_brain: 1, id, title: `T ${id}`, type, status: "DERIVED", created: at, updated: at, created_by: "ben",
+      ana_brain: 1, id, title: `T ${id}`, type, status: "CANDIDATE", created: at, updated: at, created_by: "ben",
       topics, workshops: [], source_refs: [], relations: [], superseded_by: null, provenance: { method: "manual", actor: "ben", at },
     });
     const notes = [

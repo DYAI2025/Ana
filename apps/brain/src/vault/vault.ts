@@ -130,6 +130,26 @@ export class Vault {
     return firstParagraph(this.require(id).body);
   }
 
+  /** Every reference that does not resolve to a note of the right type, and every correction of a missing block. */
+  referenceErrors(): string[] {
+    const out: string[] = [];
+    const check = (from: string, id: string, type: NoteType, label: string) => {
+      const target = this.notes.get(id)?.note;
+      if (!target) out.push(`${from}: ${label} missing: ${id}`);
+      else if (target.fm.type !== type) out.push(`${from}: ${id} is not a ${type}`);
+    };
+    for (const { fm, body } of this.all()) {
+      for (const t of fm.topics) check(fm.id, t, "topic", "topic");
+      for (const w of fm.workshops) check(fm.id, w, "workshop", "workshop");
+      for (const s of fm.source_refs) check(fm.id, s.source, "source", "source");
+      for (const r of fm.relations) if (!this.notes.has(r.target)) out.push(`${fm.id}: relation target missing: ${r.target}`);
+      if (fm.superseded_by && !this.notes.has(fm.superseded_by)) out.push(`${fm.id}: superseded_by missing: ${fm.superseded_by}`);
+      for (const m of body.matchAll(/ corrects \^(obs-[a-z0-9-]{1,80}) /g))
+        if (!hasBlock(body, m[1]!)) out.push(`${fm.id}: correction names a missing block: ^${m[1]}`);
+    }
+    return out;
+  }
+
   // ---------- writes (create / append only; there is no delete and no body overwrite) ----------
 
   createNote(actor: string, input: CreateNoteInput): Promise<Frontmatter> {
@@ -144,6 +164,7 @@ export class Vault {
       const file = this.pathFor(input.id, input.type);
       if (this.notes.has(input.id) || existsSync(file)) throw new VaultError(`note already exists: ${input.id}`, "exists");
       for (const ref of input.source_refs ?? []) this.requireType(ref.source, "source");
+      this.requireTargets(input);
       const at = now();
       const fm = validateFrontmatter({
         ana_brain: 1, id: input.id, title: input.title, type: input.type, status: input.status,
@@ -164,6 +185,7 @@ export class Vault {
         throw new VaultError(`source description exceeds ${MAX_SOURCE_DESCRIPTION} chars; store raw evidence in the Evidence Root, not the vault`);
       const file = this.pathFor(input.id, "source");
       if (this.notes.has(input.id) || existsSync(file)) throw new VaultError(`note already exists: ${input.id}`, "exists");
+      this.requireTargets(input);
       const at = now();
       const fm = validateFrontmatter({
         ana_brain: 1, id: input.id, title: input.title, type: "source", status: "SOURCE",
@@ -213,6 +235,10 @@ export class Vault {
       if (status === "CONFIRMED" && !(isHuman(actor) && input.confirm === true))
         throw new VaultError("CONFIRMED requires a human caller (ana|ben|vince) and an explicit confirm flag", "forbidden");
       if (input.corrects !== undefined && !/^\^?obs-[a-z0-9-]{1,80}$/.test(input.corrects)) throw new VaultError("invalid corrects block id");
+      if (input.corrects !== undefined && !hasBlock(note.body, input.corrects.replace(/^\^/, "")))
+        throw new VaultError(`no observation block ^${input.corrects.replace(/^\^/, "")} in ${id}`, "not_found");
+      if (status === "DERIVED" && note.fm.source_refs.length === 0)
+        throw new VaultError(`${id} cites no source; a DERIVED observation needs a note with at least one source_ref (use CANDIDATE)`);
       const at = now();
       const slug = actor.replace(/[^a-z0-9]+/g, "-");
       let blockId = `obs-${at.replace(/\D/g, "").slice(0, 14)}-${slug}`;
@@ -230,6 +256,11 @@ export class Vault {
   private requireType(id: string, type: NoteType): void {
     const n = this.require(id);
     if (n.fm.type !== type) throw new VaultError(`${id} is not a ${type} note`);
+  }
+
+  private requireTargets(input: { topics?: string[]; workshops?: string[] }): void {
+    for (const t of input.topics ?? []) this.requireType(t, "topic");
+    for (const w of input.workshops ?? []) this.requireType(w, "workshop");
   }
 
   private method(actor: string): "mcp" | "manual" | "seed" | "agent-derived" {
@@ -291,6 +322,11 @@ function isSymlink(p: string): boolean {
   } catch {
     return false;
   }
+}
+
+/** A block anchor `^obs-…` that ends its line (the `corrects ^…` mention inside a line is not the block). */
+function hasBlock(body: string, blockId: string): boolean {
+  return new RegExp(`\\^${blockId.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, "m").test(body);
 }
 
 function ensureNl(s: string): string {

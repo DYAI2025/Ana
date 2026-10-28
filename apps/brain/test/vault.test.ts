@@ -40,11 +40,11 @@ describe("vault", () => {
   it("creates a note with caller identity and refuses an existing id", async () => {
     const root = tmpDir();
     const v = new Vault(root);
-    const fm = await v.createNote("agent:hermes", { id: "kn-new-note", title: "New", type: "concept", status: "DERIVED", body: "Hello" });
+    const fm = await v.createNote("agent:hermes", { id: "kn-new-note", title: "New", type: "concept", status: "CANDIDATE", body: "Hello" });
     expect(fm.created_by).toBe("agent:hermes");
     expect(fm.provenance.method).toBe("agent-derived");
     expect(existsSync(path.join(root, "knowledge", "kn-new-note.md"))).toBe(true);
-    await expect(v.createNote("ben", { id: "kn-new-note", title: "X", type: "concept", status: "DERIVED", body: "overwrite" })).rejects.toThrow(/exists/);
+    await expect(v.createNote("ben", { id: "kn-new-note", title: "X", type: "concept", status: "CANDIDATE", body: "overwrite" })).rejects.toThrow(/exists/);
     expect(readFileSync(path.join(root, "knowledge", "kn-new-note.md"), "utf8")).toContain("Hello");
     expect(audit(root).map((a) => a.result)).toEqual(["ok", "rejected:exists"]);
     expect(readFileSync(path.join(root, ".ana", "audit.jsonl"), "utf8")).not.toContain("Hello");
@@ -104,6 +104,53 @@ describe("vault", () => {
     const v = new Vault(root);
     await v.createNote("ben", { id: "kn-git-note", title: "G", type: "tool", status: "CANDIDATE", body: "b" });
     expect(execFileSync("git", ["-C", root, "log", "--format=%s"]).toString().trim()).toBe("create_note kn-git-note by ben");
+  });
+
+  it("write paths refuse missing or mistyped topic, workshop and source targets, and DERIVED without a source (AC2, B-10)", async () => {
+    const root = syntheticVault();
+    const v = new Vault(root);
+    const note = (extra: Record<string, unknown>) => ({ id: "kn-target-check", title: "t", type: "concept" as const, status: "CANDIDATE" as const, body: "b", ...extra });
+    await expect(v.createNote("ben", note({ topics: ["top-missing"] }))).rejects.toThrow(/not found: top-missing/);
+    await expect(v.createNote("ben", note({ topics: ["ws-01-intro"] }))).rejects.toThrow(/ws-01-intro is not a topic/);
+    await expect(v.createNote("ben", note({ workshops: ["top-alpha"] }))).rejects.toThrow(/top-alpha is not a workshop/);
+    await expect(v.createNote("ben", note({ source_refs: [{ source: "kn-hook-variant", locator: "UNKNOWN" }] }))).rejects.toThrow(/is not a source/);
+    await expect(v.createNote("ben", note({ status: "DERIVED" }))).rejects.toThrow(/DERIVED requires at least one source_ref/);
+    const src = { kind: "url" as const, locator: "https://example.org/y", original_title: "Y", access: "public" as const, data_class: "G0" as const };
+    await expect(v.registerSource("ben", { id: "src-target-check", title: "Y", source: src, description: "d", workshops: ["ws-missing"] })).rejects.toThrow(/not found: ws-missing/);
+    expect(existsSync(path.join(root, "knowledge", "kn-target-check.md"))).toBe(false);
+    expect(existsSync(path.join(root, "sources", "src-target-check.md"))).toBe(false);
+    const ok = await v.createNote("ben", note({ status: "DERIVED", topics: ["top-alpha"], workshops: ["ws-01-intro"], source_refs: [{ source: "src-synthetic-report", locator: "p. 3" }] }));
+    expect(ok.status).toBe("DERIVED");
+  });
+
+  it("a correction names an existing observation block; a DERIVED observation needs a cited source (AC2, B-10)", async () => {
+    const v = new Vault(syntheticVault());
+    const { block_id } = await v.appendObservation("ana", "kn-hook-first", { text: "Works" });
+    await expect(v.appendObservation("ana", "kn-hook-first", { text: "No", corrects: "obs-20990101000000-nobody" })).rejects.toThrow(/no observation block \^obs-20990101000000-nobody/);
+    // a prefix of a real block id is not that block
+    await expect(v.appendObservation("ana", "kn-hook-first", { text: "No", corrects: block_id.slice(1, -1) })).rejects.toThrow(/no observation block/);
+    expect((await v.appendObservation("ana", "kn-hook-first", { text: "Not always", corrects: block_id })).block_id).toMatch(/^\^obs-/);
+    expect((await v.appendObservation("ben", "kn-hook-first", { text: "Cited", status: "DERIVED" })).block_id).toMatch(/^\^obs-/);
+    await expect(v.appendObservation("ben", "kn-hook-variant", { text: "Uncited", status: "DERIVED" })).rejects.toThrow(/cites no source/);
+  });
+
+  it("referenceErrors lists every dangling or mistyped reference in the vault", () => {
+    const root = syntheticVault();
+    expect(new Vault(root).referenceErrors()).toEqual([]);
+    seed(root, "kn-dangling-refs", "concept", "Text.\n\n## Corrections\n- 2026-10-07T12:00:00Z · ben · CANDIDATE · corrects ^obs-20260101000000-gone · x ^obs-20261007120000-ben\n", {
+      topics: ["top-gone", "ws-01-intro"], workshops: ["top-alpha"],
+      source_refs: [{ source: "kn-hook-variant", locator: "UNKNOWN" }, { source: "src-gone-report", locator: "UNKNOWN" }],
+      relations: [{ type: "supports", target: "kn-gone-note", by: "ben", at: "2026-10-07T12:00:00Z" }],
+    });
+    expect(new Vault(root).referenceErrors()).toEqual([
+      "kn-dangling-refs: topic missing: top-gone",
+      "kn-dangling-refs: ws-01-intro is not a topic",
+      "kn-dangling-refs: top-alpha is not a workshop",
+      "kn-dangling-refs: kn-hook-variant is not a source",
+      "kn-dangling-refs: source missing: src-gone-report",
+      "kn-dangling-refs: relation target missing: kn-gone-note",
+      "kn-dangling-refs: correction names a missing block: ^obs-20260101000000-gone",
+    ]);
   });
 
   it("reports invalid notes on load", () => {
