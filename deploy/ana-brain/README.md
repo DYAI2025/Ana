@@ -30,8 +30,9 @@ legacy service is stopped before the DNS switch and is never started again next 
    and the Drive service-account key. **Never copied from the legacy host:** `state/keys.json`, `state/oauth.json`,
    `state/dashboard-token.json`, `/etc/ana-brain/drive-oauth.json`, or any value of `/etc/ana-brain/env`.
 5. **Vault.** The canonical Markdown and its git history come only from the M1 archive (or a later archive made the
-   same way, step M4.3) and are verified (manifest, `git fsck`, HEAD, audit log, `validate`) **before** the Brain
-   starts on them. Qdrant is rebuilt from the vault, never copied. Every vault write is committed as "ANA Brain"; a
+   same way, step M4.3) and are verified (manifest, `git fsck`, HEAD, audit log) **before** the Brain starts on them,
+   and with `validate` before anyone can write (M3: right after the first release, while no key exists; M4.3 and a
+   nightly restore: before the Brain starts). Qdrant is rebuilt from the vault, never copied. Every vault write is committed as "ANA Brain"; a
    commit that fails is logged as an error, the write itself stays on disk and in `.ana/audit.jsonl`.
 6. **Provenance.** No status is relabelled, no source invented, no note rewritten during migration. A difference
    between legacy and restore that cannot be explained stops the migration.
@@ -44,16 +45,18 @@ no keys.
 - Bundle sha256 = the `.sha256` of the CI artifact; the run id of the push run on `main`.
 - `release.sh` final line; `ss -ltnH` of the host (nothing but 22, 80 and 443 listens on a non-loopback address).
 - Restore: archive sha256, manifest diff (0 lines), `git fsck --full --strict` rc 0, HEAD and commit count, audit
-  sha256, `brain.sh validate` and `brain.sh stats` against the M0/M1 numbers (73 notes; 48 DERIVED, 18 CANDIDATE,
-  7 SOURCE).
+  sha256, `brain.sh validate` and `brain.sh stats` against the counts recorded for that archive (M1: 73 notes; 48
+  DERIVED, 18 CANDIDATE, 7 SOURCE; an M4.3 archive: its own counts, every difference to M1 explained).
+- M4.0: the recorded pre-cutover state (legacy unit states, DNS answer for `mcp.ana.dyai.cloud`).
 - Index: `brain.sh stats` (`indexed` = notes, `embed_digest`, `index_version` 2); the bge-m3 digest on legacy and here.
 - Search conservation: top-5 ids of a fixed query set on legacy and here; every difference explained.
 - MCP: `https://mcp.ana.dyai.cloud/healthz` 200, `/mcp` 401 without a key, `/projection` 403, a path outside the list
   404, and one authorized `brain_search` per re-issued key; ports 6333, 6334, 8790 and 11434 closed from outside.
-- Dashboard: released from a commit that contains `/api/brain` (production `8dd3dfa` does not); `/brain` on
-  production shows the note and relation counts of `brain.sh stats`. `apps/dashboard/e2e-live/` has no Brain spec, so
-  this is a manual check and is recorded as one.
-- M5: legacy units stopped and disabled, the legacy host otherwise untouched; `brain.sh drive-list` with the service
+- Dashboard: released from a commit that contains `/api/brain` (production `8dd3dfa` does not); with `indexed` =
+  `notes` and `validate` clean, `/brain` on production shows `indexed` of `brain.sh stats` as its note count and
+  `relations` as its relation count (the projection draws the indexed notes and the relations between them).
+  `apps/dashboard/e2e-live/` has no Brain spec, so this is a manual check and is recorded as one.
+- M5: `ana-brain.service` disabled since M4.2, `ana-brain-backup.timer` disabled, the legacy host otherwise untouched; `brain.sh drive-list` with the service
   account before the personal token is revoked; the revocation receipt.
 
 ## 3. Open decisions (Product Owner)
@@ -149,9 +152,22 @@ before M4, not something to accept silently.
 
 ### M4 — cutover (each step approved; the legacy service is stopped, never deleted)
 
-1. Lower the TTL of the DNS-only A record `mcp.ana.dyai.cloud` ahead of time.
-2. Stop the legacy Brain on `srv1308064` and disable it, so neither a reboot nor its timer starts it again (units,
-   data and host stay; `ana-brain-backup.timer` keeps running, it only reads the vault):
+0. Record the pre-cutover state into the evidence. It is the only rollback target; nothing below assumes it:
+
+   ```bash
+   # on srv1308064 (read-only)
+   systemctl is-enabled ana-brain.service ana-brain-index.timer ana-brain-backup.timer
+   systemctl is-active ana-brain.service ana-brain-index.timer ana-brain-backup.timer
+   # anywhere
+   dig mcp.ana.dyai.cloud A @1.1.1.1 | grep status; dig +short AAAA mcp.ana.dyai.cloud @1.1.1.1
+   ```
+
+   Seen on 2026-10-28: `ana-brain.service` enabled and active, `ana-brain-index.timer` disabled and inactive (paused
+   since 2026-10-09), `ana-brain-backup.timer` enabled and active; `mcp.ana.dyai.cloud` NXDOMAIN (no record at all).
+1. `mcp.ana.dyai.cloud` has no record to lower: step 4 creates its first A record, DNS-only, with a 300 s TTL.
+2. Stop the legacy Brain on `srv1308064` and disable it, so a reboot does not start it again (units, data and host
+   stay; `ana-brain-backup.timer` keeps running, it only reads the vault). Disabling the index timer is a no-op when
+   M4.0 recorded it disabled:
    `systemctl disable --now ana-brain.service ana-brain-index.timer && systemctl stop ana-brain-index.service`.
 3. Bracket the legacy vault again with the M1 probe (HEAD, audit sha256, tree sha256). Equal to M1: the restored vault
    is final. Different: make a new encrypted archive the M1 way on `srv1308064` (evidence `M4-<date>`), copy it here,
@@ -162,15 +178,18 @@ before M4, not something to accept silently.
    mv -T /var/lib/ana-brain/vault /var/lib/ana-brain/vault.m3      # kept, never deleted
    ```
 
-   Restore and verify the new archive as in M3 with its own values, move it into place, then:
+   Restore and verify the new archive as in M3 with its own values and move it into place. Then, before the Brain
+   starts, `brain.sh validate` (0 errors) and `brain.sh stats` against that archive's counts:
 
    ```bash
+   /srv/dyai/runtime/ana-brain/brain.sh validate
+   /srv/dyai/runtime/ana-brain/brain.sh stats
    systemctl start dyai-ana-brain.service
    /srv/dyai/runtime/ana-brain/brain.sh index --full   # the archive carries the legacy index state: re-embed every note
    systemctl start dyai-ana-brain-index.timer
    ```
 
-4. Switch the A record to this host (DNS-only, not proxied). Install `nginx-mcp.ana.dyai.cloud.acme.conf` as
+4. Create the A record `mcp.ana.dyai.cloud` → this host's public IPv4 (DNS-only, not proxied, TTL 300). Install `nginx-mcp.ana.dyai.cloud.acme.conf` as
    `/etc/nginx/sites-available/mcp.ana.dyai.cloud` (linked from `sites-enabled/`), `nginx -t && systemctl reload nginx`,
    run `certbot certonly --webroot -w /var/www/certbot -d mcp.ana.dyai.cloud --deploy-hook "systemctl reload nginx"`
    (renewals use the same webroot through port 80 of the full configuration), then replace it with
@@ -183,10 +202,13 @@ before M4, not something to accept silently.
    Brain page and `/api/brain`: this PR merged into `main`. Re-releasing production `8dd3dfa` would serve no Brain.
 7. G4 release gate on the evidence of section 2.
 
-**Rollback before step 4:** nothing public changed; on `srv1308064`
-`systemctl enable --now ana-brain.service ana-brain-index.timer`. **After step 4:** first stop this Brain and its
-public site, so there is never a second writable Brain, then point the A record back to `srv1308064` and enable its
-Brain as above (the dashboard's Brain page here then shows BLOCKED):
+**Rollback** returns to the state recorded in M4.0, never to an assumed one. On `srv1308064`, enable and start
+exactly the units M4.0 recorded as enabled and active, and nothing else (2026-10-28: only
+`systemctl enable --now ana-brain.service`; the index timer stays off). **Before step 4** nothing public changed, so
+that is all. **After step 4**, first take this Brain and its public site down, so there is never a second writable
+Brain, then delete the A record of `mcp.ana.dyai.cloud` (M4.0: the name had none; `srv1308064` never served it and
+has no vhost or certificate for it), then restore the legacy units as above. MCP clients are then without a Brain,
+as before M4, and the dashboard's Brain page here shows BLOCKED:
 
 ```bash
 systemctl disable --now dyai-ana-brain-index.timer dyai-ana-brain.service
@@ -201,6 +223,26 @@ v=/var/lib/ana-brain/vault
 runuser -u ana-brain -- env HOME=/var/lib/ana-brain git -C "$v" log --oneline <restored HEAD>..HEAD
 tail -n +$((<restored audit lines> + 1)) "$v/.ana/audit.jsonl"
 ```
+
+### Restore from a nightly archive (`/var/backups/ana-brain`)
+
+The archive holds `vault` (with its `.ana/index-state.json`) and `state`. Restore the vault only; `state` only if it
+is lost too (it would bring back the key and token hashes of that night). The vault that is replaced is kept:
+
+```bash
+A=/var/backups/ana-brain/ana-brain-<date>.tar.gz; v=/var/lib/ana-brain/vault
+systemctl stop dyai-ana-brain-index.timer dyai-ana-brain-index.service dyai-ana-brain.service
+t="$(mktemp -d /var/lib/ana-brain/.restore.XXXXXX)"; tar -C "$t" -xzf "$A" vault   # keeps owner ana-brain
+git -c safe.directory="$t/vault" -C "$t/vault" fsck --full --strict            # as root: needs safe.directory
+mv -T "$v" "$v.before-restore-$(date +%F)" && mv -T "$t/vault" "$v" && rmdir "$t" && chmod 0700 "$v"
+/srv/dyai/runtime/ana-brain/brain.sh validate
+systemctl start dyai-ana-brain.service
+/srv/dyai/runtime/ana-brain/brain.sh index --full   # the archive's index state is older than the live collection
+systemctl start dyai-ana-brain-index.timer
+```
+
+An incremental index would trust the older index state over the live collection and keep stale points. Writes made
+after the archive stay in the kept vault and are listed for the Product Owner as in the rollback above.
 
 ### M5 — retire the legacy Brain (after G4)
 

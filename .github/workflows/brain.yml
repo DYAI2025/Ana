@@ -89,8 +89,12 @@ jobs:
           # release.sh refuses public Qdrant/Ollama/Brain listeners and the legacy Drive credential
           for p in 6333 11434; do grep -qF "loopback_only $p" "$d/release.sh" || fail "release.sh no longer checks port $p"; done
           grep -qF 'drive-oauth.json' "$d/release.sh" || fail "release.sh no longer refuses the legacy Drive credential"
-          # the Qdrant key reaches curl on stdin (-K -), never in argv where /proc/<pid>/cmdline shows it
-          if grep -nE '(curl|code) [^|]*\$qkey' "$d/release.sh"; then fail "release.sh passes the Qdrant key in curl's argv"; fi
+          # the Qdrant key reaches curl on stdin (-K -), never in argv where /proc/<pid>/cmdline shows it: after joining
+          # continuation lines and splitting at pipes, no curl/code command may name the key variable (any spelling),
+          # its credential file or its env name
+          bad="$(awk '{ if (sub(/\\$/, "")) printf "%s", $0; else print }' "$d/release.sh" | grep -vE '^[[:space:]]*#' \
+            | tr '|' '\n' | grep -E '(^|[^[:alnum:]_])(curl|code)[[:space:]]' | grep -E 'qkey|qdrant_api_key|QDRANT_API_KEY' || true)"
+          [ -z "$bad" ] || fail "release.sh passes the Qdrant key in curl's argv: $bad"
           bash -n "$d/release.sh"; bash -n "$d/brain.sh"; bash -n "$d/check-nginx.sh"
           shellcheck -S warning "$d/release.sh" "$d/brain.sh" "$d/check-nginx.sh"
       - name: nginx -t of both site files with the host's nginx (Ubuntu 24.04, nginx 1.24)
