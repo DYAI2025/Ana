@@ -35,7 +35,8 @@ legacy service is stopped before the DNS switch and is never started again next 
    nightly restore: before the Brain starts). Qdrant is rebuilt from the vault, never copied. Every vault write is
    committed as "ANA Brain" with exactly the files it wrote; changes in other files (a hand edit, a write whose commit
    failed) stay out of it and in `git status`. A file it wrote that already had uncommitted changes carries them into
-   the commit, and the commit subject names that file. A commit that fails is logged as an error, and the write stays
+   the commit, and the commit subject names that file. One case adds a file it did not write: a supersession retry
+   commits the source note whose relation the failed first attempt left on disk, named the same way. A commit that fails is logged as an error, and the write stays
    on disk, in `.ana/audit.jsonl` and in `git status`.
 6. **Provenance.** No status is relabelled, no source invented, no note rewritten during migration. A difference
    between legacy and restore that cannot be explained stops the migration.
@@ -130,8 +131,9 @@ A later archive (step M4.3) is restored the same way with its own path, keychain
 
 Then on the host, before anything starts on it, against the evidence of the archive being restored: the per-file
 manifest of `$t/vault` (`find . -type f -print0 | LC_ALL=C sort -z | xargs -0 sha256sum`) must equal its
-`manifest.legacy.sha256` (diff 0 lines); `GIT_OPTIONAL_LOCKS=0 git -C $t/vault fsck --full --strict` rc 0; HEAD,
-commit count, 0 dirty and the `.ana/audit.jsonl` sha256 as recorded (M1: HEAD `da70970…`, 1 commit, audit
+`manifest.legacy.sha256` (diff 0 lines); `GIT_OPTIONAL_LOCKS=0 git -c core.fsmonitor=false -C $t/vault fsck --full
+--strict` rc 0; HEAD, commit count, 0 dirty (every git here runs with `-c core.fsmonitor=false`: the copy's
+`.git/config` was written by the legacy Brain's user and is data, not configuration root may run) and the `.ana/audit.jsonl` sha256 as recorded (M1: HEAD `da70970…`, 1 commit, audit
 `a9f69a9f…`). Record the restored HEAD and `wc -l < $t/vault/.ana/audit.jsonl`; a rollback lists what came after
 them. Only then (`/var/lib/ana-brain/vault` must not exist yet; step M4.3 moves the previous restore aside first):
 
@@ -236,11 +238,14 @@ tail -n +$((<restored audit lines> + 1)) "$v/.ana/audit.jsonl"
 What it does, each outcome checked in CI by `test-restore-nightly.sh` (as root on Ubuntu 24.04, with stubbed systemctl,
 `brain.sh` and node):
 
-- It stops the Brain and its index, recreates `/var/lib/ana-brain` and `state` (owner ana-brain, 0700) if they were
-  lost, and extracts only `vault`. **`state` is never restored:** it holds the key, OAuth-token and dashboard-token
-  hashes of that night, so a key revoked since then would work again.
-- `git fsck` and the release's own `validate` (as ana-brain) run on the extracted copy **before** anything is moved. If
-  either fails, nothing was moved, the Brain stays stopped, the copy stays in `/var/lib/ana-brain/.restore.*` for
+- It stops the Brain and its index first, recreates `/var/lib/ana-brain` and `state` (owner ana-brain, 0700) if they
+  were lost, and extracts only `vault`. **`state` is never restored:** it holds the key, OAuth-token and dashboard-token
+  hashes of that night, so a key revoked since then would work again. When `state` was empty or lost, the script says
+  so: issue keys again (`brain.sh issue-key ana|ben|vince` as in M4.5, `brain.sh issue-dashboard-token` and the
+  dashboard credential as in M4.6); until then the Brain refuses every caller.
+- Nothing from the archive runs as root: its content, `.git/config` included, was written by the Brain's own user, so
+  extraction, `git fsck` (with `core.fsmonitor` off) and the release's own `validate` run as ana-brain, on the
+  extracted copy, **before** anything is moved. If either check fails, nothing was moved, the Brain stays stopped, the copy stays in `/var/lib/ana-brain/.restore.*` for
   inspection, and the message says so. Start the old vault again with
   `systemctl start dyai-ana-brain.service dyai-ana-brain-index.timer`.
 - A vault that is still there is kept as `vault.before-restore-<date-time>`, never deleted; a lost one is replaced.
@@ -252,8 +257,7 @@ What it does, each outcome checked in CI by `test-restore-nightly.sh` (as root o
 Writes made after the archive stay in the kept vault (if there is one) and are listed for the Product Owner as in the
 rollback above. If only `state` is lost, nothing is restored: recreate it
 (`install -d -m 0700 -o ana-brain -g ana-brain /var/lib/ana-brain/state`; the units cannot start without it) and issue
-keys again (`brain.sh issue-key ana|ben|vince` as in M4.5, `brain.sh issue-dashboard-token` and the dashboard
-credential as in M4.6); every connector then reconnects.
+keys again as above; every connector then reconnects.
 
 ### M5 — retire the legacy Brain (after G4)
 

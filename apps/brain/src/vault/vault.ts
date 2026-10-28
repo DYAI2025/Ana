@@ -307,7 +307,8 @@ export class Vault {
   /**
    * Commits exactly the files this write persisted, never the rest of the worktree: a hand edit, a staged change or a
    * write whose own commit failed in another file stays out of this commit and shows in `git status`. Earlier changes
-   * in a file this write persisted are named in the subject (see track).
+   * in a file this write persisted are named in the subject (see track), as is the source note a supersession retry
+   * adds without rewriting it.
    */
   private commit(action: string, id: string, actor: string, files: string[]): void {
     if (this.opts.git === false || !existsSync(path.join(this.root, ".git"))) return;

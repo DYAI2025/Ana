@@ -16,7 +16,8 @@ stubs="$r/stubs"
 base="$r/srv/dyai/runtime/ana-brain"
 lib="$r/var/lib/ana-brain"
 bk="$r/var/backups/ana-brain"
-mkdir -p "$stubs" "$base/current/dist" "$bk"
+mkdir -p "$stubs" "$base/current/dist" "$bk" "$r/fsm"
+chmod 1777 "$r/fsm"
 touch "$base/current/dist/cli.js"
 printf '#!/bin/sh\necho "systemctl $*" >> %s\n' "$log" > "$stubs/systemctl"
 printf '#!/bin/sh\necho "brain.sh $*" >> %s\n[ ! -e %s/index-fails ]\n' "$log" "$r" > "$base/brain.sh"
@@ -24,7 +25,7 @@ printf '#!/bin/sh\necho "brain.sh $*" >> %s\n[ ! -e %s/index-fails ]\n' "$log" "
 printf '#!/bin/sh\necho "validate $(id -un) $BRAIN_VAULT_DIR" >> %s\n[ ! -e "$BRAIN_VAULT_DIR/BROKEN" ]\n' "$log" > "$stubs/node"
 chmod 0755 "$stubs" "$stubs"/* "$base/brain.sh"
 
-archive() { # <date> <content of n.md> [broken-git|invalid]
+archive() { # <date> <content of n.md> [broken-git|invalid|fsmonitor]
   local w
   w="$(mktemp -d)"
   mkdir "$w/vault" "$w/state"
@@ -36,6 +37,9 @@ archive() { # <date> <content of n.md> [broken-git|invalid]
   case "${3:-}" in
     broken-git) rm -f "$(find "$w/vault/.git/objects" -type f -path '*/objects/??/*' -print -quit)" ;;
     invalid) touch "$w/vault/BROKEN" ;;
+    # what a compromised Brain could plant in its own .git/config before the nightly archive
+    # (git appends arguments to the hook command; "; true" absorbs them)
+    fsmonitor) git -C "$w/vault" config core.fsmonitor "id -un >> $r/fsm/ran; true" ;;
   esac
   chown -R ana-brain:ana-brain "$w/vault"
   tar -C "$w" -czf "$bk/ana-brain-$1.tar.gz" vault state
@@ -62,10 +66,15 @@ called() { grep -qxF "$1" "$log"; }
 archive 2026-10-01 archived
 archive 2026-10-02 broken broken-git
 archive 2026-10-03 invalid invalid
+archive 2026-10-04 planted fsmonitor
+stopped="systemctl stop dyai-ana-brain-index.timer dyai-ana-brain-index.service dyai-ana-brain.service"
+empty_state="state was empty or lost and is recreated empty"
 
 live
 run ana-brain-2026-10-01.tar.gz
 [ "$rc" = 0 ] || fail "good archive, live vault present: rc $rc"
+[ "$(head -1 "$log")" = "$stopped" ] || fail "the Brain and its index were not stopped before anything else"
+! grep -qF "$empty_state" "$r/out" || fail "a kept state was reported as empty"
 [ "$(cat "$lib/vault/n.md")" = archived ] || fail "the vault was not restored"
 [ "$(kept)" = 1 ] || fail "the previous vault was not kept"
 [ "$(cat "$lib/state/keys.json")" = current-key-hash ] || fail "state was restored from the archive"
@@ -81,13 +90,15 @@ run ana-brain-2026-10-01.tar.gz
 [ "$(cat "$lib/vault/n.md")" = archived ] || fail "the lost vault was not restored"
 [ "$(stat -c '%U %a' "$lib/state")" = "ana-brain 700" ] || fail "the lost state directory was not recreated"
 [ ! -e "$lib/state/keys.json" ] || fail "state was restored from the archive"
-ok "restores a lost vault and recreates an empty state directory"
+grep -qF "$empty_state" "$r/out" || fail "a lost state was not reported (every key and token must be issued again)"
+ok "restores a lost vault, recreates an empty state directory and says keys must be issued again"
 
 for c in "2026-10-02|git fsck" "2026-10-03|validate"; do
   day="${c%%|*}" check="${c#*|}"
   live
   run "ana-brain-$day.tar.gz"
   [ "$rc" != 0 ] || fail "an archive that fails $check was restored"
+  [ "$(head -1 "$log")" = "$stopped" ] || fail "a failed $check did not stop the Brain first"
   [ "$(cat "$lib/vault/n.md")" = live ] || fail "a failed $check changed the live vault"
   [ "$(kept)" = 0 ] || fail "a failed $check moved the live vault"
   [ "$(copies)" = 1 ] || fail "a failed $check removed the extracted copy"
@@ -104,6 +115,20 @@ run ana-brain-2026-10-01.tar.gz
 ! called "systemctl start dyai-ana-brain-index.timer" || fail "the index timer started after a failed full index"
 grep -q "stopped while starting the Brain on the restored, validated vault; finish by hand" "$r/out" || fail "a failure after the swap does not name the remaining steps"
 ok "a failure after the swap names the remaining steps and leaves the timer off"
+rm -f "$r/index-fails"
+
+# positive control: the planted hook fires when root runs git fsck on the copy, as the restore did before
+x="$(mktemp -d)"
+tar -C "$x" -xzf "$bk/ana-brain-2026-10-04.tar.gz" vault
+git -c safe.directory="$x/vault" -C "$x/vault" fsck --full --strict >/dev/null 2>&1 || true
+rm -rf "$x"
+grep -qx root "$r/fsm/ran" 2>/dev/null || fail "positive control: a planted core.fsmonitor did not run under root git fsck"
+rm -f "$r/fsm/ran"
+live
+run ana-brain-2026-10-04.tar.gz
+[ "$rc" = 0 ] || fail "an archive with a planted core.fsmonitor: rc $rc"
+! grep -qx root "$r/fsm/ran" 2>/dev/null || fail "the archive's core.fsmonitor ran as root"
+ok "nothing from the archive runs as root (a planted core.fsmonitor stays inert)"
 
 live
 run ../ana-brain-2026-10-01.tar.gz

@@ -3,8 +3,9 @@
 # Run as root:  /srv/dyai/runtime/ana-brain/restore-nightly.sh ana-brain-<YYYY-MM-DD>.tar.gz
 #
 # Only `vault` is restored, never `state`: it holds the key and token hashes of that night, and a key revoked since
-# then would work again. Every check (git fsck, the release's own `validate`) runs on the extracted copy before anything
-# is moved, so a failed check leaves the live vault, the state and the stopped Brain as they were. A vault that is still
+# then would work again. The archive's content (its .git/config included) was written by the Brain's own user, so
+# extraction and every check run as ana-brain, never as root. Every check (git fsck, the release's own `validate`)
+# runs on the extracted copy before anything is moved, so a failed check leaves the live vault, the state and the stopped Brain as they were. A vault that is still
 # there is kept beside the restored one, never deleted. test-restore-nightly.sh runs every branch in CI; ANA_BRAIN_ROOT
 # and ANA_BRAIN_NODE exist only for that test.
 set -euo pipefail
@@ -18,6 +19,8 @@ step="checking the arguments"
 trap 'echo "restore-nightly: stopped while $step" >&2' ERR
 
 fail() { echo "restore-nightly: $*" >&2; exit 1; }
+# an array, not a function: the ERR trap that names the failed step does not reach into functions
+as_brain=(runuser -u ana-brain -- env -i PATH=/usr/bin:/bin)
 
 [[ "$(id -u)" == 0 ]] || fail "run as root"
 [[ $# -eq 1 && "$1" =~ ^ana-brain-[0-9]{4}-[0-9]{2}-[0-9]{2}\.tar\.gz$ ]] || fail "usage: restore-nightly.sh ana-brain-<YYYY-MM-DD>.tar.gz"
@@ -27,15 +30,19 @@ archive="$root/var/backups/ana-brain/$1"
 
 step="stopping the Brain"
 systemctl stop dyai-ana-brain-index.timer dyai-ana-brain-index.service dyai-ana-brain.service
+if [[ -z "$(ls -A "$lib/state" 2>/dev/null)" ]]; then
+  echo "restore-nightly: $lib/state was empty or lost and is recreated empty: issue every key and the dashboard token again (README M4.5, M4.6)" >&2
+fi
 # the units' ReadWritePaths= need both directories, also when they were lost with the vault
 install -d -m 0700 -o ana-brain -g ana-brain "$lib" "$lib/state"
 
 step="checking the archive (nothing was moved; the Brain stays stopped; the copy stays in $lib/.restore.*)"
 t="$(mktemp -d "$lib/.restore.XXXXXX")"
 chown ana-brain:ana-brain "$t"
-tar -C "$t" -xzf "$archive" vault   # keeps owner ana-brain
-git -c safe.directory="$t/vault" -C "$t/vault" fsck --full --strict
-(cd "$base/current" && runuser -u ana-brain -- env -i PATH=/usr/bin:/bin BRAIN_VAULT_DIR="$t/vault" BRAIN_STATE_DIR="$lib/state" "$node" dist/cli.js validate)
+"${as_brain[@]}" tar -C "$t" -xzf - vault < "$archive"
+# a core.fsmonitor in the archive's .git/config would otherwise run as a command
+"${as_brain[@]}" git -c core.fsmonitor=false -C "$t/vault" fsck --full --strict
+(cd "$base/current" && "${as_brain[@]}" BRAIN_VAULT_DIR="$t/vault" BRAIN_STATE_DIR="$lib/state" "$node" dist/cli.js validate)
 
 step="moving the restored vault into place"
 kept=""
