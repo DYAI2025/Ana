@@ -137,11 +137,15 @@ any `git -C`/`git -c` in this kit that does not run as ana-brain.
 ```bash
 chown -R ana-brain:ana-brain "$t"
 g() { runuser -u ana-brain -- env -i PATH=/usr/bin:/bin GIT_OPTIONAL_LOCKS=0 git -C "$t/vault" "$@"; }
-g fsck --full --strict; g rev-parse HEAD; g rev-list --count HEAD; g status --porcelain | wc -l
+g fsck --full --strict && echo "fsck rc 0"
+g rev-parse HEAD && g rev-list --count HEAD
+dirty="$(g status --porcelain)" && echo "dirty $(printf '%s' "$dirty" | grep -c .)"
 ```
 
+Each check prints its own line; a missing `fsck rc 0` or `dirty …` line is a failed check, whatever was printed before.
+
 The per-file manifest of `$t/vault` (`find . -type f -print0 | LC_ALL=C sort -z | xargs -0 sha256sum`) must equal its
-`manifest.legacy.sha256` (diff 0 lines); fsck rc 0; HEAD, commit count, 0 dirty and the `.ana/audit.jsonl` sha256 as
+`manifest.legacy.sha256` (diff 0 lines); `fsck rc 0`; HEAD, commit count, `dirty 0` and the `.ana/audit.jsonl` sha256 as
 recorded (M1: HEAD `da70970…`, 1 commit, audit `a9f69a9f…`). Record the restored HEAD and `wc -l < $t/vault/.ana/audit.jsonl`; a rollback lists what came after
 them. Only then (`/var/lib/ana-brain/vault` must not exist yet; step M4.3 moves the previous restore aside first):
 
