@@ -54,7 +54,7 @@ jobs:
           d=deploy/ana-brain
           b=$d/dyai-ana-brain.service i=$d/dyai-ana-brain-index.service q=$d/dyai-ana-qdrant.service o=$d/dyai-ana-ollama.service
           fail() { echo "FAIL: $*"; exit 1; }
-          for f in "$b" "$i" "$q" "$o" "$d/qdrant.yaml" "$d/release.sh" "$d/brain.sh" "$d/nginx-mcp.ana.dyai.cloud.conf"; do
+          for f in "$b" "$i" "$q" "$o" "$d/qdrant.yaml" "$d/release.sh" "$d/brain.sh" "$d/restore-nightly.sh" "$d/test-restore-nightly.sh" "$d/nginx-mcp.ana.dyai.cloud.conf"; do
             [ -f "$f" ] || fail "$f is missing (a renamed file must be renamed here too)"
           done
           # server and index: the same three pinned Environment= lines (they win over node --env-file), one ExecStart=,
@@ -101,8 +101,11 @@ jobs:
           args_ok drive-register 1AbC --id src-x --title "Claude als Video-Regisseur" --topics capcut,claude --actor ben || fail "brain.sh refuses a real title or topic list"
           args_ok --title "Grundsätze für Hooks" || fail "brain.sh refuses a non-ASCII title"
           for a in '$HOME' '${HOME}' '%h' $'two\nlines'; do if args_ok --title "$a"; then fail "brain.sh lets $a reach systemd"; fi; done
-          bash -n "$d/release.sh"; bash -n "$d/brain.sh"; bash -n "$d/check-nginx.sh"
-          shellcheck -S warning "$d/release.sh" "$d/brain.sh" "$d/check-nginx.sh"
+          for f in release.sh brain.sh check-nginx.sh restore-nightly.sh test-restore-nightly.sh; do bash -n "$d/$f"; done
+          shellcheck -S warning "$d/release.sh" "$d/brain.sh" "$d/check-nginx.sh" "$d/restore-nightly.sh" "$d/test-restore-nightly.sh"
+      - name: restore-nightly.sh, every outcome the README states (as root, stubbed systemctl/brain.sh/node)
+        shell: bash
+        run: sudo deploy/ana-brain/test-restore-nightly.sh
       - name: nginx -t of both site files with the host's nginx (Ubuntu 24.04, nginx 1.24)
         shell: bash
         run: |

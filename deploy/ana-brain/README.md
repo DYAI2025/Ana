@@ -33,8 +33,10 @@ legacy service is stopped before the DNS switch and is never started again next 
    same way, step M4.3) and are verified (manifest, `git fsck`, HEAD, audit log) **before** the Brain starts on them,
    and with `validate` before anyone can write (M3: right after the first release, while no key exists; M4.3 and a
    nightly restore: before the Brain starts). Qdrant is rebuilt from the vault, never copied. Every vault write is
-   committed as "ANA Brain" with exactly the files it wrote (a hand edit is never swept into it); a commit that fails
-   is logged as an error, and the write stays on disk, in `.ana/audit.jsonl` and in `git status`.
+   committed as "ANA Brain" with exactly the files it wrote; changes in other files (a hand edit, a write whose commit
+   failed) stay out of it and in `git status`. A file it wrote that already had uncommitted changes carries them into
+   the commit, and the commit subject names that file. A commit that fails is logged as an error, and the write stays
+   on disk, in `.ana/audit.jsonl` and in `git status`.
 6. **Provenance.** No status is relabelled, no source invented, no note rewritten during migration. A difference
    between legacy and restore that cannot be explained stops the migration.
 
@@ -71,7 +73,7 @@ no keys.
 
 | Path | Owner, mode | Content |
 |---|---|---|
-| `/srv/dyai/runtime/ana-brain/{release.sh,brain.sh}` | root, 0755 | from this directory |
+| `/srv/dyai/runtime/ana-brain/{release.sh,brain.sh,restore-nightly.sh}` | root, 0755 | from this directory |
 | `/srv/dyai/runtime/ana-brain/releases/<sha>`, `current` | root, read-only | unpacked bundles, active release |
 | `/etc/dyai/credentials/ana-brain/` | root:root 0700 | `brain_env` (see `brain_env.example`), `qdrant_api_key`, `drive_sa` (0600 each) |
 | `/var/lib/ana-brain/vault` | ana-brain, 0700 | restored vault (git) |
@@ -95,7 +97,7 @@ install -d -m 0755 /srv/dyai/runtime/ana-brain /var/www/certbot /etc/dyai/ana-qd
 install -d -m 0700 -o root -g root /etc/dyai/credentials/ana-brain /var/backups/ana-brain
 install -d -m 0700 -o ana-brain -g ana-brain /var/lib/ana-brain /var/lib/ana-brain/state
 # from a checkout of this repo at the released commit, copied to the host first:
-install -m 0755 release.sh brain.sh /srv/dyai/runtime/ana-brain/
+install -m 0755 release.sh brain.sh restore-nightly.sh /srv/dyai/runtime/ana-brain/
 install -m 0644 qdrant.yaml /etc/dyai/ana-qdrant/config.yaml
 install -m 0644 dyai-ana-*.service dyai-ana-*.timer /etc/systemd/system/
 # Qdrant and Ollama: pinned releases, sha256 recorded in the evidence (Ollama: against the release's sha256sum.txt)
@@ -227,35 +229,31 @@ tail -n +$((<restored audit lines> + 1)) "$v/.ana/audit.jsonl"
 
 ### Restore from a nightly archive (`/var/backups/ana-brain`)
 
-The archive holds `vault` (with its `.ana/index-state.json`) and `state`. Restore only `vault`. **Never restore
-`state` from an archive:** it holds the key, OAuth-token and dashboard-token hashes of that night, so a key revoked
-since then would work again. If `state` is lost, the Brain refuses every caller until keys are issued again
-(`brain.sh issue-key ana|ben|vince` as in M4.5, `brain.sh issue-dashboard-token` and the dashboard credential as in
-M4.6); every connector then reconnects.
-
-The restore runs as one script that stops at the first failing step, so a failed check never moves a vault. A vault
-that is still there is kept beside the restored one, never deleted; a vault that was lost is simply replaced:
-
 ```bash
-bash -euo pipefail -s ana-brain-<date>.tar.gz <<'RESTORE'
-A="/var/backups/ana-brain/$1"; v=/var/lib/ana-brain/vault
-systemctl stop dyai-ana-brain-index.timer dyai-ana-brain-index.service dyai-ana-brain.service
-t="$(mktemp -d /var/lib/ana-brain/.restore.XXXXXX)"; tar -C "$t" -xzf "$A" vault   # keeps owner ana-brain
-git -c safe.directory="$t/vault" -C "$t/vault" fsck --full --strict            # as root: needs safe.directory
-if [ -e "$v" ]; then mv -T "$v" "$v.before-restore-$(date +%F-%H%M%S)"; fi
-mv -T "$t/vault" "$v"; rmdir "$t"; chmod 0700 "$v"
-/srv/dyai/runtime/ana-brain/brain.sh validate
-systemctl start dyai-ana-brain.service
-/srv/dyai/runtime/ana-brain/brain.sh index --full   # the archive's index state is older than the live collection
-systemctl start dyai-ana-brain-index.timer
-RESTORE
+/srv/dyai/runtime/ana-brain/restore-nightly.sh ana-brain-<YYYY-MM-DD>.tar.gz
 ```
 
-If the script stops (a broken archive fails `fsck`), the live vault is untouched and the Brain stays stopped until
-`systemctl start dyai-ana-brain.service dyai-ana-brain-index.timer`; the extracted copy stays in `.restore.*` for
-inspection. An incremental index would trust the older index state over the live collection and keep stale points.
-Writes made after the archive stay in the kept vault (if there is one) and are listed for the Product Owner as in the rollback
-above.
+What it does, each outcome checked in CI by `test-restore-nightly.sh` (as root on Ubuntu 24.04, with stubbed systemctl,
+`brain.sh` and node):
+
+- It stops the Brain and its index, recreates `/var/lib/ana-brain` and `state` (owner ana-brain, 0700) if they were
+  lost, and extracts only `vault`. **`state` is never restored:** it holds the key, OAuth-token and dashboard-token
+  hashes of that night, so a key revoked since then would work again.
+- `git fsck` and the release's own `validate` (as ana-brain) run on the extracted copy **before** anything is moved. If
+  either fails, nothing was moved, the Brain stays stopped, the copy stays in `/var/lib/ana-brain/.restore.*` for
+  inspection, and the message says so. Start the old vault again with
+  `systemctl start dyai-ana-brain.service dyai-ana-brain-index.timer`.
+- A vault that is still there is kept as `vault.before-restore-<date-time>`, never deleted; a lost one is replaced.
+- Then it starts the Brain, runs `brain.sh index --full` (the archive's index state is older than the live
+  collection; an incremental run would keep stale points) and starts the index timer. If one of these fails, the
+  restored and validated vault is in place, the previous one is kept, the timer stays off, and the message names the
+  steps to finish by hand.
+
+Writes made after the archive stay in the kept vault (if there is one) and are listed for the Product Owner as in the
+rollback above. If only `state` is lost, nothing is restored: recreate it
+(`install -d -m 0700 -o ana-brain -g ana-brain /var/lib/ana-brain/state`; the units cannot start without it) and issue
+keys again (`brain.sh issue-key ana|ben|vince` as in M4.5, `brain.sh issue-dashboard-token` and the dashboard
+credential as in M4.6); every connector then reconnects.
 
 ### M5 — retire the legacy Brain (after G4)
 
