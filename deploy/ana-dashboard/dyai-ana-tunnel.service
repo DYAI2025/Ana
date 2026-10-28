@@ -2,7 +2,7 @@
 #
 # Its ingress (ana.dyai.cloud → http://127.0.0.1:3410, everything else 404) is configured in the Cloudflare dashboard,
 # not here. The tunnel token arrives only through LoadCredential= (file root:root 0600); it never appears in argv,
-# the environment or the journal. Metrics on 127.0.0.1:20242 (dyai-canary-tunnel holds 20241).
+# the environment or the journal. Metrics on 127.0.0.1:20242, where release.sh polls them.
 # release.sh enables this unit only after the dashboard passed its health and access-gate checks.
 [Unit]
 Description=Cloudflare Tunnel ana-dashboard (cloudflared) carrying ana.dyai.cloud to dyai-ana-dashboard

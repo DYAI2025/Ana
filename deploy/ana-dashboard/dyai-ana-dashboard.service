@@ -1,13 +1,13 @@
-# /etc/systemd/system/dyai-ana-dashboard.service — ANA LUMEN on the Arch host (ANA-DASH-GOLIVE-01).
+# /etc/systemd/system/dyai-ana-dashboard.service — ANA LUMEN on the Contabo VPS vmi3693936 (ANA-DASH-GOLIVE-01).
 #
 # Serves the Next.js standalone bundle (the /app of the CI-tested image, see README.md) on 127.0.0.1:3410 only.
 # The only way in from outside is the Cloudflare Tunnel `ana-dashboard` (dyai-ana-tunnel.service), behind
 # Cloudflare Access; the app verifies the Access JWT on every request as well.
 #
-# Secrets arrive only as a credential file (LoadCredential=, like the canary units) that node reads with --env-file.
+# Secrets arrive only as a credential file (LoadCredential=) that node reads with --env-file.
 # Variables already in the environment win over that file, so the pinned access settings below cannot be changed
 # by it. ANA_CONTAINER=1 makes the app refuse every mode other than cloudflare (503), so a lost setting fails closed.
-# Hardening follows dyai-canary-web.service except MemoryDenyWriteExecute, which aborts V8 (its JIT needs W+X pages).
+# Hardened like dyai-ana-tunnel.service except MemoryDenyWriteExecute, which aborts V8 (its JIT needs W+X pages).
 [Unit]
 Description=ANA LUMEN dashboard (Next.js standalone) on loopback for the Cloudflare Tunnel ana-dashboard
 Wants=network-online.target
