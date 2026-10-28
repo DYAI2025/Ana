@@ -61,6 +61,10 @@ export class Indexer {
   constructor(private readonly vault: Vault, private readonly embedder: Embedder, private readonly store: VectorStore) {}
 
   async run(opts: { full?: boolean } = {}): Promise<IndexStats> {
+    // a note that does not load is not a removed note: indexing now would delete its points without a trace
+    const broken = this.vault.loadErrors;
+    if (broken.length > 0)
+      throw new Error(`${broken.length} note(s) failed to load: ${broken.map((e) => `${e.file} (${e.error})`).join("; ")}; index not run, nothing removed (see ana-brain validate)`);
     const probe = await this.embedder.embed(["dimension probe"]);
     if (probe[0]?.length !== EMBED_DIM) throw new Error(`embedding dimension ${probe[0]?.length} != ${EMBED_DIM}`);
     const digest = await this.embedder.identity();

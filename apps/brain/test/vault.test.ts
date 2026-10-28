@@ -189,4 +189,48 @@ describe("vault", () => {
     expect(v.loadErrors.length).toBe(1);
     expect(v.all().map((n) => n.fm.id)).toEqual(["kn-wrong-folder"]);
   });
+
+  it("a supersession whose target update was lost is completed when it is retried", async () => {
+    const root = syntheticVault();
+    const v = new Vault(root, { git: false });
+    const target = path.join(root, "knowledge", "kn-hook-first.md");
+    const before = readFileSync(target, "utf8");
+    await v.addRelation("ben", "kn-hook-variant", "supersedes", "kn-hook-first");
+    // the second of the two file writes never happened (crash, full disk): relation recorded, target not marked
+    writeFileSync(target, before);
+    v.reload();
+    expect(v.require("kn-hook-first").fm.status).not.toBe("SUPERSEDED");
+    expect(await v.addRelation("ben", "kn-hook-variant", "supersedes", "kn-hook-first")).toEqual({ added: false });
+    expect(v.require("kn-hook-first").fm.status).toBe("SUPERSEDED");
+    expect(v.require("kn-hook-first").fm.superseded_by).toBe("kn-hook-variant");
+    expect(v.require("kn-hook-variant").fm.relations.filter((r) => r.type === "supersedes")).toHaveLength(1);
+  });
+
+  it("an idempotent repeat is not reported as a failed commit when .ana/ is ignored, as in the real vault", async () => {
+    const root = syntheticVault();
+    writeFileSync(path.join(root, ".gitignore"), ".ana/\n");
+    const id = ["-c", "user.name=t", "-c", "user.email=t@example.test"];
+    execFileSync("git", ["init", "-q", root]);
+    execFileSync("git", ["-C", root, "add", "-A"]);
+    execFileSync("git", ["-C", root, ...id, "commit", "-qm", "seed"]);
+    const errors: string[] = [];
+    const spy = vi.spyOn(console, "error").mockImplementation((m: unknown) => void errors.push(String(m)));
+    try {
+      const v = new Vault(root);
+      expect(await v.addRelation("ben", "kn-hook-variant", "supports", "kn-hook-first")).toEqual({ added: true });
+      expect(await v.addRelation("ben", "kn-hook-variant", "supports", "kn-hook-first")).toEqual({ added: false });
+      expect(errors).toEqual([]);
+      expect(execFileSync("git", ["-C", root, "rev-list", "--count", "HEAD"]).toString().trim()).toBe("2");
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
+  it("an observation that only mentions 'corrects ^obs-…' in its text is not a correction", async () => {
+    const v = new Vault(syntheticVault(), { git: false });
+    expect(v.referenceErrors()).toEqual([]);
+    await v.appendObservation("ben", "kn-hook-first", { text: "this corrects ^obs-20261001000000-ben in kn-other" });
+    await v.appendObservation("ben", "kn-hook-first", { text: "corrects ^obs-20261001000000-vince · as a plain remark" });
+    expect(v.referenceErrors()).toEqual([]);
+  });
 });

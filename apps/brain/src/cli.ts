@@ -116,6 +116,8 @@ async function main(argv: string[]): Promise<number> {
     return 0;
   }
   if (cmd === "serve") {
+    // notes that fail to load are left out of MCP and /projection: say so in the journal at start
+    for (const e of vault.loadErrors) console.error(`vault: ${e.file} failed to load and is not served: ${e.error}`);
     const app = createApp({ vault, embedder, store, drive: driveFromConfig(cfg), stateDir: cfg.stateDir, publicUrl: cfg.publicUrl, dashboardTokenSha256: cfg.dashboardTokenSha256 });
     await new Promise<void>((resolve) => app.listen(cfg.port, cfg.host, () => resolve()));
     console.log(`ana-brain listening on ${cfg.host}:${cfg.port}`);

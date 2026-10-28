@@ -142,6 +142,20 @@ describe("indexer", () => {
     expect(Object.keys(state.notes)).not.toContain("kn-grade-warm");
   });
 
+  it("refuses to run while notes fail to load, instead of deleting their points as if they were removed", async () => {
+    const root = syntheticVault();
+    const vault = new Vault(root);
+    const store = new MemoryStore();
+    const idx = new Indexer(vault, new OllamaEmbedder(ollama.url), store);
+    await idx.run();
+    const file = path.join(root, "knowledge", "kn-grade-warm.md");
+    (await import("node:fs")).writeFileSync(file, readFileSync(file, "utf8").replace(/^status: .*$/m, "status: NOT-A-STATUS"));
+    vault.reload();
+    expect(vault.loadErrors).toHaveLength(1);
+    await expect(idx.run()).rejects.toThrow(/1 note\(s\) failed to load: knowledge\/kn-grade-warm\.md/);
+    expect(store.points.has(pointId("kn-grade-warm", 0))).toBe(true);
+  });
+
   it("a lost collection or missing points force a full rebuild instead of an empty index (B-4)", async () => {
     const vault = new Vault(syntheticVault());
     const store = new MemoryStore();

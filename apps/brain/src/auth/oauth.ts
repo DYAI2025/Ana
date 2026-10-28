@@ -5,7 +5,7 @@ import type { Response } from "express";
 import type { OAuthRegisteredClientsStore } from "@modelcontextprotocol/sdk/server/auth/clients.js";
 import type { AuthorizationParams, OAuthServerProvider } from "@modelcontextprotocol/sdk/server/auth/provider.js";
 import type { AuthInfo } from "@modelcontextprotocol/sdk/server/auth/types.js";
-import { InvalidGrantError, InvalidTokenError } from "@modelcontextprotocol/sdk/server/auth/errors.js";
+import { InvalidClientMetadataError, InvalidGrantError, InvalidTokenError, TooManyRequestsError } from "@modelcontextprotocol/sdk/server/auth/errors.js";
 import type { OAuthClientInformationFull, OAuthTokens } from "@modelcontextprotocol/sdk/shared/auth.js";
 import { HUMANS, type Human } from "../contract/schema.js";
 import { KeyStore, sha256hex, writeJsonAtomic } from "./keys.js";
@@ -13,6 +13,8 @@ import { KeyStore, sha256hex, writeJsonAtomic } from "./keys.js";
 const ACCESS_TTL = 3600;
 const REFRESH_TTL = 30 * 24 * 3600;
 const CODE_TTL = 300;
+const MAX_CLIENT_BYTES = 8192;
+const MAX_CLIENTS = 100;
 
 /** key_sha256: the personal key that authorized the grant; the token dies with that key (B-7). */
 interface TokenRec { kind: "access" | "refresh"; actor: Human; key_sha256?: string; client_id: string; scopes: string[]; expires_at: number; resource?: string }
@@ -57,9 +59,17 @@ export class BrainOAuthProvider implements OAuthServerProvider {
   get clientsStore(): OAuthRegisteredClientsStore {
     return {
       getClient: (id) => this.load().clients[id],
+      // /register is public and needs no credential: bound the size of each client and the size of the registry
       registerClient: (client) => {
+        if (JSON.stringify(client).length > MAX_CLIENT_BYTES) throw new InvalidClientMetadataError(`client metadata exceeds ${MAX_CLIENT_BYTES} bytes`);
         const s = this.load();
-        const full = { ...client, client_id: randomUUID(), client_id_issued_at: nowS() } as OAuthClientInformationFull;
+        const t = nowS();
+        const live = new Set([...Object.values(s.tokens).filter((v) => v.expires_at >= t).map((v) => v.client_id), ...[...this.codes.values()].map((c) => c.client_id)]);
+        // oldest first; ties keep registration order (stable sort over insertion-ordered keys)
+        const idle = Object.values(s.clients).filter((c) => !live.has(c.client_id)).sort((a, b) => (a.client_id_issued_at ?? 0) - (b.client_id_issued_at ?? 0));
+        while (Object.keys(s.clients).length >= MAX_CLIENTS && idle.length > 0) delete s.clients[idle.shift()!.client_id];
+        if (Object.keys(s.clients).length >= MAX_CLIENTS) throw new TooManyRequestsError("client registry is full");
+        const full = { ...client, client_id: randomUUID(), client_id_issued_at: t } as OAuthClientInformationFull;
         s.clients[full.client_id] = full;
         this.save(s);
         return full;

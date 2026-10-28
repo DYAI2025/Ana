@@ -1,4 +1,4 @@
-import { execFileSync } from "node:child_process";
+import { execFileSync, spawnSync } from "node:child_process";
 import { existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, realpathSync, appendFileSync, writeFileSync, renameSync } from "node:fs";
 import path from "node:path";
 import { firstParagraph, parseNote, serializeNote, validateFrontmatter, type Note } from "../contract/note.js";
@@ -144,8 +144,8 @@ export class Vault {
       for (const s of fm.source_refs) check(fm.id, s.source, "source", "source");
       for (const r of fm.relations) if (!this.notes.has(r.target)) out.push(`${fm.id}: relation target missing: ${r.target}`);
       if (fm.superseded_by && !this.notes.has(fm.superseded_by)) out.push(`${fm.id}: superseded_by missing: ${fm.superseded_by}`);
-      for (const m of body.matchAll(/ corrects \^(obs-[a-z0-9-]{1,80}) /g))
-        if (!hasBlock(body, m[1]!)) out.push(`${fm.id}: correction names a missing block: ^${m[1]}`);
+      for (const block of correctedBlocks(body))
+        if (!hasBlock(body, block)) out.push(`${fm.id}: correction names a missing block: ^${block}`);
     }
     return out;
   }
@@ -209,10 +209,13 @@ export class Vault {
       if (type === "supersedes" && tgt.fm.type === "source" && src.fm.type !== "source")
         throw new VaultError("a source record can only be superseded by another source record");
       const exists = src.fm.relations.some((r) => r.type === type && r.target === to);
-      if (exists) return { added: false };
       const at = now();
-      const rel: Relation = { type, target: to, by: actor as Relation["by"], at };
-      this.persist(this.pathFor(from, src.fm.type), { fm: validateFrontmatter({ ...src.fm, relations: [...src.fm.relations, rel], updated: at }), body: src.body }, false);
+      if (!exists) {
+        const rel: Relation = { type, target: to, by: actor as Relation["by"], at };
+        this.persist(this.pathFor(from, src.fm.type), { fm: validateFrontmatter({ ...src.fm, relations: [...src.fm.relations, rel], updated: at }), body: src.body }, false);
+      }
+      // the target is marked even when the relation already exists: a retry completes a supersession whose second
+      // file write was lost (two files, no transaction)
       if (type === "supersedes" && tgt.fm.type === "source" && tgt.fm.superseded_by === null) {
         // a source record keeps status SOURCE (contract §2.2); superseded_by retires it and, in the index, every note
         // whose cited sources are all retired
@@ -220,7 +223,7 @@ export class Vault {
       } else if (type === "supersedes" && tgt.fm.type !== "source" && tgt.fm.status !== "SUPERSEDED") {
         this.persist(this.pathFor(to, tgt.fm.type), { fm: validateFrontmatter({ ...tgt.fm, status: "SUPERSEDED", superseded_by: from, updated: at }), body: tgt.body }, false);
       }
-      return { added: true };
+      return { added: !exists };
     });
   }
 
@@ -287,6 +290,8 @@ export class Vault {
     const identity = ["-c", "user.name=ANA Brain", "-c", "user.email=ana-brain@localhost"];
     try {
       execFileSync("git", ["-C", this.root, "add", "-A"], { stdio: "ignore" });
+      // nothing staged (an idempotent repeat; .ana/ is ignored in the real vault): nothing to record, not a failure
+      if (spawnSync("git", ["-C", this.root, "diff", "--cached", "--quiet"], { stdio: "ignore" }).status === 0) return;
       execFileSync("git", ["-C", this.root, ...identity, "commit", "-q", "-m", `${action} ${id} by ${actor}`], { stdio: "ignore" });
     } catch {
       // the write stands (it is on disk and audited); say loudly that it is missing from the vault history
@@ -325,6 +330,26 @@ function isSymlink(p: string): boolean {
   } catch {
     return false;
   }
+}
+
+/**
+ * The blocks named by correction lines: only lines under `## Corrections` in the form appendObservation writes
+ * (`- <at> · <actor> · <status> · corrects ^obs-… · <text> ^obs-…`). Observation text that mentions
+ * `corrects ^obs-…` sits under `## Observations` and is not a correction.
+ */
+function correctedBlocks(body: string): string[] {
+  const out: string[] = [];
+  let inCorrections = false;
+  for (const line of body.split("\n")) {
+    const heading = /^#{1,6} (.*)$/.exec(line);
+    if (heading) {
+      inCorrections = heading[1]!.trim() === "Corrections";
+      continue;
+    }
+    const m = inCorrections ? /^- [^·]+ · [^·]+ · [A-Z]+ · corrects \^(obs-[a-z0-9-]{1,80}) · /.exec(line) : null;
+    if (m) out.push(m[1]!);
+  }
+  return out;
 }
 
 /** A block anchor `^obs-…` that ends its line (the `corrects ^…` mention inside a line is not the block). */
