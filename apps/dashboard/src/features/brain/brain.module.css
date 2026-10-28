@@ -317,9 +317,10 @@
   background: rgba(255, 255, 255, 0.07);
 }
 
+/* ASADA light glass: the accent border carries the pressed state (>= 3:1 against the card, WCAG 1.4.11) */
 .clusterItem[aria-pressed="true"] {
-  border-color: rgba(255, 128, 108, 0.5);
-  background: rgba(255, 255, 255, 0.1);
+  border-color: var(--accent);
+  background: rgba(168, 50, 28, 0.08);
 }
 
 .dot {

@@ -96,6 +96,8 @@ test("the cluster legend focuses one cluster and toggles back", async ({ page })
   const legend = page.getByTestId("brain-legend-cluster-c3");
   await legend.click();
   await expect(legend).toHaveAttribute("aria-pressed", "true");
+  // WCAG 1.4.11: the pressed state shows on the light glass as an accent border (>= 3:1), not a dark-theme tint
+  await expect(legend).toHaveCSS("border-top-color", "rgb(168, 50, 28)");
   await expect(page.locator('[data-testid^="brain-node-"]')).toHaveCount(4);
   await expect(canvas).toHaveAttribute("data-dimmed", "16");
   await legend.click();
