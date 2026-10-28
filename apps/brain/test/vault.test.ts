@@ -232,6 +232,32 @@ describe("vault", () => {
     expect(left).toContain("?? stray.txt");
   });
 
+  it("a write to a note that already had uncommitted changes says so in its commit, also on a supersession retry", async () => {
+    const root = syntheticVault();
+    writeFileSync(path.join(root, ".gitignore"), ".ana/\n");
+    const id = ["-c", "user.name=t", "-c", "user.email=t@example.test"];
+    const git = (...a: string[]) => execFileSync("git", ["-C", root, ...a]).toString().trim();
+    execFileSync("git", ["init", "-q", root]);
+    git("add", "-A");
+    git(...id, "commit", "-qm", "seed");
+    // a hand edit in the very note the next write changes cannot be kept out of that write's file
+    const note = path.join(root, "knowledge", "kn-hook-first.md");
+    writeFileSync(note, `${readFileSync(note, "utf8")}\nEdited by hand.\n`);
+    await new Vault(root).appendObservation("ana", "kn-hook-first", { text: "Seen again" });
+    expect(git("log", "-1", "--format=%s")).toBe("append_observation kn-hook-first by ana + earlier uncommitted changes in knowledge/kn-hook-first.md");
+    expect(git("show", "--name-only", "--format=")).toBe("knowledge/kn-hook-first.md");
+    // a clean note: the subject is the write alone
+    await new Vault(root).appendObservation("ben", "kn-hook-first", { text: "Clean" });
+    expect(git("log", "-1", "--format=%s")).toBe("append_observation kn-hook-first by ben");
+    // a supersession whose first attempt wrote the relation but neither marked the target nor committed
+    await new Vault(root, { git: false }).addRelation("ben", "kn-hook-variant", "supersedes", "kn-hook-first");
+    git("checkout", "--", "knowledge/kn-hook-first.md");
+    await new Vault(root).addRelation("vince", "kn-hook-variant", "supersedes", "kn-hook-first");
+    expect(git("log", "-1", "--format=%s")).toBe("add_relation kn-hook-variant by vince + earlier uncommitted changes in knowledge/kn-hook-variant.md");
+    expect(git("show", "--name-only", "--format=").split("\n")).toEqual(["knowledge/kn-hook-first.md", "knowledge/kn-hook-variant.md"]);
+    expect(git("status", "--porcelain")).toBe("");
+  });
+
   it("an idempotent repeat is not reported as a failed commit when .ana/ is ignored, as in the real vault", async () => {
     const root = syntheticVault();
     writeFileSync(path.join(root, ".gitignore"), ".ana/\n");

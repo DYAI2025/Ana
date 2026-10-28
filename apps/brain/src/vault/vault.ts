@@ -51,6 +51,8 @@ export class Vault {
   private queue: Promise<unknown> = Promise.resolve();
   /** Vault-relative files persisted by the write in progress (writes are serialised). */
   private readonly written = new Set<string>();
+  /** Those of them that already differed from HEAD before this write: their earlier changes go into its commit. */
+  private readonly inherited = new Set<string>();
   readonly loadErrors: LoadError[] = [];
 
   constructor(root: string, private readonly opts: { git?: boolean; method?: "mcp" | "manual" | "seed" } = {}) {
@@ -217,13 +219,15 @@ export class Vault {
         this.persist(this.pathFor(from, src.fm.type), { fm: validateFrontmatter({ ...src.fm, relations: [...src.fm.relations, rel], updated: at }), body: src.body }, false);
       }
       // the target is marked even when the relation already exists: a retry completes a supersession whose second
-      // file write was lost (two files, no transaction)
+      // file write was lost (two files, no transaction); the relation's own file then goes into the retry's commit too
       if (type === "supersedes" && tgt.fm.type === "source" && tgt.fm.superseded_by === null) {
         // a source record keeps status SOURCE (contract §2.2); superseded_by retires it and, in the index, every note
         // whose cited sources are all retired
         this.persist(this.pathFor(to, tgt.fm.type), { fm: validateFrontmatter({ ...tgt.fm, superseded_by: from, updated: at }), body: tgt.body }, false);
+        if (exists) this.track(this.pathFor(from, src.fm.type));
       } else if (type === "supersedes" && tgt.fm.type !== "source" && tgt.fm.status !== "SUPERSEDED") {
         this.persist(this.pathFor(to, tgt.fm.type), { fm: validateFrontmatter({ ...tgt.fm, status: "SUPERSEDED", superseded_by: from, updated: at }), body: tgt.body }, false);
+        if (exists) this.track(this.pathFor(from, src.fm.type));
       }
       return { added: !exists };
     });
@@ -276,11 +280,24 @@ export class Vault {
   private persist(file: string, note: Note, create: boolean): void {
     if (create && existsSync(file)) throw new VaultError("note already exists", "exists");
     if (!create) this.assertInside(file);
+    this.track(file);
     const tmp = path.join(this.root, ".ana", `.tmp-${process.pid}-${Date.now()}`);
     writeFileSync(tmp, serializeNote(note), { flag: "wx" });
     renameSync(tmp, file);
     this.notes.set(note.fm.id, { note, file });
-    this.written.add(path.relative(this.root, file));
+  }
+
+  /**
+   * Makes `file` part of this write's commit. A file that already differs from HEAD (a hand edit, a write whose commit
+   * failed) cannot be committed without those changes, so the commit subject names it instead of hiding it.
+   */
+  private track(file: string): void {
+    const rel = path.relative(this.root, file);
+    if (this.opts.git !== false && existsSync(path.join(this.root, ".git"))) {
+      const st = spawnSync("git", ["-C", this.root, "status", "--porcelain", "--", rel], { encoding: "utf8" });
+      if (st.status === 0 && st.stdout.trim() !== "") this.inherited.add(rel);
+    }
+    this.written.add(rel);
   }
 
   private audit(entry: { at: string; actor: string; method: string; action: string; target: string; result: string }): void {
@@ -289,7 +306,8 @@ export class Vault {
 
   /**
    * Commits exactly the files this write persisted, never the rest of the worktree: a hand edit, a staged change or a
-   * write whose own commit failed stays out of this commit and its attribution, and shows in `git status`.
+   * write whose own commit failed in another file stays out of this commit and shows in `git status`. Earlier changes
+   * in a file this write persisted are named in the subject (see track).
    */
   private commit(action: string, id: string, actor: string, files: string[]): void {
     if (this.opts.git === false || !existsSync(path.join(this.root, ".git"))) return;
@@ -301,7 +319,9 @@ export class Vault {
       execFileSync("git", ["-C", this.root, "add", "--", ...files], { stdio: "ignore" });
       // rewritten with the content it already had: nothing to record, not a failure
       if (spawnSync("git", ["-C", this.root, "diff", "--cached", "--quiet", "--", ...files], { stdio: "ignore" }).status === 0) return;
-      execFileSync("git", ["-C", this.root, ...identity, "commit", "-q", "-m", `${action} ${id} by ${actor}`, "--", ...files], { stdio: "ignore" });
+      const inherited = files.filter((f) => this.inherited.has(f));
+      const subject = `${action} ${id} by ${actor}${inherited.length ? ` + earlier uncommitted changes in ${inherited.join(", ")}` : ""}`;
+      execFileSync("git", ["-C", this.root, ...identity, "commit", "-q", "-m", subject, "--", ...files], { stdio: "ignore" });
     } catch {
       // the write stands (it is on disk and audited); say loudly that it is missing from the vault history
       console.error(`vault: git commit of ${action} ${id} failed; the change is on disk but not in the vault history`);
@@ -314,6 +334,7 @@ export class Vault {
       const safeTarget = typeof target === "string" && ID_RE.test(target) ? target : "INVALID";
       const method = typeof actor === "string" ? this.method(actor) : "UNKNOWN";
       this.written.clear();
+      this.inherited.clear();
       try {
         const out = fn();
         this.audit({ at: now(), actor, method, action, target: safeTarget, result: "ok" });
