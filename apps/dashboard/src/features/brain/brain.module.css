@@ -26,10 +26,14 @@
   flex-wrap: wrap;
   padding: 12px 14px;
   border-radius: 16px;
-  border: 1px solid rgba(229, 211, 190, 0.7);
-  background: rgba(32, 26, 31, 0.78);
+  border: 1px solid rgba(70, 80, 95, 0.28);
+  background: var(--surface-solid);
   color: var(--text);
   font-size: 13.5px;
+}
+
+.failure[data-state="BLOCKED"] {
+  border-color: rgba(229, 211, 190, 0.7);
 }
 
 .failure[data-state="UNKNOWN"] {
@@ -48,12 +52,15 @@
   font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.08em;
-  background: rgba(20, 16, 19, 0.6);
-  color: var(--sand);
+  background: var(--surface-solid);
+}
+
+.failure[data-state="BLOCKED"] .stateLabel {
+  color: var(--ink-warm);
 }
 
 .failure[data-state="UNKNOWN"] .stateLabel {
-  color: #dcd7ee;
+  color: var(--ink-cool);
 }
 
 .failureBody {
@@ -194,7 +201,7 @@
 }
 
 .legend .swatch {
-  color: #e9e1da;
+  color: var(--text-secondary);
 }
 
 .legendItem {
@@ -328,8 +335,8 @@
   font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.06em;
-  border: 1px solid rgba(245, 237, 228, 0.45);
-  background: rgba(20, 16, 19, 0.5);
+  border: 1px solid var(--text-muted);
+  background: var(--surface-veil);
   color: var(--text);
 }
 

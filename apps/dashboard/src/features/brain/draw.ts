@@ -17,11 +17,12 @@ export const TYPE_STYLE: Readonly<Record<NodeType, { shape: NodeShape }>> = {
   question: { shape: "star" },
 };
 
-/** Deterministic pastel palette from the C4/Lumen tones; clusters take colours in projection order. */
-// ordered for hue distance: the first six clusters get clearly different hues (salmon, lavender, butter, mint,
-// sky, lime) before the softer pink/sand tones are reused
-export const CLUSTER_PALETTE = ["#ffb7a8", "#bbb4d5", "#f1d7a6", "#a9d3c5", "#a8c3e6", "#c9e2a6", "#ddbbc2", "#e5d3be"] as const;
-export const UNCLUSTERED_COLOR = "#b8b0aa";
+/** Deterministic ink palette for the light ASADA canvas; clusters take colours in projection order. */
+// every tone reaches 3:1 on --canvas and --canvas-deep (WCAG 1.4.11), sits >= 30° of hue from every other tone
+// and from the red selection ring; ordered so the first six clusters get the widest hue spread
+// (violet, ochre, teal, rose, blue, olive) before purple and green
+export const CLUSTER_PALETTE = ["#5f58a3", "#8a6510", "#2b7a63", "#a5446c", "#2f6aa3", "#557a1f", "#87479a", "#3a7a3c"] as const;
+export const UNCLUSTERED_COLOR = "#6b7079";
 
 export function clusterColors(clusters: readonly BrainCluster[]): Map<string, string> {
   return new Map(clusters.map((c, i) => [c.id, CLUSTER_PALETTE[i % CLUSTER_PALETTE.length]!]));
