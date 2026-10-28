@@ -10,7 +10,7 @@ coordinates and clusters are rebuildable projections. No Brain content, keys or 
 | `/opt/ana-brain` | checkout of this repository (built `apps/brain/dist`) |
 | `/var/lib/ana-brain/vault` | canonical vault (local git repo, **no remote**) |
 | `/var/lib/ana-brain/state` | `keys.json`, `oauth.json`, `dashboard-token.json` (hashes only) |
-| `/etc/ana-brain/env` | environment (see `env.example`), mode 0600 |
+| `/etc/ana-brain` | `0750 root:ana-brain`: `env` (see `env.example`, `0600`) and `drive-sa.json` (`0640 root:ana-brain`) |
 | `/var/backups/ana-brain` | nightly backups |
 
 ## Install
@@ -18,10 +18,16 @@ coordinates and clusters are rebuildable projections. No Brain content, keys or 
 ```sh
 useradd --system --home /var/lib/ana-brain --shell /usr/sbin/nologin ana-brain
 install -d -o ana-brain -g ana-brain -m 0700 /var/lib/ana-brain/vault /var/lib/ana-brain/state
+install -d -o root -g root -m 0700 /var/backups/ana-brain
 sudo -u ana-brain git -C /var/lib/ana-brain/vault init
 cd /opt/ana-brain/apps/brain && npm ci && npm run build
-install -d -m 0750 /etc/ana-brain && cp deploy/env.example /etc/ana-brain/env   # fill in, chmod 0600
-cp deploy/ana-brain.service /etc/systemd/system/ && systemctl daemon-reload && systemctl enable --now ana-brain
+install -d -m 0750 -o root -g ana-brain /etc/ana-brain
+install -m 0600 -o root -g ana-brain deploy/env.example /etc/ana-brain/env   # then fill in the values
+cp deploy/ana-brain.service deploy/ana-brain-index.service deploy/ana-brain-index.timer \
+   deploy/ana-brain-backup.service deploy/ana-brain-backup.timer /etc/systemd/system/
+systemctl daemon-reload
+systemctl enable --now ana-brain ana-brain-index.timer ana-brain-backup.timer
+systemctl list-timers 'ana-brain-*'   # both timers must be listed with a next run
 cp deploy/nginx-mcp.ana.dyai.cloud.conf /etc/nginx/sites-available/ && ln -s ../sites-available/nginx-mcp.ana.dyai.cloud.conf /etc/nginx/sites-enabled/
 certbot --nginx -d mcp.ana.dyai.cloud && nginx -t && systemctl reload nginx
 curl -fsS https://mcp.ana.dyai.cloud/healthz
@@ -49,11 +55,12 @@ Run every CLI command as the service user with the env file loaded, e.g.
 - `index --full` — drops `ana_brain_v1` and rebuilds from the vault (safe: the vault is canonical).
 - `validate` — validates every note and reference; exit 1 on error. `stats` — counts by type/status, index size.
 - Refuses to index if `bge-m3:latest` does not return 1024 dimensions or the collection has another size.
-- Suggested timer: `index` every 15 minutes and after seeding.
+- `ana-brain-index.timer` runs `index` 2 minutes after boot and then 5 minutes after the previous run finished; run
+  `index` by hand right after seeding or a restore.
 
 ## Backup
 
-Nightly (cron/systemd timer as root):
+`ana-brain-backup.timer` runs `ana-brain-backup.service` daily at 03:15 (host time) as root; it is the same as:
 
 ```sh
 tar -C /var/lib/ana-brain -czf /var/backups/ana-brain/ana-brain-$(date +%F).tar.gz vault state
@@ -84,8 +91,8 @@ request, so it is rebuilt automatically.
 
 | Unit | Schedule | Purpose |
 |---|---|---|
-| `ana-brain-index.timer` | every 5 min | incremental index; unchanged notes are skipped by content hash |
-| `ana-brain-backup.timer` | daily 03:15 UTC | `tar` of `vault` + `state` to `/var/backups/ana-brain`, 30 days kept |
+| `ana-brain-index.timer` | 2 min after boot, then 5 min after the previous run | incremental index; unchanged notes are skipped by content hash |
+| `ana-brain-backup.timer` | daily 03:15 (host time) | `tar` of `vault` + `state` to `/var/backups/ana-brain`, 30 days kept |
 
 ## Google Drive (ANA Evidence Root)
 
