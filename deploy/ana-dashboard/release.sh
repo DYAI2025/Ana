@@ -1,12 +1,13 @@
 #!/usr/bin/env bash
-# ANA LUMEN release and rollback on the Arch host (systemd, no Docker). Run as root, detached from the ssh session
-# (the host uplink is WLAN and drops at times), e.g.
-#   ssh -t arch sudo systemd-run --unit=ana-release --wait --collect /srv/dyai/runtime/ana-dashboard/release.sh <sha> <dir>
-#   ssh -t arch sudo systemd-run --unit=ana-release --wait --collect /srv/dyai/runtime/ana-dashboard/release.sh --rollback
-#   ssh arch journalctl -u ana-release -o cat -n 50
+# ANA LUMEN release and rollback on the Contabo VPS vmi3693936 (Ubuntu 24.04, systemd, no Docker). Run as root,
+# detached from the ssh session so that a dropped connection cannot stop it half way, e.g. (<contabo> = the
+# operator's SSH target for vmi3693936, see README.md section 4)
+#   ssh -t <contabo> systemd-run --unit=ana-release --wait --collect /srv/dyai/runtime/ana-dashboard/release.sh <sha> <dir>
+#   ssh -t <contabo> systemd-run --unit=ana-release --wait --collect /srv/dyai/runtime/ana-dashboard/release.sh --rollback
+#   ssh <contabo> journalctl -u ana-release -o cat -n 50
 #
 # The bundle is ana-dashboard-app-<sha>.tar.gz plus its .sha256 file from the dashboard-image workflow run of that
-# main commit: the /app of the image whose access gate CI tested, and which CI also ran under Node 24 (the Arch Node).
+# main commit: the /app of the image whose access gate CI tested, and which CI also ran under Node v24.22.0 (the host's Node).
 #
 # A release counts as verified only when the team's Access signing keys are reachable from this host, the unit is
 # active, /api/healthz answers 200 from the unit's own process AND the access gate answers 401 to a request without
