@@ -70,6 +70,12 @@ text 5.37 / 5.71 / 5.63 / 5.57, intro 5.29 / 5.57 / 5.56 / 5.54; no text in the 
 the four widths, and no text in the swept range worse than on `a6e8151` by more than 0.05. Still under 4.5:1 there
 at 390px and unchanged: the "Observations" tab label (4.32), pre-existing.
 
+Silver theme (merge of main `6899575`, ANA-42 ASADA Bright Silver): main turned the canvas light. The ink backing
+above (`rgba(20,15,19,…)`) and the white panel title, both tuned for the dark canvas, then failed: panel titles 1.00:1
+(main itself uses `--text` there), ANA-39 lane, decision and fit notes 3.41–3.55:1, 13 of 87 contrast tests red on the
+merged tree. Repair: titles back to `--text`, every ANA-39 backing becomes main's light `--surface-veil`, the notes keep
+`--text-secondary`. Contrast spec 87/87 green after the repair, including the 390px ANA-39 sweep guard.
+
 Not repaired, pre-existing on base and outside the guard: across the Instagram cockpit at 390px many older texts
 measure below 4.5:1 at some scroll position (row metrics, eyebrows, tab labels, observation
 labels). The guard is scoped so those findings neither hide nor excuse a regression in the ANA-39 blocks; they need

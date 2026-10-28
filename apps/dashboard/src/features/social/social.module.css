@@ -173,12 +173,10 @@
   margin-bottom: 12px;
 }
 
-/* white, not --text: the glass sheen under a panel's top edge scales with panel height, and --text measured
-   4.26-4.59:1 there across heights and viewports; white keeps every height >= 4.6:1 (ANA-39 AC6) */
 .panelTitle {
   font-size: 17px;
   font-weight: 520;
-  color: #fff;
+  color: var(--text);
 }
 
 .eyebrow {
@@ -921,21 +919,17 @@
   border-style: dashed;
 }
 
-/* lanes, the decision, the comparison, the inspection and the topical-fit editor sit on varying glass: a light ink
-   backing plus the secondary tone keeps notes above 4.5:1 (at phone width the fixed atmosphere behind them shifts
-   while scrolling); the hypothesis cards and the offers intro hold longer note text directly, so their backing is a
-   little denser */
+/* lanes, the decision, the comparison, the inspection and the topical-fit editor sit on varying glass: a light veil
+   plus the secondary tone keeps notes above 4.5:1 (at phone width the canvas behind them shifts while scrolling);
+   a darker backing would lower the contrast of the dark text on the silver theme (ANA-39 AC6) */
 .lane,
 .decision,
 .nextTest,
 .inspection,
-.fitEditor {
-  background: rgba(20, 15, 19, 0.2);
-}
-
+.fitEditor,
 .hypothesis,
 .offers > .note:first-child {
-  background: rgba(20, 15, 19, 0.28);
+  background: var(--surface-veil);
 }
 
 .hypothesis > .note,
