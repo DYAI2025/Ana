@@ -1,13 +1,19 @@
-# ANA LUMEN release contract (ANA-41, ADR-ANA-001)
+# ANA LUMEN release contract (ANA-41, ANA-42, ADR-ANA-001)
 
-Ownership follows [ADR-ANA-001](https://dyai2026.atlassian.net/wiki/spaces/Ana/pages/124977153) (ACCEPTED):
+**Host: the existing Contabo VPS `vmi3693936` (Ubuntu 24.04) is the only deployment environment for ANA LUMEN and
+every other ANA application** (Product Owner decision of 2026-10-27, recorded in
+[ADR-ANA-001](https://dyai2026.atlassian.net/wiki/spaces/Ana/pages/124977153) v3, which supersedes its earlier
+ArchServer hosting decision; Cloudflare Access v1 and the Jira service-account decision stay valid). No other host is
+a deployment target, a reference host or a test host for ANA. A different host needs a new explicit Product Owner
+decision.
 
 - **ANA owns** the application, its build, its app-level security and this release contract (sections 1 and 2).
-- **ArchServer owns** the host: systemd installation, ingress and tunnel, TLS, DNS, secret provisioning, monitoring,
-  recovery and the actual deployment (section 3).
+- **The Contabo host operation** covers the systemd installation, the Cloudflare Tunnel connector, secret
+  provisioning, monitoring, recovery and the actual release (sections 3 and 4). Each production change needs the
+  Product Owner's action-specific approval.
 
-Section 4 is one tested way to meet the contract on the Arch host. It is a nonbinding example: ArchServer may adopt,
-change or replace it. Nothing in this directory authorizes a deployment, a DNS change or a host change.
+Section 4 is the implementation that runs on `vmi3693936`. Nothing in this directory authorizes a deployment, a DNS
+change, an Access or Tunnel change, a credential change or a host change.
 
 ## 1. Mandatory app-level invariants
 
@@ -25,9 +31,9 @@ shown only by its evidence (section 2).
    never a release. The bundle is the `/app` of the image whose access gate CI tested; it is built for linux/amd64
    only, and its only native code is `sharp` for linux-x64/glibc.
 2. **Runtime.** A Node version the bundle was tested with. The app declares Node >= 22.12; CI builds and tests the
-   image on Node 22 and runs the extracted bundle under v24.22.0 (the reference host's Node), checking that the
-   listening process executes that binary. Any other major is untested until CI covers it; the host confirms a
-   compatible runtime (ADR-ANA-001).
+   image on Node 22 and runs the extracted bundle under v24.22.0 (the Node of the Contabo host, observed 2026-10-27), checking that the
+   listening process executes that binary. Any other major is untested until CI covers it; before each release the
+   operator confirms the host's `node --version` (section 2).
 3. **Pinned security mode.** The process environment, set by the supervisor, contains `ANA_ACCESS_MODE=cloudflare`
    and `ANA_CONTAINER=1`, and no file a deployment reads may override them. With `ANA_CONTAINER=1` the app refuses
    every other mode with 503, so a lost or wrong setting fails closed. `node --env-file` keeps variables already in
@@ -44,15 +50,15 @@ shown only by its evidence (section 2).
    Cloudflare Access for the app's hostname. The ingress must not rewrite the Host header: the Jira write and
    Instagram read checks compare Origin with Host.
 6. **Secret isolation.** Secrets never appear in the repository, the image, the client bundle, argv, unit files or
-   logs, and on the host only the service and its operator can read them. How they get there is ArchServer's choice
-   (section 3).
+   logs, and on the host only the service and its operator can read them. How they get there is decided for the Contabo host
+   (sections 3 and 4).
 7. **Health and gate signals.** `/api/healthz` answers 200; `/` without an assertion answers 401 (503 = Access
    settings missing or wrong). Both together are the minimum for a release to count as started. A wrong but
    well-formed AUD passes both; only a real login proves it (section 2).
 
 ## 2. Evidence required for an actual deployment
 
-A deployment counts as done only with this evidence, recorded by whoever runs it (ArchServer) and kept out of the
+A deployment counts as done only with this evidence, recorded by whoever runs the release on Contabo and kept out of the
 public repository (private evidence):
 
 - the commit sha, the `dashboard-image` push run id on `main` and a matching sha256 of the bundle (invariant 1);
@@ -72,50 +78,57 @@ public repository (private evidence):
   (invariant 6);
 - the rollback target (the previous verified release) and how it is reached.
 
-## 3. Host and operator decisions (ArchServer, separate approval)
+## 3. Host and operator decisions (Contabo, separate approval)
 
-Open here and decided by ArchServer under its own approvals; the ArchServer ingress ADR is open:
+Decided for the Contabo host under the Product Owner's approvals, not by this contract; section 4 records the current
+choices:
 
-- ingress type and its configuration (Cloudflare Tunnel or another way in), tunnel name, hostname and DNS;
+- ingress configuration (Cloudflare Tunnel `ana-dashboard`), hostname and DNS;
 - the Cloudflare Access application and policy setup (the policy's invitees must equal `ANA_ALLOWED_EMAILS`);
 - supervisor and unit names, paths, service user, resource limits and hardening;
 - how secrets are provisioned and rotated;
 - monitoring, backups, recovery, the release and rollback mechanism, and when a release goes out.
 
-## 4. Optional reference implementation (Arch host, nonbinding)
+## 4. Contabo implementation (`vmi3693936`)
 
-`dyai-ana-dashboard.service`, `dyai-ana-tunnel.service` and `release.sh` show one way to satisfy section 1 on the Arch
-host (`ssh arch`, Arch Linux x86_64, systemd, no Docker). Their names, paths, the tunnel and the way cloudflared is
-invoked are this example's choices, not requirements. CI lints these files, not the host, and each check proves only
-what it states. In the dashboard unit it pins the two `Environment=` lines and the single `ExecStart=` the
+`dyai-ana-dashboard.service`, `dyai-ana-tunnel.service` and `release.sh` satisfy section 1 on the Contabo VPS
+`vmi3693936` (Ubuntu 24.04 x86_64, systemd, no Docker). The ANA-42 release of 2026-10-27 (Jira ANA-42, comment
+18133) observed on the host: node v24.22.0, cloudflared 2026.10.3, both units installed and identical to these files,
+`/srv/dyai/runtime/ana-dashboard/release.sh` byte-identical to `release.sh`. That is a dated observation, not a live
+guarantee: before each release, compare the host's units and `release.sh` with this directory and stop on an
+unexplained difference. CI lints these files, not the host, and each check proves only what it states. In the dashboard unit it pins the two `Environment=` lines and the single `ExecStart=` the
 native-bundle test also starts with (invariants 3, 5, 6) and refuses `EnvironmentFile=`, `UnsetEnvironment=`,
 `PassEnvironment=`, further `Environment=` or `ExecStart=` lines and `MemoryDenyWriteExecute=` (V8 aborts under it);
 HOME and the node path are pinned only so that a change to them gets reviewed. In the tunnel unit it checks only
 that the token is read from the unit's systemd credential, that no `EnvironmentFile=` and no secret-like
 `Environment=` line (TOKEN, KEY, AUD, EMAIL) is used, and that metrics are served on `127.0.0.1:20242`, where
-`release.sh` polls them. It does not lint how cloudflared is invoked otherwise: that is ArchServer's ingress, so
-review any other change to the tunnel unit by hand against invariants 5 and 6.
+`release.sh` polls them. It does not lint how cloudflared is invoked otherwise, so review any other change to the tunnel
+unit by hand against invariants 5 and 6.
 
 ```
 browser ──▶ Cloudflare Access (application ANA LUMEN, policy: exactly the three invited emails)
-        ──▶ Cloudflare Tunnel "ana-dashboard" (remotely managed, outbound from the Arch host)
+        ──▶ Cloudflare Tunnel "ana-dashboard" (remotely managed, outbound from the Contabo VPS)
         ──▶ dyai-ana-tunnel.service (cloudflared) ──▶ http://127.0.0.1:3410
         ──▶ dyai-ana-dashboard.service (node server.js): src/proxy.ts + API routes verify the Access JWT again
             (issuer, AUD, RS256 signature, invited email)
 ```
 
-- Nothing listens on a public interface: the dashboard binds 127.0.0.1:3410, cloudflared connects outbound. No router,
-  firewall or SSH change. The canary units (`dyai-canary-*`, tunnel `dyai-archcanary`) and Hermes are not touched.
+- Nothing listens on a public interface: the dashboard binds 127.0.0.1:3410, cloudflared connects outbound. No
+  firewall or SSH change. Other services on the host are not touched.
 - `ANA_ACCESS_MODE=cloudflare`, `ANA_CONTAINER=1`, `HOSTNAME=127.0.0.1` and `PORT=3410` are pinned with `Environment=`
   in the unit. Secrets reach node as a credential file read with `node --env-file`, so a stray line in it cannot
   switch to Host-header trust or another bind address. There is deliberately no `EnvironmentFile=`.
 - Secrets live only in `/etc/dyai/credentials/ana-dashboard/` (root:root, dir 700, files 600): `dashboard_env`
   (see `dashboard.env.example`) and `tunnel_token` (the connector token of the tunnel, one line). Both reach the
-  services only through `LoadCredential=`, as with the canary units; nothing secret is in argv, unit files or the journal.
+  services only through `LoadCredential=`; nothing secret is in argv, unit files or the journal.
 - Jira is not configured until the least-privilege integration account of ANA-33 exists; the Jira views then show
   "not configured".
 
-### One-time setup (owner, root on the Arch host)
+### One-time setup (owner, root on `vmi3693936`)
+
+Already done on `vmi3693936`; kept for a reinstall or recovery, which needs the Product Owner's approval. In the
+commands below `<contabo>` is the operator's own SSH target for `vmi3693936` (root, key-based login); it is not part
+of this repository. Check the host key fingerprint before trusting the session.
 
 Cloudflare (dashboard, account of `dyai.cloud`):
 
@@ -127,7 +140,7 @@ Cloudflare (dashboard, account of `dyai.cloud`):
    three invited emails, and `ANA_ALLOWED_EMAILS` lists the same three. Do not set an HTTP Host header override on the
    route (invariant 5).
 
-Host (attended root shell, e.g. `ssh -t arch sudo -i`):
+Host (attended root shell, `ssh -t <contabo>`):
 
 ```bash
 install -d -m 755 /srv/dyai/runtime/ana-dashboard /srv/dyai/runtime/ana-dashboard/releases
@@ -150,10 +163,11 @@ SHA=<full git sha of main>
 # only the artifact of the successful push run on main for that commit (invariant 1)
 RUN=$(gh run list -R DYAI2025/Ana -w dashboard-image.yml -b main -e push -c "$SHA" -s success --json databaseId -q '.[0].databaseId')
 [ -n "$RUN" ] && gh run download "$RUN" -R DYAI2025/Ana -n ana-dashboard-$SHA -D /tmp/ana-$SHA
-scp /tmp/ana-$SHA/ana-dashboard-app-$SHA.tar.gz{,.sha256} arch:/tmp/
+ssh <contabo> install -d -m 700 /root/ana-release-in-$SHA
+scp /tmp/ana-$SHA/ana-dashboard-app-$SHA.tar.gz{,.sha256} <contabo>:/root/ana-release-in-$SHA/
 # runs as a transient unit, so a dropped ssh session cannot kill it half way
-ssh -t arch sudo systemd-run --unit=ana-release --wait --collect /srv/dyai/runtime/ana-dashboard/release.sh $SHA /tmp
-ssh arch journalctl -u ana-release -o cat -n 50
+ssh -t <contabo> systemd-run --unit=ana-release --wait --collect /srv/dyai/runtime/ana-dashboard/release.sh $SHA /root/ana-release-in-$SHA
+ssh <contabo> journalctl -u ana-release -o cat -n 50
 ```
 
 `release.sh` takes a lock, refuses credential files that are empty or not root:root/600, a team domain whose signing
@@ -171,22 +185,22 @@ and is appended to `.release.history`. A wrong but well-formed AUD passes these 
 ### Rollback
 
 ```bash
-ssh -t arch sudo /srv/dyai/runtime/ana-dashboard/release.sh --rollback
+ssh -t <contabo> systemd-run --unit=ana-release --wait --collect /srv/dyai/runtime/ana-dashboard/release.sh --rollback
 ```
 
 Goes to the most recent verified release other than the current one; a failed release is never a target. A rollback
 is itself recorded as a release, so a second `--rollback` returns to the release you just left. With no earlier
-verified release (first deploy) it refuses and changes nothing. Run it through `systemd-run` like a release.
+verified release (first deploy) it refuses and changes nothing. Like a release, it runs through `systemd-run`.
 
 Emergency stop (the hostname then shows a Cloudflare error, nothing is exposed):
-`ssh -t arch sudo systemctl mask --now dyai-ana-tunnel.service`. Masked, the tunnel stays off even when release.sh runs
+`ssh -t <contabo> systemctl mask --now dyai-ana-tunnel.service`. Masked, the tunnel stays off even when release.sh runs
 (it then stops with "tunnel ... could not start"); `systemctl unmask` undoes it. Full removal additionally disables
 `dyai-ana-dashboard.service` and deletes the two unit files, `/srv/dyai/runtime/ana-dashboard` and
 `/etc/dyai/credentials/ana-dashboard`; the public hostname is removed in the tunnel's settings.
 
 ### Verify after every release
 
-Part of the section 2 evidence, in this example's terms; record the rest of section 2 as well:
+Part of the section 2 evidence, in this section's terms; record the rest of section 2 as well:
 
 - `curl -sI https://ana.dyai.cloud/` → redirect to `<team>.cloudflareaccess.com` (no app content)
 - `curl -s -o /dev/null -w '%{http_code}' https://ana.dyai.cloud/api/social/instagram` → not 200 without a login
@@ -196,4 +210,4 @@ Part of the section 2 evidence, in this example's terms; record the rest of sect
   `curl -s http://127.0.0.1:20242/ready` → `{"status":200,…}` with at least one connection
 
 Known limit: systemd restarts the dashboard when it exits, not when it hangs while alive; restart it with
-`ssh -t arch sudo systemctl restart dyai-ana-dashboard.service`.
+`ssh -t <contabo> systemctl restart dyai-ana-dashboard.service`.
