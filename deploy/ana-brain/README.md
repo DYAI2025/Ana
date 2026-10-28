@@ -50,7 +50,9 @@ no keys.
 - Search conservation: top-5 ids of a fixed query set on legacy and here; every difference explained.
 - MCP: `https://mcp.ana.dyai.cloud/healthz` 200, `/mcp` 401 without a key, `/projection` 403, a path outside the list
   404, and one authorized `brain_search` per re-issued key; ports 6333, 6334, 8790 and 11434 closed from outside.
-- Dashboard: the Brain page on production shows the projection (live acceptance run).
+- Dashboard: released from a commit that contains `/api/brain` (production `8dd3dfa` does not); `/brain` on
+  production shows the note and relation counts of `brain.sh stats`. `apps/dashboard/e2e-live/` has no Brain spec, so
+  this is a manual check and is recorded as one.
 - M5: legacy units stopped and disabled, the legacy host otherwise untouched; `brain.sh drive-list` with the service
   account before the personal token is revoked; the revocation receipt.
 
@@ -118,10 +120,14 @@ security find-generic-password -s ana35-brain-backup -a M1-20261028 -w | ssh <co
   echo "restored into $t"'
 ```
 
-Then on the host, before anything starts on it: the per-file manifest of `$t/vault`
-(`find . -type f -print0 | LC_ALL=C sort -z | xargs -0 sha256sum`) must equal `manifest.legacy.sha256` of the M1
-evidence (diff 0 lines); `GIT_OPTIONAL_LOCKS=0 git -C $t/vault fsck --full --strict` rc 0; HEAD `da70970…`, 1 commit,
-0 dirty; `.ana/audit.jsonl` sha256 `a9f69a9f…`. Only then:
+A later archive (step M4.3) is restored the same way with its own path, keychain entry and evidence values.
+
+Then on the host, before anything starts on it, against the evidence of the archive being restored: the per-file
+manifest of `$t/vault` (`find . -type f -print0 | LC_ALL=C sort -z | xargs -0 sha256sum`) must equal its
+`manifest.legacy.sha256` (diff 0 lines); `GIT_OPTIONAL_LOCKS=0 git -C $t/vault fsck --full --strict` rc 0; HEAD,
+commit count, 0 dirty and the `.ana/audit.jsonl` sha256 as recorded (M1: HEAD `da70970…`, 1 commit, audit
+`a9f69a9f…`). Record the restored HEAD and `wc -l < $t/vault/.ana/audit.jsonl`; a rollback lists what came after
+them. Only then (`/var/lib/ana-brain/vault` must not exist yet; step M4.3 moves the previous restore aside first):
 
 ```bash
 mv -T "$t/vault" /var/lib/ana-brain/vault && rmdir "$t"
@@ -144,27 +150,61 @@ before M4, not something to accept silently.
 ### M4 — cutover (each step approved; the legacy service is stopped, never deleted)
 
 1. Lower the TTL of the DNS-only A record `mcp.ana.dyai.cloud` ahead of time.
-2. Stop the legacy Brain and its index timer on `srv1308064` (`systemctl stop`; units, data and host stay).
+2. Stop the legacy Brain on `srv1308064` and disable it, so neither a reboot nor its timer starts it again (units,
+   data and host stay; `ana-brain-backup.timer` keeps running, it only reads the vault):
+   `systemctl disable --now ana-brain.service ana-brain-index.timer && systemctl stop ana-brain-index.service`.
 3. Bracket the legacy vault again with the M1 probe (HEAD, audit sha256, tree sha256). Equal to M1: the restored vault
-   is final. Different: make a new encrypted archive the M1 way, restore and verify it as above, re-run `index`.
+   is final. Different: make a new encrypted archive the M1 way on `srv1308064` (evidence `M4-<date>`), copy it here,
+   then stop this Brain so nothing writes while the vault is swapped, and keep the M3 restore:
+
+   ```bash
+   systemctl stop dyai-ana-brain-index.timer dyai-ana-brain-index.service dyai-ana-brain.service
+   mv -T /var/lib/ana-brain/vault /var/lib/ana-brain/vault.m3      # kept, never deleted
+   ```
+
+   Restore and verify the new archive as in M3 with its own values, move it into place, then:
+
+   ```bash
+   systemctl start dyai-ana-brain.service
+   /srv/dyai/runtime/ana-brain/brain.sh index --full   # the archive carries the legacy index state: re-embed every note
+   systemctl start dyai-ana-brain-index.timer
+   ```
+
 4. Switch the A record to this host (DNS-only, not proxied). Install `nginx-mcp.ana.dyai.cloud.acme.conf` as
-   `/etc/nginx/sites-available/mcp.ana.dyai.cloud` (linked from `sites-enabled/`), run
-   `certbot certonly --webroot -w /var/www/certbot -d mcp.ana.dyai.cloud --deploy-hook "systemctl reload nginx"`
+   `/etc/nginx/sites-available/mcp.ana.dyai.cloud` (linked from `sites-enabled/`), `nginx -t && systemctl reload nginx`,
+   run `certbot certonly --webroot -w /var/www/certbot -d mcp.ana.dyai.cloud --deploy-hook "systemctl reload nginx"`
    (renewals use the same webroot through port 80 of the full configuration), then replace it with
-   `nginx-mcp.ana.dyai.cloud.conf`, `nginx -t`, reload.
+   `nginx-mcp.ana.dyai.cloud.conf` and `nginx -t && systemctl reload nginx` again. CI runs `check-nginx.sh` on both
+   files with the nginx 1.24 of Ubuntu 24.04.
 5. Issue new keys (`brain.sh issue-key ana|ben|vince`) and hand each over privately; each person reconnects the
    Claude connector to `https://mcp.ana.dyai.cloud/mcp` and runs one `brain_search`.
 6. Dashboard: `brain.sh issue-dashboard-token`; put `BRAIN_API_URL=http://127.0.0.1:8790` and the token into the
-   dashboard's `dashboard_env` credential, then re-run the dashboard's `release.sh` for its current sha.
+   dashboard's `dashboard_env` credential, then run the dashboard's `release.sh` for a commit that contains the
+   Brain page and `/api/brain`: this PR merged into `main`. Re-releasing production `8dd3dfa` would serve no Brain.
 7. G4 release gate on the evidence of section 2.
 
-**Rollback before step 4:** nothing public changed; start the legacy service again. **After step 4:** point the A
-record back to `srv1308064`, start its Brain; writes made here since the restore (`git log <restored HEAD>..` in the
-vault) are listed for the Product Owner, never merged automatically.
+**Rollback before step 4:** nothing public changed; on `srv1308064`
+`systemctl enable --now ana-brain.service ana-brain-index.timer`. **After step 4:** first stop this Brain and its
+public site, so there is never a second writable Brain, then point the A record back to `srv1308064` and enable its
+Brain as above (the dashboard's Brain page here then shows BLOCKED):
+
+```bash
+systemctl disable --now dyai-ana-brain-index.timer dyai-ana-brain.service
+rm /etc/nginx/sites-enabled/mcp.ana.dyai.cloud && nginx -t && systemctl reload nginx
+```
+
+Writes made here since the restore are listed for the Product Owner, never merged automatically. git runs as
+`ana-brain` (as root it stops at "dubious ownership"), and the audit log also holds writes whose commit failed:
+
+```bash
+v=/var/lib/ana-brain/vault
+runuser -u ana-brain -- env HOME=/var/lib/ana-brain git -C "$v" log --oneline <restored HEAD>..HEAD
+tail -n +$((<restored audit lines> + 1)) "$v/.ana/audit.jsonl"
+```
 
 ### M5 — retire the legacy Brain (after G4)
 
-Disable the Brain units on `srv1308064` (`ana-brain`, `ana-brain-index.timer`, `ana-brain-backup.timer`); the VPS and
-its other services stay. Revoke the personal Drive token only after `brain.sh drive-list` has listed the Evidence
+The Brain units on `srv1308064` stay disabled since M4.2; disable `ana-brain-backup.timer` as well. The VPS and its
+other services stay. Revoke the personal Drive token only after `brain.sh drive-list` has listed the Evidence
 root as the service account and that access was verified independently; delete `/etc/ana-brain/drive-oauth.json`
 on the legacy host only after the revocation.

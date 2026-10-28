@@ -68,7 +68,8 @@ done
 [[ -s "$creds/brain_env" && -s "$creds/qdrant_api_key" ]] || fail "brain_env and qdrant_api_key must not be empty"
 qkey="$(tr -d '\n' < "$creds/qdrant_api_key")"
 envkey="$(sed -n 's/^QDRANT_API_KEY=//p' "$creds/brain_env" | tail -1)"
-[[ ${#qkey} -ge 32 && "$qkey" == "$envkey" ]] || fail "QDRANT_API_KEY in brain_env must equal qdrant_api_key (at least 32 characters)"
+[[ ${#qkey} -ge 32 && "$qkey" =~ ^[A-Za-z0-9._~-]+$ && "$qkey" == "$envkey" ]] ||
+  fail "QDRANT_API_KEY in brain_env must equal qdrant_api_key (at least 32 characters of [A-Za-z0-9._~-], e.g. openssl rand -hex 32)"
 root_id="$(sed -n 's/^ANA_DRIVE_ROOT_ID=//p' "$creds/brain_env" | tail -1)"
 if [[ -n "$root_id" ]]; then
   grep -q '"type": *"service_account"' "$creds/drive_sa" || fail "ANA_DRIVE_ROOT_ID is set but drive_sa is not a service-account key"
@@ -89,7 +90,8 @@ why="$(loopback_only 6333)" || fail "qdrant: $why"
 why="$(loopback_only 11434)" || fail "ollama: $why"
 nokey="$(code http://127.0.0.1:6333/collections)"
 [[ "$nokey" == 401 || "$nokey" == 403 ]] || fail "qdrant answered '$nokey' to /collections without its API key (expected 401/403)"
-[[ "$(code -H "api-key: $qkey" http://127.0.0.1:6333/collections)" == 200 ]] || fail "qdrant refuses the Brain's API key"
+# the key goes to curl as a config on stdin (printf is a builtin): in argv it would be readable in /proc/<pid>/cmdline
+[[ "$(printf 'header = "api-key: %s"\n' "$qkey" | code -K - http://127.0.0.1:6333/collections)" == 200 ]] || fail "qdrant refuses the Brain's API key"
 tags="$(curl -sf -m 10 http://127.0.0.1:11434/api/tags || true)"
 [[ "$tags" == *"\"$model:"* ]] || fail "ollama: model $model is not present (pull it through the loopback API, README section 4)"
 

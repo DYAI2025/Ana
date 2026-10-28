@@ -41,7 +41,8 @@ jobs:
       - run: npm run build
 
   contabo-kit:
-    runs-on: ubuntu-latest
+    # the Contabo host runs Ubuntu 24.04: its nginx is the parser check-nginx.sh must test
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
       - name: Contabo units, nginx and scripts (lint)
@@ -88,8 +89,17 @@ jobs:
           # release.sh refuses public Qdrant/Ollama/Brain listeners and the legacy Drive credential
           for p in 6333 11434; do grep -qF "loopback_only $p" "$d/release.sh" || fail "release.sh no longer checks port $p"; done
           grep -qF 'drive-oauth.json' "$d/release.sh" || fail "release.sh no longer refuses the legacy Drive credential"
-          bash -n "$d/release.sh"; bash -n "$d/brain.sh"
-          shellcheck -S warning "$d/release.sh" "$d/brain.sh"
+          # the Qdrant key reaches curl on stdin (-K -), never in argv where /proc/<pid>/cmdline shows it
+          if grep -nE '(curl|code) [^|]*\$qkey' "$d/release.sh"; then fail "release.sh passes the Qdrant key in curl's argv"; fi
+          bash -n "$d/release.sh"; bash -n "$d/brain.sh"; bash -n "$d/check-nginx.sh"
+          shellcheck -S warning "$d/release.sh" "$d/brain.sh" "$d/check-nginx.sh"
+      - name: nginx -t of both site files with the host's nginx (Ubuntu 24.04, nginx 1.24)
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq nginx
+          sudo deploy/ana-brain/check-nginx.sh deploy/ana-brain
 
   bundle:
     runs-on: ubuntu-latest
