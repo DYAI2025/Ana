@@ -7,14 +7,14 @@ export type NodeShape = "double" | "circle" | "square" | "triangle" | "diamond" 
 
 /** Every type has its own shape (mirrored in the legend), so colour is never the only cue. */
 export const TYPE_STYLE: Readonly<Record<NodeType, { color: string; shape: NodeShape }>> = {
-  goal: { color: "#ffb7a8", shape: "double" },
-  resource: { color: "#e5d3be", shape: "circle" },
-  session: { color: "#bbb4d5", shape: "square" },
-  workshop: { color: "#ddbbc2", shape: "triangle" },
-  decision: { color: "#f5ede4", shape: "diamond" },
-  tool: { color: "#c9a3ad", shape: "hexagon" },
-  source: { color: "#d6c6ea", shape: "pentagon" },
-  hypothesis: { color: "#f1d7a6", shape: "ring" },
+  goal: { color: "#d9735c", shape: "double" },
+  resource: { color: "#b89a6a", shape: "circle" },
+  session: { color: "#8178b3", shape: "square" },
+  workshop: { color: "#b77c8c", shape: "triangle" },
+  decision: { color: "#7d8795", shape: "diamond" },
+  tool: { color: "#a06c7c", shape: "hexagon" },
+  source: { color: "#9a82c4", shape: "pentagon" },
+  hypothesis: { color: "#c89a3d", shape: "ring" },
 };
 
 const POLYGON: Partial<Record<NodeShape, { sides: number; rotation: number; scale: number }>> = {
@@ -66,7 +66,7 @@ export function drawBrain(ctx: CanvasRenderingContext2D, input: DrawInput): HitT
     if (!a || !b) continue;
     const isActive = selected !== null && (edge.from === selected || edge.to === selected);
     const alpha = Math.max(0.05, Math.min(1, depthAlpha((a.depth + b.depth) / 2))) * (isActive ? 0.9 : selected ? 0.18 : 0.32);
-    ctx.strokeStyle = isActive ? `rgba(255, 150, 130, ${alpha})` : `rgba(245, 237, 228, ${alpha})`;
+    ctx.strokeStyle = isActive ? `rgba(168, 50, 28, ${alpha})` : `rgba(70, 80, 95, ${alpha})`;
     ctx.lineWidth = isActive ? 1.6 : 1;
     ctx.setLineDash(isActive ? [] : [3, 5]);
     ctx.beginPath();
@@ -99,7 +99,7 @@ export function drawBrain(ctx: CanvasRenderingContext2D, input: DrawInput): HitT
     ctx.fill();
 
     ctx.fillStyle = hexToRgba(style.color, 0.92 * alpha);
-    ctx.strokeStyle = hexToRgba("#ffffff", 0.55 * alpha);
+    ctx.strokeStyle = hexToRgba("#2a3038", 0.45 * alpha);
     ctx.lineWidth = 1;
     ctx.beginPath();
     const poly = POLYGON[style.shape];
@@ -131,7 +131,7 @@ export function drawBrain(ctx: CanvasRenderingContext2D, input: DrawInput): HitT
     if (isSelected) {
       ctx.beginPath();
       ctx.arc(p.x, p.y, radius + 8, 0, Math.PI * 2);
-      ctx.strokeStyle = "rgba(255, 128, 108, 0.95)";
+      ctx.strokeStyle = "rgba(168, 50, 28, 0.95)";
       ctx.lineWidth = 2;
       ctx.stroke();
     }
@@ -173,11 +173,11 @@ function drawLabels(ctx: CanvasRenderingContext2D, labels: LabelCandidate[], vie
     const collides = placed.some((o) => box.x < o.x + o.w + 4 && box.x + box.w + 4 > o.x && box.y < o.y + o.h + 2 && box.y + box.h + 2 > o.y);
     if (collides && label.priority < 3) continue;
     placed.push(box);
-    ctx.fillStyle = `rgba(40, 33, 38, ${0.78 * Math.max(label.alpha, 0.65)})`;
+    ctx.fillStyle = `rgba(250, 251, 253, ${0.9 * Math.max(label.alpha, 0.65)})`;
     ctx.beginPath();
     ctx.roundRect(box.x, box.y, box.w, box.h, 7);
     ctx.fill();
-    ctx.fillStyle = `rgba(250, 245, 240, ${strong || label.node.id === hovered ? 1 : 0.88 * Math.max(label.alpha, 0.6)})`;
+    ctx.fillStyle = `rgba(31, 36, 43, ${strong || label.node.id === hovered ? 1 : 0.88 * Math.max(label.alpha, 0.6)})`;
     ctx.fillText(text, box.x + 6, box.y + 14);
   }
 }

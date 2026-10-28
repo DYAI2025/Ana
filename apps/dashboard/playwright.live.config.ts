@@ -15,6 +15,8 @@ export default defineConfig({
   reporter: [["list"]],
   use: {
     baseURL: process.env.LIVE_BASE_URL ?? "http://127.0.0.1:3300",
+    // a saved Access session (cookie file OUTSIDE the repository) for runs against the Cloudflare-protected production host
+    storageState: process.env.LIVE_STORAGE_STATE,
     ...devices["Desktop Chrome"],
     viewport: { width: 1440, height: 900 },
   },

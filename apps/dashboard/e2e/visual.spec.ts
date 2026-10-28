@@ -40,7 +40,7 @@ const SHOTS: {
       await page.getByTestId("inspection-H1").scrollIntoViewIfNeeded();
     },
   },
-  { name: "now-lens-work", route: "/", prepare: async (page) => page.getByTestId("context-work").click() },
+  { name: "now-channels", route: "/", prepare: async (page) => page.getByTestId("context-social").click() },
   { name: "board", route: "/board" },
   {
     name: "board-move-pending",
@@ -144,7 +144,7 @@ async function layoutProblems(page: Page): Promise<string[]> {
       if (r.right > main.left) problems.push(`rail overlaps main content (${r.right} > ${main.left})`);
     }
     const groups: Element[][] = [
-      Array.from(document.querySelectorAll('[data-testid^="context-"]:not([data-testid="context-lens"])')),
+      Array.from(document.querySelectorAll('[data-testid^="context-"]:not([data-testid="channel-lens"])')),
       Array.from(document.querySelectorAll('[data-testid="topbar-actions"] > *')),
       Array.from(document.querySelectorAll('[data-testid^="column-"]')),
       Array.from(document.querySelectorAll('[data-testid^="tool-"]')),

@@ -21,14 +21,17 @@ export function Topbar({ onOpenSearch }: { onOpenSearch: () => void }) {
   // the Social cockpit reads live Instagram data (ANA-38): never label it as prototype
   const instagramLive = pathname.startsWith("/pulse/social/instagram");
   const socialPhase = useSocialPhase();
+  // "live" only while the adapter reports CONNECTED (Owner decision 26 Oct 2026); EMPTY is a verified read of nothing
   const igLabel =
-    socialPhase === "CONNECTED" || socialPhase === "EMPTY"
+    socialPhase === "CONNECTED"
       ? t("top.liveInstagram")
-      : socialPhase === "STALE"
-        ? t("top.liveInstagramStale")
-        : socialPhase === "ERROR" || socialPhase === "PERMISSION_REQUIRED"
-          ? t("top.liveInstagramDown")
-          : t("top.liveInstagramReading");
+      : socialPhase === "EMPTY"
+        ? t("top.liveInstagramEmpty")
+        : socialPhase === "STALE"
+          ? t("top.liveInstagramStale")
+          : socialPhase === "ERROR" || socialPhase === "PERMISSION_REQUIRED"
+            ? t("top.liveInstagramDown")
+            : t("top.liveInstagramReading");
   const workPhase = useWorkPhase();
   const jiraUp = workPhase === "ready";
   const jiraLabel = jiraUp ? t("top.liveFlag") : workPhase === "loading" || workPhase === null ? t("top.liveFlagReading") : t("top.liveFlagDown");
@@ -67,7 +70,8 @@ export function Topbar({ onOpenSearch }: { onOpenSearch: () => void }) {
             {jiraLabel}
             <span className="visually-hidden"> — {jiraDetail}</span>
           </span>
-        ) : (
+        ) : view === "now" ? null : (
+          // the ASADA home carries no prototype flag (ANA-42): it shows no prototype data, only honest Under Construction
           <span className={styles.prototypeFlag} title={t("top.prototypeFlagDetail")} data-testid="prototype-flag">
             <FlaskConical size={13} aria-hidden="true" />
             {t("top.prototypeFlag")}

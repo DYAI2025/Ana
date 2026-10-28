@@ -82,19 +82,19 @@ export function HeroInstrument({ hero, snapshot }: { hero: HeroReading | null; s
               </linearGradient>
               <linearGradient id={gradientId} x1="0" y1="1" x2="1" y2="0">
                 <stop offset="0" stopColor="#c4ad91" />
-                <stop offset="0.6" stopColor="#f5ede4" />
-                <stop offset="1" stopColor="#ffb59f" />
+                <stop offset="0.6" stopColor="#8e97a3" />
+                <stop offset="1" stopColor="#bd3a23" />
               </linearGradient>
             </defs>
             <path d={arc(0, DOMAIN_MAX)} fill="none" stroke={`url(#${metalId})`} strokeWidth="9" strokeLinecap="round" />
             <path d={arc(0, Math.min(index, DOMAIN_MAX))} fill="none" stroke={`url(#${gradientId})`} strokeWidth="5" strokeLinecap="round" />
             {/* 1.00× baseline marker: always visible */}
-            <line x1={CX} y1={CY} x2={baseline.x} y2={baseline.y} stroke="#a88791" strokeWidth="1.5" strokeDasharray="2 3" />
+            <line x1={CX} y1={CY} x2={baseline.x} y2={baseline.y} stroke="#6a7482" strokeWidth="1.5" strokeDasharray="2 3" />
             <text x={baseline.x} y={baseline.y - 17} textAnchor="middle" className={styles.gaugeTick}>
               {formatIndex(1, locale)}
             </text>
-            <circle cx={marker.x} cy={marker.y} r="9.5" fill="#ff715b" opacity="0.18" />
-            <circle cx={marker.x} cy={marker.y} r="4.6" fill="#ff715b" />
+            <circle cx={marker.x} cy={marker.y} r="9.5" fill="#a8321c" opacity="0.18" />
+            <circle cx={marker.x} cy={marker.y} r="4.6" fill="#a8321c" />
             <text x={CX} y={CY + 14} textAnchor="middle" className={styles.heroValue} data-testid="hero-value">
               {formatIndex(index, locale)}
             </text>

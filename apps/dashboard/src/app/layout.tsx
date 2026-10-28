@@ -6,14 +6,14 @@ import { Providers } from "@/components/providers/Providers";
 import { AppShell } from "@/components/shell/AppShell";
 
 export const metadata: Metadata = {
-  title: "ANA LUMEN",
-  description: "ANA LUMEN: Board and Backlog are a projection of Jira; the other modules are local prototype data.",
+  title: "ASADA",
+  description: "ASADA — Ana Savu Dashboard. Social Media Business reads Instagram through the dashboard server; the other areas are under construction.",
   robots: { index: false, follow: false },
 };
 
 export const viewport: Viewport = {
-  themeColor: "#332c32",
-  colorScheme: "dark",
+  themeColor: "#eceff3",
+  colorScheme: "light",
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {

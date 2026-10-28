@@ -75,7 +75,7 @@
 
 .column[data-drop-target] {
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.11), rgba(255, 255, 255, 0.05));
-  box-shadow: inset 0 0 0 1px rgba(245, 237, 228, 0.22), 0 0 34px rgba(245, 237, 228, 0.04);
+  box-shadow: inset 0 0 0 1px rgba(70, 80, 95, 0.22), 0 0 34px rgba(70, 80, 95, 0.04);
 }
 
 .columnHead {
@@ -139,7 +139,7 @@
 .ticket[data-pending] {
   cursor: progress;
   border-style: dashed;
-  border-color: rgba(245, 237, 228, 0.42);
+  border-color: rgba(70, 80, 95, 0.42);
 }
 
 .ticket[data-unconfirmed] {
@@ -148,7 +148,7 @@
 }
 
 .ticket[data-idea] .category {
-  color: var(--sand);
+  color: var(--ink-warm);
 }
 
 .ticket[data-highlight] {
@@ -209,8 +209,8 @@
   margin: 2px 0 8px;
   padding: 5px 9px;
   border-radius: 12px;
-  border: 1px solid rgba(245, 237, 228, 0.28);
-  background: rgba(20, 16, 19, 0.86);
+  border: 1px solid rgba(70, 80, 95, 0.28);
+  background: var(--surface-solid);
   color: var(--text);
   font: inherit;
   font-size: 11px;
@@ -252,11 +252,11 @@
 }
 
 .cardFailure[data-state="BLOCKED"] .cardFailureState {
-  color: var(--sand);
+  color: var(--ink-warm);
 }
 
 .cardFailure[data-state="UNKNOWN"] .cardFailureState {
-  color: #dcd7ee;
+  color: var(--ink-cool);
 }
 
 .ticketFoot {
@@ -302,7 +302,7 @@
 }
 
 .column[data-drop-target] .dropHint {
-  color: var(--pearl);
+  color: var(--text);
 }
 
 @keyframes settle {

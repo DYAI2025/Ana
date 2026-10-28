@@ -356,6 +356,15 @@ test.describe("Instagram cockpit — failure states (AC10)", () => {
     await openCockpit(page);
     await expect(page.getByTestId("instagram-cockpit")).toHaveAttribute("data-state", "EMPTY");
     await expect(page.getByTestId("cockpit-empty")).toContainText("No posts returned");
+    // the Topbar flag names the real state too: a verified read of nothing is never "live" (Owner rule: Live only while CONNECTED)
+    await expect(page.getByTestId("prototype-flag")).toHaveAttribute("data-social", "EMPTY");
+    await expect(page.getByTestId("prototype-flag")).toContainText("Instagram · no posts · read-only");
+    await expect(page.getByTestId("prototype-flag")).not.toContainText(/live/i);
+    await page.getByTestId("lang-de").click();
+    await expect(page.getByTestId("prototype-flag")).toContainText("Instagram · keine Beiträge · nur lesend");
+    await page.getByTestId("lang-it").click();
+    await expect(page.getByTestId("prototype-flag")).toContainText("Instagram · nessun post · sola lettura");
+    await expect(page.getByTestId("prototype-flag")).not.toContainText(/live/i);
   });
 
   test("STALE: a failed refresh keeps the older snapshot but labels it not current", async ({ page, social }) => {
