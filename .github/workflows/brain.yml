@@ -101,6 +101,13 @@ jobs:
           args_ok drive-register 1AbC --id src-x --title "Claude als Video-Regisseur" --topics capcut,claude --actor ben || fail "brain.sh refuses a real title or topic list"
           args_ok --title "Grundsätze für Hooks" || fail "brain.sh refuses a non-ASCII title"
           for a in '$HOME' '${HOME}' '%h' $'two\nlines'; do if args_ok --title "$a"; then fail "brain.sh lets $a reach systemd"; fi; done
+          # git on vault content never runs as root: its .git/config and .gitattributes are written by the Brain's user and
+          # name commands git runs (fsmonitor, filters, pagers). Proves only that every `git -C`/`git -c` line runs as ana-brain.
+          root_git() { grep -nE '(^|[^[:alnum:]_-])git +-[cC] ' "$@" | grep -vE 'runuser -u ana-brain|"\$\{as_brain\[@\]\}" git' || true; }
+          [ -n "$(printf '%s\n' 'GIT_OPTIONAL_LOCKS=0 git -c core.fsmonitor=false -C $t/vault fsck' | root_git -)" ] || fail "root-git lint misses a root git call"
+          [ -z "$(printf '%s\n' 'runuser -u ana-brain -- env -i PATH=/usr/bin:/bin git -C "$t/vault" fsck' | root_git -)" ] || fail "root-git lint flags git run as ana-brain"
+          bad="$(root_git "$d/README.md" "$d/release.sh" "$d/brain.sh" "$d/restore-nightly.sh")"
+          [ -z "$bad" ] || fail "git runs as root on vault content: $bad"
           for f in release.sh brain.sh check-nginx.sh restore-nightly.sh test-restore-nightly.sh; do bash -n "$d/$f"; done
           shellcheck -S warning "$d/release.sh" "$d/brain.sh" "$d/check-nginx.sh" "$d/restore-nightly.sh" "$d/test-restore-nightly.sh"
       - name: restore-nightly.sh, every outcome the README states (as root, stubbed systemctl/brain.sh/node)

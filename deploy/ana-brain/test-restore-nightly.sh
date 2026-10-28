@@ -127,8 +127,8 @@ rm -f "$r/fsm/ran"
 live
 run ana-brain-2026-10-04.tar.gz
 [ "$rc" = 0 ] || fail "an archive with a planted core.fsmonitor: rc $rc"
-! grep -qx root "$r/fsm/ran" 2>/dev/null || fail "the archive's core.fsmonitor ran as root"
-ok "nothing from the archive runs as root (a planted core.fsmonitor stays inert)"
+[ ! -e "$r/fsm/ran" ] || fail "the archive's core.fsmonitor ran (as $(tr '\n' ' ' < "$r/fsm/ran"))"
+ok "nothing from the archive runs as root, and a planted core.fsmonitor does not run at all"
 
 live
 run ../ana-brain-2026-10-01.tar.gz
