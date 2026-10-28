@@ -42,7 +42,9 @@
       ".github/workflows/dashboard.yml",
       "apps/dashboard/scripts/scan-client-bundle.mjs",
       "deploy/ana-brain/**",
-      "deploy/ana-dashboard/dashboard.env.example"
+      "deploy/ana-dashboard/dashboard.env.example",
+      "apps/dashboard/src/components/shell/Topbar.tsx",
+      "apps/dashboard/README.md"
     ]
   },
   "r4m": {

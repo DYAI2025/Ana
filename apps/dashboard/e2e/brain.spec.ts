@@ -29,6 +29,20 @@ test("status line shows node/edge counts and the embed model from the projection
   await expect(page.getByTestId("brain-unindexed")).toHaveCount(0);
 });
 
+test("the top bar does not call the Brain prototype data: no flag on /brain, and the flag elsewhere names it live", async ({ page, brain }) => {
+  await page.goto("/brain");
+  await expect(page.getByTestId("brain-status")).toHaveAttribute("data-nodes", "20");
+  await expect(page.getByTestId("prototype-flag")).toHaveCount(0);
+  await brain.mode("down");
+  await page.reload();
+  await expect(page.getByTestId("brain-error")).toHaveAttribute("data-state", "BLOCKED", { timeout: 15_000 });
+  await expect(page.getByTestId("prototype-flag")).toHaveCount(0);
+  await page.goto("/calendar");
+  const flag = page.getByTestId("prototype-flag");
+  await expect(flag).toHaveAttribute("title", /the Brain reads the ANA Brain/);
+  await expect(flag).not.toHaveAttribute("title", /Brain[^;]*prototype/);
+});
+
 test("notes the Brain has not indexed yet are counted, not drawn, and the view stays usable", async ({ page, brain }) => {
   await brain.mode("unindexed");
   await page.goto("/brain");

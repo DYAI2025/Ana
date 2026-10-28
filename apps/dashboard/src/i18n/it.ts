@@ -22,7 +22,7 @@ export const it: Messages = {
   },
   top: {
     prototypeFlag: "In parte prototipo",
-    prototypeFlagDetail: "Board e Backlog leggono e scrivono in Jira; tutti gli altri moduli sono dati prototipo locali",
+    prototypeFlagDetail: "Board e Backlog leggono e scrivono in Jira e il Brain legge l'ANA Brain; tutti gli altri moduli sono dati prototipo locali",
     liveFlag: "Jira live",
     liveFlagDetail: "Board e Backlog leggono e scrivono direttamente in Jira; gli altri moduli sono dati prototipo locali",
     liveFlagReading: "Lettura di Jira",

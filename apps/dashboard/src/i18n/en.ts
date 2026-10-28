@@ -26,7 +26,7 @@ export const en = {
   },
   top: {
     prototypeFlag: "Partly prototype",
-    prototypeFlagDetail: "Board and Backlog read and write Jira; all other modules are local prototype data",
+    prototypeFlagDetail: "Board and Backlog read and write Jira and the Brain reads the ANA Brain; all other modules are local prototype data",
     liveFlag: "Jira live",
     liveFlagDetail: "Board and Backlog read and write Jira directly; other modules are local prototype data",
     liveFlagReading: "Reading Jira",

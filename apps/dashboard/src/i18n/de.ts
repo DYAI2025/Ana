@@ -22,7 +22,7 @@ export const de: Messages = {
   },
   top: {
     prototypeFlag: "Teils Prototyp",
-    prototypeFlagDetail: "Board und Backlog lesen und schreiben Jira; alle anderen Module sind lokale Prototyp-Daten",
+    prototypeFlagDetail: "Board und Backlog lesen und schreiben Jira, das Brain liest das ANA Brain; alle anderen Module sind lokale Prototyp-Daten",
     liveFlag: "Jira live",
     liveFlagDetail: "Board und Backlog lesen und schreiben direkt in Jira; andere Module sind lokale Prototyp-Daten",
     liveFlagReading: "Jira wird gelesen",
