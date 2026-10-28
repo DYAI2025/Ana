@@ -1,9 +1,9 @@
 "use client";
 
-import { FolderOpen, Inbox, ShoppingBag, Users, type LucideIcon } from "lucide-react";
+import { ArrowRight, FolderOpen, Inbox, Camera, ShoppingBag, Users, type LucideIcon } from "lucide-react";
 import { useI18n } from "@/components/providers/I18nProvider";
 import { useToast } from "@/components/providers/ToastProvider";
-import { Button } from "@/components/ui/Button";
+import { Button, ButtonLink } from "@/components/ui/Button";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { StatusChip } from "@/components/ui/StatusChip";
 import { SOURCE_GROUPS, type SourceGroup } from "@/fixtures/connections";
@@ -20,6 +20,20 @@ export function PulseView() {
       <p className={styles.notice} data-testid="pulse-no-metrics">
         {t("pulse.noMetrics")}
       </p>
+      <section className={`glass ${styles.social}`} data-testid="pulse-social" aria-labelledby="pulse-social-title">
+        <span className={styles.railIcon} aria-hidden="true">
+          <Camera size={18} />
+        </span>
+        <div className={styles.railMain}>
+          <h2 id="pulse-social-title" className={styles.railTitle}>
+            {t("pulse.socialTitle")}
+          </h2>
+          <p className={styles.socialBody}>{t("pulse.socialBody")}</p>
+        </div>
+        <ButtonLink href="/pulse/social/instagram" variant="primary" trailingIcon={<ArrowRight size={15} aria-hidden="true" />} data-testid="pulse-social-link">
+          {t("pulse.socialLink")}
+        </ButtonLink>
+      </section>
       <ul className={styles.rails}>
         {SOURCE_GROUPS.map((group) => {
           const Icon = ICONS[group.id];

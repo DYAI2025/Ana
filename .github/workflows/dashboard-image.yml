@@ -1,0 +1,174 @@
+name: dashboard-image
+
+# LIVE-01 / ANA-41: builds the production image of apps/dashboard on amd64, proves the access gate inside the real
+# container, extracts its /app as the native bundle for hosts without Docker, proves the same gate with that bundle
+# under Node 24, and keeps both as the workflow artifact ana-dashboard-<sha>. This is the app side of the release
+# contract in deploy/ana-dashboard/README.md; host, units, ingress and tunnel are ArchServer's (ADR-ANA-001).
+# Release only artifacts of push runs on main: a pull_request run builds the merge ref, so <sha> is not the PR head.
+# No registry, no secrets, no deploy step.
+# Keep the push and pull_request path lists identical.
+on:
+  push:
+    branches: [main]
+    paths:
+      - "apps/dashboard/**"
+      - "deploy/ana-dashboard/**"
+      - ".github/workflows/dashboard-image.yml"
+  pull_request:
+    paths:
+      - "apps/dashboard/**"
+      - "deploy/ana-dashboard/**"
+      - ".github/workflows/dashboard-image.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  image:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build
+        run: docker build --platform linux/amd64 -t "ana-dashboard:${GITHUB_SHA}" apps/dashboard
+      - name: Image health check budget
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker inspect -f '{{json .Config.Healthcheck}}' "ana-dashboard:${GITHUB_SHA}" \
+            | jq -e '.Timeout == 20000000000 and .StartPeriod == 90000000000 and .Interval == 30000000000 and .Retries == 3'
+      - name: Optional Arch reference units (example, not a host requirement)
+        shell: bash
+        run: |
+          set -euo pipefail
+          # README section 4: one tested way to meet the contract on the Arch host. CI lints these example files, not
+          # the host: unit names, paths, ingress and tunnel are ArchServer's choice (ADR-ANA-001). Each check proves only
+          # what its message says; any other change to the examples is reviewed by hand against README section 1.
+          u=deploy/ana-dashboard/dyai-ana-dashboard.service t=deploy/ana-dashboard/dyai-ana-tunnel.service
+          r=deploy/ana-dashboard/release.sh
+          fail() { echo "FAIL: $*"; exit 1; }
+          for f in "$u" "$t" "$r"; do [ -f "$f" ] || fail "$f is missing (a renamed example must be renamed here too)"; done
+          # (`! cmd` would not trip set -e, hence the explicit ifs)
+          # dashboard example: the settings the native-bundle step below also starts with, pinned in exactly these two
+          # Environment= lines (they win over node --env-file); no EnvironmentFile=, UnsetEnvironment=, PassEnvironment=
+          # or further Environment= lines; secrets only as a credential file; no MemoryDenyWriteExecute for node (V8
+          # aborts). HOME and the node path are pinned only so that a change to them is reviewed.
+          grep -qx 'Environment=NODE_ENV=production NEXT_TELEMETRY_DISABLED=1 HOSTNAME=127.0.0.1 PORT=3410' "$u" || fail "dashboard: bind settings changed"
+          grep -qx 'Environment=ANA_ACCESS_MODE=cloudflare ANA_CONTAINER=1 HOME=/run/dyai/ana-dashboard' "$u" || fail "dashboard: access settings changed"
+          grep -qx 'ExecStart=/usr/bin/node --env-file=%d/dashboard_env server.js' "$u" || fail "dashboard: ExecStart changed"
+          if grep -qE '^[[:space:]]*(EnvironmentFile|UnsetEnvironment|PassEnvironment)[[:space:]]*=' "$u"; then fail "dashboard: EnvironmentFile=, UnsetEnvironment= or PassEnvironment= could override or drop the pinned settings"; fi
+          # exactly the two pinned lines: a later Environment= line could override or reset them
+          [ "$(grep -cE '^[[:space:]]*Environment[[:space:]]*=' "$u")" = 2 ] || fail "dashboard: unexpected Environment= lines"
+          [ "$(grep -cE '^[^#]*(HOSTNAME|ANA_ACCESS_MODE|ANA_CONTAINER)=' "$u")" = 2 ] || fail "dashboard: access settings set more than once"
+          # exactly the pinned ExecStart=: an empty ExecStart= reset followed by another command would replace it
+          [ "$(grep -cE '^[[:space:]]*ExecStart[[:space:]]*=' "$u")" = 1 ] || fail "dashboard: more than one ExecStart= line"
+          if grep -qE '^[[:space:]]*MemoryDenyWriteExecute[[:space:]]*=' "$u"; then fail "dashboard: MemoryDenyWriteExecute aborts V8"; fi
+          if grep -qiE '^[[:space:]]*Environment[[:space:]]*=.*(TOKEN|KEY|AUD|EMAIL)' "$u" "$t"; then fail "secret-like Environment= line"; fi
+          # tunnel example: how cloudflared is invoked is ArchServer's ingress and is not linted here. Checked only: the
+          # example reads its token from its systemd credential, keeps its settings in the unit, and serves metrics where
+          # release.sh polls them
+          grep -qE '^[[:space:]]*LoadCredential[[:space:]]*=[[:space:]]*tunnel_token:' "$t" || fail "tunnel: no LoadCredential=tunnel_token:"
+          grep -qE '^[[:space:]]*ExecStart[[:space:]]*=.*--token-file[[:space:]=]+%d/tunnel_token([[:space:]]|$)' "$t" || fail "tunnel: example does not read its token from %d/tunnel_token"
+          if grep -qE '^[[:space:]]*EnvironmentFile[[:space:]]*=' "$t"; then fail "tunnel: EnvironmentFile= (the example keeps every setting visible in the unit)"; fi
+          grep -qF 'http://127.0.0.1:20242/ready' "$r" || fail "release.sh no longer polls 127.0.0.1:20242"
+          grep -qE '^[[:space:]]*ExecStart[[:space:]]*=.*--metrics[[:space:]=]+127\.0\.0\.1:20242([[:space:]]|$)' "$t" || fail "tunnel: metrics not on 127.0.0.1:20242, where release.sh polls"
+          bash -n "$r"
+      - name: Access gate inside the container
+        shell: bash
+        run: |
+          set -euo pipefail
+          AUD=$(printf 'a%.0s' $(seq 64))
+          code() { curl -s -o /dev/null -w '%{http_code}' -H "Host: $2" "http://127.0.0.1:$1$3"; }
+          wait_healthy() { for _ in $(seq 30); do [ "$(docker inspect -f '{{.State.Health.Status}}' "$1")" = healthy ] && return 0; sleep 2; done; docker logs "$1"; return 1; }
+          expect() { [ "$1" = "$2" ] || { echo "FAIL: $3 -> $1, expected $2"; exit 1; }; echo "ok: $3 -> $1"; }
+
+          # the image without any Access settings: everything refused, even a spoofed loopback Host
+          docker run -d --name bare -p 127.0.0.1:3001:3000 "ana-dashboard:${GITHUB_SHA}"
+          wait_healthy bare
+          for host in localhost 127.0.0.1 ana.dyai.cloud; do
+            expect "$(code 3001 "$host" /)" 503 "no Access settings, Host $host, page"
+            expect "$(code 3001 "$host" /api/social/instagram)" 503 "no Access settings, Host $host, social API"
+          done
+
+          # cloudflare mode under hardened container constraints (read-only root, no capabilities, init)
+          docker run -d --name cf -p 127.0.0.1:3002:3000 --init --read-only --tmpfs /tmp --tmpfs /app/.next/cache \
+            --cap-drop ALL --security-opt no-new-privileges:true -e ANA_ACCESS_MODE=cloudflare \
+            -e CF_ACCESS_TEAM_DOMAIN=https://ci.cloudflareaccess.com -e CF_ACCESS_AUD="$AUD" -e ANA_ALLOWED_EMAILS=a@example.test \
+            "ana-dashboard:${GITHUB_SHA}"
+          wait_healthy cf
+          for p in / /pulse/social/instagram /api/social/instagram /api/work; do
+            expect "$(code 3002 localhost "$p")" 401 "cloudflare mode, no assertion, $p"
+          done
+          expect "$(code 3002 localhost /api/healthz)" 200 "health check"
+          expect "$(docker exec cf node -e 'process.stdout.write(require("fs").readFileSync("/proc/1/cmdline","utf8").split("\0")[0])')" /sbin/docker-init "PID 1 under --init"
+
+          # any mode other than cloudflare is refused inside the container (it listens on all interfaces)
+          port=3003
+          for mode in open "" loopback; do
+            docker run -d --name "mode$port" -p "127.0.0.1:$port:3000" -e "ANA_ACCESS_MODE=$mode" "ana-dashboard:${GITHUB_SHA}"
+            wait_healthy "mode$port"
+            expect "$(code "$port" localhost /)" 503 "ANA_ACCESS_MODE='$mode', spoofed loopback Host, page"
+            expect "$(code "$port" localhost /api/social/instagram)" 503 "ANA_ACCESS_MODE='$mode', spoofed loopback Host, social API"
+            port=$((port + 1))
+          done
+
+          docker inspect -f '{{.Config.User}}' "ana-dashboard:${GITHUB_SHA}" | grep -qx node
+          docker rm -f bare cf mode3003 mode3004 mode3005
+      - name: Native bundle for the Arch host
+        shell: bash
+        run: |
+          set -euo pipefail
+          cid="$(docker create "ana-dashboard:${GITHUB_SHA}")"
+          mkdir bundle && docker cp "$cid:/app/." bundle/ && docker rm "$cid"
+          tar -C bundle --owner=0 --group=0 --numeric-owner -czf "ana-dashboard-app-${GITHUB_SHA}.tar.gz" .
+          sha256sum "ana-dashboard-app-${GITHUB_SHA}.tar.gz" | tee "ana-dashboard-app-${GITHUB_SHA}.tar.gz.sha256"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24.22.0" # nodejs-lts-krypton on the Arch host
+      - name: Access gate of the native bundle under Node 24
+        shell: bash
+        run: |
+          set -euo pipefail
+          AUD=$(printf 'a%.0s' $(seq 64))
+          expect() { [ "$1" = "$2" ] || { echo "FAIL: $3 -> $1, expected $2"; exit 1; }; echo "ok: $3 -> $1"; }
+          code() { curl -s -o /dev/null -w '%{http_code}' -H "Host: $1" "http://127.0.0.1:3410$2"; }
+          mkdir -p run && tar -xzf "ana-dashboard-app-${GITHUB_SHA}.tar.gz" -C run
+          # as dyai-ana-dashboard.service starts it: pinned environment + credential file read with --env-file. The file
+          # also tries to switch to loopback mode on all interfaces; the pinned environment must win.
+          printf 'CF_ACCESS_TEAM_DOMAIN=https://ci.cloudflareaccess.com\nCF_ACCESS_AUD=%s\nANA_ALLOWED_EMAILS=a@example.test\nANA_ACCESS_MODE=loopback\nHOSTNAME=0.0.0.0\n' "$AUD" > dashboard_env
+          # prove the server runs on Node 24.22, not just that a node 24 is on PATH: pin the binary, then check the
+          # executable of the process that owns the listening socket
+          NODE="$(readlink -f "$(command -v node)")"
+          [ "$("$NODE" --version)" = v24.22.0 ] || { echo "FAIL: $NODE is $("$NODE" --version), expected v24.22.0"; exit 1; }
+          (cd run && env NODE_ENV=production NEXT_TELEMETRY_DISABLED=1 HOSTNAME=127.0.0.1 PORT=3410 ANA_ACCESS_MODE=cloudflare ANA_CONTAINER=1 \
+            "$NODE" --env-file=../dashboard_env server.js > ../native.log 2>&1 &)
+          for _ in $(seq 30); do [ "$(code localhost /api/healthz)" = 200 ] && break; sleep 1; done
+          [ "$(code localhost /api/healthz)" = 200 ] || { cat native.log; exit 1; }
+          pid="$(ss -ltnpH 'sport = :3410' | sed -n 's/.*pid=\([0-9]*\),.*/\1/p' | head -1)"
+          [ -n "$pid" ] || { echo "FAIL: no process owns 127.0.0.1:3410"; exit 1; }
+          expect "$(readlink -f "/proc/$pid/exe")" "$NODE" "executable of the server process (pid $pid, $("$NODE" --version))"
+          for host in localhost ana.dyai.cloud; do
+            for p in / /pulse/social/instagram /api/social/instagram /api/work; do
+              expect "$(code "$host" "$p")" 401 "native bundle, Host $host, no assertion, $p"
+            done
+          done
+          expect "$(code localhost /api/healthz)" 200 "native bundle health check"
+          ss -ltn | awk '$4 ~ /:3410$/ {print $4}' | grep -qx '127.0.0.1:3410'
+          pkill -f '^next-server' || true # Next renames its process title
+      - name: Save image
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker save "ana-dashboard:${GITHUB_SHA}" | gzip -1 > "ana-dashboard-${GITHUB_SHA}.tar.gz"
+          gunzip -t "ana-dashboard-${GITHUB_SHA}.tar.gz"
+          sha256sum "ana-dashboard-${GITHUB_SHA}.tar.gz"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ana-dashboard-${{ github.sha }}
+          path: |
+            ana-dashboard-${{ github.sha }}.tar.gz
+            ana-dashboard-app-${{ github.sha }}.tar.gz
+            ana-dashboard-app-${{ github.sha }}.tar.gz.sha256
+          if-no-files-found: error # the v4 default only warns
+          retention-days: 30

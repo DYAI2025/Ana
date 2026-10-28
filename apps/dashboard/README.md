@@ -2,7 +2,7 @@
 
 ## What is live and what is prototype
 
-The app in this folder is **ANA LUMEN** (Jira ANA-4 visual shell, ANA-5 Jira work loop).
+The app in this folder is **ASADA** — Ana Savu Dashboard (Jira ANA-4 visual shell, ANA-5 Jira work loop, ANA-38 Instagram cockpit, ANA-42 Bright Silver home).
 
 - **Board and Backlog are a projection of Jira** (ANA-5): Kanban Board **734 "ANA board" / filter 10733** in project
   ANA. Issue keys, summaries, statuses and assignees are read from Jira; moving an issue runs a Jira workflow
@@ -79,10 +79,11 @@ browser. Contract:
 
 ### Structure
 
-- `src/app/` — routes: `/` Now, `/board?ticket=`, `/backlog?ticket=`, `/sessions`, `/sessions/[id]?tab=`, `/brain?node=`, `/whiteboard`, `/calendar?event=`, `/pulse`, `/vault`, `/toolbox?tool=`; `src/app/api/work/` — the work API
+- `src/app/` — routes: `/` ASADA home (ANA-42), `/board?ticket=`, `/backlog?ticket=`, `/sessions`, `/sessions/[id]?tab=`, `/brain?node=`, `/whiteboard`, `/calendar?event=`, `/pulse`, `/pulse/social/instagram`, `/vault`, `/toolbox?tool=`; `src/app/api/work/` — the work API; `src/app/api/social/instagram` — the read-only Social API (ANA-38)
 - `src/server/` — server-only Jira adapter (`jira/`) and request guards (`http.ts`)
+- `src/server/social/` + `src/features/social/` — Instagram cockpit (ANA-38): server-only worker client, normalizer to the observation DTO, in-memory snapshot cache; client-side insight engine, themes and Substack offer signals. Configure `SOCIAL_IG_WORKER_URL` and `SOCIAL_IG_INTERNAL_READ_KEY` (see `.env.example`); without them the cockpit says not-configured. Evidence: `docs/evidence/ANA-38/`.
 - `src/features/work/` — client-safe work types, pure model, the `WorkProvider` (disposable view state) and failure/provenance UI
-- `src/styles/globals.css` — LUMEN tokens (canvas, pastel refraction, glass material, coral accent), atmosphere, focus and reduced-motion rules
+- `src/styles/globals.css` — ASADA Bright Silver tokens (silver canvas, glass material, brushed aluminium, restrained coral), atmosphere, focus and reduced-motion rules
 - `src/components/` — shell (rail, top bar, search palette), providers (i18n, prototype state, toasts), UI primitives
 - `src/features/<module>/` — one folder per module view; pure logic (Brain projection, calendar month grid) is unit-tested
 - `src/fixtures/` — **fictional** prototype content in EN/DE/IT for the non-Jira modules; must never hold private data (public repo)
@@ -90,7 +91,7 @@ browser. Contract:
 - `src/i18n/` — EN (reference), DE, IT dictionaries; a test enforces identical keys and placeholders
 - `e2e/fake-jira/` — test-only fake of the Jira endpoints the adapter uses (synthetic issues, injectable faults)
 
-Design reference: C4 / ANA LUMEN (Confluence 07; ANA-10 decision KEEP C4). The single-file C4 prototype is **not**
+Design reference: ASADA Bright Silver (Confluence 07 §2.1 and Design Schema §2.1, Owner decision 26 October 2026, ANA-42) on the C4 / ANA LUMEN material grammar (ANA-10 decision KEEP C4, kept as history). The single-file C4 prototype is **not**
 in this repository (it carries business-specific wording); it was rebuilt here as components and tokens. Brain,
 Whiteboard and Calendar are not in C4 and were designed in the same language. The Brain is a hand-written visual
 fixture drawn on a 2D canvas with a small perspective projection — the production 3D library is still spike-gated.

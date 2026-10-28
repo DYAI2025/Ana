@@ -8,9 +8,9 @@ test.describe("ANA-19 · context lens keeps modal focus for its whole mounted li
   test("motion on: Tab / Shift+Tab cannot leave the lens during the exit animation; focus returns to the opener after removal", async ({ page }) => {
     await page.emulateMedia({ reducedMotion: "no-preference" });
     await page.goto("/");
-    const opener = page.getByTestId("context-work");
+    const opener = page.getByTestId("context-social");
     await opener.click();
-    const lens = page.getByTestId("context-lens");
+    const lens = page.getByTestId("channel-lens");
     await expect(lens).toBeVisible();
 
     await page.keyboard.press("Escape");
@@ -29,33 +29,33 @@ test.describe("ANA-19 · context lens keeps modal focus for its whole mounted li
   test("a second close request during the exit animation does not close a lens that is reopened right after", async ({ page }) => {
     await page.emulateMedia({ reducedMotion: "no-preference" });
     await page.goto("/");
-    await page.getByTestId("context-work").click();
-    await expect(page.getByTestId("context-lens")).toBeVisible();
+    await page.getByTestId("context-social").click();
+    await expect(page.getByTestId("channel-lens")).toBeVisible();
     await page.keyboard.press("Escape");
     await page.waitForTimeout(60);
     await page.mouse.click(40, 860); // backdrop click while closing
     await expect(page.locator('[role="dialog"]')).toHaveCount(0);
-    await page.getByTestId("context-session").click();
-    await expect(page.getByTestId("context-lens")).toHaveAttribute("data-lens", "session");
+    await page.getByTestId("context-social").click();
+    await expect(page.getByTestId("channel-lens")).toHaveAttribute("data-lens", "social");
     await page.waitForTimeout(500); // longer than any stale close timer
-    await expect(page.getByTestId("context-lens")).toBeVisible();
-    await expect(page.getByTestId("context-lens")).toHaveAttribute("data-lens", "session");
+    await expect(page.getByTestId("channel-lens")).toBeVisible();
+    await expect(page.getByTestId("channel-lens")).toHaveAttribute("data-lens", "social");
   });
 
   test("search over a lens is a modal stack: first Escape closes search only, second closes the lens", async ({ page }) => {
     await page.emulateMedia({ reducedMotion: "no-preference" });
     await page.goto("/");
-    const opener = page.getByTestId("context-knowledge");
+    const opener = page.getByTestId("context-social");
     await opener.click();
-    await expect(page.getByTestId("context-lens")).toBeVisible();
+    await expect(page.getByTestId("channel-lens")).toBeVisible();
     await page.keyboard.press("ControlOrMeta+k");
     await expect(page.getByTestId("search-panel")).toBeVisible();
 
     await page.keyboard.press("Escape");
     await expect(page.getByTestId("search-panel")).toBeHidden();
     await page.waitForTimeout(400);
-    await expect(page.getByTestId("context-lens")).toBeVisible();
-    expect(await page.evaluate(() => !!document.activeElement?.closest('[data-testid="context-lens"]'))).toBe(true);
+    await expect(page.getByTestId("channel-lens")).toBeVisible();
+    expect(await page.evaluate(() => !!document.activeElement?.closest('[data-testid="channel-lens"]'))).toBe(true);
 
     await page.keyboard.press("Escape");
     await expect(page.locator('[role="dialog"]')).toHaveCount(0);
@@ -65,9 +65,9 @@ test.describe("ANA-19 · context lens keeps modal focus for its whole mounted li
   test("reduced motion: closing removes the lens immediately and restores focus to the opener", async ({ page }) => {
     await page.emulateMedia({ reducedMotion: "reduce" });
     await page.goto("/");
-    const opener = page.getByTestId("context-community");
+    const opener = page.getByTestId("context-social");
     await opener.click();
-    await expect(page.getByTestId("context-lens")).toBeVisible();
+    await expect(page.getByTestId("channel-lens")).toBeVisible();
     await page.keyboard.press("Escape");
     // no exit animation: gone without waiting for the 280 ms timer
     expect(await page.locator('[role="dialog"]').count()).toBe(0);

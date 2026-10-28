@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 /**
- * Fails when anything the browser receives contains a Jira credential (ANA-5 AC9 / DRS R2G gate 3).
+ * Fails when anything the browser receives contains a Jira credential (ANA-5 AC9 / DRS R2G gate 3) or the Instagram
+ * worker key, its variable names, a Bearer header or the worker's internal path (ANA-38 AC9 / DRS R2G gate 4).
  *
  * Scans the client bundle (.next/static) and the prerendered pages Next.js serves (.next/server/app/*.html|.rsc|.body).
  * Server-only chunks are not scanned: they legitimately reference process.env.JIRA_API_TOKEN by name.
@@ -13,6 +14,7 @@ import path from "node:path";
 
 const build = process.argv[2] ?? ".next";
 const token = process.env.JIRA_API_TOKEN?.trim();
+const socialKey = process.env.SOCIAL_IG_INTERNAL_READ_KEY?.trim();
 
 const rules = [
   { name: "JIRA_API_TOKEN variable name", test: (text) => count(text, /JIRA_API_TOKEN/g) },
@@ -21,6 +23,11 @@ const rules = [
   { name: "Atlassian API token shape", test: (text) => count(text, /ATATT[0-9A-Za-z_\-=]{20,}/g) },
   { name: "e2e fake token", test: (text) => count(text, /e2e-fake-token/g) },
   ...(token && token.length >= 8 ? [{ name: "configured JIRA_API_TOKEN value", test: (text) => text.split(token).length - 1 }] : []),
+  { name: "SOCIAL_IG_* variable name", test: (text) => count(text, /SOCIAL_IG_[A-Z_]+/g) },
+  { name: "Bearer authorization header", test: (text) => count(text, /Bearer [A-Za-z0-9._~+/-]{16,}=*/g) },
+  { name: "worker internal path", test: (text) => count(text, /internal\/social-snapshot/g) },
+  { name: "e2e fake social key", test: (text) => count(text, /e2e-fake-social-key/g) },
+  ...(socialKey && socialKey.length >= 8 ? [{ name: "configured SOCIAL_IG_INTERNAL_READ_KEY value", test: (text) => text.split(socialKey).length - 1 }] : []),
 ];
 
 function count(text, re) {
@@ -57,5 +64,5 @@ for (const file of files) {
   }
 }
 
-console.log(`scan-client-bundle: ${files.length} files, ${rules.length} rules${token ? " (incl. configured token value)" : ""}, ${hits} hits`);
+console.log(`scan-client-bundle: ${files.length} files, ${rules.length} rules${token ? " (incl. configured token value)" : ""}${socialKey ? " (incl. configured social key value)" : ""}, ${hits} hits`);
 process.exit(hits === 0 ? 0 : 1);

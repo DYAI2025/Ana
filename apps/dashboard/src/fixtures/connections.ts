@@ -98,20 +98,3 @@ export const SOURCE_GROUPS: readonly SourceGroup[] = [
   { id: "drive", sources: [l("Shared Drive", "Geteiltes Drive", "Drive condiviso")], state: "not-connected" },
 ];
 
-export const FOCUS = {
-  statement: l(
-    "See what already works, then close one meaningful loop.",
-    "Sehen, was schon funktioniert, und dann einen sinnvollen Kreislauf schließen.",
-    "Vedere cosa funziona già, poi chiudere un ciclo significativo.",
-  ),
-  stage: "reality" as const,
-};
-
-export const STAGES = ["reality", "choose", "act", "close"] as const;
-export type Stage = (typeof STAGES)[number];
-
-export const RECENT_KNOWLEDGE: readonly { id: string; label: Localized; type: "decision" | "session" | "goal" }[] = [
-  { id: "focus", label: l("Current focus", "Aktueller Fokus", "Focus attuale"), type: "goal" },
-  { id: "jira-work", label: l("Jira holds work", "Jira enthält die Arbeit", "Jira contiene il lavoro"), type: "decision" },
-  { id: "session-01", label: l("Working session · 03 Oct", "Arbeitssession · 03. Okt.", "Sessione di lavoro · 03 ott"), type: "session" },
-];

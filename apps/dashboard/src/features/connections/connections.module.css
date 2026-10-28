@@ -9,6 +9,30 @@
   color: var(--text-secondary);
 }
 
+.social {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 18px;
+  margin-bottom: 14px;
+  padding: 16px 20px;
+  border-radius: 23px 29px 23px 26px;
+}
+
+.socialBody {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+@media (max-width: 760px) {
+  .social {
+    grid-template-columns: 44px minmax(0, 1fr);
+  }
+  .social > a {
+    grid-column: 1 / -1;
+  }
+}
+
 .rails {
   list-style: none;
   margin: 0;
@@ -64,7 +88,7 @@
   border-radius: 9px;
   font-size: 12px;
   color: var(--text-secondary);
-  border: 1px dashed rgba(245, 237, 228, 0.22);
+  border: 1px dashed rgba(70, 80, 95, 0.22);
 }
 
 .footer {
@@ -144,7 +168,7 @@
   width: 64px;
   height: 40px;
   border-radius: 10px;
-  border: 1px dashed rgba(245, 237, 228, 0.18);
+  border: 1px dashed rgba(70, 80, 95, 0.18);
 }
 
 .slotLabel {

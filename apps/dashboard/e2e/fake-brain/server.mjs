@@ -1,7 +1,7 @@
 /**
  * Fake Brain service for Playwright. Binds to 127.0.0.1 only and serves synthetic data only. Never use against real data.
  *
- *   node e2e/fake-brain/server.mjs            (port FAKE_BRAIN_PORT, default 3198; token FAKE_BRAIN_TOKEN)
+ *   node e2e/fake-brain/server.mjs            (port FAKE_BRAIN_PORT, default 3197; token FAKE_BRAIN_TOKEN)
  *
  * GET /projection (Bearer token) · control: POST /__fake/reset · POST /__fake/mode {mode} · GET /__fake/health
  * Modes: ok · mirrored (positions changed) · empty · down (socket destroyed) · unauthorized · invalid · slow
@@ -9,7 +9,7 @@
 import http from "node:http";
 import { baseProjection, mirrored } from "./data.mjs";
 
-const port = Number(process.env.FAKE_BRAIN_PORT ?? 3198);
+const port = Number(process.env.FAKE_BRAIN_PORT ?? 3197);
 const token = process.env.FAKE_BRAIN_TOKEN ?? "e2e-fake-brain-token";
 const MODES = new Set(["ok", "mirrored", "empty", "down", "unauthorized", "invalid", "slow"]);
 let mode = "ok";

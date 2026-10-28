@@ -109,12 +109,13 @@ async function measure(page: Page, label: string): Promise<string[]> {
   return failures;
 }
 
-const STATES: { label: string; route: string; jira?: Record<string, unknown>; prepare?: (page: Page) => Promise<unknown> }[] = [
+const STATES: { label: string; route: string; jira?: Record<string, unknown>; social?: Record<string, unknown>; prepare?: (page: Page) => Promise<unknown> }[] = [
   { label: "now", route: "/" },
-  { label: "lens work", route: "/", prepare: (p) => p.getByTestId("context-work").click() },
-  { label: "lens session", route: "/", prepare: (p) => p.getByTestId("context-session").click() },
-  { label: "lens knowledge", route: "/", prepare: (p) => p.getByTestId("context-knowledge").click() },
-  { label: "lens business", route: "/", prepare: (p) => p.getByTestId("context-business").click() },
+  // the card column runs below the fold: measure the lower cards in view, at rest and with the hover tint raised
+  { label: "now lower cards", route: "/", prepare: (p) => p.getByTestId("context-social").scrollIntoViewIfNeeded() },
+  { label: "now hover social", route: "/", prepare: (p) => p.getByTestId("context-social").hover() },
+  { label: "channel picker", route: "/", prepare: (p) => p.getByTestId("context-social").click() },
+  { label: "channel picker instagram error", route: "/", social: { status: 500, error: "boom" }, prepare: async (p) => { await p.getByTestId("context-social").click(); await p.locator('[data-testid="channel-instagram"][data-instagram="ERROR"]').waitFor(); } },
   { label: "search", route: "/", prepare: async (p) => { await p.getByTestId("search-open").click(); await p.getByTestId("search-input").fill("workshop"); } },
   { label: "board", route: "/board" },
   { label: "backlog form", route: "/backlog", prepare: (p) => p.getByTestId("add-idea").click() },
@@ -131,6 +132,11 @@ const STATES: { label: string; route: string; jira?: Record<string, unknown>; pr
   { label: "whiteboard", route: "/whiteboard" },
   { label: "calendar form", route: "/calendar", prepare: (p) => p.getByTestId("cal-add").click() },
   { label: "pulse", route: "/pulse" },
+  { label: "instagram cockpit", route: "/pulse/social/instagram", prepare: (p) => p.getByTestId("hero").waitFor() },
+  { label: "instagram row detail", route: "/pulse/social/instagram", prepare: async (p) => { await p.locator('[data-media-id="syn004"]').getByTestId("row-toggle").click(); await p.getByTestId("row-detail").waitFor(); } },
+  { label: "instagram offer signals", route: "/pulse/social/instagram", prepare: async (p) => { await p.getByTestId("tab-offers").click(); await p.getByTestId("inspect-hypothesis-H1").click(); await p.getByTestId("inspection-H1").waitFor(); } },
+  { label: "instagram inspector", route: "/pulse/social/instagram", prepare: async (p) => { await p.getByTestId("inspect-hero").click(); await p.getByTestId("metric-inspector").waitFor(); } },
+  { label: "instagram permission required", route: "/pulse/social/instagram", social: { status: 409, error: "reauth-required" }, prepare: (p) => p.getByTestId("cockpit-failure").waitFor() },
   { label: "vault", route: "/vault" },
   { label: "toolbox", route: "/toolbox?tool=jira" },
 ];
@@ -139,8 +145,9 @@ for (const viewport of [{ width: 1440, height: 900 }, { width: 1280, height: 800
   test.describe(`contrast ${viewport.width}`, () => {
     test.use({ viewport });
     for (const state of STATES) {
-      test(`text contrast >= WCAG AA: ${state.label}`, async ({ page, jira }) => {
+      test(`text contrast >= WCAG AA: ${state.label}`, async ({ page, jira, social }) => {
         if (state.jira) await jira.fault(state.jira);
+        if (state.social) await social.fault(state.social);
         await page.emulateMedia({ reducedMotion: "reduce" });
         await page.goto(state.route);
         await page.waitForLoadState("networkidle");

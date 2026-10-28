@@ -22,7 +22,25 @@ const SHOTS: {
   verify?: (jira: FakeJiraControl) => Promise<void>;
 }[] = [
   { name: "now", route: "/" },
-  { name: "now-lens-work", route: "/", prepare: async (page) => page.getByTestId("context-work").click() },
+  { name: "instagram-cockpit", route: "/pulse/social/instagram", prepare: async (page) => void (await page.getByTestId("hero").waitFor()) },
+  {
+    name: "instagram-row-detail",
+    route: "/pulse/social/instagram",
+    prepare: async (page) => {
+      await page.locator('[data-media-id="syn004"]').getByTestId("row-toggle").click();
+      await page.getByTestId("row-detail").waitFor();
+    },
+  },
+  {
+    name: "instagram-offer-signals",
+    route: "/pulse/social/instagram",
+    prepare: async (page) => {
+      await page.getByTestId("tab-offers").click();
+      await page.getByTestId("inspect-hypothesis-H1").click();
+      await page.getByTestId("inspection-H1").scrollIntoViewIfNeeded();
+    },
+  },
+  { name: "now-channels", route: "/", prepare: async (page) => page.getByTestId("context-social").click() },
   { name: "board", route: "/board" },
   {
     name: "board-move-pending",
@@ -126,11 +144,17 @@ async function layoutProblems(page: Page): Promise<string[]> {
       if (r.right > main.left) problems.push(`rail overlaps main content (${r.right} > ${main.left})`);
     }
     const groups: Element[][] = [
-      Array.from(document.querySelectorAll('[data-testid^="context-"]:not([data-testid="context-lens"])')),
+      Array.from(document.querySelectorAll('[data-testid^="context-"]:not([data-testid="channel-lens"])')),
       Array.from(document.querySelectorAll('[data-testid="topbar-actions"] > *')),
       Array.from(document.querySelectorAll('[data-testid^="column-"]')),
       Array.from(document.querySelectorAll('[data-testid^="tool-"]')),
+      // Instagram cockpit panels (ANA-38)
+      Array.from(document.querySelectorAll('[data-testid="instagram-cockpit"] > div > section')),
     ];
+    // a cockpit content row must fit inside its panel (body clips horizontal overflow, so scrollWidth alone cannot see it)
+    for (const row of Array.from(document.querySelectorAll('[data-testid="content-row"] > div'))) {
+      if (row.scrollWidth > row.clientWidth + 1) problems.push(`content row wider than its panel: ${row.scrollWidth} > ${row.clientWidth}`);
+    }
     for (const els of groups) {
       const rects = els.map((el, i) => rect(el, el.getAttribute("data-testid") ?? `${el.tagName}#${i}`)).filter((r) => r.right > r.left);
       for (let i = 0; i < rects.length; i += 1)
@@ -142,6 +166,19 @@ async function layoutProblems(page: Page): Promise<string[]> {
       if (d.left < 0 || d.top < 0 || d.right > vw || d.bottom > vh) problems.push(`dialog clipped by viewport: ${JSON.stringify(d)}`);
     }
     return problems;
+  });
+}
+
+// Now's card column at widths between the evidence viewports: phones, the side-rail breakpoint and tablet portrait
+for (const width of [320, 390, 761, 800, 834]) {
+  test(`now at ${width}px: no overlap, no horizontal scroll`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 900 });
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await page.goto("/");
+    await page.waitForLoadState("networkidle");
+    const problems = await layoutProblems(page);
+    // at <= 760px the rail is a bottom dock over the content by design, so the side-rail checks do not apply
+    expect(width <= 760 ? problems.filter((p) => !p.startsWith("rail ")) : problems).toEqual([]);
   });
 }
 

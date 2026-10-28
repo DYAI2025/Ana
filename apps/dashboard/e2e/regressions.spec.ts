@@ -46,16 +46,16 @@ test("whiteboard: after editing one note, Delete removes the note the user click
 
 test("search opened over a lens: Escape closes only the search, focus returns into the lens", async ({ page }) => {
   await page.goto("/");
-  await page.getByTestId("context-work").click();
-  await expect(page.getByTestId("context-lens")).toBeVisible();
+  await page.getByTestId("context-social").click();
+  await expect(page.getByTestId("channel-lens")).toBeVisible();
   await page.keyboard.press("ControlOrMeta+k");
   await expect(page.getByTestId("search-panel")).toBeVisible();
   await page.keyboard.press("Escape");
   await expect(page.getByTestId("search-panel")).toBeHidden();
   await page.waitForTimeout(600); // longer than the lens close animation
-  await expect(page.getByTestId("context-lens")).toBeVisible();
+  await expect(page.getByTestId("channel-lens")).toBeVisible();
   await expect(page.locator('[data-state="closing"]')).toHaveCount(0);
-  expect(await page.evaluate(() => !!document.activeElement?.closest('[data-testid="context-lens"]'))).toBe(true);
+  expect(await page.evaluate(() => !!document.activeElement?.closest('[data-testid="channel-lens"]'))).toBe(true);
 });
 
 test("search reopens empty after closing with Cmd/Ctrl+K", async ({ page }) => {

@@ -43,7 +43,7 @@
   padding: 12px 14px;
   border-radius: 14px;
   border: 1px solid rgba(255, 255, 255, 0.16);
-  background: rgba(30, 24, 29, 0.35);
+  background: var(--surface-veil);
   color: var(--text);
   font-size: 14px;
 }
@@ -61,7 +61,7 @@
   align-items: center;
   gap: 8px;
   font-size: 12.5px;
-  color: #ffc2b7;
+  color: var(--ink-coral);
 }
 
 .error::before {
@@ -73,14 +73,14 @@
   border-radius: 50%;
   font-size: 11px;
   font-weight: 700;
-  color: var(--accent-ink);
+  color: #ffffff;
   background: var(--accent-bright);
 }
 
 .note {
   font-size: 12px;
   line-height: 1.5;
-  color: var(--sand);
+  color: var(--ink-warm);
 }
 
 .created {
@@ -91,13 +91,13 @@
   padding: 11px 14px;
   border-radius: 15px;
   border: 1px solid rgba(229, 211, 190, 0.4);
-  background: rgba(32, 26, 31, 0.72);
+  background: var(--surface-solid);
   font-size: 13px;
   color: var(--text);
 }
 
 .created a {
-  color: var(--sand);
+  color: var(--ink-warm);
   text-underline-offset: 3px;
 }
 

@@ -4,34 +4,41 @@
 import type { Page } from "@playwright/test";
 import { expect, test, workReady, workSettled } from "./fixtures";
 
-const area = async (page: Page, testId: string) => {
-  const box = await page.getByTestId(testId).boundingBox();
-  if (!box) throw new Error(`${testId} has no box`);
-  return box.width * box.height;
+const box = async (page: Page, testId: string) => {
+  const rect = await page.getByTestId(testId).boundingBox();
+  if (!rect) throw new Error(`${testId} has no box`);
+  return rect;
 };
 
-test("1 · Now shows Current Focus first, then Work + Last Session, then secondary context", async ({ page }) => {
+const TILE_ORDER = ["social", "initiatives", "sessions", "knowledge", "community"];
+
+test("1 · ASADA home shows the product name first, then the five tiles as one uniform column", async ({ page }) => {
   await page.goto("/");
-  await expect(page.getByTestId("focus-statement")).toBeVisible();
-  const focusBox = (await page.getByTestId("focus-statement").boundingBox())!;
-  for (const id of ["work", "session", "business", "knowledge", "community"]) {
-    const box = (await page.getByTestId(`context-${id}`).boundingBox())!;
-    expect(box.y, `${id} sits below the focus statement`).toBeGreaterThan(focusBox.y + focusBox.height);
-  }
-  const primary = Math.min(await area(page, "context-work"), await area(page, "context-session"));
-  for (const id of ["business", "knowledge", "community"]) {
-    expect(await area(page, `context-${id}`), `${id} is visually secondary`).toBeLessThan(primary);
-  }
-  await expect(page.getByTestId("prototype-flag")).toBeVisible();
+  await expect(page.getByTestId("asada-title")).toHaveText("ASADA");
+  const titleBox = await box(page, "asada-title");
+  const boxes = await Promise.all(TILE_ORDER.map((id) => box(page, `context-${id}`)));
+  const [first] = boxes;
+  boxes.forEach((rect, i) => {
+    const id = TILE_ORDER[i];
+    expect(rect.y, `${id} sits below the heading`).toBeGreaterThan(titleBox.y + titleBox.height);
+    expect(Math.abs(rect.x - first!.x), `${id} shares the column's left edge`).toBeLessThanOrEqual(1);
+    expect(Math.abs(rect.width - first!.width), `${id} has the column width`).toBeLessThanOrEqual(1);
+    expect(Math.abs(rect.height - first!.height), `${id} has the card height`).toBeLessThanOrEqual(1);
+    if (i > 0) expect(rect.y, `${id} stacks below ${TILE_ORDER[i - 1]}`).toBeGreaterThan(boxes[i - 1]!.y + boxes[i - 1]!.height);
+  });
+  const radii = await Promise.all(TILE_ORDER.map((id) => page.getByTestId(`context-${id}`).evaluate((el) => getComputedStyle(el).borderRadius)));
+  expect(new Set(radii).size, `one shared border radius (${radii.join(" | ")})`).toBe(1);
+  // the home shows no prototype data, so it carries no prototype flag (ANA-42)
+  await expect(page.getByTestId("prototype-flag")).toHaveCount(0);
 });
 
-test("2 · a context lens opens, traps focus and closes (Escape, close button, backdrop)", async ({ page }) => {
+test("2 · the channel picker opens, traps focus and closes (Escape, close button, backdrop)", async ({ page }) => {
   await page.goto("/");
-  const trigger = page.getByTestId("context-work");
+  const trigger = page.getByTestId("context-social");
   await trigger.click();
   const lens = page.getByRole("dialog");
   await expect(lens).toBeVisible();
-  await expect(lens).toHaveAttribute("data-lens", "work");
+  await expect(lens).toHaveAttribute("data-lens", "social");
   for (let i = 0; i < 6; i += 1) {
     await page.keyboard.press("Tab");
     expect(await page.evaluate(() => !!document.activeElement?.closest('[role="dialog"]'))).toBe(true);
@@ -40,12 +47,12 @@ test("2 · a context lens opens, traps focus and closes (Escape, close button, b
   await expect(lens).toBeHidden();
   await expect(trigger).toBeFocused();
 
-  await page.getByTestId("context-session").click();
-  await expect(page.getByRole("dialog")).toHaveAttribute("data-lens", "session");
+  await trigger.click();
+  await expect(page.getByRole("dialog")).toHaveAttribute("data-lens", "social");
   await page.getByTestId("lens-close").click();
   await expect(page.getByRole("dialog")).toBeHidden();
 
-  await page.getByTestId("context-community").click();
+  await trigger.click();
   await expect(page.getByRole("dialog")).toBeVisible();
   await page.mouse.click(40, 860);
   await expect(page.getByRole("dialog")).toBeHidden();
@@ -254,9 +261,9 @@ test("14 · EN / DE / IT switching translates chrome and content and persists", 
 
   await page.getByTestId("lang-it").click();
   await page.getByTestId("nav-now").click();
-  await expect(page.getByTestId("focus-statement")).toContainText("chiudere un ciclo significativo");
+  await expect(page.getByTestId("context-initiatives")).toContainText("Iniziative e progressi");
   await page.getByTestId("lang-en").click();
-  await expect(page.getByTestId("focus-statement")).toContainText("close one meaningful loop");
+  await expect(page.getByTestId("context-initiatives")).toContainText("Initiatives & Progress");
 });
 
 test("15 · global search finds content across modules and navigates", async ({ page }) => {

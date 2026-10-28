@@ -33,7 +33,7 @@
 }
 
 .primary {
-  color: var(--accent-ink);
+  color: #ffffff;
   border-color: rgba(255, 192, 177, 0.35);
   background: linear-gradient(145deg, var(--accent-bright), var(--accent));
   box-shadow: 0 7px 20px rgba(255, 113, 91, 0.16), inset 0 1px 0 rgba(255, 255, 255, 0.34);
@@ -83,7 +83,7 @@
   border-radius: 50%;
   font-weight: 650;
   color: #392f34;
-  border: 1.5px solid rgba(51, 44, 50, 0.9);
+  border: 1.5px solid rgba(255, 255, 255, 0.9);
   box-shadow: 0 2px 8px rgba(18, 13, 17, 0.18);
 }
 
@@ -102,7 +102,7 @@
 .avatar_unassigned {
   background: transparent;
   color: var(--text-muted);
-  border: 1.5px dashed rgba(245, 237, 228, 0.45);
+  border: 1.5px dashed rgba(70, 80, 95, 0.45);
   box-shadow: none;
 }
 
@@ -139,20 +139,20 @@
   font-weight: 520;
   letter-spacing: 0.01em;
   white-space: nowrap;
-  border: 1px dashed rgba(245, 237, 228, 0.3);
+  border: 1px dashed rgba(70, 80, 95, 0.3);
   color: var(--text-secondary);
   /* own dark backing: chips carry honesty statements and must read on any glass */
-  background: rgba(32, 26, 31, 0.55);
+  background: var(--surface-solid);
 }
 
 .chip_prototype {
   border-style: solid;
   border-color: rgba(229, 211, 190, 0.35);
-  color: var(--sand);
+  color: var(--ink-warm);
 }
 
 .chip_local {
   border-style: solid;
   border-color: rgba(187, 180, 213, 0.38);
-  color: #dcd7ee;
+  color: var(--ink-cool);
 }
