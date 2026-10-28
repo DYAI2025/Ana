@@ -155,7 +155,12 @@ describe("http + mcp", () => {
     const params = { client_id: reg.client_id, redirect_uri: redirect, response_type: "code", code_challenge: challenge, code_challenge_method: "S256", state: "xyz" };
     const form = await fetch(`${base}/authorize?${new URLSearchParams(params)}`);
     expect(form.status).toBe(200);
-    expect(await form.text()).toContain('name="access_key"');
+    const page = await form.text();
+    expect(page).toContain('name="access_key"');
+    // the form's POST answers with a 302 to the client: form-action must allow that origin or the browser blocks it
+    expect(form.headers.get("content-security-policy")).toMatch(/form-action 'self' http:\/\/127\.0\.0\.1:9(;|$)/);
+    // the person sees where the code goes, not only the name the registrant chose (the hidden field alone shows nothing)
+    expect(page).toContain("access is handed to <strong>127.0.0.1:9</strong>");
     const wrong = await fetch(`${base}/authorize`, { method: "POST", redirect: "manual", body: new URLSearchParams({ ...params, access_key: "wrong-key-wrong-key" }) });
     expect(wrong.status).toBe(401);
     const ok = await fetch(`${base}/authorize`, { method: "POST", redirect: "manual", body: new URLSearchParams({ ...params, access_key: keys.vince }) });

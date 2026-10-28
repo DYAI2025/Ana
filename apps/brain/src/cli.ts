@@ -6,9 +6,10 @@ import { HUMANS, type SourceBlock } from "./contract/schema.js";
 import { registerDriveSource } from "./drive/register.js";
 import { driveFromConfig, requireDrive } from "./drive/setup.js";
 import { createApp } from "./http/app.js";
-import { Indexer, loadState } from "./index/indexer.js";
+import { Indexer } from "./index/indexer.js";
 import { OllamaEmbedder } from "./index/ollama.js";
 import { QdrantStore } from "./index/qdrant.js";
+import { vaultStats } from "./stats.js";
 import { Vault } from "./vault/vault.js";
 
 const USAGE = [
@@ -105,14 +106,7 @@ async function main(argv: string[]): Promise<number> {
     return 0;
   }
   if (cmd === "stats") {
-    const byType: Record<string, number> = {};
-    const byStatus: Record<string, number> = {};
-    for (const n of vault.all()) {
-      byType[n.fm.type] = (byType[n.fm.type] ?? 0) + 1;
-      byStatus[n.fm.status] = (byStatus[n.fm.status] ?? 0) + 1;
-    }
-    const st = loadState(vault.root);
-    console.log(JSON.stringify({ notes: vault.all().length, invalid: vault.loadErrors.length, byType, byStatus, indexed: st ? Object.keys(st.notes).length : 0, embed_model: st?.embed_model ?? null, embed_digest: st?.embed_digest ?? null, index_version: st?.index_version ?? null }, null, 2));
+    console.log(JSON.stringify(vaultStats(vault), null, 2));
     return 0;
   }
   if (cmd === "serve") {

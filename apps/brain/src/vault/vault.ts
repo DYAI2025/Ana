@@ -333,20 +333,21 @@ function isSymlink(p: string): boolean {
 }
 
 /**
- * The blocks named by correction lines: only lines under `## Corrections` in the form appendObservation writes
- * (`- <at> · <actor> · <status> · corrects ^obs-… · <text> ^obs-…`). Observation text that mentions
- * `corrects ^obs-…` sits under `## Observations` and is not a correction.
+ * The blocks named by correction lines under `## Corrections`, in the form appendObservation writes
+ * (`- <at> · <actor> · <status> · corrects ^obs-… · <text> ^obs-…`) and in the form CONTRACT §2 shows (no status).
+ * The section ends where appendUnderHeading ends it (the next h1/h2), so a `###` sub-heading stays inside.
+ * Observation text that mentions `corrects ^obs-…` sits under `## Observations` and is not a correction.
  */
 function correctedBlocks(body: string): string[] {
   const out: string[] = [];
   let inCorrections = false;
   for (const line of body.split("\n")) {
-    const heading = /^#{1,6} (.*)$/.exec(line);
-    if (heading) {
-      inCorrections = heading[1]!.trim() === "Corrections";
+    if (line.trim() === "## Corrections") {
+      inCorrections = true;
       continue;
     }
-    const m = inCorrections ? /^- [^·]+ · [^·]+ · [A-Z]+ · corrects \^(obs-[a-z0-9-]{1,80}) · /.exec(line) : null;
+    if (/^#{1,2}\s/.test(line)) inCorrections = false;
+    const m = inCorrections ? /^- [^·]+ · [^·]+ · (?:[A-Z]+ · )?corrects \^(obs-[a-z0-9-]{1,80}) · /.exec(line) : null;
     if (m) out.push(m[1]!);
   }
   return out;

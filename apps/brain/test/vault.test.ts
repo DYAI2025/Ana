@@ -233,4 +233,21 @@ describe("vault", () => {
     await v.appendObservation("ben", "kn-hook-first", { text: "corrects ^obs-20261001000000-vince · as a plain remark" });
     expect(v.referenceErrors()).toEqual([]);
   });
+
+  it("checks corrections in the CONTRACT format and below a sub-heading of ## Corrections", () => {
+    const root = tmpDir();
+    seed(root, "kn-hand-edited", "method", [
+      "Body.", "", "## Observations", "- 2026-10-07T12:00:00Z · ben · CANDIDATE · seen ^obs-20261007120000-ben", "",
+      "## Corrections", "### Notes added by hand",
+      "- 2026-10-29T10:00:00Z · ben · CANDIDATE · corrects ^obs-20260101000000-gone · typo ^obs-20261029100000-ben",
+      "- 2026-10-29T10:00:00Z · ana · corrects ^obs-20260101000000-anna · documented format without status",
+      "- 2026-10-29T10:00:00Z · ana · corrects ^obs-20261007120000-ben · names an existing block", "",
+    ].join("\n"));
+    const v = new Vault(root, { git: false });
+    expect(v.loadErrors).toEqual([]);
+    expect(v.referenceErrors()).toEqual([
+      "kn-hand-edited: correction names a missing block: ^obs-20260101000000-gone",
+      "kn-hand-edited: correction names a missing block: ^obs-20260101000000-anna",
+    ]);
+  });
 });

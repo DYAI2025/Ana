@@ -20,6 +20,18 @@ describe("OAuth client registry", () => {
     await expect(Promise.resolve().then(() => p.clientsStore.registerClient!({ ...client("ok"), jwks: { keys: ["k".repeat(9000)] } } as NewClient))).rejects.toThrow(InvalidClientMetadataError);
   });
 
+  it("refuses deeply nested metadata that is small as compact JSON but huge as stored (indented) JSON", async () => {
+    const stateDir = tmpDir("state-");
+    const p = new BrainOAuthProvider(stateDir, new KeyStore(stateDir));
+    const deep = JSON.parse(`${"[".repeat(4000)}${"]".repeat(4000)}`) as unknown;
+    const hostile = { ...client("deep"), jwks: deep } as NewClient;
+    expect(JSON.stringify(hostile).length).toBeLessThan(8192);
+    await expect(Promise.resolve().then(() => p.clientsStore.registerClient!(hostile))).rejects.toThrow(InvalidClientMetadataError);
+    // a realistic client still registers, and what is stored stays small
+    await p.clientsStore.registerClient!({ ...client("normal"), jwks: { keys: [{ kty: "EC", crv: "P-256", x: "a".repeat(43), y: "b".repeat(43) }] } } as NewClient);
+    expect(readFileSync(path.join(stateDir, "oauth.json"), "utf8").length).toBeLessThan(4096);
+  });
+
   it("keeps at most 100 clients by forgetting the oldest idle ones, never one that holds a live token", async () => {
     const stateDir = tmpDir("state-");
     const keys = new KeyStore(stateDir);

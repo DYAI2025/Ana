@@ -66,8 +66,12 @@ Body in Markdown.
 - 2026-10-07T12:00:00Z · ana · CANDIDATE · text … ^obs-20261007120000-ana
 
 ## Corrections
-- 2026-10-07T12:00:00Z · ana · corrects ^obs-… · text …
+- 2026-10-07T13:00:00Z · ana · CANDIDATE · corrects ^obs-20261007120000-ana · text … ^obs-20261007130000-ana
 ```
+
+`brain_append_observation` writes both line forms above. A correction line written by hand without the status field
+(`- <at> · <actor> · corrects ^obs-… · text …`) is checked the same way; the `## Corrections` section runs to the next
+`#`/`##` heading, so `###` sub-headings stay inside it.
 
 Missing metadata is written as `UNKNOWN`, never invented.
 

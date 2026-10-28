@@ -14,6 +14,7 @@ const ACCESS_TTL = 3600;
 const REFRESH_TTL = 30 * 24 * 3600;
 const CODE_TTL = 300;
 const MAX_CLIENT_BYTES = 8192;
+const MAX_CLIENT_DEPTH = 8;
 const MAX_CLIENTS = 100;
 
 /** key_sha256: the personal key that authorized the grant; the token dies with that key (B-7). */
@@ -23,6 +24,19 @@ interface CodeRec { actor: Human; key_sha256: string; client_id: string; challen
 
 const esc = (s: string) => s.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
 const nowS = () => Math.floor(Date.now() / 1000);
+
+/** Stops at `max`, so a hostile nesting depth costs at most `max` stack frames. */
+function nestedDeeperThan(v: unknown, max: number): boolean {
+  if (v === null || typeof v !== "object") return false;
+  if (max === 0) return true;
+  return Object.values(v).some((x) => nestedDeeperThan(x, max - 1));
+}
+
+/** CSP source for the client's redirect: its origin, or the bare scheme for a custom-scheme (native app) redirect. */
+function redirectSource(redirectUri: string): string {
+  const u = new URL(redirectUri);
+  return u.origin !== "null" ? u.origin : u.protocol;
+}
 
 export class BrainOAuthProvider implements OAuthServerProvider {
   private readonly file: string;
@@ -61,7 +75,9 @@ export class BrainOAuthProvider implements OAuthServerProvider {
       getClient: (id) => this.load().clients[id],
       // /register is public and needs no credential: bound the size of each client and the size of the registry
       registerClient: (client) => {
-        if (JSON.stringify(client).length > MAX_CLIENT_BYTES) throw new InvalidClientMetadataError(`client metadata exceeds ${MAX_CLIENT_BYTES} bytes`);
+        // measured as stored: oauth.json is indented, and indentation grows with nesting depth, so depth is capped first
+        if (nestedDeeperThan(client, MAX_CLIENT_DEPTH)) throw new InvalidClientMetadataError(`client metadata is nested deeper than ${MAX_CLIENT_DEPTH} levels`);
+        if (JSON.stringify(client, null, 2).length > MAX_CLIENT_BYTES) throw new InvalidClientMetadataError(`client metadata exceeds ${MAX_CLIENT_BYTES} bytes`);
         const s = this.load();
         const t = nowS();
         const live = new Set([...Object.values(s.tokens).filter((v) => v.expires_at >= t).map((v) => v.client_id), ...[...this.codes.values()].map((c) => c.client_id)]);
@@ -107,10 +123,16 @@ export class BrainOAuthProvider implements OAuthServerProvider {
       .filter(([, v]) => v !== undefined && v !== "")
       .map(([k, v]) => `<input type="hidden" name="${k}" value="${esc(v as string)}">`)
       .join("");
-    res.status(error ? 401 : 200).set({ "content-type": "text/html; charset=utf-8", "cache-control": "no-store", "x-frame-options": "DENY", "content-security-policy": "default-src 'none'; style-src 'unsafe-inline'; form-action 'self'" })
+    // form-action also governs the redirect that answers the POST: without the client's origin the browser blocks the
+    // 302 to redirect_uri and the code never reaches the client
+    const target = redirectSource(params.redirectUri);
+    const csp = `default-src 'none'; style-src 'unsafe-inline'; form-action 'self' ${target}`;
+    const destination = new URL(params.redirectUri).host || target;
+    res.status(error ? 401 : 200).set({ "content-type": "text/html; charset=utf-8", "cache-control": "no-store", "x-frame-options": "DENY", "content-security-policy": csp })
       .send(`<!doctype html><html lang="en"><head><meta charset="utf-8"><title>ANA Brain — connect</title><meta name="viewport" content="width=device-width"></head>
 <body style="font-family:system-ui;max-width:28rem;margin:4rem auto;padding:0 1rem">
 <h1>ANA Brain</h1><p>Connect <strong>${esc(client.client_name ?? client.client_id)}</strong> with your personal access key.</p>
+<p>After you connect, access is handed to <strong>${esc(destination)}</strong>. Only continue if that is the app you are connecting.</p>
 ${error ? `<p role="alert" style="color:#b00">${esc(error)}</p>` : ""}
 <form method="post" action="authorize">${fields}<label for="k">Personal access key</label><br>
 <input id="k" name="access_key" type="password" autocomplete="off" required style="width:100%;margin:.5rem 0"><br>
