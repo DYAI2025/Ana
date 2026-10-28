@@ -1,25 +1,42 @@
 # DRS binding for ANA
 
-ANA delivery work is governed by the **Delivery Readiness Standard v1.0** (Jira ANA-29). This page records which
-DRS source is bound, how it was unpacked, and how its rules apply in this repository. It does not restate project
-decisions; those live in Jira (ANA-5, ANA-29) and Confluence (pages 07 and 08).
+ANA delivery work is governed by the **Delivery Readiness Standard (DRS)**. Its canonical definition is the Confluence
+page [07.1 — Delivery Readiness Standard (DRS) — IC / R2G / R4M](https://dyai2026.atlassian.net/wiki/spaces/DYAIStudio/pages/92176389)
+(page 92176389, status CANONICAL_DELIVERY_GOVERNANCE, owner decision 7 October 2026). This page records how that
+standard is bound in this repository: which validator package checks the `.drs/` contracts, and which stricter
+repository rules apply on top. It does not restate project decisions; those live in Jira (ANA-5, ANA-29) and
+Confluence (pages 07 and 08). Where this page and the canonical page differ, the canonical page wins.
 
-## Bound source
+## Bound sources
 
 | Item | Value |
 |---|---|
-| Repository | `DYAI2025/DRS` (public) |
+| Canonical definition | Confluence page 92176389 (IC / R2G / R4M, gate states, exact-candidate invariant, ticket binding §9, change control §11) |
+| Validator repository | `DYAI2025/DRS` (public) |
 | Pinned commit | `c4efb97931c6171563191afb74d61507e13bc6d4` (only commit; `origin/main` at binding time) |
 | Package carrier used | `DRS-v1.0.tar.gz`, sha256 `7d1b5856ff5635cc7fdb76ba9ec0132e008c47d4b1de8050eb2cb03080253daf` |
 | Second carrier | `DRS-v1.0.bundle`, sha256 `c7aa984540895b0d0152a84614b154bea72740f27d001873b094018d47e567ae` (git bundle, head `5011fb4c99b22da8fa58a852635239324baec34e`) |
 | Carrier agreement | both hold the same 27 files with identical git blob hashes; the tar adds one empty `DRS/schema/` directory |
-| Normative text | `docs/drs-v1.0.md` inside the package |
+| Package text | `docs/drs-v1.0.md` inside the package (applied below where it is stricter than or agrees with the canonical page) |
 | Validator | `drs/validate.py` inside the package, run by `.github/workflows/drs.yml` |
 
 The top-level `README.md` of the DRS repository holds no rules (`# DRS` twice). Nothing below is derived from the
 repository name or that file.
 
-## Rules applied (from `docs/drs-v1.0.md`)
+## Canonical rules (Confluence 92176389)
+
+- **Gate states** (§1): GREEN, NOT_GREEN, UNKNOWN, RECONCILE_REQUIRED. There is no "probably green".
+- **Exact candidate** (§3): IC, R2G and R4M bind to one exact candidate SHA. Evidence from other SHAs, branches, local
+  states or earlier CI runs is not combined into one GREEN; a material change after a gate invalidates later gates.
+- **R2G** (§5) needs exact PR-head CI evidence where a PR/CI path exists, plus every ticket-applicable quality gate.
+- **R4M** (§6) re-reads base and head right before the decision. R4M is a readiness statement, not merge authority,
+  and none of IC / R2G / R4M / merge means released or Done (§7, §8).
+- **Ticket binding** (§9): each ticket binds the canonical page and may add stricter gates, never weaker ones.
+  Policy changes go through §11 (PO approval, canonical page updated).
+
+## Repository rules from the package (`docs/drs-v1.0.md`)
+
+These are kept as stricter repository-specific rules under canonical §9.
 
 - **Contract first** (§1): every work item carries IC / R2G / R4M definitions before implementation starts.
   Implementation only moves IC → R2G → R4M.
@@ -43,9 +60,19 @@ repository name or that file.
   `.drs/<KEY>.json`. Its gate definitions are mirrored into a comment on the Jira item before implementation.
 - **Acceptance states are not committed.** Writing a PASS bound to a candidate SHA into the repository would create
   a new commit and invalidate itself (§5). Gate states in `.drs/<KEY>.json` therefore stay `NOT_EVALUATED`;
-  the acceptor's PASS / FAIL with the exact SHA is recorded in the Jira item and the pull request.
+  the acceptor's decision with the exact SHA, in the canonical states (GREEN / NOT_GREEN / UNKNOWN /
+  RECONCILE_REQUIRED), is recorded in the Jira item and the pull request.
 - **CI.** `.github/workflows/drs.yml` downloads the pinned tarball, checks its sha256 and runs the package's own
   validator over `.drs/*.json` with the pull request head SHA.
+- **Exact PR-head CI.** The brain, dashboard, dashboard-image and drs workflows check out `SOURCE_SHA` — the PR head
+  (`pull_request.head.sha`) on a pull request, `github.sha` on a push — and assert `git rev-parse HEAD` equals it.
+  A pull request run therefore tests the PR head itself, not GitHub's test merge with the base. Bundles, image tags
+  and artifacts are named `<sha>` on a push and `pr-<sha>` on a pull request: PR outputs are test evidence for that
+  head, and `release.sh` (bare 40-hex commit only) cannot pick them up. Only artifacts of a successful push run on
+  `main` are released.
+- **Base at R4M.** Because a PR run does not test the merge result, the R4M readback also confirms that the head
+  contains the current base (`git merge-base --is-ancestor <base> <head>`). If the base moved past the head, R4M is
+  not GREEN until the base is merged in and the new head has passed CI.
 - **Hooks are not installed.** The package's Claude Code hooks are not copied into this repository: `install.sh`
   fails on macOS BSD `sed`, and the hooks do not enforce several normative rules (see below). The normative text
   is applied by the delivery process and by review instead.
@@ -62,4 +89,8 @@ follows `docs/drs-v1.0.md`:
 5. `.drs/**` is always editable, so a local contract could claim a PASS; ANA keeps acceptance in Jira and the PR.
 6. Exceptions are not checked for `approved_by` or the 48 h cap.
 7. The package names a Confluence page "Global Software Delivery Standard" as canonical; no page with that title
-   exists on the ANA Atlassian site, so the packaged `docs/drs-v1.0.md` is the text applied here.
+   exists on the ANA Atlassian site. The canonical DRS is page 92176389 (see Bound sources); the package text applies
+   only where it agrees with that page or is stricter.
+8. The package uses the states PASS / FAIL / NOT_EVALUATED; the canonical page uses GREEN / NOT_GREEN / UNKNOWN /
+   RECONCILE_REQUIRED. The contracts keep the package's NOT_EVALUATED so the pinned validator accepts them; decisions
+   are recorded in the canonical states.

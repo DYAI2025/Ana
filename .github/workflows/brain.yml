@@ -3,7 +3,8 @@ name: brain
 # ANA-35: checks apps/brain, lints the Contabo kit in deploy/ana-brain, and builds the native bundle
 # ana-brain-app-<sha>.tar.gz that deploy/ana-brain/release.sh installs on the Contabo VPS vmi3693936. The bundle is
 # started under the host's Node and its auth gates are tested before it is kept as the artifact ana-brain-<sha>.
-# Release only artifacts of push runs on main: a pull_request run builds the merge ref, so <sha> is not the PR head.
+# <sha> is OUT_ID below. Release only artifacts of push runs on main: a pull_request run is named pr-<PR head> and is
+# test evidence for that head, never a release.
 # No secrets, no deploy step. Keep the push and pull_request path lists identical.
 on:
   push:
@@ -21,6 +22,15 @@ on:
 permissions:
   contents: read
 
+env:
+  # the commit every job checks out, tests and names its outputs after: the PR head on pull_request (not GitHub's test
+  # merge with the base), the pushed commit on push and workflow_dispatch. A PR run therefore does not test the merge
+  # result; that the head contains the current base is checked at merge readiness (docs/delivery/DRS.md).
+  SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+  # names every bundle, image tag and artifact: <SOURCE_SHA> on push and workflow_dispatch, pr-<SOURCE_SHA> on
+  # pull_request. release.sh takes a bare 40-hex commit, so it can never pick up the output of a pull_request run.
+  OUT_ID: ${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.head.sha) || github.sha }}
+
 jobs:
   check:
     runs-on: ubuntu-latest
@@ -29,6 +39,13 @@ jobs:
         working-directory: apps/brain
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.SOURCE_SHA }}
+      - name: Checked-out commit is SOURCE_SHA
+        shell: bash
+        run: |
+          [ "$(git rev-parse HEAD)" = "$SOURCE_SHA" ] || { echo "FAIL: HEAD is $(git rev-parse HEAD), expected $SOURCE_SHA"; exit 1; }
+          echo "source $SOURCE_SHA tree $(git rev-parse 'HEAD^{tree}')"
       - uses: actions/setup-node@v4
         with:
           node-version-file: .nvmrc
@@ -45,6 +62,13 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.SOURCE_SHA }}
+      - name: Checked-out commit is SOURCE_SHA
+        shell: bash
+        run: |
+          [ "$(git rev-parse HEAD)" = "$SOURCE_SHA" ] || { echo "FAIL: HEAD is $(git rev-parse HEAD), expected $SOURCE_SHA"; exit 1; }
+          echo "source $SOURCE_SHA tree $(git rev-parse 'HEAD^{tree}')"
       - name: Contabo units, nginx and scripts (lint)
         shell: bash
         run: |
@@ -127,6 +151,13 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.SOURCE_SHA }}
+      - name: Checked-out commit is SOURCE_SHA
+        shell: bash
+        run: |
+          [ "$(git rev-parse HEAD)" = "$SOURCE_SHA" ] || { echo "FAIL: HEAD is $(git rev-parse HEAD), expected $SOURCE_SHA"; exit 1; }
+          echo "source $SOURCE_SHA tree $(git rev-parse 'HEAD^{tree}')"
       - uses: actions/setup-node@v4
         with:
           node-version-file: .nvmrc
@@ -143,8 +174,8 @@ jobs:
           mkdir ../../bundle
           cp -R dist node_modules package.json package-lock.json ../../bundle/
           cd ../..
-          tar -C bundle --owner=0 --group=0 --numeric-owner -czf "ana-brain-app-${GITHUB_SHA}.tar.gz" .
-          sha256sum "ana-brain-app-${GITHUB_SHA}.tar.gz" | tee "ana-brain-app-${GITHUB_SHA}.tar.gz.sha256"
+          tar -C bundle --owner=0 --group=0 --numeric-owner -czf "ana-brain-app-${OUT_ID}.tar.gz" .
+          sha256sum "ana-brain-app-${OUT_ID}.tar.gz" | tee "ana-brain-app-${OUT_ID}.tar.gz.sha256"
       - uses: actions/setup-node@v4
         with:
           node-version: "24.22.0" # node on the Contabo VPS vmi3693936 (observed 2026-10-27, Jira ANA-42 comment 18133)
@@ -154,7 +185,7 @@ jobs:
           set -euo pipefail
           expect() { [ "$1" = "$2" ] || { echo "FAIL: $3 -> $1, expected $2"; exit 1; }; echo "ok: $3 -> $1"; }
           code() { curl -s -o /dev/null -w '%{http_code}' "$@"; }
-          mkdir -p run data/vault data/state && tar -xzf "ana-brain-app-${GITHUB_SHA}.tar.gz" -C run
+          mkdir -p run data/vault data/state && tar -xzf "ana-brain-app-${OUT_ID}.tar.gz" -C run
           git init -q data/vault
           # as dyai-ana-brain.service starts it: pinned environment + credential file read with --env-file. The file
           # also tries to move the bind address, the port and the data; the pinned environment must win.
@@ -180,9 +211,9 @@ jobs:
           kill "$pid"
       - uses: actions/upload-artifact@v4
         with:
-          name: ana-brain-${{ github.sha }}
+          name: ana-brain-${{ env.OUT_ID }}
           path: |
-            ana-brain-app-${{ github.sha }}.tar.gz
-            ana-brain-app-${{ github.sha }}.tar.gz.sha256
+            ana-brain-app-${{ env.OUT_ID }}.tar.gz
+            ana-brain-app-${{ env.OUT_ID }}.tar.gz.sha256
           if-no-files-found: error # the v4 default only warns
           retention-days: 30

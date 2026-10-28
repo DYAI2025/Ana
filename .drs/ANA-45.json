@@ -1,0 +1,63 @@
+{
+  "drs_version": "1.0",
+  "jira": "ANA-45",
+  "state": "IN_PROGRESS",
+  "delivery_profile": "STANDARD_CODE",
+  "ic": {
+    "definition": "ENABLER increment (PO split ANA35-SPLIT-001, Confluence 89456642 section 16; canonical DRS Confluence 92176389 section 4 ENABLER boundary). The existing PR #6 implementation is technically integrable on one exact candidate SHA; the named consumer is the later ANA-35 customer slice (M4). This contract is separate from .drs/ANA-35.json, which keeps the customer AC1-AC15 unchanged. E-AC1 exact scoped integration: PR head contains the current main, the three-way merge has 0 conflicts, every changed path is inside r2g.allowed_paths, and the ASADA home, Instagram cockpit/Social API and Cloudflare Access/auth code are unchanged against the base apart from the Brain-only changes listed in scope_note; the dashboard regression suites pass. E-AC2 vault integrity and source model: on the private Contabo vault (never a second truth) a read-only validate and git fsck run as the Brain's own user with recorded time and exit code, and a manifest/history/audit digest is compared with the recorded backup (M1) source; no DERIVED note becomes CONFIRMED automatically. E-AC3 Qdrant index: the dedicated collection ana_brain_v1 has 1024 dimensions, the full BGE-M3 model digest is read from the running Ollama, point count equals distinct note ids (no duplicates), re-index is idempotent, and rebuild/restart recover the same projection, observed on an isolated or authorized runtime with the candidate's build bytes. E-AC4 MCP boundary: loopback service with a disposable vault and the candidate's build bytes; authenticated read/search/context/backlink and safe writes succeed only in the disposable context; unauthenticated and wrong-key requests get 401; path traversal, overwrite, delete and CONFIRMED promotion are refused with their specific error and leave the vault unchanged; a revoked key gets 401; complete command and exit-status log, cleanup receipt, and production before/after fingerprints that are equal. E-AC5 Drive: service-account-only code and configuration; personal OAuth refused, absent or invalid credentials fail closed, no secret or private document in repo or CI (automated tests). Live Drive SA and ANA Evidence Root stay ANA-3/ANA-35. E-AC6 dashboard adapter: Brain-to-dashboard API and the existing ASADA renderer pass CI unit/contract/E2E tests; fixture-fed screenshots are inspectable; the Brain detail card oracle proves the lowest source and relation entries are reachable. E-AC7 recovery kit: bundle provenance (artifact name, sha256 and source commit), an existing nightly backup archive, an isolated restore compared byte-for-byte, configuration/permission/negative tests, no public Qdrant/Ollama/vault listener, a rollback plan and no second writer. E-AC8: canonical DRS IC -> R2G -> R4M on one identical final candidate SHA.",
+    "state": "NOT_EVALUATED",
+    "claimed": null,
+    "evidence": []
+  },
+  "r2g": {
+    "definition": "On the exact candidate SHA: (1) GitHub Actions workflows brain (jobs check, contabo-kit, bundle), dashboard (check), dashboard-image (image) and drs (validate) are green on a run whose checkout step printed that SHA: each job checks out SOURCE_SHA = pull_request.head.sha and asserts git rev-parse HEAD equals it; check-run head_sha alone is not enough. (2) The pull_request artifacts are ana-brain-pr-<candidate SHA> and ana-dashboard-pr-<candidate SHA>; their sha256 lines are recorded. They are test evidence only; release.sh accepts only a bare commit SHA and releases still come only from a successful push run on main. (3) The pinned DRS v1.0 validator is green over .drs/*.json with the candidate SHA. (4) Client bundle scan finds 0 Jira, Social worker or Brain token values, variable names or authorization headers. (5) Runtime receipts for E-AC2, E-AC3, E-AC4 and E-AC7 come from real technical boundaries (Ollama, Qdrant, MCP over HTTP, restore) and name the build bytes they ran (artifact sha256 of the candidate's bundle), never bytes of an earlier SHA renamed. Unit tests alone do not satisfy them. (6) Production npm advisories at the exact lockfiles are classified; none is a blocker under a committed gate, or the blocker is repaired minimally. (7) gitleaks/secret scan over the diff finds no secret, private Brain content or G2/G3 payload. (8) Fixture-fed screenshots of the Brain route (desktop, mobile, reduced motion, fallback states) and DE/EN/IT regression evidence are available for human inspection in the private evidence folder (never committed). Stale evidence (another SHA) is inadmissible; a new commit invalidates R2G.",
+    "state": "NOT_EVALUATED",
+    "claimed": null,
+    "candidate_sha": null,
+    "evidence": [],
+    "allowed_paths": [
+      ".drs/**",
+      "docs/**",
+      ".github/workflows/brain.yml",
+      ".github/workflows/dashboard.yml",
+      ".github/workflows/dashboard-image.yml",
+      ".github/workflows/drs.yml",
+      "apps/brain/**",
+      "apps/dashboard/.env.example",
+      "apps/dashboard/playwright.config.ts",
+      "apps/dashboard/e2e/**",
+      "apps/dashboard/src/app/brain/**",
+      "apps/dashboard/src/app/api/brain/**",
+      "apps/dashboard/src/server/brain/**",
+      "apps/dashboard/src/server/http.ts",
+      "apps/dashboard/src/server/boundary.test.ts",
+      "apps/dashboard/src/features/brain/**",
+      "apps/dashboard/src/fixtures/brain.ts",
+      "apps/dashboard/src/fixtures/fixtures.test.ts",
+      "apps/dashboard/src/lib/search.ts",
+      "apps/dashboard/src/lib/search.test.ts",
+      "apps/dashboard/src/components/shell/SearchPalette.tsx",
+      "apps/dashboard/src/components/providers/Providers.tsx",
+      "apps/dashboard/src/i18n/en.ts",
+      "apps/dashboard/src/i18n/de.ts",
+      "apps/dashboard/src/i18n/it.ts",
+      "apps/dashboard/src/test/**",
+      "apps/dashboard/scripts/scan-client-bundle.mjs",
+      "deploy/ana-brain/**",
+      "deploy/ana-dashboard/dashboard.env.example",
+      "deploy/ana-dashboard/README.md",
+      "apps/dashboard/src/components/shell/Topbar.tsx",
+      "apps/dashboard/README.md",
+      "apps/dashboard/src/i18n/i18n.test.ts"
+    ]
+  },
+  "r4m": {
+    "definition": "The unchanged R2G candidate has: one independent acceptor outside the implementing lineage (the PO, or a separate reviewer session that does not descend from the sessions that implemented or produced the evidence; the implementing session and its subagents or workflows never accept their own candidate) who checked E-AC1-E-AC8 and IC/R2G on the exact candidate SHA; 0 open findings that block the current gate; PR #6 targets main and is mergeable; an exact readback immediately before the decision of base SHA, head SHA (= candidate), that the head contains the current base (git merge-base --is-ancestor), and that the required check runs of R2G (1) are the ones bound to the candidate; PRE_MERGE reconciliation of Jira ANA-45/ANA-35, Confluence 89456642 and 92176389 and GitHub without critical drift. R4M is not merge authority, not ANA-35 Done, not G4 and not Production Verified; merge, M4 and M5 need their own approvals.",
+    "state": "NOT_EVALUATED",
+    "claimed": null,
+    "evidence": []
+  },
+  "scope_note": "Same code as PR #6 (ANA-35 M2, repairs R1-R16); this contract binds it as the ANA-45 ENABLER under PO split ANA35-SPLIT-001 (28.10.2026). Paths added for ANA-45 on 2026-10-29: .github/workflows/dashboard-image.yml and .github/workflows/drs.yml (PR-head checkout and SOURCE_SHA, as named in the PO's ANA-45 delivery brief of 2026-10-29) and deploy/ana-dashboard/README.md (its release invariant 1 named the merge ref as the reason PR artifacts are not released; the rule is unchanged, the reason now is the pr- prefix). Brain relation of three dashboard paths outside the Brain feature folders: apps/dashboard/src/components/shell/Topbar.tsx (E-AC6: the Brain route title), apps/dashboard/README.md (E-AC6: documents the Brain adapter env and route), apps/dashboard/src/i18n/i18n.test.ts (E-AC6/E-AC1: DE/EN/IT parity of the Brain strings). These three were added to the ANA-35 allowed_paths by the implementing session in repairs R11/R12 on 2026-10-28 without a recorded PO approval; the PO's ANA-45 brief of 2026-10-29 names them as Brain-related and directs that they are documented, not reworked.",
+  "synced_at": "2026-10-29T00:00:00Z",
+  "source": "offline: ANA Jira has no DRS custom fields; gate definitions are mirrored in a Jira ANA-45 comment and acceptance states are recorded in Jira and the pull request, not in this file"
+}

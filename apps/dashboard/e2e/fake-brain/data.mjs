@@ -41,7 +41,8 @@ export function baseProjection() {
       topics: ["top-cut-brief"],
       workshops: ["ws-workshop-02"],
       created_by: "ben",
-      source_refs: [{ source: "src-synthetic-research", locator: "§3 Hook" }],
+      // two refs, so the detail card has a distinct last source row (regressions.spec.ts, card reachability)
+      source_refs: [{ source: "src-synthetic-research", locator: "§3 Hook" }, { source: "src-synthetic-notes", locator: "Session 1" }],
     }),
     n("kn-cut-brief-structure", "Cut brief structure", "concept", "CONFIRMED", "c0", [-0.1, 0.12, -0.04], { topics: ["top-cut-brief"], created_by: "ana" }),
     n("kn-old-cut-template", "Old cut template", "method", "SUPERSEDED", "c0", [0.05, -0.12, 0.1], { topics: ["top-cut-brief"] }),

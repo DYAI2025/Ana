@@ -15,7 +15,9 @@ legacy service is stopped before the DNS switch and is never started again next 
 ## 1. Mandatory invariants
 
 1. **Artifact.** Release only `ana-brain-app-<sha>.tar.gz` with its `.sha256` from a **successful push run of the
-   `brain` workflow on `main`** for that commit. A pull_request run builds the merge ref, so its artifact is test output.
+   `brain` workflow on `main`** for that commit. A pull_request run builds the PR head and names its artifact
+   `ana-brain-pr-<sha>` (bundle `ana-brain-app-pr-<sha>.tar.gz`): test output, never a release; `release.sh` takes only
+   a bare 40-hex commit, so it cannot find such a bundle.
    CI builds the bundle (`dist/` + production `node_modules`), starts it under Node v24.22.0 and checks `/healthz` 200,
    `/mcp` and `/projection` 401 without a credential, and the loopback bind.
 2. **Loopback only.** The Brain listens on `127.0.0.1:8790`, its Qdrant on `127.0.0.1:6333` (gRPC off), its Ollama on
