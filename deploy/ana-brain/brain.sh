@@ -26,7 +26,9 @@ fi
 [[ "$(id -u)" == 0 ]] || fail "run as root"
 [[ $# -ge 1 ]] || fail "usage: brain.sh <ana-brain command> [args]"
 [[ "$1" != serve ]] || fail "serve runs only as dyai-ana-brain.service"
-for a in "$@"; do [[ "$a" =~ ^[A-Za-z0-9._/=-]+$ ]] || fail "argument with unexpected characters: $a"; done
+# systemd expands $VAR and % specifiers in the command it starts, so neither may reach it; anything else (a title with
+# spaces, a comma-separated topic list, umlauts) passes as the one argument it is
+for a in "$@"; do [[ "$a" != *[\$%]* && ! "$a" =~ [[:cntrl:]] ]] || fail "argument with \$, % or a control character: $a"; done
 [[ -f "$base/current/dist/cli.js" ]] || fail "no current release in $base (release.sh first)"
 
 exec systemd-run --quiet --pipe --wait --collect --service-type=exec \

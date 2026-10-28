@@ -32,8 +32,9 @@ legacy service is stopped before the DNS switch and is never started again next 
 5. **Vault.** The canonical Markdown and its git history come only from the M1 archive (or a later archive made the
    same way, step M4.3) and are verified (manifest, `git fsck`, HEAD, audit log) **before** the Brain starts on them,
    and with `validate` before anyone can write (M3: right after the first release, while no key exists; M4.3 and a
-   nightly restore: before the Brain starts). Qdrant is rebuilt from the vault, never copied. Every vault write is committed as "ANA Brain"; a
-   commit that fails is logged as an error, the write itself stays on disk and in `.ana/audit.jsonl`.
+   nightly restore: before the Brain starts). Qdrant is rebuilt from the vault, never copied. Every vault write is
+   committed as "ANA Brain" with exactly the files it wrote (a hand edit is never swept into it); a commit that fails
+   is logged as an error, and the write stays on disk, in `.ana/audit.jsonl` and in `git status`.
 6. **Provenance.** No status is relabelled, no source invented, no note rewritten during migration. A difference
    between legacy and restore that cannot be explained stops the migration.
 
@@ -79,7 +80,7 @@ no keys.
 | `/etc/dyai/ana-qdrant/config.yaml` | root, 0644 | `qdrant.yaml` |
 | `/opt/ana-ollama/<version>`, `current` | root | pinned Ollama (`bin/`, `lib/`) |
 | `/var/lib/ana-qdrant`, `/var/lib/ana-ollama` | unit state (DynamicUser) | collection `ana_brain_v1`, models |
-| `/var/backups/ana-brain` | root, 0700 | nightly vault + state archives, 30 days |
+| `/var/backups/ana-brain` | root, 0700 | nightly vault + state archives, 30 days (`state` is never restored) |
 
 Units: `dyai-ana-brain.service`, `dyai-ana-brain-index.{service,timer}` (2 min after boot, then 5 min after each run),
 `dyai-ana-brain-backup.{service,timer}` (03:15 host time), `dyai-ana-qdrant.service`, `dyai-ana-ollama.service`.
@@ -226,23 +227,35 @@ tail -n +$((<restored audit lines> + 1)) "$v/.ana/audit.jsonl"
 
 ### Restore from a nightly archive (`/var/backups/ana-brain`)
 
-The archive holds `vault` (with its `.ana/index-state.json`) and `state`. Restore the vault only; `state` only if it
-is lost too (it would bring back the key and token hashes of that night). The vault that is replaced is kept:
+The archive holds `vault` (with its `.ana/index-state.json`) and `state`. Restore only `vault`. **Never restore
+`state` from an archive:** it holds the key, OAuth-token and dashboard-token hashes of that night, so a key revoked
+since then would work again. If `state` is lost, the Brain refuses every caller until keys are issued again
+(`brain.sh issue-key ana|ben|vince` as in M4.5, `brain.sh issue-dashboard-token` and the dashboard credential as in
+M4.6); every connector then reconnects.
+
+The restore runs as one script that stops at the first failing step, so a failed check never moves a vault. A vault
+that is still there is kept beside the restored one, never deleted; a vault that was lost is simply replaced:
 
 ```bash
-A=/var/backups/ana-brain/ana-brain-<date>.tar.gz; v=/var/lib/ana-brain/vault
+bash -euo pipefail -s ana-brain-<date>.tar.gz <<'RESTORE'
+A="/var/backups/ana-brain/$1"; v=/var/lib/ana-brain/vault
 systemctl stop dyai-ana-brain-index.timer dyai-ana-brain-index.service dyai-ana-brain.service
 t="$(mktemp -d /var/lib/ana-brain/.restore.XXXXXX)"; tar -C "$t" -xzf "$A" vault   # keeps owner ana-brain
 git -c safe.directory="$t/vault" -C "$t/vault" fsck --full --strict            # as root: needs safe.directory
-mv -T "$v" "$v.before-restore-$(date +%F)" && mv -T "$t/vault" "$v" && rmdir "$t" && chmod 0700 "$v"
+if [ -e "$v" ]; then mv -T "$v" "$v.before-restore-$(date +%F-%H%M%S)"; fi
+mv -T "$t/vault" "$v"; rmdir "$t"; chmod 0700 "$v"
 /srv/dyai/runtime/ana-brain/brain.sh validate
 systemctl start dyai-ana-brain.service
 /srv/dyai/runtime/ana-brain/brain.sh index --full   # the archive's index state is older than the live collection
 systemctl start dyai-ana-brain-index.timer
+RESTORE
 ```
 
-An incremental index would trust the older index state over the live collection and keep stale points. Writes made
-after the archive stay in the kept vault and are listed for the Product Owner as in the rollback above.
+If the script stops (a broken archive fails `fsck`), the live vault is untouched and the Brain stays stopped until
+`systemctl start dyai-ana-brain.service dyai-ana-brain-index.timer`; the extracted copy stays in `.restore.*` for
+inspection. An incremental index would trust the older index state over the live collection and keep stale points.
+Writes made after the archive stay in the kept vault (if there is one) and are listed for the Product Owner as in the rollback
+above.
 
 ### M5 — retire the legacy Brain (after G4)
 
