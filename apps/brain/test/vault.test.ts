@@ -206,6 +206,32 @@ describe("vault", () => {
     expect(v.require("kn-hook-variant").fm.relations.filter((r) => r.type === "supersedes")).toHaveLength(1);
   });
 
+  it("a write commits only the files it wrote: hand edits and stray files stay out of its commit and its attribution", async () => {
+    const root = syntheticVault();
+    writeFileSync(path.join(root, ".gitignore"), ".ana/\n");
+    const id = ["-c", "user.name=t", "-c", "user.email=t@example.test"];
+    execFileSync("git", ["init", "-q", root]);
+    execFileSync("git", ["-C", root, "add", "-A"]);
+    execFileSync("git", ["-C", root, ...id, "commit", "-qm", "seed"]);
+    // a hand edit nobody committed, a staged one, and an untracked file
+    const topic = path.join(root, "topics", "top-alpha.md");
+    writeFileSync(topic, `${readFileSync(topic, "utf8")}\nEdited by hand.\n`);
+    writeFileSync(path.join(root, "knowledge", "kn-hand-staged.md"), "not a note yet\n");
+    execFileSync("git", ["-C", root, "add", "knowledge/kn-hand-staged.md"]);
+    writeFileSync(path.join(root, "stray.txt"), "x\n");
+    const files = () => execFileSync("git", ["-C", root, "show", "--name-only", "--format=%s"]).toString().trim().split("\n");
+    const v = new Vault(root);
+    await v.createNote("ana", { id: "kn-own-commit", title: "O", type: "tool", status: "CANDIDATE", body: "b" });
+    expect(files()).toEqual(["create_note kn-own-commit by ana", "", "knowledge/kn-own-commit.md"]);
+    // a supersession writes two notes: both are its commit, nothing else is
+    await v.addRelation("ben", "kn-hook-variant", "supersedes", "kn-hook-first");
+    expect(files()).toEqual(["add_relation kn-hook-variant by ben", "", "knowledge/kn-hook-first.md", "knowledge/kn-hook-variant.md"]);
+    const left = execFileSync("git", ["-C", root, "status", "--porcelain"]).toString();
+    expect(left).toContain(" M topics/top-alpha.md");
+    expect(left).toContain("A  knowledge/kn-hand-staged.md");
+    expect(left).toContain("?? stray.txt");
+  });
+
   it("an idempotent repeat is not reported as a failed commit when .ana/ is ignored, as in the real vault", async () => {
     const root = syntheticVault();
     writeFileSync(path.join(root, ".gitignore"), ".ana/\n");

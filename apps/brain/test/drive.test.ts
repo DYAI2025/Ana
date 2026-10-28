@@ -6,6 +6,7 @@ import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { KeyStore } from "../src/auth/keys.js";
+import { cliVault } from "../src/cli-vault.js";
 import { DriveClient, OUTSIDE_ROOT } from "../src/drive/client.js";
 import { loadConfig } from "../src/config.js";
 import { DRIVE_SCOPE, DriveTokenProvider, JWT_BEARER, loadServiceAccountKey, type ServiceAccountKey } from "../src/drive/oauth.js";
@@ -229,6 +230,19 @@ describe("drive-register", () => {
     expect(vid.source?.checksum).toBeUndefined();
     await expect(registerDriveSource(vault, drive, "ben", { fileId: "outfile001", id: "src-drive-outside", title: "x" })).rejects.toThrow(OUTSIDE_ROOT);
     expect(existsSync(path.join(root, "sources", "src-drive-outside.md"))).toBe(false);
+  });
+});
+
+describe("drive-register from the CLI", () => {
+  it("is recorded as an operator's manual registration, not as an MCP write; `serve` stays MCP", async () => {
+    const root = syntheticVault();
+    const { drive } = newDrive();
+    const fm = await registerDriveSource(cliVault(root, "drive-register"), drive, "ben", { fileId: "docfile001", id: "src-drive-cli", title: "CLI" });
+    expect(fm.provenance).toMatchObject({ method: "manual", actor: "ben" });
+    const served = await registerDriveSource(cliVault(root, "serve"), drive, "ana", { fileId: "vttfile001", id: "src-drive-served", title: "Served" });
+    expect(served.provenance).toMatchObject({ method: "mcp", actor: "ana" });
+    const lines = readFileSync(path.join(root, ".ana", "audit.jsonl"), "utf8").trim().split("\n").map((l) => JSON.parse(l) as Record<string, string>);
+    expect(lines.map((l) => [l.target, l.method])).toEqual([["src-drive-cli", "manual"], ["src-drive-served", "mcp"]]);
   });
 });
 

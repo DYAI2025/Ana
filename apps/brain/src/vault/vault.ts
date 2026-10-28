@@ -49,6 +49,8 @@ export class Vault {
   readonly root: string;
   private notes = new Map<string, { note: Note; file: string }>();
   private queue: Promise<unknown> = Promise.resolve();
+  /** Vault-relative files persisted by the write in progress (writes are serialised). */
+  private readonly written = new Set<string>();
   readonly loadErrors: LoadError[] = [];
 
   constructor(root: string, private readonly opts: { git?: boolean; method?: "mcp" | "manual" | "seed" } = {}) {
@@ -278,21 +280,28 @@ export class Vault {
     writeFileSync(tmp, serializeNote(note), { flag: "wx" });
     renameSync(tmp, file);
     this.notes.set(note.fm.id, { note, file });
+    this.written.add(path.relative(this.root, file));
   }
 
-  private audit(entry: { at: string; actor: string; action: string; target: string; result: string }): void {
+  private audit(entry: { at: string; actor: string; method: string; action: string; target: string; result: string }): void {
     appendFileSync(path.join(this.root, ".ana", "audit.jsonl"), `${JSON.stringify(entry)}\n`);
   }
 
-  private commit(action: string, id: string, actor: string): void {
+  /**
+   * Commits exactly the files this write persisted, never the rest of the worktree: a hand edit, a staged change or a
+   * write whose own commit failed stays out of this commit and its attribution, and shows in `git status`.
+   */
+  private commit(action: string, id: string, actor: string, files: string[]): void {
     if (this.opts.git === false || !existsSync(path.join(this.root, ".git"))) return;
+    // nothing persisted (an idempotent repeat): nothing to record, not a failure
+    if (!files.length) return;
     // the service user of a fresh host has no git identity: without one every commit fails and the history stops
     const identity = ["-c", "user.name=ANA Brain", "-c", "user.email=ana-brain@localhost"];
     try {
-      execFileSync("git", ["-C", this.root, "add", "-A"], { stdio: "ignore" });
-      // nothing staged (an idempotent repeat; .ana/ is ignored in the real vault): nothing to record, not a failure
-      if (spawnSync("git", ["-C", this.root, "diff", "--cached", "--quiet"], { stdio: "ignore" }).status === 0) return;
-      execFileSync("git", ["-C", this.root, ...identity, "commit", "-q", "-m", `${action} ${id} by ${actor}`], { stdio: "ignore" });
+      execFileSync("git", ["-C", this.root, "add", "--", ...files], { stdio: "ignore" });
+      // rewritten with the content it already had: nothing to record, not a failure
+      if (spawnSync("git", ["-C", this.root, "diff", "--cached", "--quiet", "--", ...files], { stdio: "ignore" }).status === 0) return;
+      execFileSync("git", ["-C", this.root, ...identity, "commit", "-q", "-m", `${action} ${id} by ${actor}`, "--", ...files], { stdio: "ignore" });
     } catch {
       // the write stands (it is on disk and audited); say loudly that it is missing from the vault history
       console.error(`vault: git commit of ${action} ${id} failed; the change is on disk but not in the vault history`);
@@ -303,14 +312,16 @@ export class Vault {
   private write<T>(actor: string, action: string, target: string, fn: () => T): Promise<T> {
     const run = async (): Promise<T> => {
       const safeTarget = typeof target === "string" && ID_RE.test(target) ? target : "INVALID";
+      const method = typeof actor === "string" ? this.method(actor) : "UNKNOWN";
+      this.written.clear();
       try {
         const out = fn();
-        this.audit({ at: now(), actor, action, target: safeTarget, result: "ok" });
-        this.commit(action, safeTarget, actor);
+        this.audit({ at: now(), actor, method, action, target: safeTarget, result: "ok" });
+        this.commit(action, safeTarget, actor, [...this.written].sort());
         return out;
       } catch (e) {
         const code = e instanceof VaultError ? e.code : "error";
-        this.audit({ at: now(), actor, action, target: safeTarget, result: `rejected:${code}` });
+        this.audit({ at: now(), actor, method, action, target: safeTarget, result: `rejected:${code}` });
         throw e;
       }
     };

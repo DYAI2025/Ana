@@ -32,10 +32,14 @@ function nestedDeeperThan(v: unknown, max: number): boolean {
   return Object.values(v).some((x) => nestedDeeperThan(x, max - 1));
 }
 
-/** CSP source for the client's redirect: its origin, or the bare scheme for a custom-scheme (native app) redirect. */
+/**
+ * CSP source for the client's redirect: its origin, or the bare scheme where no host-source can name it: a custom-scheme
+ * (native app) redirect, or an IPv6 literal such as the RFC 8252 loopback `http://[::1]:<port>` (CSP host-source has no
+ * IPv6 syntax; Chromium drops `http://[::1]:8123` as an invalid source and blocks the redirect).
+ */
 function redirectSource(redirectUri: string): string {
   const u = new URL(redirectUri);
-  return u.origin !== "null" ? u.origin : u.protocol;
+  return u.origin === "null" || u.hostname.startsWith("[") ? u.protocol : u.origin;
 }
 
 export class BrainOAuthProvider implements OAuthServerProvider {

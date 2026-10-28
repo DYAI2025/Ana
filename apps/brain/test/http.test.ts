@@ -178,6 +178,20 @@ describe("http + mcp", () => {
     expect(readFileSync(path.join(stateDir, "keys.json"), "utf8")).not.toContain(keys.vince);
   });
 
+  it("the consent page's form-action names every redirect a client can register, also an IPv6 loopback (RFC 8252)", async () => {
+    // CSP host-source has no IPv6 literal: Chromium ignores `http://[::1]:8123` as an invalid source and blocks the 302
+    const csp = async (redirect: string) => {
+      const reg = (await (await fetch(`${base}/register`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ redirect_uris: [redirect], client_name: "Test", token_endpoint_auth_method: "none" }) })).json()) as { client_id: string };
+      const q = new URLSearchParams({ client_id: reg.client_id, redirect_uri: redirect, response_type: "code", code_challenge: "x".repeat(43), code_challenge_method: "S256" });
+      const page = await fetch(`${base}/authorize?${q}`);
+      expect(page.status).toBe(200);
+      return page.headers.get("content-security-policy")!.split("; ").find((d) => d.startsWith("form-action"));
+    };
+    expect(await csp("http://[::1]:8123/callback")).toBe("form-action 'self' http:");
+    expect(await csp("https://claude.ai/api/mcp/auth_callback")).toBe("form-action 'self' https://claude.ai");
+    expect(await csp("cursor://anysphere.cursor-mcp/oauth/callback")).toBe("form-action 'self' cursor:");
+  });
+
   it("OAuth tokens die with the key that authorized them, even when it is removed by hand (B-7)", async () => {
     const ks = new KeyStore(stateDir);
     const anaKey = ks.issue("ana");

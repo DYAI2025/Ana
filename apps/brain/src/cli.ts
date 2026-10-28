@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import { DashboardToken, KeyStore } from "./auth/keys.js";
 import { revokeActor } from "./auth/oauth.js";
+import { cliVault } from "./cli-vault.js";
 import { loadConfig } from "./config.js";
 import { HUMANS, type SourceBlock } from "./contract/schema.js";
 import { registerDriveSource } from "./drive/register.js";
@@ -10,7 +11,6 @@ import { Indexer } from "./index/indexer.js";
 import { OllamaEmbedder } from "./index/ollama.js";
 import { QdrantStore } from "./index/qdrant.js";
 import { vaultStats } from "./stats.js";
-import { Vault } from "./vault/vault.js";
 
 const USAGE = [
   "usage: ana-brain <serve | index [--full] | validate | issue-key <ana|ben|vince> | revoke-key <ana|ben|vince> | issue-dashboard-token | stats",
@@ -71,7 +71,7 @@ async function main(argv: string[]): Promise<number> {
     console.error("Issued dashboard token. It is shown once; only its hash is stored (BRAIN_DASHBOARD_TOKEN_SHA256 overrides it).");
     return 0;
   }
-  const vault = new Vault(cfg.vaultDir);
+  const vault = cliVault(cfg.vaultDir, cmd);
   if (cmd === "drive-register") {
     const { pos, opt } = flags(rest);
     const fileId = pos[0];
