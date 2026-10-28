@@ -3,7 +3,7 @@ name: dashboard-image
 # LIVE-01 / ANA-41: builds the production image of apps/dashboard on amd64, proves the access gate inside the real
 # container, extracts its /app as the native bundle for hosts without Docker, proves the same gate with that bundle
 # under Node 24, and keeps both as the workflow artifact ana-dashboard-<sha>. This is the app side of the release
-# contract in deploy/ana-dashboard/README.md; host, units, ingress and tunnel are ArchServer's (ADR-ANA-001).
+# contract in deploy/ana-dashboard/README.md; the only host is the Contabo VPS vmi3693936 (ADR-ANA-001 v3).
 # Release only artifacts of push runs on main. A pull_request run builds and tests the PR head and names its artifact
 # and files ana-dashboard-pr-test-<head sha> instead: test output, never a release.
 # No registry, no secrets, no deploy step.
@@ -53,19 +53,19 @@ jobs:
           set -euo pipefail
           docker inspect -f '{{json .Config.Healthcheck}}' "ana-dashboard:${SOURCE_SHA}" \
             | jq -e '.Timeout == 20000000000 and .StartPeriod == 90000000000 and .Interval == 30000000000 and .Retries == 3'
-      - name: Optional Arch reference units (example, not a host requirement)
+      - name: Contabo units and release.sh (lint)
         shell: bash
         run: |
           set -euo pipefail
-          # README section 4: one tested way to meet the contract on the Arch host. CI lints these example files, not
-          # the host: unit names, paths, ingress and tunnel are ArchServer's choice (ADR-ANA-001). Each check proves only
-          # what its message says; any other change to the examples is reviewed by hand against README section 1.
+          # README section 4: the implementation on the Contabo VPS vmi3693936. CI lints these files, not the host; it
+          # cannot see what is installed there. Each check proves only what its message says; any other change to these
+          # files is reviewed by hand against README section 1.
           u=deploy/ana-dashboard/dyai-ana-dashboard.service t=deploy/ana-dashboard/dyai-ana-tunnel.service
           r=deploy/ana-dashboard/release.sh
           fail() { echo "FAIL: $*"; exit 1; }
-          for f in "$u" "$t" "$r"; do [ -f "$f" ] || fail "$f is missing (a renamed example must be renamed here too)"; done
+          for f in "$u" "$t" "$r"; do [ -f "$f" ] || fail "$f is missing (a renamed file must be renamed here too)"; done
           # (`! cmd` would not trip set -e, hence the explicit ifs)
-          # dashboard example: the settings the native-bundle step below also starts with, pinned in exactly these two
+          # dashboard unit: the settings the native-bundle step below also starts with, pinned in exactly these two
           # Environment= lines (they win over node --env-file); no EnvironmentFile=, UnsetEnvironment=, PassEnvironment=
           # or further Environment= lines; secrets only as a credential file; no MemoryDenyWriteExecute for node (V8
           # aborts). HOME and the node path are pinned only so that a change to them is reviewed.
@@ -80,12 +80,11 @@ jobs:
           [ "$(grep -cE '^[[:space:]]*ExecStart[[:space:]]*=' "$u")" = 1 ] || fail "dashboard: more than one ExecStart= line"
           if grep -qE '^[[:space:]]*MemoryDenyWriteExecute[[:space:]]*=' "$u"; then fail "dashboard: MemoryDenyWriteExecute aborts V8"; fi
           if grep -qiE '^[[:space:]]*Environment[[:space:]]*=.*(TOKEN|KEY|AUD|EMAIL)' "$u" "$t"; then fail "secret-like Environment= line"; fi
-          # tunnel example: how cloudflared is invoked is ArchServer's ingress and is not linted here. Checked only: the
-          # example reads its token from its systemd credential, keeps its settings in the unit, and serves metrics where
-          # release.sh polls them
+          # tunnel unit: how cloudflared is invoked is not linted here. Checked only: the unit reads its token from its
+          # systemd credential, keeps its settings in the unit, and serves metrics where release.sh polls them
           grep -qE '^[[:space:]]*LoadCredential[[:space:]]*=[[:space:]]*tunnel_token:' "$t" || fail "tunnel: no LoadCredential=tunnel_token:"
-          grep -qE '^[[:space:]]*ExecStart[[:space:]]*=.*--token-file[[:space:]=]+%d/tunnel_token([[:space:]]|$)' "$t" || fail "tunnel: example does not read its token from %d/tunnel_token"
-          if grep -qE '^[[:space:]]*EnvironmentFile[[:space:]]*=' "$t"; then fail "tunnel: EnvironmentFile= (the example keeps every setting visible in the unit)"; fi
+          grep -qE '^[[:space:]]*ExecStart[[:space:]]*=.*--token-file[[:space:]=]+%d/tunnel_token([[:space:]]|$)' "$t" || fail "tunnel: unit does not read its token from %d/tunnel_token"
+          if grep -qE '^[[:space:]]*EnvironmentFile[[:space:]]*=' "$t"; then fail "tunnel: EnvironmentFile= (the unit keeps every setting visible in the unit)"; fi
           grep -qF 'http://127.0.0.1:20242/ready' "$r" || fail "release.sh no longer polls 127.0.0.1:20242"
           grep -qE '^[[:space:]]*ExecStart[[:space:]]*=.*--metrics[[:space:]=]+127\.0\.0\.1:20242([[:space:]]|$)' "$t" || fail "tunnel: metrics not on 127.0.0.1:20242, where release.sh polls"
           bash -n "$r"
@@ -130,7 +129,7 @@ jobs:
 
           docker inspect -f '{{.Config.User}}' "ana-dashboard:${SOURCE_SHA}" | grep -qx node
           docker rm -f bare cf mode3003 mode3004 mode3005
-      - name: Native bundle for the Arch host
+      - name: Native bundle for the Contabo host
         shell: bash
         run: |
           set -euo pipefail
@@ -140,7 +139,7 @@ jobs:
           sha256sum "${BUNDLE}-app-${SOURCE_SHA}.tar.gz" | tee "${BUNDLE}-app-${SOURCE_SHA}.tar.gz.sha256"
       - uses: actions/setup-node@v4
         with:
-          node-version: "24.22.0" # nodejs-lts-krypton on the Arch host
+          node-version: "24.22.0" # node on the Contabo VPS vmi3693936 (observed 2026-10-27, Jira ANA-42 comment 18133)
       - name: Access gate of the native bundle under Node 24
         shell: bash
         run: |
