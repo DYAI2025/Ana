@@ -27,12 +27,18 @@ export async function listen(server: Server): Promise<string> {
 }
 
 /** In-process fake Ollama /api/embed. */
-export async function fakeOllama(dim = 1024): Promise<{ url: string; calls: { n: number }; close: () => void }> {
+/** Fake Ollama: /api/embed (deterministic vectors) and /api/tags (the pulled model and its digest, switchable). */
+export async function fakeOllama(dim = 1024): Promise<{ url: string; calls: { n: number }; tags: { digest: string | null }; close: () => void }> {
   const calls = { n: 0 };
+  const tags: { digest: string | null } = { digest: "a".repeat(64) };
   const server = createServer((req, res) => {
     let body = "";
     req.on("data", (c: Buffer) => (body += c.toString()));
     req.on("end", () => {
+      if (req.url === "/api/tags" && req.method === "GET") {
+        const models = tags.digest ? [{ name: "bge-m3:latest", model: "bge-m3:latest", digest: tags.digest }] : [];
+        return void res.writeHead(200, { "content-type": "application/json" }).end(JSON.stringify({ models }));
+      }
       if (req.url !== "/api/embed") return void res.writeHead(404).end();
       calls.n++;
       const { model, input } = JSON.parse(body) as { model: string; input: string[] };
@@ -40,7 +46,7 @@ export async function fakeOllama(dim = 1024): Promise<{ url: string; calls: { n:
     });
   });
   const url = await listen(server);
-  return { url, calls, close: () => server.close() };
+  return { url, calls, tags, close: () => server.close() };
 }
 
 export class MemoryStore implements VectorStore {
@@ -49,7 +55,12 @@ export class MemoryStore implements VectorStore {
   counts = { upserted: 0, deleted: 0, payload: 0, drops: 0 };
   async ensureCollection(size: number) {
     if (this.size !== undefined && this.size !== size) throw new Error("size mismatch");
+    const created = this.size === undefined;
     this.size = size;
+    return { created };
+  }
+  async count() {
+    return this.points.size;
   }
   async drop() {
     this.points.clear();

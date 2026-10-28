@@ -184,12 +184,18 @@ export class Vault {
       const src = this.require(from);
       const tgt = this.require(to);
       if (from === to) throw new VaultError("a note cannot relate to itself");
+      if (type === "supersedes" && tgt.fm.type === "source" && src.fm.type !== "source")
+        throw new VaultError("a source record can only be superseded by another source record");
       const exists = src.fm.relations.some((r) => r.type === type && r.target === to);
       if (exists) return { added: false };
       const at = now();
       const rel: Relation = { type, target: to, by: actor as Relation["by"], at };
       this.persist(this.pathFor(from, src.fm.type), { fm: validateFrontmatter({ ...src.fm, relations: [...src.fm.relations, rel], updated: at }), body: src.body }, false);
-      if (type === "supersedes" && tgt.fm.type !== "source" && tgt.fm.status !== "SUPERSEDED") {
+      if (type === "supersedes" && tgt.fm.type === "source" && tgt.fm.superseded_by === null) {
+        // a source record keeps status SOURCE (contract §2.2); superseded_by retires it and, in the index, every note
+        // whose cited sources are all retired
+        this.persist(this.pathFor(to, tgt.fm.type), { fm: validateFrontmatter({ ...tgt.fm, superseded_by: from, updated: at }), body: tgt.body }, false);
+      } else if (type === "supersedes" && tgt.fm.type !== "source" && tgt.fm.status !== "SUPERSEDED") {
         this.persist(this.pathFor(to, tgt.fm.type), { fm: validateFrontmatter({ ...tgt.fm, status: "SUPERSEDED", superseded_by: from, updated: at }), body: tgt.body }, false);
       }
       return { added: true };

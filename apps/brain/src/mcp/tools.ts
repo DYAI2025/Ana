@@ -50,7 +50,7 @@ export function createMcpServer({ vault, embedder, store, drive }: BrainDeps): M
   };
 
   server.registerTool("brain_search", {
-    description: "Semantic search over the ANA Brain with optional metadata filters. Retired (superseded) notes are excluded unless include_retired is true.",
+    description: "Semantic search over the ANA Brain with optional metadata filters. Retired notes (superseded, or citing only superseded or removed sources) are excluded unless include_retired is true.",
     inputSchema: {
       query: z.string().min(1).max(1000), limit: z.number().int().min(1).max(25).optional(),
       type: z.enum(NOTE_TYPES).optional(), status: z.enum(STATUSES).optional(), topic: zId.optional(), workshop: zId.optional(),

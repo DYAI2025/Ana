@@ -114,7 +114,7 @@ async function main(argv: string[]): Promise<number> {
       byStatus[n.fm.status] = (byStatus[n.fm.status] ?? 0) + 1;
     }
     const st = loadState(vault.root);
-    console.log(JSON.stringify({ notes: vault.all().length, invalid: vault.loadErrors.length, byType, byStatus, indexed: st ? Object.keys(st.notes).length : 0, embed_model: st?.embed_model ?? null }, null, 2));
+    console.log(JSON.stringify({ notes: vault.all().length, invalid: vault.loadErrors.length, byType, byStatus, indexed: st ? Object.keys(st.notes).length : 0, embed_model: st?.embed_model ?? null, embed_digest: st?.embed_digest ?? null, index_version: st?.index_version ?? null }, null, 2));
     return 0;
   }
   if (cmd === "serve") {

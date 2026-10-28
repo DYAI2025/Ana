@@ -11,15 +11,20 @@ export interface PointPayload {
   content_sha: string;
   embed_model: string;
   index_version: number;
+  /** The note itself is superseded (or a superseded source record). */
   retired: boolean;
+  /** Every source the note cites is superseded or gone: the note no longer has standing evidence. */
+  source_retired: boolean;
 }
 export interface Point { id: string; vector: number[]; payload: PointPayload }
 export interface ScoredPoint { id: string; score: number; payload: PointPayload }
 export interface Filter { must: { key: string; match: { value: string | boolean } }[] }
 
 export interface VectorStore {
-  ensureCollection(size: number): Promise<void>;
+  /** Creates the collection when it is missing; `created` tells the indexer that every point is gone. */
+  ensureCollection(size: number): Promise<{ created: boolean }>;
   drop(): Promise<void>;
+  count(): Promise<number>;
   upsert(points: Point[]): Promise<void>;
   delete(ids: string[]): Promise<void>;
   setPayload(ids: string[], payload: Partial<PointPayload>): Promise<void>;
@@ -46,15 +51,20 @@ export class QdrantStore implements VectorStore {
     return ((await res.json()) as { result: T }).result;
   }
 
-  async ensureCollection(size: number): Promise<void> {
+  async ensureCollection(size: number): Promise<{ created: boolean }> {
     const info = await this.call<{ config: { params: { vectors: { size?: number; distance?: string } } } }>("GET", "", undefined, true);
     if (!info) {
       await this.call("PUT", "", { vectors: { size, distance: "Cosine" } });
-      return;
+      return { created: true };
     }
     const v = info.config.params.vectors;
     if (v.size !== size || (v.distance && v.distance !== "Cosine"))
       throw new CollectionMismatchError(`collection ${this.collection} exists with size ${v.size}/${v.distance}, expected ${size}/Cosine`);
+    return { created: false };
+  }
+
+  async count(): Promise<number> {
+    return (await this.call<{ count: number }>("POST", "/points/count", { exact: true }))?.count ?? 0;
   }
 
   async drop(): Promise<void> {

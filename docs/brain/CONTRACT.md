@@ -113,10 +113,18 @@ The body holds a short description and, where authorized, a summary — not a co
 - Collection: `ana_brain_v1` in the existing Qdrant on `ana-internal`; nothing else is written there and the
   service writes nowhere else.
 - Chunks: one per Markdown section (heading split, ~1500 chars max). Point id = UUIDv5(note id + chunk index).
-- Payload: `note_id, chunk, type, status, topics, workshops, source_ids, content_sha, embed_model, index_version, retired`.
+- Payload: `note_id, chunk, type, status, topics, workshops, source_ids, content_sha, embed_model, index_version,
+  retired, source_retired` (index version 2).
+- Model identity: the digest Ollama reports for the tag (`/api/tags`) is recorded in `.ana/index-state.json`
+  (`embed_digest`); a different digest under the same tag rebuilds the whole index, so vectors of two model builds
+  never mix.
 - Incremental: `.ana/index-state.json` stores the content hash per note; unchanged notes are skipped, changed notes
-  are re-embedded and their surplus chunks removed. A superseded note's points are marked `retired: true` and
-  excluded from search by default. Removing projection points never touches the Markdown.
+  are re-embedded and their surplus chunks removed, removed notes lose their points. The state never outranks the
+  store: when the collection had to be created or holds fewer points than the state records, the run rebuilds
+  everything. A superseded note's points are marked `retired: true`. A source record superseded by another source
+  keeps status `SOURCE` and gets `superseded_by`; it is retired too. A note whose cited sources are all retired or
+  gone is marked `source_retired: true`. Search excludes `retired` and `source_retired` points by default
+  (`include_retired` shows them). Removing or retiring projection points never touches the Markdown.
 - The whole collection can be dropped and rebuilt from the vault.
 
 ## 4. MCP (`https://mcp.ana.dyai.cloud/mcp`, Streamable HTTP)
