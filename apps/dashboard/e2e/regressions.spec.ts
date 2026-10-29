@@ -81,7 +81,7 @@ test("search result for an issue is visible even when an owner filter was active
 });
 
 test("brain: turning auto-rotate on while a node is selected releases the node and rotates", async ({ page }) => {
-  await page.goto("/brain?node=workshop-02");
+  await page.goto("/brain?node=ws-workshop-02");
   await expect(page.getByTestId("brain-selected-title")).toHaveText("Workshop 02");
   await page.getByTestId("brain-auto-rotate").click();
   await expect(page.getByTestId("brain-auto-rotate")).toHaveAttribute("aria-pressed", "true");
@@ -205,7 +205,7 @@ test("whiteboard: notes beyond a shrunken board are pulled back and follow the p
 
 test("brain at 1024×768 fits the viewport (side column does not overflow)", async ({ page }) => {
   await page.setViewportSize({ width: 1024, height: 768 });
-  await page.goto("/brain?node=workshop-02");
+  await page.goto("/brain?node=ws-workshop-02");
   const overflow = await page.evaluate(() => document.documentElement.scrollHeight - window.innerHeight);
   expect(overflow).toBeLessThanOrEqual(1);
   const rows = await page.locator('[data-testid^="brain-node-"]').evaluateAll((els) => {
@@ -250,14 +250,87 @@ test("whiteboard: a temporary shrink does not rearrange notes; widening restores
   expect(Math.abs(restored.x - wide.x)).toBeLessThan(2);
 });
 
-test("brain: the selected concept's details are fully visible at 1280×800 and 1440×900", async ({ page }) => {
+test("brain: the selected concept's identity, status and provenance are visible without scrolling at 1280×800 and 1440×900", async ({ page }) => {
   for (const viewport of [{ width: 1280, height: 800 }, { width: 1440, height: 900 }]) {
     await page.setViewportSize(viewport);
-    await page.goto("/brain?node=workshop-02");
-    const clipped = await page.getByTestId("brain-selection").evaluate((el) => el.scrollHeight - el.clientHeight);
-    expect(clipped, `${viewport.width}`).toBeLessThanOrEqual(1);
+    await page.goto("/brain?node=ws-workshop-02");
+    await expect(page.getByTestId("brain-selected-title")).toHaveText("Workshop 02");
+    // a long note may scroll inside the card, but title, status chip and provenance are always in view
+    const hidden = await page.getByTestId("brain-selection").evaluate((card) => {
+      const box = card.getBoundingClientRect();
+      return ["brain-selected-title", "brain-selected-status", "brain-selected-created-by"].filter((id) => {
+        const r = card.querySelector(`[data-testid="${id}"]`)!.getBoundingClientRect();
+        return r.top < box.top - 1 || r.bottom > box.bottom + 1;
+      });
+    });
+    expect(hidden, `${viewport.width}`).toEqual([]);
+    // the rest of the card stays reachable: the card scrolls instead of clipping
+    expect(await page.getByTestId("brain-selection").evaluate((el) => getComputedStyle(el).overflowY), `${viewport.width}`).toBe("auto");
   }
 });
+
+// overflowY=auto alone proves nothing: a card taller than the stage is clipped by the stage (overflow: hidden) and its
+// end can never be scrolled into view. Here the last source and the last relation of the longest synthetic note must
+// end up fully visible, inside the card and not covered, by scrolling the card and by keyboard (Tab to their buttons).
+for (const viewport of [{ width: 1280, height: 800 }, { width: 1440, height: 900 }, { width: 390, height: 844 }]) {
+  test(`brain ${viewport.width}×${viewport.height}: the last source and the last relation of the selected note are reachable`, async ({ page }) => {
+    await page.setViewportSize(viewport);
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await page.goto("/brain?node=kn-hook-first-cut-brief");
+    await expect(page.getByTestId("brain-selected-title")).toHaveText("Hook-first cut brief");
+    const card = page.getByTestId("brain-selection");
+    const sources = page.getByTestId("brain-source-refs").locator("li");
+    const relations = page.getByTestId("brain-relations").locator("li");
+    await expect(sources).toHaveCount(2);
+    await expect(relations).toHaveCount(5);
+    const lastSource = sources.last();
+    const lastRelation = relations.last();
+    await expect(lastSource).toContainText("Synthetic workshop notes");
+    await expect(lastRelation).toContainText("Synthetic video editor");
+
+    // the card is bounded by the stage, so its own scroll range covers all of its content
+    const bounded = await card.evaluate((el) => el.getBoundingClientRect().bottom <= el.parentElement!.getBoundingClientRect().bottom + 1);
+    expect(bounded, "card ends inside the stage").toBe(true);
+    // a row is reachable when it lies inside the card box and is the element actually hit at its centre
+    const reachable = (row: typeof lastRelation) =>
+      row.evaluate((li) => {
+        const c = li.closest('[data-testid="brain-selection"]')!.getBoundingClientRect();
+        const r = li.getBoundingClientRect();
+        const hit = document.elementFromPoint(r.left + Math.min(12, r.width / 2), r.top + r.height / 2);
+        return r.top >= c.top - 1 && r.bottom <= c.bottom + 1 && !!hit && li.contains(hit);
+      });
+
+    // scrolling the card to its end shows the last relation
+    await card.scrollIntoViewIfNeeded();
+    await card.evaluate((el) => el.scrollTo({ top: el.scrollHeight }));
+    await expect(lastRelation).toBeInViewport({ ratio: 1 });
+    expect(await reachable(lastRelation), "last relation after scrolling the card").toBe(true);
+    // and from the top, the last source row
+    await card.evaluate((el) => el.scrollTo({ top: 0 }));
+    await lastSource.scrollIntoViewIfNeeded();
+    await expect(lastSource).toBeInViewport({ ratio: 1 });
+    expect(await reachable(lastSource), "last source after scrolling").toBe(true);
+
+    // keyboard: Tab from the canvas reaches the last source button, then the last relation button, each scrolled into view
+    await card.evaluate((el) => el.scrollTo({ top: 0 }));
+    await page.getByTestId("brain-canvas").focus();
+    const sourceButton = lastSource.getByRole("button");
+    const relationButton = lastRelation.getByRole("button");
+    let sawSource = false;
+    for (let i = 0; i < 40 && !(await relationButton.evaluate((b) => b === document.activeElement)); i++) {
+      await page.keyboard.press("Tab");
+      if (!sawSource && (await sourceButton.evaluate((b) => b === document.activeElement))) {
+        sawSource = true;
+        await expect(sourceButton).toBeInViewport({ ratio: 1 });
+        expect(await reachable(lastSource), "last source when focused").toBe(true);
+      }
+    }
+    expect(sawSource, "Tab passed the last source button").toBe(true);
+    await expect(relationButton).toBeFocused();
+    await expect(relationButton).toBeInViewport({ ratio: 1 });
+    expect(await reachable(lastRelation), "last relation when focused").toBe(true);
+  });
+}
 
 test("tooltips are hoverable: the pointer can move onto the label without it disappearing", async ({ page }) => {
   await page.goto("/");

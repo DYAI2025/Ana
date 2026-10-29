@@ -115,7 +115,7 @@ const OVERLAY_STATES: { label: string; route: string; jira?: Record<string, unkn
   { label: "session summary", route: "/sessions/working-session-01?tab=summary", prepare: async () => undefined },
   { label: "session transcript", route: "/sessions/working-session-01?tab=transcript", prepare: async () => undefined },
   { label: "session json", route: "/sessions/working-session-01?tab=json", prepare: async () => undefined },
-  { label: "brain selected", route: "/brain?node=workshop-02", prepare: async () => undefined },
+  { label: "brain selected", route: "/brain?node=ws-workshop-02", prepare: async () => undefined },
   { label: "search over lens", route: "/", prepare: async (p) => { await p.getByTestId("context-social").click(); await p.keyboard.press("ControlOrMeta+k"); await p.getByTestId("search-input").fill("loop"); await expect(p.getByTestId("channel-lens")).toBeVisible(); await expect(p.getByTestId("search-result").first()).toBeVisible(); } },
   { label: "whiteboard editing a note", route: "/whiteboard", prepare: async (p) => { await p.getByTestId("wb-note").first().focus(); await p.keyboard.press("Enter"); await expect(p.getByTestId("wb-note").first().locator("textarea")).toBeFocused(); } },
 ];

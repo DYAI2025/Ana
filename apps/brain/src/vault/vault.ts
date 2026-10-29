@@ -1,0 +1,408 @@
+import { execFileSync, spawnSync } from "node:child_process";
+import { existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, realpathSync, appendFileSync, writeFileSync, renameSync } from "node:fs";
+import path from "node:path";
+import { firstParagraph, parseNote, serializeNote, validateFrontmatter, type Note } from "../contract/note.js";
+import {
+  FOLDER_BY_TYPE, ID_RE, NOTE_TYPES, isHuman, zActor,
+  type Frontmatter, type NoteType, type Relation, type RelationType, type SourceBlock, type Status,
+} from "../contract/schema.js";
+
+export class VaultError extends Error {
+  constructor(message: string, readonly code: "invalid" | "not_found" | "exists" | "forbidden" | "path" = "invalid") {
+    super(message);
+  }
+}
+
+export interface Backlink { from: string; type: RelationType }
+export interface LoadError { file: string; error: string }
+
+export interface CreateNoteInput {
+  id: string;
+  title: string;
+  type: Exclude<NoteType, "source">;
+  status: Status;
+  body: string;
+  topics?: string[];
+  workshops?: string[];
+  source_refs?: { source: string; locator: string }[];
+  confirm?: boolean;
+  provenance_note?: string;
+}
+
+export interface RegisterSourceInput {
+  id: string;
+  title: string;
+  source: SourceBlock;
+  description: string;
+  topics?: string[];
+  workshops?: string[];
+  provenance_note?: string;
+}
+
+export const MAX_BODY = 20000;
+export const MAX_SOURCE_DESCRIPTION = 4000;
+export const MAX_OBSERVATION = 2000;
+
+const now = () => new Date().toISOString().replace(/\.\d{3}Z$/, "Z");
+
+export class Vault {
+  readonly root: string;
+  private notes = new Map<string, { note: Note; file: string }>();
+  private queue: Promise<unknown> = Promise.resolve();
+  /** Vault-relative files persisted by the write in progress (writes are serialised). */
+  private readonly written = new Set<string>();
+  /** Those of them that already differed from HEAD before this write: their earlier changes go into its commit. */
+  private readonly inherited = new Set<string>();
+  readonly loadErrors: LoadError[] = [];
+
+  constructor(root: string, private readonly opts: { git?: boolean; method?: "mcp" | "manual" | "seed" } = {}) {
+    if (!path.isAbsolute(root)) root = path.resolve(root);
+    mkdirSync(root, { recursive: true });
+    this.root = realpathSync(root);
+    for (const dir of new Set(Object.values(FOLDER_BY_TYPE))) mkdirSync(path.join(this.root, dir), { recursive: true });
+    mkdirSync(path.join(this.root, ".ana"), { recursive: true });
+    this.reload();
+  }
+
+  /** Resolve the file path for an id+type and assert it stays inside the vault root. */
+  pathFor(id: string, type: NoteType): string {
+    if (typeof id !== "string" || !ID_RE.test(id)) throw new VaultError(`invalid id: ${JSON.stringify(id).slice(0, 100)}`, "path");
+    if (!(NOTE_TYPES as readonly string[]).includes(type)) throw new VaultError("invalid type", "path");
+    const dir = path.join(this.root, FOLDER_BY_TYPE[type]);
+    const file = path.join(dir, `${id}.md`);
+    this.assertInside(dir);
+    if (existsSync(file) || isSymlink(file)) this.assertInside(file);
+    return file;
+  }
+
+  private assertInside(p: string): void {
+    let real: string;
+    try {
+      real = realpathSync(p);
+    } catch {
+      throw new VaultError("path escapes vault root", "path");
+    }
+    const rel = path.relative(this.root, real);
+    if (rel.startsWith("..") || path.isAbsolute(rel)) throw new VaultError("path escapes vault root", "path");
+  }
+
+  reload(): void {
+    this.notes.clear();
+    this.loadErrors.length = 0;
+    for (const dir of new Set(Object.values(FOLDER_BY_TYPE))) {
+      const abs = path.join(this.root, dir);
+      for (const name of readdirSync(abs).sort()) {
+        if (!name.endsWith(".md")) continue;
+        const file = path.join(abs, name);
+        try {
+          this.assertInside(file);
+          const note = parseNote(readFileSync(file, "utf8"));
+          if (`${note.fm.id}.md` !== name) throw new Error(`id ${note.fm.id} does not match file name`);
+          if (FOLDER_BY_TYPE[note.fm.type] !== dir) throw new Error(`type ${note.fm.type} does not belong in ${dir}/`);
+          if (this.notes.has(note.fm.id)) throw new Error(`duplicate id ${note.fm.id}`);
+          this.notes.set(note.fm.id, { note, file });
+        } catch (e) {
+          this.loadErrors.push({ file: path.relative(this.root, file), error: (e as Error).message });
+        }
+      }
+    }
+  }
+
+  all(): Note[] {
+    return [...this.notes.values()].map((n) => n.note).sort((a, b) => a.fm.id.localeCompare(b.fm.id));
+  }
+
+  get(id: string): Note | undefined {
+    if (typeof id !== "string" || !ID_RE.test(id)) throw new VaultError("invalid id", "path");
+    return this.notes.get(id)?.note;
+  }
+
+  require(id: string): Note {
+    const n = this.get(id);
+    if (!n) throw new VaultError(`note not found: ${id}`, "not_found");
+    return n;
+  }
+
+  backlinks(id: string): Backlink[] {
+    const out: Backlink[] = [];
+    for (const { note } of this.notes.values())
+      for (const r of note.fm.relations) if (r.target === id) out.push({ from: note.fm.id, type: r.type });
+    return out.sort((a, b) => a.from.localeCompare(b.from) || a.type.localeCompare(b.type));
+  }
+
+  summary(id: string): string {
+    return firstParagraph(this.require(id).body);
+  }
+
+  /** Every reference that does not resolve to a note of the right type, and every correction of a missing block. */
+  referenceErrors(): string[] {
+    const out: string[] = [];
+    const check = (from: string, id: string, type: NoteType, label: string) => {
+      const target = this.notes.get(id)?.note;
+      if (!target) out.push(`${from}: ${label} missing: ${id}`);
+      else if (target.fm.type !== type) out.push(`${from}: ${id} is not a ${type}`);
+    };
+    for (const { fm, body } of this.all()) {
+      for (const t of fm.topics) check(fm.id, t, "topic", "topic");
+      for (const w of fm.workshops) check(fm.id, w, "workshop", "workshop");
+      for (const s of fm.source_refs) check(fm.id, s.source, "source", "source");
+      for (const r of fm.relations) if (!this.notes.has(r.target)) out.push(`${fm.id}: relation target missing: ${r.target}`);
+      if (fm.superseded_by && !this.notes.has(fm.superseded_by)) out.push(`${fm.id}: superseded_by missing: ${fm.superseded_by}`);
+      for (const block of correctedBlocks(body))
+        if (!hasBlock(body, block)) out.push(`${fm.id}: correction names a missing block: ^${block}`);
+    }
+    return out;
+  }
+
+  // ---------- writes (create / append only; there is no delete and no body overwrite) ----------
+
+  createNote(actor: string, input: CreateNoteInput): Promise<Frontmatter> {
+    return this.write(actor, "create_note", input.id, () => {
+      assertActor(actor);
+      if ((input.type as string) === "source") throw new VaultError("use registerSource for type source", "forbidden");
+      if (input.status === "SOURCE") throw new VaultError("status SOURCE is only set by registerSource", "forbidden");
+      if (input.status === "SUPERSEDED") throw new VaultError("a new note cannot be SUPERSEDED", "forbidden");
+      if (input.status === "CONFIRMED" && !(isHuman(actor) && input.confirm === true))
+        throw new VaultError("CONFIRMED requires a human caller (ana|ben|vince) and an explicit confirm flag", "forbidden");
+      if (input.body.length > MAX_BODY) throw new VaultError(`body exceeds ${MAX_BODY} chars`);
+      const file = this.pathFor(input.id, input.type);
+      if (this.notes.has(input.id) || existsSync(file)) throw new VaultError(`note already exists: ${input.id}`, "exists");
+      for (const ref of input.source_refs ?? []) this.requireType(ref.source, "source");
+      this.requireTargets(input);
+      const at = now();
+      const fm = validateFrontmatter({
+        ana_brain: 1, id: input.id, title: input.title, type: input.type, status: input.status,
+        created: at, updated: at, created_by: actor,
+        topics: input.topics ?? [], workshops: input.workshops ?? [], source_refs: input.source_refs ?? [],
+        relations: [], superseded_by: null,
+        provenance: { method: this.method(actor), actor, at, ...(input.provenance_note ? { note: input.provenance_note } : {}) },
+      });
+      this.persist(file, { fm, body: ensureNl(input.body) }, true);
+      return fm;
+    });
+  }
+
+  registerSource(actor: string, input: RegisterSourceInput): Promise<Frontmatter> {
+    return this.write(actor, "register_source", input.id, () => {
+      assertActor(actor);
+      if (input.description.length > MAX_SOURCE_DESCRIPTION)
+        throw new VaultError(`source description exceeds ${MAX_SOURCE_DESCRIPTION} chars; store raw evidence in the Evidence Root, not the vault`);
+      const file = this.pathFor(input.id, "source");
+      if (this.notes.has(input.id) || existsSync(file)) throw new VaultError(`note already exists: ${input.id}`, "exists");
+      this.requireTargets(input);
+      const at = now();
+      const fm = validateFrontmatter({
+        ana_brain: 1, id: input.id, title: input.title, type: "source", status: "SOURCE",
+        created: at, updated: at, created_by: actor, topics: input.topics ?? [], workshops: input.workshops ?? [],
+        source_refs: [], relations: [], superseded_by: null,
+        provenance: { method: this.method(actor), actor, at, ...(input.provenance_note ? { note: input.provenance_note } : {}) },
+        source: input.source,
+      });
+      this.persist(file, { fm, body: ensureNl(input.description) }, true);
+      return fm;
+    });
+  }
+
+  /** Append a typed relation. `supersedes` additionally marks the target SUPERSEDED (frontmatter only). */
+  addRelation(actor: string, from: string, type: RelationType, to: string): Promise<{ added: boolean }> {
+    return this.write(actor, "add_relation", from, () => {
+      assertActor(actor);
+      const src = this.require(from);
+      const tgt = this.require(to);
+      if (from === to) throw new VaultError("a note cannot relate to itself");
+      if (type === "supersedes" && tgt.fm.type === "source" && src.fm.type !== "source")
+        throw new VaultError("a source record can only be superseded by another source record");
+      const exists = src.fm.relations.some((r) => r.type === type && r.target === to);
+      const at = now();
+      if (!exists) {
+        const rel: Relation = { type, target: to, by: actor as Relation["by"], at };
+        this.persist(this.pathFor(from, src.fm.type), { fm: validateFrontmatter({ ...src.fm, relations: [...src.fm.relations, rel], updated: at }), body: src.body }, false);
+      }
+      // the target is marked even when the relation already exists: a retry completes a supersession whose second
+      // file write was lost (two files, no transaction); the relation's own file then goes into the retry's commit too
+      if (type === "supersedes" && tgt.fm.type === "source" && tgt.fm.superseded_by === null) {
+        // a source record keeps status SOURCE (contract §2.2); superseded_by retires it and, in the index, every note
+        // whose cited sources are all retired
+        this.persist(this.pathFor(to, tgt.fm.type), { fm: validateFrontmatter({ ...tgt.fm, superseded_by: from, updated: at }), body: tgt.body }, false);
+        if (exists) this.track(this.pathFor(from, src.fm.type));
+      } else if (type === "supersedes" && tgt.fm.type !== "source" && tgt.fm.status !== "SUPERSEDED") {
+        this.persist(this.pathFor(to, tgt.fm.type), { fm: validateFrontmatter({ ...tgt.fm, status: "SUPERSEDED", superseded_by: from, updated: at }), body: tgt.body }, false);
+        if (exists) this.track(this.pathFor(from, src.fm.type));
+      }
+      return { added: !exists };
+    });
+  }
+
+  appendObservation(actor: string, id: string, input: { text: string; status?: "CANDIDATE" | "DERIVED" | "CONFIRMED"; corrects?: string; confirm?: boolean }): Promise<{ block_id: string }> {
+    return this.write(actor, input.corrects ? "append_correction" : "append_observation", id, () => {
+      assertActor(actor);
+      const note = this.require(id);
+      const text = input.text.replace(/\s+/g, " ").trim();
+      if (!text) throw new VaultError("observation text is empty");
+      if (text.length > MAX_OBSERVATION) throw new VaultError(`observation exceeds ${MAX_OBSERVATION} chars`);
+      const status = input.status ?? "CANDIDATE";
+      if (status === "CONFIRMED" && !(isHuman(actor) && input.confirm === true))
+        throw new VaultError("CONFIRMED requires a human caller (ana|ben|vince) and an explicit confirm flag", "forbidden");
+      if (input.corrects !== undefined && !/^\^?obs-[a-z0-9-]{1,80}$/.test(input.corrects)) throw new VaultError("invalid corrects block id");
+      if (input.corrects !== undefined && !hasBlock(note.body, input.corrects.replace(/^\^/, "")))
+        throw new VaultError(`no observation block ^${input.corrects.replace(/^\^/, "")} in ${id}`, "not_found");
+      if (status === "DERIVED" && note.fm.source_refs.length === 0)
+        throw new VaultError(`${id} cites no source; a DERIVED observation needs a note with at least one source_ref (use CANDIDATE)`);
+      const at = now();
+      const slug = actor.replace(/[^a-z0-9]+/g, "-");
+      let blockId = `obs-${at.replace(/\D/g, "").slice(0, 14)}-${slug}`;
+      for (let i = 2; note.body.includes(`^${blockId}`); i++) blockId = `obs-${at.replace(/\D/g, "").slice(0, 14)}-${slug}-${i}`;
+      const heading = input.corrects ? "## Corrections" : "## Observations";
+      const line = input.corrects
+        ? `- ${at} · ${actor} · ${status} · corrects ^${input.corrects.replace(/^\^/, "")} · ${text} ^${blockId}`
+        : `- ${at} · ${actor} · ${status} · ${text} ^${blockId}`;
+      const body = appendUnderHeading(note.body, heading, line);
+      this.persist(this.pathFor(id, note.fm.type), { fm: validateFrontmatter({ ...note.fm, updated: at }), body }, false);
+      return { block_id: `^${blockId}` };
+    });
+  }
+
+  private requireType(id: string, type: NoteType): void {
+    const n = this.require(id);
+    if (n.fm.type !== type) throw new VaultError(`${id} is not a ${type} note`);
+  }
+
+  private requireTargets(input: { topics?: string[]; workshops?: string[] }): void {
+    for (const t of input.topics ?? []) this.requireType(t, "topic");
+    for (const w of input.workshops ?? []) this.requireType(w, "workshop");
+  }
+
+  private method(actor: string): "mcp" | "manual" | "seed" | "agent-derived" {
+    if (actor.startsWith("agent:") && this.opts.method !== "seed") return "agent-derived";
+    return this.opts.method ?? "mcp";
+  }
+
+  private persist(file: string, note: Note, create: boolean): void {
+    if (create && existsSync(file)) throw new VaultError("note already exists", "exists");
+    if (!create) this.assertInside(file);
+    this.track(file);
+    const tmp = path.join(this.root, ".ana", `.tmp-${process.pid}-${Date.now()}`);
+    writeFileSync(tmp, serializeNote(note), { flag: "wx" });
+    renameSync(tmp, file);
+    this.notes.set(note.fm.id, { note, file });
+  }
+
+  /**
+   * Makes `file` part of this write's commit. A file that already differs from HEAD (a hand edit, a write whose commit
+   * failed) cannot be committed without those changes, so the commit subject names it instead of hiding it.
+   */
+  private track(file: string): void {
+    const rel = path.relative(this.root, file);
+    if (this.opts.git !== false && existsSync(path.join(this.root, ".git"))) {
+      const st = spawnSync("git", ["-C", this.root, "status", "--porcelain", "--", rel], { encoding: "utf8" });
+      if (st.status === 0 && st.stdout.trim() !== "") this.inherited.add(rel);
+    }
+    this.written.add(rel);
+  }
+
+  private audit(entry: { at: string; actor: string; method: string; action: string; target: string; result: string }): void {
+    appendFileSync(path.join(this.root, ".ana", "audit.jsonl"), `${JSON.stringify(entry)}\n`);
+  }
+
+  /**
+   * Commits exactly the files this write persisted, never the rest of the worktree: a hand edit, a staged change or a
+   * write whose own commit failed in another file stays out of this commit and shows in `git status`. Earlier changes
+   * in a file this write persisted are named in the subject (see track), as is the source note a supersession retry
+   * adds without rewriting it.
+   */
+  private commit(action: string, id: string, actor: string, files: string[]): void {
+    if (this.opts.git === false || !existsSync(path.join(this.root, ".git"))) return;
+    // nothing persisted (an idempotent repeat): nothing to record, not a failure
+    if (!files.length) return;
+    // the service user of a fresh host has no git identity: without one every commit fails and the history stops
+    const identity = ["-c", "user.name=ANA Brain", "-c", "user.email=ana-brain@localhost"];
+    try {
+      execFileSync("git", ["-C", this.root, "add", "--", ...files], { stdio: "ignore" });
+      // rewritten with the content it already had: nothing to record, not a failure
+      if (spawnSync("git", ["-C", this.root, "diff", "--cached", "--quiet", "--", ...files], { stdio: "ignore" }).status === 0) return;
+      const inherited = files.filter((f) => this.inherited.has(f));
+      const subject = `${action} ${id} by ${actor}${inherited.length ? ` + earlier uncommitted changes in ${inherited.join(", ")}` : ""}`;
+      execFileSync("git", ["-C", this.root, ...identity, "commit", "-q", "-m", subject, "--", ...files], { stdio: "ignore" });
+    } catch {
+      // the write stands (it is on disk and audited); say loudly that it is missing from the vault history
+      console.error(`vault: git commit of ${action} ${id} failed; the change is on disk but not in the vault history`);
+    }
+  }
+
+  /** Serialise writes, audit every attempt (no bodies), commit on success. */
+  private write<T>(actor: string, action: string, target: string, fn: () => T): Promise<T> {
+    const run = async (): Promise<T> => {
+      const safeTarget = typeof target === "string" && ID_RE.test(target) ? target : "INVALID";
+      const method = typeof actor === "string" ? this.method(actor) : "UNKNOWN";
+      this.written.clear();
+      this.inherited.clear();
+      try {
+        const out = fn();
+        this.audit({ at: now(), actor, method, action, target: safeTarget, result: "ok" });
+        this.commit(action, safeTarget, actor, [...this.written].sort());
+        return out;
+      } catch (e) {
+        const code = e instanceof VaultError ? e.code : "error";
+        this.audit({ at: now(), actor, method, action, target: safeTarget, result: `rejected:${code}` });
+        throw e;
+      }
+    };
+    const p = this.queue.then(run, run);
+    this.queue = p.catch(() => undefined);
+    return p;
+  }
+}
+
+function assertActor(actor: string): void {
+  if (!zActor.safeParse(actor).success || actor === "UNKNOWN") throw new VaultError("invalid actor", "forbidden");
+}
+
+function isSymlink(p: string): boolean {
+  try {
+    return lstatSync(p).isSymbolicLink();
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * The blocks named by correction lines under `## Corrections`, in the form appendObservation writes
+ * (`- <at> · <actor> · <status> · corrects ^obs-… · <text> ^obs-…`) and in the form CONTRACT §2 shows (no status).
+ * The section ends where appendUnderHeading ends it (the next h1/h2), so a `###` sub-heading stays inside.
+ * Observation text that mentions `corrects ^obs-…` sits under `## Observations` and is not a correction.
+ */
+function correctedBlocks(body: string): string[] {
+  const out: string[] = [];
+  let inCorrections = false;
+  for (const line of body.split("\n")) {
+    if (line.trim() === "## Corrections") {
+      inCorrections = true;
+      continue;
+    }
+    if (/^#{1,2}\s/.test(line)) inCorrections = false;
+    const m = inCorrections ? /^- [^·]+ · [^·]+ · (?:[A-Z]+ · )?corrects \^(obs-[a-z0-9-]{1,80}) · /.exec(line) : null;
+    if (m) out.push(m[1]!);
+  }
+  return out;
+}
+
+/** A block anchor `^obs-…` that ends its line (the `corrects ^…` mention inside a line is not the block). */
+function hasBlock(body: string, blockId: string): boolean {
+  return new RegExp(`\\^${blockId.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, "m").test(body);
+}
+
+function ensureNl(s: string): string {
+  return s.endsWith("\n") ? s : `${s}\n`;
+}
+
+export function appendUnderHeading(body: string, heading: string, line: string): string {
+  const lines = ensureNl(body).replace(/\n+$/, "").split("\n");
+  const idx = lines.findIndex((l) => l.trim() === heading);
+  if (idx === -1) return `${lines.join("\n")}\n\n${heading}\n${line}\n`;
+  let end = idx + 1;
+  while (end < lines.length && !/^#{1,2}\s/.test(lines[end] ?? "")) end++;
+  let insert = end;
+  while (insert > idx + 1 && (lines[insert - 1] ?? "").trim() === "") insert--;
+  lines.splice(insert, 0, line);
+  return `${lines.join("\n")}\n`;
+}

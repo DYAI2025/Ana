@@ -1,0 +1,32 @@
+[Unit]
+Description=ANA Brain service (vault, index, MCP, projection)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=ana-brain
+Group=ana-brain
+WorkingDirectory=/opt/ana-brain/apps/brain
+EnvironmentFile=/etc/ana-brain/env
+ExecStart=/usr/bin/node dist/cli.js serve
+Restart=on-failure
+RestartSec=5
+
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+LockPersonality=true
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+CapabilityBoundingSet=
+UMask=0077
+ReadWritePaths=/var/lib/ana-brain/vault /var/lib/ana-brain/state
+
+[Install]
+WantedBy=multi-user.target

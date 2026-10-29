@@ -70,8 +70,9 @@ export function Topbar({ onOpenSearch }: { onOpenSearch: () => void }) {
             {jiraLabel}
             <span className="visually-hidden"> — {jiraDetail}</span>
           </span>
-        ) : view === "now" ? null : (
-          // the ASADA home carries no prototype flag (ANA-42): it shows no prototype data, only honest Under Construction
+        ) : view === "now" || view === "brain" ? null : (
+          // the ASADA home carries no prototype flag (ANA-42): it shows no prototype data, only honest Under Construction;
+          // nor does the Brain (ANA-35): it shows the Brain projection or an honest BLOCKED/UNKNOWN, never prototype data
           <span className={styles.prototypeFlag} title={t("top.prototypeFlagDetail")} data-testid="prototype-flag">
             <FlaskConical size={13} aria-hidden="true" />
             {t("top.prototypeFlag")}

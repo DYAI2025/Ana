@@ -2,14 +2,18 @@
 
 ## What is live and what is prototype
 
-The app in this folder is **ASADA** — Ana Savu Dashboard (Jira ANA-4 visual shell, ANA-5 Jira work loop, ANA-38 Instagram cockpit, ANA-42 Bright Silver home).
+The app in this folder is **ASADA** — Ana Savu Dashboard (Jira ANA-4 visual shell, ANA-5 Jira work loop, ANA-38 Instagram cockpit, ANA-42 Bright Silver home, ANA-35 Brain).
 
 - **Board and Backlog are a projection of Jira** (ANA-5): Kanban Board **734 "ANA board" / filter 10733** in project
   ANA. Issue keys, summaries, statuses and assignees are read from Jira; moving an issue runs a Jira workflow
   transition and *Add idea* creates a Jira item in Backlog. Every write is read back from Jira before the UI shows it
   as confirmed; failures are shown as **ERROR / BLOCKED / UNKNOWN**, never as success. The browser keeps no copy of
   work: a reload or reconnect reads Jira again.
-- **Everything else is local prototype data**: Sessions, Brain, Whiteboard, Calendar, Pulse, Vault and Toolbox are not
+- **The Brain reads the ANA Brain** (ANA-35): `/brain` shows the projection of the Brain service (semantic positions,
+  clusters, explicit relations, provenance). The server reads it with `BRAIN_API_URL` and `BRAIN_API_TOKEN` (see
+  `.env.example`; the browser never sees either). Without them the page shows **BLOCKED — the Brain connection is not
+  configured**, never example notes. It writes nothing.
+- **Everything else is local prototype data**: Sessions, Whiteboard, Calendar, Pulse, Vault and Toolbox are not
   connected to Confluence, Drive, a calendar, an AI provider or a database. Whiteboard notes and calendar events live
   in memory for the browser tab and reset on reload. Only the chosen language is remembered (localStorage
   `ana.locale`).
@@ -86,15 +90,16 @@ browser. Contract:
 - `src/styles/globals.css` — ASADA Bright Silver tokens (silver canvas, glass material, brushed aluminium, restrained coral), atmosphere, focus and reduced-motion rules
 - `src/components/` — shell (rail, top bar, search palette), providers (i18n, prototype state, toasts), UI primitives
 - `src/features/<module>/` — one folder per module view; pure logic (Brain projection, calendar month grid) is unit-tested
-- `src/fixtures/` — **fictional** prototype content in EN/DE/IT for the non-Jira modules; must never hold private data (public repo)
+- `src/fixtures/` — **fictional** prototype content in EN/DE/IT for the prototype modules; must never hold private data (public repo)
 - `src/state/prototype.ts` — the in-memory reducer behind Calendar and Whiteboard (no work state)
 - `src/i18n/` — EN (reference), DE, IT dictionaries; a test enforces identical keys and placeholders
 - `e2e/fake-jira/` — test-only fake of the Jira endpoints the adapter uses (synthetic issues, injectable faults)
 
 Design reference: ASADA Bright Silver (Confluence 07 §2.1 and Design Schema §2.1, Owner decision 26 October 2026, ANA-42) on the C4 / ANA LUMEN material grammar (ANA-10 decision KEEP C4, kept as history). The single-file C4 prototype is **not**
 in this repository (it carries business-specific wording); it was rebuilt here as components and tokens. Brain,
-Whiteboard and Calendar are not in C4 and were designed in the same language. The Brain is a hand-written visual
-fixture drawn on a 2D canvas with a small perspective projection — the production 3D library is still spike-gated.
+Whiteboard and Calendar are not in C4 and were designed in the same language. The Brain view draws the Brain
+service's projection on a 2D canvas with a small perspective projection — the production 3D library is still
+spike-gated.
 
 > The product contract and route list below predate Confluence page 07 (“ANA Dashboard Requirements & Target
 > Architecture”), whose module set (Now, Board/Backlog, Sessions, Brain, Whiteboard, Calendar, Pulse, Vault, Toolbox)

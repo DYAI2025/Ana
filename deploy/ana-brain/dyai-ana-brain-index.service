@@ -1,0 +1,37 @@
+# /etc/systemd/system/dyai-ana-brain-index.service — incremental index of the ANA Brain (vault -> bge-m3 -> Qdrant).
+# Same identity, pinned settings and credentials as dyai-ana-brain.service. Unchanged notes are skipped by content
+# hash; a lost collection, missing points or a different model digest rebuild everything (docs/brain/CONTRACT.md §3).
+[Unit]
+Description=ANA Brain incremental index
+Wants=network-online.target
+After=network-online.target dyai-ana-qdrant.service dyai-ana-ollama.service
+
+[Service]
+Type=oneshot
+User=ana-brain
+Group=ana-brain
+WorkingDirectory=/srv/dyai/runtime/ana-brain/current
+LoadCredential=brain_env:/etc/dyai/credentials/ana-brain/brain_env
+LoadCredential=drive_sa:/etc/dyai/credentials/ana-brain/drive_sa
+Environment=NODE_ENV=production HOST=127.0.0.1 PORT=8790 BRAIN_PUBLIC_URL=https://mcp.ana.dyai.cloud
+Environment=BRAIN_VAULT_DIR=/var/lib/ana-brain/vault BRAIN_STATE_DIR=/var/lib/ana-brain/state
+Environment=OLLAMA_URL=http://127.0.0.1:11434 QDRANT_URL=http://127.0.0.1:6333 ANA_DRIVE_SA_KEY_FILE=%d/drive_sa
+ExecStart=/usr/bin/node --env-file=%d/brain_env dist/cli.js index
+Nice=10
+ReadWritePaths=/var/lib/ana-brain/vault /var/lib/ana-brain/state
+MemoryMax=1G
+UMask=0077
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+CapabilityBoundingSet=
+SystemCallArchitectures=native
+SystemCallFilter=@system-service
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6

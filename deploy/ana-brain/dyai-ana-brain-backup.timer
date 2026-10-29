@@ -1,0 +1,10 @@
+# /etc/systemd/system/dyai-ana-brain-backup.timer
+[Unit]
+Description=Nightly ANA Brain backup
+
+[Timer]
+OnCalendar=*-*-* 03:15:00
+Persistent=true
+
+[Install]
+WantedBy=timers.target

@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 /**
  * Fails when anything the browser receives contains a Jira credential (ANA-5 AC9 / DRS R2G gate 3) or the Instagram
- * worker key, its variable names, a Bearer header or the worker's internal path (ANA-38 AC9 / DRS R2G gate 4).
+ * worker key, its variable names, a Bearer header or the worker's internal path (ANA-38 AC9 / DRS R2G gate 4), or the
+ * ANA Brain dashboard token, its variable name or any Brain token shape (ANA-35 AC13).
  *
  * Scans the client bundle (.next/static) and the prerendered pages Next.js serves (.next/server/app/*.html|.rsc|.body).
  * Server-only chunks are not scanned: they legitimately reference process.env.JIRA_API_TOKEN by name.
@@ -15,6 +16,7 @@ import path from "node:path";
 const build = process.argv[2] ?? ".next";
 const token = process.env.JIRA_API_TOKEN?.trim();
 const socialKey = process.env.SOCIAL_IG_INTERNAL_READ_KEY?.trim();
+const brainToken = process.env.BRAIN_API_TOKEN?.trim();
 
 const rules = [
   { name: "JIRA_API_TOKEN variable name", test: (text) => count(text, /JIRA_API_TOKEN/g) },
@@ -28,6 +30,11 @@ const rules = [
   { name: "worker internal path", test: (text) => count(text, /internal\/social-snapshot/g) },
   { name: "e2e fake social key", test: (text) => count(text, /e2e-fake-social-key/g) },
   ...(socialKey && socialKey.length >= 8 ? [{ name: "configured SOCIAL_IG_INTERNAL_READ_KEY value", test: (text) => text.split(socialKey).length - 1 }] : []),
+  { name: "BRAIN_API_TOKEN variable name", test: (text) => count(text, /BRAIN_API_TOKEN/g) },
+  { name: "e2e fake brain token", test: (text) => count(text, /e2e-fake-brain-token/g) },
+  // dashboard tokens (anad_) and personal access keys (anab_) as the Brain issues them
+  { name: "ANA Brain token shape", test: (text) => count(text, /ana[bd]_[A-Za-z0-9_-]{32,}/g) },
+  ...(brainToken && brainToken.length >= 8 ? [{ name: "configured BRAIN_API_TOKEN value", test: (text) => text.split(brainToken).length - 1 }] : []),
 ];
 
 function count(text, re) {
@@ -64,5 +71,5 @@ for (const file of files) {
   }
 }
 
-console.log(`scan-client-bundle: ${files.length} files, ${rules.length} rules${token ? " (incl. configured token value)" : ""}${socialKey ? " (incl. configured social key value)" : ""}, ${hits} hits`);
+console.log(`scan-client-bundle: ${files.length} files, ${rules.length} rules${token ? " (incl. configured token value)" : ""}${socialKey ? " (incl. configured social key value)" : ""}${brainToken ? " (incl. configured Brain token value)" : ""}, ${hits} hits`);
 process.exit(hits === 0 ? 0 : 1);

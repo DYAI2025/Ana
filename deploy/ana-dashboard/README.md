@@ -27,8 +27,8 @@ shown only by its evidence (section 2).
 
 1. **Artifact.** Release only `ana-dashboard-app-<sha>.tar.gz` with its `.sha256` from a **successful push run of
    `dashboard-image` on `main`** for that commit, and verify the checksum before unpacking. A pull_request run builds
-   the synthetic merge ref, so its `<sha>` names a merge commit, not the PR head: such artifacts are test output,
-   never a release. The bundle is the `/app` of the image whose access gate CI tested; it is built for linux/amd64
+   the PR head and names its outputs `pr-<sha>` (artifact `ana-dashboard-pr-<sha>`): test output, never a release;
+   `release.sh` takes only a bare 40-hex commit, so it cannot find such a bundle. The bundle is the `/app` of the image whose access gate CI tested; it is built for linux/amd64
    only, and its only native code is `sharp` for linux-x64/glibc.
 2. **Runtime.** A Node version the bundle was tested with. The app declares Node >= 22.12; CI builds and tests the
    image on Node 22 and runs the extracted bundle under v24.22.0 (the Node of the Contabo host, observed 2026-10-27), checking that the
