@@ -335,7 +335,7 @@ function HypothesisCard({ e, open, onToggle, decision, onDecide, onSelect }: { e
       {open ? (
         <div id={`${base}-inspect`} className={styles.inspection} data-testid={`inspection-${id}`}>
           <p className={styles.detailTitle}>{t("social.offers.eligibleTitle", { n: tf.eligible.length })}</p>
-          <ul className={styles.limits} data-testid={`eligible-${id}`}>
+          <ul className={styles.limits} data-testid={`eligible-${id}`} data-count={tf.eligible.length}>
             {tf.eligible.length ? tf.eligible.slice(0, 12).map((x) => <FitRow key={x.p.post.media_id} x={x} onSelect={onSelect} />) : <li className={styles.muted}>{t("social.offers.topicalNone")}</li>}
           </ul>
           {tf.sessionExcluded.length ? (

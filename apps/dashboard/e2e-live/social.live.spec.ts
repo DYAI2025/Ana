@@ -82,9 +82,22 @@ test("live: the cockpit renders real Instagram data through the server-side work
       ]),
     ),
   );
-  const h1Eligible = await page.getByTestId("eligible-H1").getByTestId("fit-row").count();
-  const h1Sources = tally(await page.getByTestId("eligible-H1").getByTestId("fit-row").evaluateAll((els) => els.map((e) => e.getAttribute("data-source"))));
+  // the model's eligible total (data-count), not the rendered rows: the inspection lists at most 12
+  const eligible = async (id: "H1" | "H4") => {
+    const list = page.getByTestId(`eligible-${id}`);
+    const total = Number(await list.getAttribute("data-count"));
+    const sources = tally(await list.getByTestId("fit-row").evaluateAll((els) => els.map((e) => e.getAttribute("data-source"))));
+    return { total, rendered_rows: await list.getByTestId("fit-row").count(), rendered_sources: sources };
+  };
+  const h1 = await eligible("H1");
   const comparison = await page.getByTestId("engagement-comparison").getAttribute("data-state");
+  await page.getByTestId("inspect-hypothesis-H4").click();
+  await expect(page.getByTestId("inspection-H4")).toBeVisible();
+  const h4 = await eligible("H4");
+  for (const e of [h1, h4]) {
+    expect(Number.isInteger(e.total) && e.total >= 0, "eligible total is a count").toBe(true);
+    expect(e.rendered_rows).toBe(Math.min(e.total, 12));
+  }
   const commercial = tally(await page.locator('[data-testid^="commercial-"][data-state]').evaluateAll((els) => els.map((e) => e.getAttribute("data-state"))));
 
   await page.getByTestId("tab-observations").click();
@@ -130,8 +143,12 @@ test("live: the cockpit renders real Instagram data through the server-side work
         thumbnails_rendered: thumbnails,
         patterns,
         hypotheses,
-        h1_eligible: h1Eligible,
-        h1_eligible_sources: h1Sources,
+        h1_eligible: h1.total,
+        h1_eligible_rendered: h1.rendered_rows,
+        h1_eligible_sources: h1.rendered_sources,
+        h4_eligible: h4.total,
+        h4_eligible_rendered: h4.rendered_rows,
+        h4_eligible_sources: h4.rendered_sources,
         engagement_comparison: comparison,
         commercial,
       },

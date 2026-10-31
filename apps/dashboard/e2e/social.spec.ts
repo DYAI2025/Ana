@@ -154,6 +154,8 @@ test.describe("Instagram cockpit — real-data shape, honest states", () => {
     const inspection = page.getByTestId("inspection-H1");
     // exact for the synthetic fixture (see offers.test.ts): syn002, syn008 (Reels) and syn022 (carousel)
     await expect(page.getByTestId("eligible-H1").getByTestId("fit-row")).toHaveCount(3);
+    // the model total the live readback records (e2e-live/social.live.spec.ts), not only the rendered rows
+    await expect(page.getByTestId("eligible-H1")).toHaveAttribute("data-count", "3");
     await expect(inspection).toContainText("Lifetime metrics keep growing");
     const first = inspection.getByTestId("evidence-post").first();
     await first.click();
