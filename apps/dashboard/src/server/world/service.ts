@@ -1,0 +1,165 @@
+import "server-only";
+import type { SocialFailure, SocialResult } from "@/features/social/types";
+import type { WorkSnapshot } from "@/features/work/types";
+import type { WorldAudience, WorldPayload, WorldPulse, WorldSourceState, WorldWork, WorldWorkIssue } from "@/features/world/types";
+import { fetchWorkerJson, type WorkerResponse } from "@/server/social/client";
+import type { SocialConfig } from "@/server/social/config";
+import { InvalidWorkerResponse } from "@/server/social/normalize";
+import { NOT_CONFIGURED, workerFailure, type SnapshotService } from "@/server/social/service";
+import { MISSING_SERIES, normalizeAudience, normalizePulse, type NormalizedAudience, type NormalizedPulse } from "./normalize";
+import { readAnaPlace, readRelease } from "./presence";
+
+export const PULSE_PATH = "/internal/social-pulse";
+export const AUDIENCE_PATH = "/internal/social-audience";
+
+export interface WorldTimings {
+  /** a good pulse is reused this long (default 60 s): the "near real time" of the world */
+  pulseMs: number;
+  /** demographics are delayed up to 48 h by Meta; one read every 6 h is plenty */
+  audienceMs: number;
+  /** after a failure the source is asked again at the earliest after this */
+  retryMs: number;
+  /** Jira projection reuse (default 120 s) */
+  workMs: number;
+}
+
+export const DEFAULT_TIMINGS: WorldTimings = { pulseMs: 60_000, audienceMs: 6 * 3_600_000, retryMs: 60_000, workMs: 120_000 };
+
+export interface WorldDeps {
+  social: SnapshotService | null;
+  socialConfig: SocialConfig | null;
+  /** one Jira read; null when the server has no Jira connection */
+  readWork: (() => Promise<{ ok: true; snapshot: WorkSnapshot } | { ok: false; failure: { code: string } }>) | null;
+  /** issue keys the world always shows when Jira knows them */
+  workKeys: readonly string[];
+  env?: Readonly<Record<string, string | undefined>>;
+  fetchImpl?: typeof fetch;
+  now?: () => number;
+  timings?: Partial<WorldTimings>;
+}
+
+type Load<T> = { ok: true; value: T } | { ok: false; state: WorldSourceState; reason: string };
+
+/** A source read with a reuse window for good answers and a back-off after failures; one in-flight read is shared. */
+function cachedSource<T>(load: () => Promise<Load<T>>, goodMs: () => number, retryMs: () => number, now: () => number) {
+  let good: { value: T; at: number } | null = null;
+  let lastFailure: { state: WorldSourceState; reason: string; at: number } | null = null;
+  let inFlight: Promise<void> | null = null;
+  return async (): Promise<{ value: T | null; failure: { state: WorldSourceState; reason: string } | null; at: number | null }> => {
+    const t = now();
+    const fresh = good !== null && t - good.at < goodMs();
+    const backingOff = lastFailure !== null && t - lastFailure.at < retryMs();
+    if (!fresh && !backingOff) {
+      if (!inFlight) {
+        inFlight = load()
+          .then((r) => {
+            if (r.ok) {
+              good = { value: r.value, at: now() };
+              lastFailure = null;
+            } else lastFailure = { state: r.state, reason: r.reason, at: now() };
+          })
+          .finally(() => {
+            inFlight = null;
+          });
+      }
+      await inFlight;
+    }
+    return { value: good?.value ?? null, failure: lastFailure ? { state: lastFailure.state, reason: lastFailure.reason } : null, at: good?.at ?? null };
+  };
+}
+
+function failureOf(response: Extract<WorkerResponse, { ok: false }>): { state: WorldSourceState; reason: string } {
+  // a 404 means the worker does not offer this read yet (older deployment): not an error of the dashboard
+  if (response.error.kind === "http" && response.error.status === 404) return { state: "unavailable", reason: "worker-route-missing" };
+  const f: SocialFailure = workerFailure(response.error);
+  return { state: f.state === "PERMISSION_REQUIRED" ? "permission-required" : "error", reason: f.code };
+}
+
+async function readWorker<T>(config: SocialConfig, path: string, fetchImpl: typeof fetch, normalize: (raw: unknown) => T): Promise<Load<T>> {
+  const response = await fetchWorkerJson(config, path, fetchImpl);
+  if (!response.ok) return { ok: false, ...failureOf(response) };
+  try {
+    return { ok: true, value: normalize(response.data) };
+  } catch (error) {
+    return { ok: false, state: "error", reason: error instanceof InvalidWorkerResponse ? "invalid-response" : "unreadable" };
+  }
+}
+
+const iso = (ms: number | null) => (ms === null ? null : new Date(ms).toISOString());
+
+export function slimWork(snapshot: WorkSnapshot, keys: readonly string[]): WorldWorkIssue[] {
+  const wanted = new Set(keys);
+  return [...snapshot.issues, ...snapshot.unmapped]
+    .filter((i) => wanted.has(i.key) || i.status.category === "indeterminate")
+    .slice(0, 40)
+    .map((i) => ({ key: i.key, summary: i.summary.slice(0, 140), status: i.status.name, category: i.status.category, assignee: i.assignee?.displayName ?? null, url: i.url }));
+}
+
+export interface WorldService {
+  read(): Promise<WorldPayload>;
+}
+
+export function createWorldService(deps: WorldDeps): WorldService {
+  const now = deps.now ?? Date.now;
+  const fetchImpl = deps.fetchImpl ?? fetch;
+  const timings = { ...DEFAULT_TIMINGS, ...deps.timings };
+  const env = deps.env ?? process.env;
+  const config = deps.socialConfig;
+
+  const pulse = cachedSource<NormalizedPulse>(
+    () => (config ? readWorker(config, `${PULSE_PATH}?max=12`, fetchImpl, normalizePulse) : Promise.resolve({ ok: false, state: "not-configured", reason: "not-configured" })),
+    () => timings.pulseMs,
+    () => timings.retryMs,
+    now,
+  );
+  const audience = cachedSource<NormalizedAudience>(
+    () => (config ? readWorker(config, AUDIENCE_PATH, fetchImpl, normalizeAudience) : Promise.resolve({ ok: false, state: "not-configured", reason: "not-configured" })),
+    () => timings.audienceMs,
+    () => Math.max(timings.retryMs, 10 * 60_000),
+    now,
+  );
+  const work = cachedSource<WorldWorkIssue[]>(
+    async () => {
+      if (!deps.readWork) return { ok: false, state: "not-configured", reason: "not-configured" };
+      const r = await deps.readWork();
+      return r.ok ? { ok: true, value: slimWork(r.snapshot, deps.workKeys) } : { ok: false, state: "error", reason: r.failure.code };
+    },
+    () => timings.workMs,
+    () => timings.retryMs,
+    now,
+  );
+
+  return {
+    async read() {
+      const instagramPromise: Promise<SocialResult> = deps.social ? deps.social.read() : Promise.resolve({ ok: false, failure: NOT_CONFIGURED });
+      const [instagram, p, a, w] = await Promise.all([instagramPromise, pulse(), audience(), work()]);
+      const pulseOut: WorldPulse = {
+        state: p.value ? "ok" : (p.failure?.state ?? "unavailable"),
+        reason: p.value ? null : (p.failure?.reason ?? null),
+        fetched_at: p.value ? p.value.fetched_at : null,
+        followers: p.value?.followers ?? null,
+        media_count: p.value?.media_count ?? null,
+        items: p.value?.items ?? [],
+      };
+      // an older good pulse is still shown, but its failure is not hidden
+      if (p.value && p.failure) {
+        pulseOut.state = p.failure.state;
+        pulseOut.reason = p.failure.reason;
+      }
+      const audienceOut: WorldAudience = a.value
+        ? { state: a.failure ? a.failure.state : "ok", reason: a.failure?.reason ?? null, fetched_at: a.value.fetched_at, timeframe: a.value.timeframe, engaged_country: a.value.engaged_country, engaged_city: a.value.engaged_city, follower_country: a.value.follower_country, follower_city: a.value.follower_city }
+        : { state: a.failure?.state ?? "unavailable", reason: a.failure?.reason ?? null, fetched_at: null, timeframe: null, engaged_country: MISSING_SERIES, engaged_city: MISSING_SERIES, follower_country: MISSING_SERIES, follower_city: MISSING_SERIES };
+      const workOut: WorldWork = { state: w.value ? (w.failure ? w.failure.state : "ok") : (w.failure?.state ?? "unavailable"), reason: w.failure?.reason ?? null, fetched_at: iso(w.at), issues: w.value ?? [] };
+      return {
+        version: 1,
+        generated_at: new Date(now()).toISOString(),
+        instagram,
+        pulse: pulseOut,
+        audience: audienceOut,
+        work: workOut,
+        places: { ana: readAnaPlace(env) },
+        release: readRelease(),
+      };
+    },
+  };
+}

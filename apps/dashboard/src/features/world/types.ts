@@ -1,0 +1,89 @@
+/**
+ * ANA World data contract (client-safe). GET /api/world returns one WorldPayload: the dashboard's own normalized
+ * Instagram snapshot, a near-real-time counter pulse, Meta's aggregated audience geography, Jira work (when the
+ * server has a Jira connection) and the operator-set place of Ana. Provider payloads never reach the browser.
+ */
+import type { SocialResult } from "@/features/social/types";
+import type { StatusCategory } from "@/features/work/types";
+
+/** How one source answered this read. A missing source is never shown as data. */
+export type WorldSourceState = "ok" | "not-configured" | "unavailable" | "error" | "permission-required";
+
+export interface WorldSourceStatus {
+  state: WorldSourceState;
+  /** short, non-secret reason (an error class or code), null when ok */
+  reason: string | null;
+  /** when the dashboard server last got a good answer from this source */
+  fetched_at: string | null;
+}
+
+export interface PulseItem {
+  id: string;
+  published_at: string | null;
+  like_count: number | null;
+  comments_count: number | null;
+}
+
+export interface WorldPulse extends WorldSourceStatus {
+  followers: number | null;
+  media_count: number | null;
+  items: PulseItem[];
+}
+
+export type AudienceSeriesState = "ok" | "unavailable" | "error" | "not_fetched";
+
+export interface AudienceEntry {
+  key: string;
+  value: number;
+}
+
+export interface AudienceSeries {
+  state: AudienceSeriesState;
+  reason: string | null;
+  results: AudienceEntry[];
+}
+
+export interface WorldAudience extends WorldSourceStatus {
+  /** Meta timeframe of the demographics, e.g. "this_month" */
+  timeframe: string | null;
+  engaged_country: AudienceSeries;
+  engaged_city: AudienceSeries;
+  follower_country: AudienceSeries;
+  follower_city: AudienceSeries;
+}
+
+export interface WorldWorkIssue {
+  key: string;
+  summary: string;
+  status: string;
+  category: StatusCategory;
+  assignee: string | null;
+  url: string;
+}
+
+export interface WorldWork extends WorldSourceStatus {
+  issues: WorldWorkIssue[];
+}
+
+export interface WorldPlace {
+  label: string;
+  lat: number;
+  lon: number;
+}
+
+export interface WorldRelease {
+  /** commit of the running dashboard release, from the release directory name; null when not running from a release */
+  sha: string | null;
+  started_at: string;
+}
+
+export interface WorldPayload {
+  version: 1;
+  generated_at: string;
+  instagram: SocialResult;
+  pulse: WorldPulse;
+  audience: WorldAudience;
+  work: WorldWork;
+  places: { ana: WorldPlace | null };
+  release: WorldRelease;
+}
