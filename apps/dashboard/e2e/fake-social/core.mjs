@@ -88,14 +88,50 @@ export function buildSnapshot({ count = POSTS.length, observedAt = FAKE_OBSERVED
   };
 }
 
+/** Synthetic pulse (pulse_version 1): the newest posts' public counters, `likeBump` added to every like count. */
+export function buildPulse({ likeBump = 0, fetchedAt = new Date().toISOString() } = {}) {
+  const snapshot = buildSnapshot();
+  const items = [...snapshot.media.items]
+    .sort((a, b) => Date.parse(b.timestamp) - Date.parse(a.timestamp))
+    .slice(0, 12)
+    .map((m) => ({ id: m.id, timestamp: m.timestamp, media_product_type: m.media_product_type, like_count: m.like_count + likeBump, comments_count: m.comments_count }));
+  return { pulse_version: 1, fetched_at: fetchedAt, provider: "instagram", api_version: "v26.0", account: { followers_count: 12400 + likeBump, media_count: 212 }, items };
+}
+
+/** Synthetic audience (audience_version 1). Invented shares only. */
+export function buildAudience({ unavailable = false } = {}) {
+  const series = (name, breakdown, rows) =>
+    unavailable
+      ? { name, breakdown, timeframe: "this_month", state: "unavailable", error_class: "meta-100", results: [] }
+      : { name, breakdown, timeframe: "this_month", state: "ok", results: rows.map(([key, value]) => ({ key, value })) };
+  return {
+    audience_version: 1,
+    fetched_at: new Date().toISOString(),
+    provider: "instagram",
+    api_version: "v26.0",
+    metrics: [
+      series("engaged_audience_demographics", "country", [["DE", 410], ["TH", 220], ["US", 160], ["IT", 90], ["BR", 40]]),
+      series("engaged_audience_demographics", "city", [["Synthetic City A", 120], ["Synthetic City B", 60]]),
+      series("follower_demographics", "country", [["DE", 5200], ["US", 2100], ["TH", 900]]),
+      series("follower_demographics", "city", [["Synthetic City A", 900]]),
+    ],
+  };
+}
+
 /** Fake worker state: the next answer can be a fault. */
 export function createFakeSocial() {
   let fault = null;
   let calls = 0;
+  let world = { likeBump: 0, audienceUnavailable: false, pulseStatus: null };
   return {
     reset() {
       fault = null;
       calls = 0;
+      world = { likeBump: 0, audienceUnavailable: false, pulseStatus: null };
+    },
+    /** e2e control for the ANA World reads */
+    setWorld(next) {
+      world = { ...world, ...(next ?? {}) };
     },
     setFault(next) {
       fault = next ?? null;
@@ -103,6 +139,11 @@ export function createFakeSocial() {
     summary: () => ({ calls, fault }),
     handle(method, url, headers, expectedKey) {
       const u = new URL(url, "http://fake");
+      if (method === "GET" && (u.pathname === "/internal/social-pulse" || u.pathname === "/internal/social-audience")) {
+        if (headers.authorization !== `Bearer ${expectedKey}`) return { status: 401, body: { error: "unauthorized" } };
+        if (u.pathname === "/internal/social-pulse") return world.pulseStatus ? { status: world.pulseStatus, body: { error: "fault" } } : { status: 200, body: buildPulse({ likeBump: world.likeBump }) };
+        return { status: 200, body: buildAudience({ unavailable: world.audienceUnavailable }) };
+      }
       if (method !== "GET" || u.pathname !== "/internal/social-snapshot") return { status: 404, body: { error: "not-found" } };
       if (headers.authorization !== `Bearer ${expectedKey}`) return { status: 401, body: { error: "unauthorized" } };
       calls += 1;

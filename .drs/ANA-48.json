@@ -1,0 +1,34 @@
+{
+  "drs_version": "1.0",
+  "jira": "ANA-48",
+  "state": "IN_PROGRESS",
+  "delivery_profile": "STANDARD_CODE",
+  "ic": {
+    "definition": "All acceptance criteria AC1-AC9 of Jira ANA-48 are implemented and each has at least one automated test. AC1 rail entry World (DE/EN/IT) opens /world with a non-blank WebGL canvas: e2e/world.spec.ts AC1 (pixel colour count) and quality.spec.ts rail test. AC2 character avatars for Ana, Ben, Vince built from apps/dashboard/src/features/world/people.ts (hair, beard, moustache, sunglasses, gingham dress, tattoo as geometry): reviewed on screenshots in the private evidence folder. AC3 orbit cards and the panel count come from /api/world: e2e AC3/AC4 compares canvas data-posts with the API. AC4 audience arcs and lists from engaged_audience_demographics with the aggregation note; unavailable is stated and draws no arcs: e2e AC4 (both), worker tests 'social audience', unit tests normalizeAudience. AC5 a real like/follower increase between two pulse reads appears in the feed: e2e AC5, unit tests pulseEvents. AC6 not connected channels, Jira state, Vince without source, failing pulse are named: e2e AC6 (two tests), unit tests createWorldService. AC7 /api/world uses refuseUnauthorized and refuses cross-site reads (e2e AC7, unit test); the browser never calls the worker; scan:bundle finds no worker key, worker path or SOCIAL_IG_ name. AC8 reduced motion and no-WebGL fallback: e2e AC8 (two tests). AC9 390x844 without horizontal overflow and axe on /world: e2e AC9, quality.spec.ts. Worker: /internal/social-pulse and /internal/social-audience are additive, read-only, INTERNAL_READ_KEY only, covered by workers/instagram-oauth/test/worker.test.mjs.",
+    "state": "NOT_EVALUATED",
+    "claimed": null,
+    "evidence": []
+  },
+  "r2g": {
+    "definition": "On the exact candidate SHA: (1) GitHub Actions workflow 'dashboard' green (npm ci, lint, typecheck, vitest, production build, client bundle scan, full Playwright e2e against the fake Jira, fake Social worker and fake Brain). (2) GitHub Actions workflow 'dashboard-image' green for the SHA. (3) GitHub Actions workflow 'worker-instagram' green (node:test suite incl. pulse and audience). (4) GitHub Actions workflow 'drs' green. (5) The diff contains no secret, no real Instagram data, no photo of a person and no location of Ana (WORLD_ANA_PLACE is server-only). (6) No change to src/server/access*, the proxy or the /api/social/instagram route contract. Stale evidence (a run on another SHA) is not evidence; a new commit invalidates R2G.",
+    "state": "NOT_EVALUATED",
+    "claimed": null,
+    "candidate_sha": null,
+    "evidence": [],
+    "allowed_paths": [
+      "apps/dashboard/e2e/**",
+      "apps/dashboard/src/**/*.test.ts",
+      "apps/dashboard/src/**/*.test.tsx",
+      "docs/**",
+      ".drs/**"
+    ]
+  },
+  "r4m": {
+    "definition": "The unchanged R2G candidate has: an independent acceptor (a separate reviewer session that did not write the code) that verified IC and R2G evidence on the exact candidate SHA with 0 open blocking findings; PR CI green on the exact SHA; base at most 1 commit behind main; rollback target recorded (production release 8dd3dfa1ef34d70a0c76d544e59899280ed933ca before this change). MERGED is not Production Verified: AC10 (release on Contabo via release.sh, worker deploy, live evidence per deploy/ana-dashboard/README.md section 2) closes the item.",
+    "state": "NOT_EVALUATED",
+    "claimed": null,
+    "evidence": []
+  },
+  "synced_at": "2026-10-31T21:45:00Z",
+  "source": "offline: ANA Jira has no DRS custom fields; acceptance criteria live in Jira ANA-48, gate states are recorded in the pull request and Jira comments, not in this file"
+}

@@ -1,4 +1,5 @@
 import { socialEn } from "./social/en";
+import { worldEn } from "./world/en";
 
 /**
  * English UI dictionary — the reference shape. `de` and `it` must provide every key
@@ -21,6 +22,7 @@ export const en = {
     whiteboard: "Whiteboard",
     calendar: "Calendar",
     pulse: "Pulse",
+    world: "World",
     vault: "Vault",
     toolbox: "Toolbox",
   },
@@ -288,6 +290,7 @@ export const en = {
     localNote: "Prototype · stays in this tab",
   },
   social: socialEn,
+  world: worldEn,
   pulse: {
     socialTitle: "Social · Instagram",
     socialBody: "Real Instagram posts and metrics, read-only on this computer.",

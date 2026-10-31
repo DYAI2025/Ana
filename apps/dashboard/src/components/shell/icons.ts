@@ -1,4 +1,4 @@
-import { Activity, Brain, CalendarDays, Columns3, FolderOpen, House, StickyNote, Video, Wrench, type LucideIcon } from "lucide-react";
+import { Activity, Brain, CalendarDays, Columns3, Earth, FolderOpen, House, StickyNote, Video, Wrench, type LucideIcon } from "lucide-react";
 import type { PrimaryViewId } from "@/lib/views";
 
 /** Distinct, literal icons per module (C4 confused Sessions/Pulse glyphs). */
@@ -10,6 +10,7 @@ export const VIEW_ICONS: Readonly<Record<PrimaryViewId, LucideIcon>> = {
   whiteboard: StickyNote,
   calendar: CalendarDays,
   pulse: Activity,
+  world: Earth,
   vault: FolderOpen,
   toolbox: Wrench,
 };

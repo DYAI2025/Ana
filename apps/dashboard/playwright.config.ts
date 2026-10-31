@@ -64,6 +64,8 @@ export default defineConfig({
             SOCIAL_IG_TIMEOUT_MS: "5000",
             SOCIAL_IG_MIN_REFRESH_MS: "0",
             SOCIAL_IG_E2E_CONTROLS: "1",
+            WORLD_PULSE_MS: "0",
+            WORLD_ANA_PLACE: "Testregion;18.79;98.98",
             BRAIN_API_URL: `http://127.0.0.1:${FAKE_BRAIN_PORT}`,
             BRAIN_API_TOKEN: "e2e-fake-brain-token",
             BRAIN_TIMEOUT_MS: "1500",

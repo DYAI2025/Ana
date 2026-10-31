@@ -12,7 +12,9 @@ let shared: { key: string; service: WorldService } | null = null;
 export function worldServiceFromEnv(): WorldService {
   const config = readSocialConfig();
   const jiraConfigured = jiraClientFromEnv(READ_BUDGET_MS) !== null;
-  const key = `${config?.workerOrigin ?? "-"}|${config?.key.length ?? 0}|${jiraConfigured}`;
+  const pulseRaw = Number(process.env.WORLD_PULSE_MS);
+  const pulseMs = process.env.WORLD_PULSE_MS !== undefined && Number.isFinite(pulseRaw) && pulseRaw >= 0 ? pulseRaw : undefined;
+  const key = `${config?.workerOrigin ?? "-"}|${config?.key.length ?? 0}|${jiraConfigured}|${pulseMs ?? "d"}`;
   if (!shared || shared.key !== key) {
     shared = {
       key,
@@ -27,6 +29,8 @@ export function worldServiceFromEnv(): WorldService {
             }
           : null,
         workKeys: PROJECTS.flatMap((p) => p.jiraKeys),
+        // WORLD_PULSE_MS shortens the pulse reuse window (e2e uses 0); the retry back-off shrinks with it
+        timings: pulseMs === undefined ? undefined : { pulseMs, retryMs: Math.min(60_000, pulseMs) },
       }),
     };
   }
