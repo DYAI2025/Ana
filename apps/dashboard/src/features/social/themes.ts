@@ -75,7 +75,9 @@ export const CANDIDATES: readonly CandidateHypothesis[] = ["H1", "H4"];
 /**
  * H1 (Opportunity Drop) needs a specific creator/UGC/remote-work job or opportunity TOPIC, read from a few fixed
  * constructions inside one clause (clauses end at . ! ? ; , and line breaks):
- * - domain term directly before the opportunity term: "UGC jobs", "creator opportunities", "brands hiring";
+ * - domain term directly before the opportunity term: "UGC jobs", "creator opportunities", "brands hiring"; a generic
+ *   "opportunity" after a copula is commentary, not a topic ("AI is a massive brand opportunity", "Reels are a huge creator
+ *   opportunity"), as in the connector form;
  * - opportunity term, a connector (for / für / per), then the domain term: "jobs for creators", "Stellenangebote für Creator",
  *   but not as the predicate of a copula ("Reels are a huge opportunity for brands" is commentary);
  * - "hiring" announced (clause start, "now hiring", "we're hiring", "brands hiring", "<brand> is hiring") and followed by the domain term
@@ -187,7 +189,8 @@ function announcedHiring(t: readonly string[], os: number): boolean {
 
 /** One H1 construction between an opportunity occurrence [os, oe] and a domain occurrence [ds, de], or false. */
 function h1Construction(t: readonly string[], o: string, [os, oe]: [number, number], [ds, de]: [number, number]): boolean {
-  if (de === os - 1) return true; // "UGC jobs", "brands hiring"
+  // "UGC jobs", "brands hiring"; a generic "opportunity" as a copula predicate is commentary ("AI is a massive brand opportunity")
+  if (de === os - 1) return !(H1_GENERIC_OPPORTUNITY.has(o) && before(t, ds, COPULAS));
   if (o === "hiring" && de === os - 2 && COPULAS.has(t[os - 1]!)) return true; // "our brand is hiring"
   if (ds === oe + 2 && H1_CONNECTORS.has(t[oe + 1]!) && !before(t, os, COPULAS)) return true; // "jobs for creators"
   if (o === "hiring" && ds > oe && ds - oe - 1 <= 1 && announcedHiring(t, os)) return true; // "(5 brands) hiring (talented) creators"

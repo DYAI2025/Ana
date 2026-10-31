@@ -173,11 +173,20 @@ positive captions returned no match; "Brands hiring UGC creators — apply now" 
 preservation case) and passes after the change; the fixture before/after test is unchanged (syn002/syn008/syn022, H4
 syn004/syn013/syn020).
 
+AC2 finding on `0b80d41` (2026-10-31): generic business-opportunity commentary qualified for H1 through the adjacent
+form ("AI is a massive brand opportunity", "Reels are a huge creator opportunity"), and the residual test pinned it as
+eligible. The connector form already abstained under a copula; the adjacent form now applies the same copula guard, only
+to the generic terms "opportunity"/"opportunities" (job-specific terms and "hiring" are untouched; no offer signal is
+required). Proof: the `offers.test.ts` cases "negative (AC2 finding) …" and "outcome delta (AC2 finding) …" fail on
+`0b80d41` and pass after the change; the outcome delta shows the rule now returns what an analyst previously had to
+exclude by hand, with identical H1 resonance, H4 lane, source metrics and NOT_CONNECTED lanes. Known cost: a generic
+"opportunity" announced with a copula ("Here are 5 creator opportunities this week") now abstains as well (pinned).
+
 Residual limit (stated, not hidden): a caption keyword rule cannot read intent. Without the gate, captions that mention
-the author's own current job, a thank-you for an own brand opportunity, or a copula commentary carry no guard cue and
-are now DERIVED ("Just shot a UGC job for a skincare brand", "BTS of today's UGC job", "POV: you have a remote job and live
-in Bali", "Grateful for this brand opportunity …", "AI is a massive brand opportunity"); they are pinned in
-`offers.test.ts` as uncertain DERIVED suggestions that an analyst excludes per session. The rule still abstains where a
+the author's own current job or a thank-you for an own brand opportunity carry no guard cue and are now DERIVED ("Just
+shot a UGC job for a skincare brand", "BTS of today's UGC job", "POV: you have a remote job and live in Bali", "Grateful
+for this brand opportunity …"), as does generic opportunity commentary without a copula ("Huge brand opportunity in AI
+right now"); they are pinned in `offers.test.ts` as uncertain DERIVED suggestions that an analyst excludes per session. The rule still abstains where a
 guard fires (e.g. "My top 5 UGC jobs this week", "I quit my remote job", "Not a UGC job"). The lane is labelled a
 DERIVED suggestion, never confirmed demand; a reviewed classification is not part of F1.I1.
 

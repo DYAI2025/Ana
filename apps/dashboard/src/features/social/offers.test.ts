@@ -228,7 +228,7 @@ describe("AC2 · topical fit is specific; generic keywords never qualify a hypot
     expect(fitOf("New this week #ugcjobs", "H1")).toEqual(["ugcjobs"]);
   });
 
-  it("uncertain (AC2 repair, residual): own-job, lifestyle and copula-commentary mentions without a guard cue stay a DERIVED, correctable suggestion", () => {
+  it("uncertain (AC2 repair, residual): own-job and lifestyle mentions without a guard cue stay a DERIVED, correctable suggestion", () => {
     // Only the reverted offer-signal gate kept these out. No guard cue (possessive, own-job verb, negator, praise) is in the
     // clause, so the rule cannot tell them from a topic post. They are a suggestion an analyst excludes per session, never
     // confirmed demand (residual documented in docs/evidence/ANA-39/CHECKLIST.md).
@@ -238,12 +238,76 @@ describe("AC2 · topical fit is specific; generic keywords never qualify a hypot
       "BTS of today's UGC job",
       "Day in the life with a remote job in Bali",
       "POV: you have a remote job and live in Bali",
-      "Reels are a huge creator opportunity",
-      "AI is a massive brand opportunity",
+      // generic opportunity commentary without a copula: no guard cue either
+      "Huge brand opportunity in AI right now",
     ]) {
       expect(topicalFit(post({ id: "r", caption }), "H1", {}), caption).toMatchObject({ eligible: true, source: "derived-keyword" });
       expect(topicalFit(post({ id: "r", caption }), "H1", { r: { H1: false } }), caption).toMatchObject({ eligible: false, source: "manual-session" });
     }
+  });
+
+  // AC2 finding on 0b80d41 (2026-10-31): "<subject> is/are a <adj> brand/creator opportunity" is generic business-opportunity
+  // commentary, not a specific creator/UGC/remote-work job or opportunity topic. The connector form already abstained under
+  // a copula ("Reels are a huge opportunity for brands"); the adjacent form did not.
+  it("negative (AC2 finding): copula commentary on a generic brand/creator 'opportunity' is not H1", () => {
+    for (const caption of [
+      "AI is a massive brand opportunity",
+      "Reels are a huge creator opportunity",
+      "AI tools are massive creator opportunities right now",
+      "TikTok Shop is the biggest brand opportunity of the year",
+    ]) {
+      expect(fitOf(caption, "H1"), caption).toEqual([]);
+      expect(topicalFit(post({ id: "g", caption }), "H1", {}), caption).toEqual({ hypothesis: "H1", eligible: false, source: "unclassified", matched: [] });
+      // an analyst can still include it for this session
+      expect(topicalFit(post({ id: "g", caption }), "H1", { g: { H1: true } }), caption).toMatchObject({ eligible: true, source: "manual-session" });
+    }
+    // conservative recall miss, same rule as the connector form: a generic "opportunity" announced with a copula abstains
+    expect(fitOf("Here are 5 creator opportunities this week", "H1")).toEqual([]);
+    // preserved: job-specific terms under a copula, generic "opportunity" without one, and own-sponsorship residuals
+    for (const [caption, matched] of [
+      ["Remote jobs are overrated", ["jobs", "remote"]],
+      ["UGC jobs aren't what you think", ["jobs", "ugc"]],
+      ["Our brand is hiring", ["hiring", "brand"]],
+      ["Creator opportunities: casting call for UGC", ["opportunities", "casting call", "ugc", "creator"]],
+      ["Remote work opportunities for editors, apply by Friday", ["opportunities", "remote work"]],
+      ["Remote opportunity for UGC creators: apply now", ["opportunity", "ugc"]],
+      ["Grateful for this brand opportunity with @glow! Bucket list moment", ["opportunity", "brand"]],
+    ] as const) {
+      expect(fitOf(caption, "H1"), caption).toEqual(matched);
+    }
+  });
+
+  it("outcome delta (AC2 finding): generic opportunity commentary leaves H1 without touching metrics or the other lanes", () => {
+    // the generic posts get the strongest engagement, so a false positive would also have topped H1's resonance reading
+    const s = snap([
+      ...filler(6),
+      { id: "g1", caption: "AI is a massive brand opportunity", saves: 400, shares: 200 },
+      { id: "g2", caption: "Reels are a huge creator opportunity", saves: 300, shares: 150 },
+      { id: "job", caption: "How to land your first UGC job" },
+      { id: "file", caption: "My media kit template and rate card for pitching" },
+    ]);
+    const ev = evidenceOf(s);
+    // what the analyst previously had to exclude by hand is what the rule now returns
+    const byHand = evidenceOf(s, { g1: { H1: false }, g2: { H1: false } });
+    const h1 = lane(ev, "H1");
+    expect(eligibleIds(h1)).toEqual(["job"]);
+    expect(h1.topicalFit).toMatchObject({ state: "DERIVED", nDerived: 1, nManual: 0, sessionExcluded: [] });
+    expect(h1.contentResonance).toEqual(lane(byHand, "H1").contentResonance);
+    for (const id of ["g1", "g2"]) expect(h1.contentResonance.aboveMedian.map((x) => x.p.post.media_id)).not.toContain(id);
+    // H4 and the not-connected lanes are unchanged
+    expect(lane(ev, "H4")).toEqual(lane(byHand, "H4"));
+    expect(eligibleIds(lane(ev, "H4"))).toEqual(["file"]);
+    for (const e of ev) {
+      expect(e.audienceNeed).toEqual({ state: "NOT_CONNECTED", signals: AUDIENCE_SIGNALS });
+      expect(e.commercialOutcome).toEqual({ state: "NOT_CONNECTED", signals: COMMERCIAL_SIGNALS });
+    }
+    // source metrics are the plain analysis of the snapshot, unchanged by any topic decision
+    const analysis = analyze(s);
+    for (const id of ["g1", "g2"]) {
+      const p = analysis.posts.find((x) => x.post.media_id === id)!;
+      expect(p.post.observations).toEqual(s.posts.find((x) => x.media_id === id)!.observations);
+    }
+    for (const x of [...h1.topicalFit.eligible, ...lane(ev, "H4").topicalFit.eligible]) expect(x.p).toEqual(analysis.posts.find((p) => p.post.media_id === x.p.post.media_id));
   });
 
   it("negative (review round 5): an app name or a distant cue does not make a routine an H4 file", () => {
