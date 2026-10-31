@@ -2,7 +2,7 @@
  * Tiny perspective projection for the Brain visual fixture. Pure math, no rendering —
  * deliberately not a graph engine (the production 3D library is still spike-gated).
  */
-import type { Vec3 } from "@/fixtures/brain";
+import type { Vec3 } from "./types";
 
 export interface Camera {
   yaw: number;

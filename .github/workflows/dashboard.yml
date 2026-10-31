@@ -23,6 +23,12 @@ on:
 permissions:
   contents: read
 
+env:
+  # the commit every job checks out, tests and names its outputs after: the PR head on pull_request (not GitHub's test
+  # merge with the base), the pushed commit on push and workflow_dispatch. A PR run therefore does not test the merge
+  # result; that the head contains the current base is checked at merge readiness (docs/delivery/DRS.md).
+  SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+
 jobs:
   check:
     runs-on: ubuntu-latest
@@ -31,18 +37,14 @@ jobs:
       run:
         working-directory: apps/dashboard
     steps:
-      # test the PR head itself, not GitHub's synthetic merge commit (GITHUB_SHA on pull_request)
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
-      - name: Assert checked-out source SHA
+          ref: ${{ env.SOURCE_SHA }}
+      - name: Checked-out commit is SOURCE_SHA
         shell: bash
-        env:
-          SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
         run: |
-          actual="$(git rev-parse HEAD)"
-          echo "event=${GITHUB_EVENT_NAME} event_sha=${GITHUB_SHA} source_sha=${SOURCE_SHA} checked_out=${actual}"
-          [[ "$SOURCE_SHA" =~ ^[0-9a-f]{40}$ && "$actual" == "$SOURCE_SHA" ]] || { echo "::error::checked out ${actual}, expected ${SOURCE_SHA}"; exit 1; }
+          [ "$(git rev-parse HEAD)" = "$SOURCE_SHA" ] || { echo "FAIL: HEAD is $(git rev-parse HEAD), expected $SOURCE_SHA"; exit 1; }
+          echo "source $SOURCE_SHA tree $(git rev-parse 'HEAD^{tree}')"
       - uses: actions/setup-node@v4
         with:
           node-version-file: .nvmrc
@@ -55,6 +57,7 @@ jobs:
       - run: npm run build
       # ANA-5 AC9: the browser bundle must not contain a Jira credential, its variable names or a Basic auth header
       # ANA-38 AC9: nor the Instagram worker key, SOCIAL_IG_* names, a Bearer header or the worker internal path
+      # ANA-35 AC13: nor the Brain token, its variable name or a Brain token shape
       - run: npm run scan:bundle
       - run: npx playwright install --with-deps chromium
       - run: npm run e2e
@@ -63,6 +66,7 @@ jobs:
         env:
           JIRA_API_TOKEN: e2e-fake-token
           SOCIAL_IG_INTERNAL_READ_KEY: e2e-fake-social-key
+          BRAIN_API_TOKEN: e2e-fake-brain-token
       - if: failure()
         uses: actions/upload-artifact@v4
         with:

@@ -6,7 +6,7 @@
  */
 import type { Page } from "@playwright/test";
 import { PNG } from "pngjs";
-import { expect, test } from "./fixtures";
+import { expect, test, type FakeBrainMode } from "./fixtures";
 
 interface Run {
   text: string;
@@ -137,7 +137,7 @@ async function measure(page: Page, label: string, scope: Scope = {}): Promise<st
   return failures;
 }
 
-const STATES: { label: string; route: string; jira?: Record<string, unknown>; social?: Record<string, unknown>; prepare?: (page: Page) => Promise<unknown> }[] = [
+const STATES: { label: string; route: string; jira?: Record<string, unknown>; social?: Record<string, unknown>; brain?: FakeBrainMode; prepare?: (page: Page) => Promise<unknown> }[] = [
   { label: "now", route: "/" },
   // the card column runs below the fold: measure the lower cards in view, at rest and with the hover tint raised
   { label: "now lower cards", route: "/", prepare: (p) => p.getByTestId("context-social").scrollIntoViewIfNeeded() },
@@ -156,7 +156,11 @@ const STATES: { label: string; route: string; jira?: Record<string, unknown>; so
   { label: "session summary", route: "/sessions/working-session-01?tab=summary" },
   { label: "session transcript", route: "/sessions/working-session-01?tab=transcript" },
   { label: "session json", route: "/sessions/working-session-01?tab=json" },
-  { label: "brain", route: "/brain?node=workshop-02" },
+  { label: "brain", route: "/brain?node=ws-workshop-02" },
+  { label: "brain blocked", route: "/brain", brain: "down", prepare: (p) => p.locator('[data-testid="brain-error"][data-state="BLOCKED"]').waitFor() },
+  { label: "brain unknown", route: "/brain", brain: "invalid", prepare: (p) => p.locator('[data-testid="brain-error"][data-state="UNKNOWN"]').waitFor() },
+  { label: "brain empty", route: "/brain", brain: "empty", prepare: (p) => p.getByTestId("brain-empty").waitFor() },
+  { label: "brain unindexed", route: "/brain", brain: "unindexed", prepare: (p) => p.getByTestId("brain-unindexed").waitFor() },
   { label: "whiteboard", route: "/whiteboard" },
   { label: "calendar form", route: "/calendar", prepare: (p) => p.getByTestId("cal-add").click() },
   { label: "pulse", route: "/pulse" },
@@ -173,9 +177,10 @@ for (const viewport of [{ width: 1440, height: 900 }, { width: 1280, height: 800
   test.describe(`contrast ${viewport.width}`, () => {
     test.use({ viewport });
     for (const state of STATES) {
-      test(`text contrast >= WCAG AA: ${state.label}`, async ({ page, jira, social }) => {
+      test(`text contrast >= WCAG AA: ${state.label}`, async ({ page, jira, social, brain }) => {
         if (state.jira) await jira.fault(state.jira);
         if (state.social) await social.fault(state.social);
+        if (state.brain) await brain.mode(state.brain);
         await page.emulateMedia({ reducedMotion: "reduce" });
         await page.goto(state.route);
         await page.waitForLoadState("networkidle");

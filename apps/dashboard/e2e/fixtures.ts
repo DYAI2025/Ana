@@ -10,6 +10,14 @@ export interface FakeSocialControl {
   state(): Promise<{ calls: number }>;
 }
 
+/** Control surface of the local fake Brain service (e2e/fake-brain/server.mjs) — synthetic data only. */
+export const FAKE_BRAIN = `http://127.0.0.1:${process.env.FAKE_BRAIN_PORT ?? 3197}`;
+export type FakeBrainMode = "ok" | "mirrored" | "empty" | "unindexed" | "pending" | "down" | "unauthorized" | "invalid" | "slow";
+
+export interface FakeBrainControl {
+  mode(mode: FakeBrainMode): Promise<void>;
+}
+
 export interface FakeJiraControl {
   fault(fault: Record<string, unknown>): Promise<void>;
   board(patch: { filterId?: string; withReview?: boolean }): Promise<void>;
@@ -18,7 +26,7 @@ export interface FakeJiraControl {
   state(): Promise<{ creates: number; issues: { key: string; summary: string; status: string; labels: string[] }[] }>;
 }
 
-export const test = base.extend<{ consoleErrors: string[]; jira: FakeJiraControl; social: FakeSocialControl }>({
+export const test = base.extend<{ consoleErrors: string[]; jira: FakeJiraControl; social: FakeSocialControl; brain: FakeBrainControl }>({
   /** Every test starts with a healthy fake worker and an empty dashboard snapshot cache (e2e-only reset control). */
   social: [
     async ({ request, baseURL }, provide) => {
@@ -31,6 +39,19 @@ export const test = base.extend<{ consoleErrors: string[]; jira: FakeJiraControl
         },
         state: async () => (await request.get(`${FAKE_SOCIAL}/__fake/state`)).json(),
       });
+    },
+    { auto: true },
+  ],
+
+  /** Every test starts from the same synthetic Brain projection. */
+  brain: [
+    async ({ request }, provide) => {
+      const post = async (path: string, data: unknown = {}) => {
+        const response = await request.post(`${FAKE_BRAIN}${path}`, { data });
+        expect(response.ok(), `fake Brain ${path}`).toBe(true);
+      };
+      await post("/__fake/reset");
+      await provide({ mode: (mode) => post("/__fake/mode", { mode }) });
     },
     { auto: true },
   ],

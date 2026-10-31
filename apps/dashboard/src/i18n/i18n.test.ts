@@ -21,6 +21,19 @@ describe("dictionaries", () => {
     expect(mismatched).toEqual([]);
   });
 
+  // ANA-35: /brain reads the ANA Brain. Every string that calls "the other modules" prototype data must not count the
+  // Brain among them, whichever flag (prototype, Jira, Instagram) shows it.
+  it.each(["en", "de", "it"] as const)("%s: no string that calls the other modules prototype data includes the Brain", (locale) => {
+    const others = /other modules|andere(n)? Module|altri moduli/i;
+    const prototype = /prototyp|prototip/i;
+    const keys = flattenKeys(dictionaries[locale]).filter((key) => {
+      const s = translate(locale, key as never);
+      return others.test(s) && prototype.test(s);
+    });
+    expect(keys.length).toBeGreaterThan(0);
+    expect(keys.filter((key) => !translate(locale, key as never).includes("ANA Brain"))).toEqual([]);
+  });
+
   it("actually translates navigation (not English copies)", () => {
     expect(translate("de", "nav.now")).toBe("Jetzt");
     expect(translate("it", "nav.now")).toBe("Ora");

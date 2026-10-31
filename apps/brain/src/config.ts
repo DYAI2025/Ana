@@ -1,0 +1,49 @@
+import path from "node:path";
+
+export interface Config {
+  vaultDir: string;
+  stateDir: string;
+  ollamaUrl: string;
+  qdrantUrl: string;
+  qdrantApiKey?: string;
+  publicUrl: string;
+  dashboardTokenSha256?: string;
+  port: number;
+  host: string;
+  /** ANA Evidence Root folder id; Drive access is enabled only when set (and then needs the service-account key). */
+  driveRootId?: string;
+  /** Google service-account JSON key of the ANA Brain (PO decision 2); never a personal OAuth token. */
+  driveSaKeyFile: string;
+  /** Optional transcripts folder (must lie under the root). */
+  driveTranscriptsId?: string;
+}
+
+function tcpPort(raw: string | undefined): number {
+  if (!raw) return 8790;
+  const n = Number(raw);
+  if (!/^\d+$/.test(raw) || n < 1 || n > 65535) throw new Error(`PORT must be a TCP port (1-65535), got ${JSON.stringify(raw)}`);
+  return n;
+}
+
+// `||`, not `??`: env.example ships empty lines, and an empty HOST/PORT would otherwise listen on all interfaces on a
+// random port (B-8)
+export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
+  const vaultDir = env.BRAIN_VAULT_DIR;
+  if (!vaultDir) throw new Error("BRAIN_VAULT_DIR is required");
+  if (env.ANA_DRIVE_OAUTH_FILE)
+    throw new Error("ANA_DRIVE_OAUTH_FILE (personal Drive OAuth token) is no longer supported; set ANA_DRIVE_SA_KEY_FILE to the service-account key");
+  return {
+    vaultDir: path.resolve(vaultDir),
+    stateDir: path.resolve(env.BRAIN_STATE_DIR || path.join(vaultDir, "..", "ana-brain-state")),
+    ollamaUrl: env.OLLAMA_URL || "http://127.0.0.1:11434",
+    qdrantUrl: env.QDRANT_URL || "http://10.0.4.2:6333",
+    qdrantApiKey: env.QDRANT_API_KEY || undefined,
+    publicUrl: env.BRAIN_PUBLIC_URL || "https://mcp.ana.dyai.cloud",
+    dashboardTokenSha256: env.BRAIN_DASHBOARD_TOKEN_SHA256 || undefined,
+    port: tcpPort(env.PORT),
+    host: env.HOST || "127.0.0.1",
+    driveRootId: env.ANA_DRIVE_ROOT_ID || undefined,
+    driveSaKeyFile: env.ANA_DRIVE_SA_KEY_FILE || "/etc/ana-brain/drive-sa.json",
+    driveTranscriptsId: env.ANA_DRIVE_TRANSCRIPTS_ID || undefined,
+  };
+}

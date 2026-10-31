@@ -1,0 +1,63 @@
+# /etc/systemd/system/dyai-ana-brain.service — ANA Brain on the Contabo VPS vmi3693936 (ANA-35, README.md).
+#
+# Serves the vault, MCP and /projection from the CI-built bundle on 127.0.0.1:8790 only. The only public way in is
+# nginx for mcp.ana.dyai.cloud (MCP, OAuth, health); the dashboard reads /projection over loopback. Qdrant and Ollama
+# are the dedicated ANA instances on loopback (dyai-ana-qdrant.service, dyai-ana-ollama.service).
+#
+# Where it listens and what it reads are pinned with Environment=. Secrets arrive only as credential files
+# (LoadCredential=); node reads brain_env with --env-file, which never overrides a variable already set, so a stray
+# line in it cannot move the bind address or the data paths. There is deliberately no EnvironmentFile=.
+[Unit]
+Description=ANA Brain (vault, MCP, projection) on loopback
+Wants=network-online.target dyai-ana-qdrant.service dyai-ana-ollama.service
+After=network-online.target dyai-ana-qdrant.service dyai-ana-ollama.service
+StartLimitIntervalSec=300
+StartLimitBurst=5
+
+[Service]
+Type=exec
+User=ana-brain
+Group=ana-brain
+WorkingDirectory=/srv/dyai/runtime/ana-brain/current
+LoadCredential=brain_env:/etc/dyai/credentials/ana-brain/brain_env
+LoadCredential=drive_sa:/etc/dyai/credentials/ana-brain/drive_sa
+Environment=NODE_ENV=production HOST=127.0.0.1 PORT=8790 BRAIN_PUBLIC_URL=https://mcp.ana.dyai.cloud
+Environment=BRAIN_VAULT_DIR=/var/lib/ana-brain/vault BRAIN_STATE_DIR=/var/lib/ana-brain/state
+Environment=OLLAMA_URL=http://127.0.0.1:11434 QDRANT_URL=http://127.0.0.1:6333 ANA_DRIVE_SA_KEY_FILE=%d/drive_sa
+ExecStart=/usr/bin/node --env-file=%d/brain_env dist/cli.js serve
+Restart=always
+RestartSec=5
+TimeoutStopSec=30
+ReadWritePaths=/var/lib/ana-brain/vault /var/lib/ana-brain/state
+MemoryHigh=768M
+MemoryMax=1G
+MemorySwapMax=0
+TasksMax=128
+OOMPolicy=stop
+UMask=0077
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+ProtectClock=yes
+ProtectHostname=yes
+ProtectProc=invisible
+RestrictNamespaces=yes
+RestrictRealtime=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+RemoveIPC=yes
+CapabilityBoundingSet=
+AmbientCapabilities=
+SystemCallArchitectures=native
+SystemCallFilter=@system-service
+SystemCallFilter=~@privileged @resources
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+
+[Install]
+WantedBy=multi-user.target
