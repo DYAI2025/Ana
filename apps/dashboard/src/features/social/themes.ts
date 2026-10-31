@@ -76,9 +76,11 @@ export const CANDIDATES: readonly CandidateHypothesis[] = ["H1", "H4"];
  * H1 (Opportunity Drop) needs a specific creator/UGC/remote-work opportunity or job, read from a few fixed constructions
  * inside one clause (clauses end at . ! ? ; , and line breaks):
  * - domain term directly before the opportunity term: "UGC jobs", "creator opportunities", "brands hiring";
- * - opportunity term, a connector (for / für / per), then the domain term: "jobs for creators", "Stellenangebote für Creator";
- * - "hiring" followed by the domain term (at most one word between): "hiring UGC creators"; "<brand> is hiring";
- * - a list head with a colon: "Opportunities list: remote work".
+ * - opportunity term, a connector (for / für / per), then the domain term: "jobs for creators", "Stellenangebote für Creator",
+ *   but not as the predicate of a copula ("Reels are a huge opportunity for brands" is commentary);
+ * - "hiring" announced (clause start, "now hiring", "we're hiring", "brands hiring", "<brand> is hiring") and followed by the domain term
+ *   (at most one word between): "hiring UGC creators"; advice such as "stop hiring influencers" does not count;
+ * - a plural list head with a colon: "Opportunities list: remote work" (a singular "Dream job: UGC creator" is a label).
  * Anything else does not qualify, however close the words are ("great job creators", "a brand new opportunity to
  * travel", "my UGC side gig", "remote island trip, what an opportunity"); neither do travel, nomad, creator or UGC alone,
  * or "apply" alone. A few compact hashtags count on their own.
@@ -87,10 +89,13 @@ export const CANDIDATES: readonly CandidateHypothesis[] = ["H1", "H4"];
  * to travel"); "remote work" pairs with any opportunity term. A first-person possessive just before the construction
  * names the author's own job ("I quit my remote job", "my job for creators"), and a negator denies it ("not a UGC job"):
  * neither is an opportunity offered. When in doubt the rule abstains; an analyst can include the post for the session.
- * (Strategy since review round 3: allowlisted constructions instead of word proximity, which kept admitting new idioms.)
+ * (Strategy since review round 3: allowlisted constructions instead of word proximity, which kept admitting new idioms.
+ * Round 4 widened the guards to the whole clause. A caption keyword rule still cannot read intent: known residual false
+ * positives are listed in docs/evidence/ANA-39/CHECKLIST.md, and the lane says "suggestion", never "confirmed".)
  */
 export const H1_OPPORTUNITY_TERMS = ["job", "jobs", "gig", "gigs", "opportunity", "opportunities", "hiring", "casting call", "open call", "job board", "job listing", "job listings", "vacancy", "vacancies", "stellenangebot", "stellenangebote", "offerte di lavoro", "opportunità di lavoro"] as const;
 export const H1_DOMAIN_TERMS = ["ugc", "creator", "creators", "influencer", "influencers", "remote work", "remote working", "remote", "remoto", "brand", "brands"] as const;
+const DOMAIN_WORDS: ReadonlySet<string> = new Set(H1_DOMAIN_TERMS);
 /** Bare "remote" may mean a place ("remote opportunity to travel"); it needs a job-specific term. "remote work" does not. */
 const H1_WORK_ONLY_DOMAINS: ReadonlySet<string> = new Set(["remote", "remoto"]);
 const H1_GENERIC_OPPORTUNITY: ReadonlySet<string> = new Set(["opportunity", "opportunities"]);
@@ -98,29 +103,37 @@ const H1_GENERIC_OPPORTUNITY: ReadonlySet<string> = new Set(["opportunity", "opp
 const H1_CONNECTORS: ReadonlySet<string> = new Set(["for", "für", "per"]);
 /** "our brand is hiring" */
 const COPULAS: ReadonlySet<string> = new Set(["is", "are", "ist", "sind", "è", "sono"]);
+/** Words before "hiring" that announce it ("now hiring", "we're hiring", "brand is hiring"); clause start counts too. */
+const HIRING_ANNOUNCERS: ReadonlySet<string> = new Set(["now", "re", "is", "are", "ist", "sind", "è", "sono"]);
+/** List heads are plural ("UGC jobs: …", "Opportunities list: …"); a singular head before a colon is a label. */
+const H1_PLURAL_OPPORTUNITY: ReadonlySet<string> = new Set(["jobs", "gigs", "opportunities", "vacancies", "job listings", "stellenangebote", "offerte di lavoro"]);
 /** Job nouns that, after a first-person possessive ("my remote job"), name the author's own employment. */
 const H1_OWN_JOB_NOUNS: ReadonlySet<string> = new Set(["job", "jobs", "gig", "gigs"]);
-const FIRST_PERSON_POSSESSIVES: ReadonlySet<string> = new Set(["my", "mein", "meine", "meinen", "meinem", "meiner", "mio", "mia", "miei", "mie"]);
+const FIRST_PERSON_POSSESSIVES: ReadonlySet<string> = new Set(["my", "our", "mein", "meine", "meinen", "meinem", "meiner", "unser", "unsere", "unseren", "unserem", "unserer", "mio", "mia", "miei", "mie", "nostro", "nostra", "nostri", "nostre"]);
+/** Verbs that report the author's own job ("just booked another UGC gig", "landed a brand job"). */
+const OWN_JOB_VERBS: ReadonlySet<string> = new Set(["booked", "landed", "wrapped", "quit", "left", "started", "finished", "lost", "got", "gekündigt", "verloren", "lasciato"]);
 /** "Great job", "good job": praise, not a job */
 const PRAISE: ReadonlySet<string> = new Set(["great", "good", "nice", "awesome", "amazing", "gut", "guter", "toller", "bravo", "ottimo", "bel"]);
 /** "not a UGC job", "no template needed", "kein Job", "nessun lavoro" */
-const NEGATORS: ReadonlySet<string> = new Set(["no", "not", "never", "without", "kein", "keine", "keinen", "nicht", "ohne", "non", "nessun", "nessuna", "senza"]);
-/** How many tokens before a construction a possessive or negator may stand ("my old remote job", "not a UGC job"). */
-const LOOKBACK = 2;
+const NEGATORS: ReadonlySet<string> = new Set(["no", "not", "never", "without", "nobody", "nothing", "don", "doesn", "didn", "isn", "aren", "wasn", "weren", "won", "kein", "keine", "keinen", "nicht", "ohne", "non", "nessun", "nessuna", "senza"]);
 export const H1_HASHTAG_TERMS = ["ugcjob", "ugcjobs", "ugcopportunities", "creatorjobs", "creatoropportunity", "creatoropportunities", "remotejob", "remotejobs"] as const;
 /**
  * H4 (Working File) needs a specific reusable artifact: a template, checklist, worksheet, media kit or similar file.
  * Money, career, "tips", "guide", "how to" or "step by step" alone are not a reusable file. Ambiguous words (Italian
  * "modello" = model) are left out. A negated artifact ("no template needed") does not count.
  */
-export const H4_ARTIFACT_TERMS = ["template", "templates", "checklist", "checklists", "worksheet", "worksheets", "spreadsheet", "spreadsheets", "toolkit", "swipe file", "media kit", "rate card", "sop", "printable", "vorlage", "vorlagen", "checkliste", "checklisten"] as const;
+export const H4_ARTIFACT_TERMS = ["template", "templates", "checklist", "checklists", "worksheet", "worksheets", "swipe file", "media kit", "rate card", "sop", "printable", "vorlage", "vorlagen", "checkliste", "checklisten"] as const;
 /**
- * "Workflow" alone is usually a routine ("my morning workout workflow"), not a file. It counts only with a cue that the
- * workflow itself is a reusable file, in the same clause, at most H4_CUE_GAP words away and with no new subject in between
- * ("my morning workflow before I download my emails" is not one). Calls to action ("save this") are not cues: they move
- * saves themselves.
+ * "Workflow" alone is usually a routine ("my morning workout workflow"), "spreadsheet" an office job ("my spreadsheet job")
+ * and "toolkit" a figure of speech ("my emotional toolkit"). They count only with a cue that the thing itself is a reusable
+ * file, in the same clause, at most H4_CUE_GAP words away, with no new subject in between, and either before it as a
+ * modifier ("downloadable workflow", "Notion workflow") or after it as an apposition ("workflow as a PDF"). A cue the
+ * routine acts on does not count ("workflow for video files", "workflow to file taxes", "workflow: download emails").
+ * Calls to action ("save this") are not cues: they move saves themselves.
  */
-export const H4_WEAK_ARTIFACT_TERMS = ["workflow", "workflows"] as const;
+export const H4_WEAK_ARTIFACT_TERMS = ["workflow", "workflows", "spreadsheet", "spreadsheets", "toolkit"] as const;
+/** "workflow as a PDF", "Workflow als Datei", "workflow come file" */
+const APPOSITION: ReadonlySet<string> = new Set(["as", "als", "come"]);
 export const H4_REUSABLE_FILE_CUES = ["file", "files", "pdf", "download", "downloadable", "notion", "google doc", "google sheet", "reusable", "plug and play", "datei", "dateien"] as const;
 const H4_CUE_GAP = 3;
 const SUBJECT_PRONOUNS: ReadonlySet<string> = new Set(["i", "we", "you", "he", "she", "they", "ich", "wir", "du", "io", "noi", "tu"]);
@@ -144,15 +157,19 @@ function occurrences(tokens: readonly string[], term: string): Array<[number, nu
   return found;
 }
 
-const before = (tokens: readonly string[], start: number, set: ReadonlySet<string>) => tokens.slice(Math.max(0, start - LOOKBACK), start).some((t) => set.has(t));
+/**
+ * A guard word anywhere earlier in the same clause ("I quit my full-time remote job", "we don't need a template").
+ * Clause-wide on purpose: the rule abstains rather than guess how far a possessive, verb or negator reaches.
+ */
+const before = (tokens: readonly string[], start: number, set: ReadonlySet<string>) => tokens.slice(0, start).some((t) => set.has(t));
 
 /** One H1 construction between an opportunity occurrence [os, oe] and a domain occurrence [ds, de], or false. */
 function h1Construction(t: readonly string[], o: string, [os, oe]: [number, number], [ds, de]: [number, number]): boolean {
   if (de === os - 1) return true; // "UGC jobs", "brands hiring"
   if (o === "hiring" && de === os - 2 && COPULAS.has(t[os - 1]!)) return true; // "our brand is hiring"
-  if (ds === oe + 2 && H1_CONNECTORS.has(t[oe + 1]!)) return true; // "jobs for creators"
-  if (o === "hiring" && ds > oe && ds - oe - 1 <= 1) return true; // "hiring (talented) creators"
-  if (ds > oe && t[ds - 1] === ":" && ds - 1 - oe - 1 <= 1) return true; // "Opportunities list: remote work"
+  if (ds === oe + 2 && H1_CONNECTORS.has(t[oe + 1]!) && !before(t, os, COPULAS)) return true; // "jobs for creators"
+  if (o === "hiring" && ds > oe && ds - oe - 1 <= 1 && (os === 0 || HIRING_ANNOUNCERS.has(t[os - 1]!) || DOMAIN_WORDS.has(t[os - 1]!))) return true; // "(brands) hiring (talented) creators"
+  if (H1_PLURAL_OPPORTUNITY.has(o) && ds > oe && t[ds - 1] === ":" && ds - 1 - oe - 1 <= 1) return true; // "Opportunities list: remote work"
   return false;
 }
 
@@ -169,7 +186,9 @@ export function deriveTopicalFit(caption: string | null, hypothesis: CandidateHy
           if (before(t, ws, NEGATORS)) continue;
           for (const c of H4_REUSABLE_FILE_CUES)
             for (const [cs0, ce] of occurrences(t, c)) {
+              if (before(t, cs0, NEGATORS)) continue;
               const [lo, hi] = cs0 > we ? [we + 1, cs0] : [ce + 1, ws];
+              if (cs0 > we && !APPOSITION.has(t[we + 1]!)) continue;
               if (hi - lo > H4_CUE_GAP || t.slice(lo, hi).some((x) => SUBJECT_PRONOUNS.has(x))) continue;
               hits.add(w);
               hits.add(c);
@@ -187,9 +206,10 @@ export function deriveTopicalFit(caption: string | null, hypothesis: CandidateHy
             if (!h1Construction(t, o, occ, dOcc)) continue;
             if (H1_WORK_ONLY_DOMAINS.has(d) && H1_GENERIC_OPPORTUNITY.has(o)) continue;
             const start = Math.min(occ[0], dOcc[0]);
-            if (H1_OWN_JOB_NOUNS.has(o) && before(t, start, FIRST_PERSON_POSSESSIVES)) continue;
+            if (H1_OWN_JOB_NOUNS.has(o) && (before(t, start, FIRST_PERSON_POSSESSIVES) || before(t, start, OWN_JOB_VERBS))) continue;
             if (before(t, start, NEGATORS)) continue;
-            if (H1_OWN_JOB_NOUNS.has(o) && (PRAISE.has(t[occ[0] - 1]!) || (t[occ[1] + 1] === "well" && t[occ[1] + 2] === "done"))) continue;
+            if (H1_OWN_JOB_NOUNS.has(o) && (t.slice(Math.max(0, start - 2), start).some((x) => PRAISE.has(x)) || (t[occ[1] + 1] === "well" && t[occ[1] + 2] === "done"))) continue;
+            if ((o === "gig" || o === "gigs") && t[occ[1] + 1] === "economy") continue;
             hits.add(o);
             hits.add(d);
           }

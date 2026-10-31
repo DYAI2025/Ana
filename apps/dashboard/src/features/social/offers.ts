@@ -92,7 +92,7 @@ export interface TopicalLane {
 }
 
 export type UnindexedReason = NonNullable<PostAnalysis["excluded"]> | "missing-saves-shares" | "zero-baseline";
-export type ResonanceLimitation = "lifetime-accrual" | "single-snapshot" | "maturity-not-age-matched" | "unequal-ages" | "format-skew" | "stale-snapshot" | "overlap" | "no-causality";
+export type ResonanceLimitation = "lifetime-accrual" | "single-snapshot" | "maturity-not-age-matched" | "unequal-ages" | "format-skew" | "format-mix" | "stale-snapshot" | "overlap" | "no-causality";
 
 export interface ResonanceLane {
   state: "OBSERVED" | "INSUFFICIENT_EVIDENCE";
@@ -170,7 +170,7 @@ function resonance(analysis: Analysis, eligible: EligiblePost[], stale: boolean)
   const largestIndexed = Math.max(0, ...indexedFormats.map((f) => f.nIndexed));
   if (
     (formats.length > 1 && (largest / eligible.length >= SKEW_SHARE || formats.some((f) => f.groupN < MIN_GROUP_N))) ||
-    (indexedFormats.length > 1 && largestIndexed / indexed.length >= SKEW_SHARE)
+    (formats.length > 1 && indexed.length > 0 && largestIndexed / indexed.length >= SKEW_SHARE)
   )
     limitations.push("format-skew");
   if (eligible.some((e) => e.overlap)) limitations.push("overlap");
@@ -250,7 +250,7 @@ export interface EngagementComparison {
   difference: number | null;
   /**
    * limits of comparing the two disjoint groups with each other: always lifetime/single snapshot/maturity cutoff/no
-   * causality; plus format-skew when the groups' formats differ or one format dominates, unequal-ages across both
+   * causality; plus format-mix when the two groups hold more than one format in any mix (order-independent), unequal-ages across both
    * groups, and a stale snapshot
    */
   limitations: ResonanceLimitation[];
@@ -280,10 +280,8 @@ export function engagementComparison(evidence: readonly HypothesisEvidence[]): E
     for (const p of ps) counts.set(p.post.format, (counts.get(p.post.format) ?? 0) + 1);
     return counts;
   };
-  const top = (ps: readonly PostAnalysis[]) => [...share(ps).entries()].sort((a, b) => b[1] - a[1])[0]?.[0];
-  const all = share(both);
-  if (both.length && ((all.size > 1 && Math.max(...all.values()) / both.length >= SKEW_SHARE) || (posts1.length && posts4.length && top(posts1) !== top(posts4))))
-    limitations.push("format-skew");
+  // any format mix across the two groups: their medians then compare different format populations (order-independent)
+  if (share(both).size > 1) limitations.push("format-mix");
   if (evidence.some((e) => e.contentResonance.limitations.includes("stale-snapshot"))) limitations.push("stale-snapshot");
   const base = { nH1Only: only1.length, nH4Only: only4.length, nBoth: h1.length - only1.length, limitations };
   if (only1.length < MIN_PATTERN_GROUP_N || only4.length < MIN_PATTERN_GROUP_N) return { state: "INSUFFICIENT_EVIDENCE", ...base, medianH1Only: null, medianH4Only: null, difference: null };

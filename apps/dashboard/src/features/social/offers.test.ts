@@ -113,11 +113,13 @@ describe("AC2 · topical fit is specific; generic keywords never qualify a hypot
     for (const caption of ["Remote opportunity to travel this summer", "I quit my remote job last year", "I left my old UGC job", "Mein Remote Job ist vorbei"]) {
       expect(fitOf(caption, "H1"), caption).toEqual([]);
     }
-    // remote WORK still qualifies, and a possessive elsewhere in the caption does not block a real opportunity
+    // remote WORK still qualifies, and a possessive in another clause does not block a real opportunity
+    // (round 4: a possessive earlier in the SAME clause abstains, even when the author may be listing others' jobs)
     expect(fitOf("Remote work opportunities for editors", "H1")).toEqual(["opportunities", "remote work"]);
     expect(fitOf("Opportunities list: remote work", "H1")).toEqual(["opportunities", "remote work"]);
     expect(fitOf("Remote opportunity for UGC creators", "H1")).toEqual(["opportunity", "ugc"]);
-    expect(fitOf("My top 5 UGC jobs this week", "H1")).toEqual(["jobs", "ugc"]);
+    expect(fitOf("My picks. Top 5 UGC jobs this week", "H1")).toEqual(["jobs", "ugc"]);
+    expect(fitOf("My top 5 UGC jobs this week", "H1")).toEqual([]);
     expect(fitOf("Our brand is hiring", "H1")).toEqual(["hiring", "brand"]);
   });
 
@@ -158,6 +160,50 @@ describe("AC2 · topical fit is specific; generic keywords never qualify a hypot
     }
     expect(fitOf("Downloadable workflow for brand pitches", "H4")).toEqual(["workflow", "downloadable"]);
     expect(fitOf("My editing workflow as a PDF", "H4")).toEqual(["workflow", "pdf"]);
+  });
+
+  it("negative (review round 4): commentary, advice, labels and the author's own jobs are not an H1 opportunity", () => {
+    for (const caption of [
+      "Reels are a huge opportunity for brands",
+      "This is a great opportunity for creators to grow",
+      "I quit my full-time remote job",
+      "We left our remote jobs",
+      "meinen gut bezahlten Remote-Job habe ich gekündigt",
+      "Just booked another UGC gig",
+      "Landed a new brand gig!",
+      "Just wrapped another brand job",
+      "Stop hiring influencers",
+      "Thinking about hiring a UGC creator? Here's how",
+      "Dream job: UGC creator",
+      "Today's job: brand shoot",
+      "The influencer gig economy is broken",
+      "This isn't a UGC job",
+      "I never got a UGC job",
+      "Great UGC job on this one!",
+    ]) {
+      expect(fitOf(caption, "H1"), caption).toEqual([]);
+    }
+    expect(fitOf("Now hiring UGC creators", "H1")).toEqual(["hiring", "ugc", "creators"]);
+    expect(fitOf("We're hiring creators", "H1")).toEqual(["hiring", "creators"]);
+  });
+
+  it("negative (review round 4): negated artifacts, cues a routine acts on and figurative files are not an H4 file", () => {
+    for (const caption of [
+      "I don't use templates",
+      "No need for a template",
+      "Never needed a template",
+      "You don't need a template",
+      "A workflow with no download needed",
+      "My editing workflow for video files",
+      "My workflow to file taxes",
+      "My morning workflow: download emails",
+      "I left my spreadsheet job to travel the world",
+      "My emotional toolkit for anxiety while traveling",
+    ]) {
+      expect(fitOf(caption, "H4"), caption).toEqual([]);
+    }
+    expect(fitOf("Budget spreadsheet as a Google Sheet", "H4")).toEqual(["spreadsheet", "google sheet"]);
+    expect(fitOf("Downloadable creator toolkit", "H4")).toEqual(["toolkit", "downloadable"]);
   });
 
   it("positive (falsification round 2): real H1/H4 captions stay DERIVED candidates", () => {
@@ -372,6 +418,18 @@ describe("AC4 · review round 3: format skew is read on the posts the median com
     expect(h4.contentResonance.nIndexed).toBe(7);
     expect(h4.contentResonance.limitations).toContain("format-skew");
   });
+
+  it("review round 4: indexed posts that are all one format, in a mixed eligible set, still disclose format-skew", () => {
+    const specs: Spec[] = [
+      ...filler(6),
+      ...filler(6, "image", "feedfill"),
+      ...Array.from({ length: 6 }, (_, i): Spec => ({ id: `rt${i}`, caption: "Checklist template for pitches" })),
+      ...Array.from({ length: 6 }, (_, i): Spec => ({ id: `ft${i}`, caption: "Checklist template for pitches", format: "image", days: 3 })),
+    ];
+    const h4 = lane(evidenceOf(snap(specs)), "H4");
+    expect(h4.contentResonance.nIndexed).toBe(6);
+    expect(h4.contentResonance.limitations).toContain("format-skew");
+  });
 });
 
 describe("AC4 · H1-only vs H4-only comparison is descriptive, absolute and never a product lean", () => {
@@ -399,9 +457,18 @@ describe("AC4 · H1-only vs H4-only comparison is descriptive, absolute and neve
     ];
     const c = engagementComparison(hypothesisEvidence({ observedAt: OBSERVED, groups: [], posts }, ruleFit()));
     expect(c.state).toBe("DESCRIPTIVE");
-    expect(c.limitations).toEqual(expect.arrayContaining(["format-skew", "unequal-ages"]));
+    expect(c.limitations).toEqual(expect.arrayContaining(["format-mix", "unequal-ages"]));
     const stale = engagementComparison(hypothesisEvidence({ observedAt: OBSERVED, groups: [], posts }, ruleFit(), { stale: true }));
     expect(stale.limitations).toContain("stale-snapshot");
+  });
+
+  it("review round 4: format-mix does not depend on post order", () => {
+    const mk = (id: string, caption: string, format: PostFormat, idx: number): PostAnalysis => ({ ...analyze(snap([{ id, caption, format }])).posts[0]!, excluded: null, contentActionIndex: idx });
+    const h1 = Array.from({ length: 8 }, (_, i) => mk(`a${i}`, "UGC jobs for creators", i % 2 ? "image" : "reel", 1.2));
+    const h4 = Array.from({ length: 8 }, (_, i) => mk(`b${i}`, "My checklist template", "reel", 1));
+    for (const posts of [[...h1, ...h4], [...[...h1].reverse(), ...h4]]) {
+      expect(engagementComparison(hypothesisEvidence({ observedAt: OBSERVED, groups: [], posts }, ruleFit())).limitations).toContain("format-mix");
+    }
   });
 
   it("1.30 vs 1.00 → difference 0.30 index points: absolute, not 30 %, and no lean although the legacy 0.25 threshold is crossed", () => {

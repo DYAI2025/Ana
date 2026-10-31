@@ -127,6 +127,24 @@ Round 2 (falsification of the topical-fit rule on `0e27519`, commit `1b516a3`): 
 (H4). Fixture eligibility unchanged; syn002's displayed keywords become "job, remote". CI green on `1b516a3`; the
 implementing session re-ran lint, typecheck, unit tests and the social/visual/contrast specs on it.
 
+Round 3 (integration onto main `8199150`, candidate `d9a49c9`): word proximity kept admitting new idioms, so the rule
+was rebuilt on allowlisted constructions inside one clause; the comparison gained its own limitations list.
+
+Round 4 (adversarial review of `d9a49c9`): 15 confirmed findings, 13 of them the same class as rounds 1–3 (caption
+keyword false positives). Per the review-convergence rule the idiom-by-idiom patching stopped. The change of strategy:
+guards (first-person possessives incl. "our/unser/nostro", own-job verbs such as "booked/landed/quit", negators incl.
+the contraction pieces "don/isn/…") now read the whole clause before the construction, not two words; "hiring" counts
+only when announced; the connector form does not count as the predicate of a copula; colon list heads must be plural;
+"workflow", "spreadsheet" and "toolkit" need a file cue as modifier or apposition. All 26 reviewer captions are
+negative tests (red on `d9a49c9`, green after). Stats: resonance format-skew now also fires when every indexed post is
+one format in a mixed eligible set; the comparison discloses `format-mix` for any format mix, independent of post
+order.
+
+Residual limit (stated, not hidden): a caption keyword rule cannot read intent. The rule now abstains on ambiguous
+captions (e.g. "My top 5 UGC jobs this week" is no longer derived) and further idioms of the same class can exist. The
+lane is labelled a DERIVED suggestion that an analyst corrects per session; whether that precision is acceptable for
+F1.I1, or a reviewed classification is needed, is a PO product decision, not an implementer gate.
+
 ## Remaining unknowns (not resolved by F1.I1)
 
 - Real audience need (comments, DMs, questions): NOT_CONNECTED — F1.I2, needs a permission/data decision.
