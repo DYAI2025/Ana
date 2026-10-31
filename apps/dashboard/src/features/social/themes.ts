@@ -73,19 +73,18 @@ export type CandidateHypothesis = "H1" | "H4";
 export const CANDIDATES: readonly CandidateHypothesis[] = ["H1", "H4"];
 
 /**
- * H1 (Opportunity Drop) needs a specific creator/UGC/remote-work opportunity or job, read from a few fixed constructions
- * inside one clause (clauses end at . ! ? ; , and line breaks):
+ * H1 (Opportunity Drop) needs a specific creator/UGC/remote-work job or opportunity TOPIC, read from a few fixed
+ * constructions inside one clause (clauses end at . ! ? ; , and line breaks):
  * - domain term directly before the opportunity term: "UGC jobs", "creator opportunities", "brands hiring";
  * - opportunity term, a connector (for / für / per), then the domain term: "jobs for creators", "Stellenangebote für Creator",
  *   but not as the predicate of a copula ("Reels are a huge opportunity for brands" is commentary);
  * - "hiring" announced (clause start, "now hiring", "we're hiring", "brands hiring", "<brand> is hiring") and followed by the domain term
  *   (at most one word between): "hiring UGC creators"; advice such as "stop hiring influencers" does not count;
  * - a plural list head with a colon: "Opportunities list: remote work" (a singular "Dream job: UGC creator" is a label).
- * A construction is only a candidate: the caption must also carry an explicit offer signal (apply, casting call, open
- * call, deadline, wanted, a list/board/listing, announced hiring, …), and a how-to or advice frame before it in the
- * clause ("how to get UGC jobs", "tips to land brand jobs", "where to find remote jobs") abstains. Without the signal a
- * construction is usually advice, commentary, the author's own job or lifestyle ("BTS of today's UGC job", "a day in the
- * life with a remote job"), so the rule abstains (review round 5).
+ * The topic is enough: a live job posting or an explicit offer signal ("apply", "deadline") is not required, and a how-to
+ * or advice frame does not block it ("How to land your first UGC job", "Where to find remote jobs as a creator"). A match
+ * is DERIVED editorial relevance only, never audience need, demand or a commercial outcome (AC2 contract repair, PO
+ * 2026-10-31; this reverts the review-round-5 offer-signal gate and advice-frame abstention, which went beyond the contract).
  * Anything else does not qualify, however close the words are ("great job creators", "a brand new opportunity to
  * travel", "my UGC side gig", "remote island trip, what an opportunity"); neither do travel, nomad, creator or UGC alone,
  * or "apply" alone. A few compact hashtags count on their own.
@@ -112,17 +111,6 @@ const COPULAS: ReadonlySet<string> = new Set(["is", "are", "ist", "sind", "è", 
 const HIRING_ANNOUNCERS: ReadonlySet<string> = new Set(["now", "re", "m", "currently", "still", "is", "ist", "è"]);
 /** Generic subjects make "X is/are hiring" a trend statement, not an announcement ("everyone is hiring UGC creators"). */
 const GENERIC_SUBJECTS: ReadonlySet<string> = new Set(["everyone", "everybody", "anyone", "anybody", "nobody", "brands", "companies", "agencies", "more", "all"]);
-/** Explicit signals that something is on offer; at least one must appear somewhere in the caption (review round 5). */
-export const H1_OFFER_SIGNALS = ["apply", "applications", "application", "casting call", "open call", "deadline", "job board", "job listing", "job listings", "vacancy", "vacancies", "bewerben", "bewerbung", "bewirb", "candidati", "candidatura", "candidature"] as const;
-/**
- * Everyday words that are an offer signal only right after an opportunity noun ("Opportunities list", "jobs board"), and
- * "wanted" only right after a domain word ("UGC creators wanted"); "bucket list", "vision board", "always wanted" are not
- * (review round 6).
- */
-const H1_LIST_SIGNALS: ReadonlySet<string> = new Set(["list", "listing", "listings", "board", "roundup"]);
-const OPPORTUNITY_WORDS: ReadonlySet<string> = new Set(["job", "jobs", "gig", "gigs", "opportunity", "opportunities", "vacancies", "castings"]);
-/** Advice or how-to frames: before a construction in the same clause they mean no job is on offer. */
-const ADVICE_FRAMES: ReadonlySet<string> = new Set(["how", "where", "why", "tips", "tip", "ways", "guide", "wie", "wo", "tipps", "come", "dove", "consigli"]);
 /** List heads are plural ("UGC jobs: …", "Opportunities list: …"); a singular head before a colon is a label. */
 const H1_PLURAL_OPPORTUNITY: ReadonlySet<string> = new Set(["jobs", "gigs", "opportunities", "vacancies", "job listings", "stellenangebote", "offerte di lavoro"]);
 /** Job nouns that, after a first-person possessive ("my remote job"), name the author's own employment. */
@@ -232,15 +220,8 @@ export function deriveTopicalFit(caption: string | null, hypothesis: CandidateHy
     }
     return [...H4_ARTIFACT_TERMS, ...H4_WEAK_ARTIFACT_TERMS, ...H4_REUSABLE_FILE_CUES].filter((k) => hits.has(k));
   }
-  const offered = cs.some(
-    (t) =>
-      H1_OFFER_SIGNALS.some((sig) => occurrences(t, sig).length > 0) ||
-      t.some((w, i) => (H1_LIST_SIGNALS.has(w) && OPPORTUNITY_WORDS.has(t[i - 1]!)) || (w === "wanted" && DOMAIN_WORDS.has(t[i - 1]!))) ||
-      occurrences(t, "hiring").some(([os]) => announcedHiring(t, os)),
-  );
   for (const t of cs) {
     for (const h of H1_HASHTAG_TERMS) if (occurrences(t, h).length) hits.add(h);
-    if (!offered) continue;
     for (const o of H1_OPPORTUNITY_TERMS)
       for (const occ of occurrences(t, o))
         for (const d of H1_DOMAIN_TERMS)
@@ -249,7 +230,7 @@ export function deriveTopicalFit(caption: string | null, hypothesis: CandidateHy
             if (H1_WORK_ONLY_DOMAINS.has(d) && H1_GENERIC_OPPORTUNITY.has(o)) continue;
             const start = Math.min(occ[0], dOcc[0]);
             if (H1_OWN_JOB_NOUNS.has(o) && (before(t, start, FIRST_PERSON_POSSESSIVES) || before(t, start, OWN_JOB_VERBS))) continue;
-            if (before(t, start, NEGATORS) || before(t, start, ADVICE_FRAMES)) continue;
+            if (before(t, start, NEGATORS)) continue;
             if (H1_OWN_JOB_NOUNS.has(o) && (t.slice(Math.max(0, start - 2), start).some((x) => PRAISE.has(x)) || (t[occ[1] + 1] === "well" && t[occ[1] + 2] === "done"))) continue;
             if ((o === "gig" || o === "gigs") && t[occ[1] + 1] === "economy") continue;
             hits.add(o);

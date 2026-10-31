@@ -160,10 +160,26 @@ The 9 minor round-6 findings (recall losses of the disclosed kind, H4 how-to/fig
 patched: the classifier is frozen here, because six rounds show that each review finds new phrasings of the same class
 and only the PO precision decision below can close it.
 
-Residual limit (stated, not hidden): a caption keyword rule cannot read intent. The rule now abstains on ambiguous
-captions (e.g. "My top 5 UGC jobs this week" is no longer derived) and further idioms of the same class can exist. The
-lane is labelled a DERIVED suggestion that an analyst corrects per session; whether that precision is acceptable for
-F1.I1, or a reviewed classification is needed, is a PO product decision, not an implementer gate.
+AC2 contract repair (PO decision 2026-10-31, on `54441ce`): the round-5 offer-signal gate and advice-frame abstention
+went beyond Confluence 108920834 v3, which asks for "a specific creator/UGC/remote-work opportunity or job context" and
+names "a specific UGC-job Reel" as a TOPICAL_FIT candidate; it never requires a live job posting. Both are removed from
+`themes.ts` (`H1_OFFER_SIGNALS`, the list/board/wanted signals and `ADVICE_FRAMES` go with them). H1 is again a specific
+job/opportunity TOPIC read from the unchanged constructions; how-to, list and job-market commentary captions count
+("How to land your first UGC job", "Where to find remote jobs as a creator", "UGC jobs for creators"). Unchanged:
+constructions, hashtags, the bare-"remote" and copula/connector rules, the hiring-announcement rule, and the guards for
+first-person possessives, own-job verbs, negators and praise; all H4 logic; all four lanes; AUDIENCE_NEED and
+COMMERCIAL_OUTCOME = NOT_CONNECTED. Proof: the new `offers.test.ts` block "AC2 repair · …" failed on `54441ce` (3 of 4
+positive captions returned no match; "Brands hiring UGC creators — apply now" already matched and is kept as a
+preservation case) and passes after the change; the fixture before/after test is unchanged (syn002/syn008/syn022, H4
+syn004/syn013/syn020).
+
+Residual limit (stated, not hidden): a caption keyword rule cannot read intent. Without the gate, captions that mention
+the author's own current job, a thank-you for an own brand opportunity, or a copula commentary carry no guard cue and
+are now DERIVED ("Just shot a UGC job for a skincare brand", "BTS of today's UGC job", "POV: you have a remote job and live
+in Bali", "Grateful for this brand opportunity …", "AI is a massive brand opportunity"); they are pinned in
+`offers.test.ts` as uncertain DERIVED suggestions that an analyst excludes per session. The rule still abstains where a
+guard fires (e.g. "My top 5 UGC jobs this week", "I quit my remote job", "Not a UGC job"). The lane is labelled a
+DERIVED suggestion, never confirmed demand; a reviewed classification is not part of F1.I1.
 
 ## Remaining unknowns (not resolved by F1.I1)
 

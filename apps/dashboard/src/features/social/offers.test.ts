@@ -206,13 +206,33 @@ describe("AC2 · topical fit is specific; generic keywords never qualify a hypot
     expect(fitOf("Downloadable creator toolkit", "H4")).toEqual(["toolkit", "downloadable"]);
   });
 
-  it("negative (review round 5): without an explicit offer signal, or under an advice frame, a job phrase is not an H1 opportunity", () => {
+  // AC2 contract repair (PO 2026-10-31) reverts the review-round-5 offer-signal gate and advice-frame abstention: a specific
+  // creator/UGC/remote job or opportunity TOPIC is enough, as how-to, list or commentary.
+  it("positive (AC2 repair of review round 5): job/opportunity topics count without an offer signal and under a how-to frame", () => {
+    for (const [caption, matched] of [
+      ["How to get UGC jobs with no followers", ["jobs", "ugc"]],
+      ["How to find remote jobs in 2025", ["jobs", "remote"]],
+      ["Where to find brand jobs as a small creator", ["jobs", "brand"]],
+      ["5 remote jobs you can do from anywhere", ["jobs", "remote"]],
+      ["How to apply for UGC jobs", ["jobs", "ugc"]],
+      ["Remote jobs are overrated", ["jobs", "remote"]],
+      ["UGC jobs aren't what you think", ["jobs", "ugc"]],
+      ["Stop chasing brand jobs", ["jobs", "brand"]],
+      ["The truth about UGC jobs", ["jobs", "ugc"]],
+      ["Why UGC jobs pay so little", ["jobs", "ugc"]],
+      ["Remote jobs for creators", ["jobs", "creators", "remote"]],
+    ] as const) {
+      expect(fitOf(caption, "H1"), caption).toEqual(matched);
+    }
+    expect(fitOf("Remote jobs for creators, apply now", "H1")).toEqual(["jobs", "creators", "remote"]);
+    expect(fitOf("New this week #ugcjobs", "H1")).toEqual(["ugcjobs"]);
+  });
+
+  it("uncertain (AC2 repair, residual): own-job, lifestyle and copula-commentary mentions without a guard cue stay a DERIVED, correctable suggestion", () => {
+    // Only the reverted offer-signal gate kept these out. No guard cue (possessive, own-job verb, negator, praise) is in the
+    // clause, so the rule cannot tell them from a topic post. They are a suggestion an analyst excludes per session, never
+    // confirmed demand (residual documented in docs/evidence/ANA-39/CHECKLIST.md).
     for (const caption of [
-      "How to get UGC jobs with no followers",
-      "How to find remote jobs in 2025",
-      "Where to find brand jobs as a small creator",
-      "5 remote jobs you can do from anywhere",
-      "How to apply for UGC jobs",
       "Just shot a UGC job for a skincare brand",
       "This UGC gig paid me $500",
       "BTS of today's UGC job",
@@ -220,17 +240,10 @@ describe("AC2 · topical fit is specific; generic keywords never qualify a hypot
       "POV: you have a remote job and live in Bali",
       "Reels are a huge creator opportunity",
       "AI is a massive brand opportunity",
-      "Remote jobs are overrated",
-      "UGC jobs aren't what you think",
-      "Stop chasing brand jobs",
-      "The truth about UGC jobs",
-      "Why UGC jobs pay so little",
-      "Remote jobs for creators",
     ]) {
-      expect(fitOf(caption, "H1"), caption).toEqual([]);
+      expect(topicalFit(post({ id: "r", caption }), "H1", {}), caption).toMatchObject({ eligible: true, source: "derived-keyword" });
+      expect(topicalFit(post({ id: "r", caption }), "H1", { r: { H1: false } }), caption).toMatchObject({ eligible: false, source: "manual-session" });
     }
-    expect(fitOf("Remote jobs for creators, apply now", "H1")).toEqual(["jobs", "creators", "remote"]);
-    expect(fitOf("New this week #ugcjobs", "H1")).toEqual(["ugcjobs"]);
   });
 
   it("negative (review round 5): an app name or a distant cue does not make a routine an H4 file", () => {
@@ -240,23 +253,29 @@ describe("AC2 · topical fit is specific; generic keywords never qualify a hypot
     expect(fitOf("My Notion template for content planning", "H4")).toEqual(["template"]);
   });
 
-  it("negative (review round 6): everyday 'list/board/wanted' and trend statements about hiring are no offer signal", () => {
+  it("AC2 repair of review round 6: with no offer gate, job-market commentary is a topic; own brand opportunities stay uncertain", () => {
+    for (const [caption, matched] of [
+      ["Remote jobs are the future. Here's my packing list for Bali", ["jobs", "remote"]],
+      ["Influencer gigs pay more than you think. Save this to your list", ["gigs", "influencer"]],
+      ["Remote work opportunities changed everything for me. Vision board manifesting", ["opportunities", "remote work"]],
+      ["2025 vision board: land a remote job", ["job", "remote"]],
+      ["Why brands are hiring UGC creators instead of influencers in 2025", ["hiring", "brands"]],
+      ["Is anyone else noticing that brands are hiring influencers less?", ["hiring", "brands"]],
+      ["Brands hiring influencers without contracts is a red flag", ["hiring", "brands"]],
+    ] as const) {
+      expect(fitOf(caption, "H1"), caption).toEqual(matched);
+    }
+    // residual, as above: the author's own sponsorship or job, with no possessive/verb cue on a job noun → DERIVED, correctable
     for (const caption of [
       "Grateful for this brand opportunity with @glow! Bucket list moment",
-      "Remote jobs are the future. Here's my packing list for Bali",
-      "Influencer gigs pay more than you think. Save this to your list",
-      "Remote work opportunities changed everything for me. Vision board manifesting",
       "Thank you @nike for this brand opportunity, finally on board with the team",
       "My first brand opportunity! Always wanted this",
       "Always wanted a remote job and now I have one",
-      "2025 vision board: land a remote job",
-      "Why brands are hiring UGC creators instead of influencers in 2025",
-      "Everyone is hiring UGC creators right now and here is why",
-      "Is anyone else noticing that brands are hiring influencers less?",
-      "Brands hiring influencers without contracts is a red flag",
     ]) {
-      expect(fitOf(caption, "H1"), caption).toEqual([]);
+      expect(topicalFit(post({ id: "r", caption }), "H1", {}), caption).toMatchObject({ eligible: true, source: "derived-keyword" });
     }
+    // unchanged hiring-announcement guard: a generic subject with a later copula abstains (conservative recall miss)
+    expect(fitOf("Everyone is hiring UGC creators right now and here is why", "H1")).toEqual([]);
     expect(fitOf("Opportunities list: remote work", "H1")).toEqual(["opportunities", "remote work"]);
     expect(fitOf("UGC jobs this week: 5 brands hiring creators", "H1")).toEqual(["jobs", "hiring", "ugc", "creators", "brands"]);
     expect(fitOf("Our brand is hiring", "H1")).toEqual(["hiring", "brand"]);
@@ -356,6 +375,60 @@ describe("AC2 · topical fit is specific; generic keywords never qualify a hypot
     expect(eligibleIds(lane(ev, "H4"))).toEqual(["syn004", "syn013", "syn020"]);
     for (const id of ["syn003", "syn005", "syn011", "syn014"]) expect(eligibleIds(lane(ev, "H1"))).not.toContain(id);
     for (const id of ["syn010", "syn018", "syn006"]) expect(eligibleIds(lane(ev, "H4"))).not.toContain(id);
+  });
+});
+
+/**
+ * AC2 contract repair (PO decision 2026-10-31, Confluence 108920834 v3): H1 covers specific creator/UGC/remote-work job and
+ * opportunity TOPICS. A live job posting, an explicit offer signal ("apply", "deadline", …) or the absence of a how-to frame
+ * is not required. A topic match is DERIVED editorial relevance only — never audience need, demand or a commercial outcome.
+ */
+describe("AC2 repair · H1 TOPICAL_FIT is a specific job/opportunity topic, not a live job offer", () => {
+  const H1_TOPICS: ReadonlyArray<readonly [string, readonly string[]]> = [
+    ["UGC jobs for creators", ["jobs", "ugc", "creators"]],
+    ["How to land your first UGC job", ["job", "ugc"]],
+    ["Where to find remote jobs as a creator", ["jobs", "remote"]],
+    ["Brands hiring UGC creators — apply now", ["hiring", "ugc", "creators", "brands"]],
+  ];
+
+  it("positive: specific creator/UGC/remote job topics are DERIVED H1 candidates without an offer signal, also as how-to", () => {
+    for (const [caption, matched] of H1_TOPICS) {
+      expect(fitOf(caption, "H1"), caption).toEqual(matched);
+      expect(topicalFit(post({ id: "t", caption }), "H1", {}), caption).toEqual({ hypothesis: "H1", eligible: true, source: "derived-keyword", matched });
+      // an H1 topic never qualifies H4
+      expect(topicalFit(post({ id: "t", caption }), "H4", {}).eligible, caption).toBe(false);
+    }
+  });
+
+  it("an H1 topic moves TOPICAL_FIT only: audience need and commercial outcome stay NOT_CONNECTED, no demand field appears", () => {
+    const s = snap([...filler(6), ...H1_TOPICS.map(([caption], i): Spec => ({ id: `t${i}`, caption }))]);
+    const ev = evidenceOf(s);
+    const h1 = lane(ev, "H1");
+    expect(eligibleIds(h1)).toEqual(["t0", "t1", "t2", "t3"]);
+    expect(h1.topicalFit).toMatchObject({ state: "DERIVED", nDerived: 4, nManual: 0, durableReview: "NOT_AVAILABLE" });
+    expect(eligibleIds(lane(ev, "H4"))).toEqual([]);
+    for (const e of ev) {
+      expect(e.audienceNeed).toEqual({ state: "NOT_CONNECTED", signals: AUDIENCE_SIGNALS });
+      expect(e.commercialOutcome).toEqual({ state: "NOT_CONNECTED", signals: COMMERCIAL_SIGNALS });
+      for (const key of ["supporting", "contradicting", "state", "score", "demand", "lean"]) expect(Object.keys(e)).not.toContain(key);
+    }
+    // the resonance reading of a topic post is the plain engagement analysis, unchanged by the topic match
+    const analysis = analyze(s);
+    for (const x of h1.topicalFit.eligible) expect(x.p).toEqual(analysis.posts.find((p) => p.post.media_id === x.p.post.media_id));
+  });
+
+  it("negative: generic creator/travel, praise, the author's own former job, a travel 'opportunity' and a negation are not H1", () => {
+    for (const caption of ["Day in the life of a UGC creator", "Sunset in Bali", "Great job creators!", "I quit my remote job", "Remote opportunity to travel", "Not a UGC job, just a holiday"]) {
+      expect(fitOf(caption, "H1"), caption).toEqual([]);
+      expect(topicalFit(post({ id: "n", caption }), "H1", {}), caption).toMatchObject({ eligible: false, source: "unclassified" });
+    }
+  });
+
+  it("ambiguous: missing or unclear captions stay UNCLASSIFIED; an uncertain DERIVED topic stays visibly correctable per session", () => {
+    expect(topicalFit(post({ id: "m", caption: null }), "H1", {})).toEqual({ hypothesis: "H1", eligible: false, source: "unclassified", matched: [] });
+    expect(topicalFit(post({ id: "u", caption: "Big news soon 👀" }), "H1", {})).toEqual({ hypothesis: "H1", eligible: false, source: "unclassified", matched: [] });
+    const howTo = post({ id: "h", caption: "How to land your first UGC job" });
+    expect(topicalFit(howTo, "H1", { h: { H1: false } })).toEqual({ hypothesis: "H1", eligible: false, source: "manual-session", matched: ["job", "ugc"] });
   });
 });
 
