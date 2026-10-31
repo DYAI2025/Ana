@@ -532,6 +532,78 @@ async function readSocialSnapshot(req,env,url) {
       posts_with_insights:insights.filter(x=>x.state==='ok'||x.state==='partial').length, budget:{limit:b.limit, used:b.used}}
   });
 }
+// ---- World pulse and audience (ANA World, additive internal read contracts) ----
+// Pulse: one cheap read of the newest posts' public counters so the dashboard can show real like/comment deltas
+// within a minute. Audience: Meta's aggregated demographics (top 45, up to 48 h delayed). Neither carries per-like or
+// per-comment origin: Meta does not provide it.
+const PULSE_DEFAULT_MAX = 12;
+const PULSE_MAX = 25;
+const PULSE_SUBREQUEST_BUDGET = 3;
+const AUDIENCE_SUBREQUEST_BUDGET = 6;
+const AUDIENCE_TIMEFRAME = 'this_month';
+const AUDIENCE_READS = [
+  ['engaged_audience_demographics', 'country'], ['engaged_audience_demographics', 'city'],
+  ['follower_demographics', 'country'], ['follower_demographics', 'city'],
+];
+// The caller has already checked INTERNAL_READ_KEY.
+async function internalIdentity(env, budget) {
+  const token=await usableToken(env);
+  if(!token)return {response:json({error:'reauth-required'},409)};
+  const b=metaBudget(token,budget);
+  let identity;
+  try { identity=await snapshotIdentity(b); }
+  catch(e) { return {response:json({error:'instagram-identity-failed',reason:errorClass(e)},502)}; }
+  if(!isExpectedAccount(identity.me,env))return {response:json({error:'account-mismatch'},409)};
+  return {b, identity};
+}
+async function readSocialPulse(req,env,url) {
+  if(!(await authorizeAdmin(req,env,'INTERNAL_READ_KEY')))return json({error:'unauthorized'},401);
+  const maxRaw=url.searchParams.get('max')||String(PULSE_DEFAULT_MAX);
+  if(!/^\d{1,2}$/.test(maxRaw) || +maxRaw<1 || +maxRaw>PULSE_MAX)return json({error:'invalid-max'},400);
+  const ctx=await internalIdentity(env,PULSE_SUBREQUEST_BUDGET);
+  if(ctx.response)return ctx.response;
+  let page;
+  try { page=await ctx.b.fetch('/me/media',{fields:'id,timestamp,media_product_type,like_count,comments_count',limit:+maxRaw}); }
+  catch(e) { return json({error:'instagram-media-fetch-failed',reason:errorClass(e)},502); }
+  const data=Array.isArray(page?.data)?page.data:[];
+  const followers=ctx.identity.extras?countOrNull(ctx.identity.me.followers_count):null;
+  const mediaCount=ctx.identity.extras?countOrNull(ctx.identity.me.media_count):null;
+  return json({
+    pulse_version:1, fetched_at:new Date().toISOString(), provider:'instagram', api_version:GRAPH_VERSION,
+    account:{followers_count:followers, media_count:mediaCount},
+    items:data.slice(0,+maxRaw).map(m=>({id:String(m.id), timestamp:m.timestamp ?? null, media_product_type:m.media_product_type ?? null,
+      like_count:countOrNull(m.like_count), comments_count:countOrNull(m.comments_count)}))
+  });
+}
+function demographicResults(entry) {
+  const breakdowns=entry?.total_value?.breakdowns;
+  const results=Array.isArray(breakdowns)&&Array.isArray(breakdowns[0]?.results)?breakdowns[0].results:[];
+  return results.map(r=>{
+    const dims=Array.isArray(r?.dimension_values)?r.dimension_values:[];
+    const key=dims.length?String(dims[dims.length-1]):null;
+    return {key, value:countOrNull(r?.value)};
+  }).filter(r=>r.key!==null && r.key.length>0 && r.key.length<=120 && r.value!==null);
+}
+async function readSocialAudience(req,env) {
+  if(!(await authorizeAdmin(req,env,'INTERNAL_READ_KEY')))return json({error:'unauthorized'},401);
+  const ctx=await internalIdentity(env,AUDIENCE_SUBREQUEST_BUDGET);
+  if(ctx.response)return ctx.response;
+  const userId=ctx.identity.me.user_id;
+  const metrics=[];
+  for (const [name, breakdown] of AUDIENCE_READS) {
+    const base={name, breakdown, timeframe:AUDIENCE_TIMEFRAME};
+    try {
+      const data=await ctx.b.fetch(`/${userId}/insights`,{metric:name, period:'lifetime', timeframe:AUDIENCE_TIMEFRAME, metric_type:'total_value', breakdown});
+      const entry=(Array.isArray(data?.data)?data.data:[]).find(x=>x?.name===name);
+      const results=demographicResults(entry);
+      metrics.push(results.length?{...base, state:'ok', results}:{...base, state:'unavailable', error_class:'empty-response', results:[]});
+    } catch(e) {
+      const cls=notSent(e)?e.message:errorClass(e);
+      metrics.push({...base, state:e instanceof MetaError&&e.metaCode===100?'unavailable':notSent(e)?'not_fetched':'error', error_class:cls, results:[]});
+    }
+  }
+  return json({audience_version:1, fetched_at:new Date().toISOString(), provider:'instagram', api_version:GRAPH_VERSION, metrics});
+}
 async function refresh(env,force=false) {
   const row=await findToken(env);
   if(!row)return {status:'NOT_AUTHORIZED'};
@@ -588,6 +660,8 @@ async function route(req,env,url) {
   }
   if(req.method==='GET' && url.pathname==='/internal/media')return readMedia(req,env,url);
   if(req.method==='GET' && url.pathname==='/internal/social-snapshot')return readSocialSnapshot(req,env,url);
+  if(req.method==='GET' && url.pathname==='/internal/social-pulse')return readSocialPulse(req,env,url);
+  if(req.method==='GET' && url.pathname==='/internal/social-audience')return readSocialAudience(req,env);
   if(req.method==='GET' && url.pathname==='/instagram/start')return startPage(req,env,url);
   if(req.method==='POST' && url.pathname==='/instagram/start')return startLogin(req,env);
   if(req.method==='GET' && url.pathname===CALLBACK_PATH)return callback(req,env,url);
