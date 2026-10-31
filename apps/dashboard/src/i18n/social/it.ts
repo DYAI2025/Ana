@@ -259,7 +259,7 @@ export const socialIt: Messages["social"] = {
       "maturity-not-age-matched": "La soglia di 7 giorni toglie solo i post molto recenti; non rende le età confrontabili.",
       "unequal-ages": "I post confrontati differiscono molto per età.",
       "format-skew": "Un formato domina o un formato non ha una base utilizzabile; la lettura riflette soprattutto un formato.",
-      "format-mix": "I due gruppi contengono più di un formato; le loro mediane confrontano mix di formati diversi.",
+      "format-mix": "Insieme i gruppi contengono più di un formato; parte di ogni differenza può dipendere dal formato, non dal tema.",
       "stale-snapshot": "Questo snapshot non è attuale (l'ultimo aggiornamento non è riuscito).",
       overlap: "Alcuni post sono pertinenti a entrambe le ipotesi; sono un'unica evidenza, non due.",
       "no-causality": "Mostra un'associazione, non una causa.",

@@ -258,7 +258,7 @@ export const socialEn = {
       "maturity-not-age-matched": "The 7-day cutoff only removes very young posts; it does not make ages comparable.",
       "unequal-ages": "Compared posts differ strongly in age.",
       "format-skew": "One format dominates or a format has no usable baseline; the reading mostly reflects one format.",
-      "format-mix": "The two groups hold more than one format; their medians compare different format mixes.",
+      "format-mix": "The groups together hold more than one format; part of any difference can come from format, not topic.",
       "stale-snapshot": "This snapshot is not current (the last refresh failed).",
       overlap: "Some posts fit both hypotheses; they are one piece of evidence, not two.",
       "no-causality": "Shows association, not cause.",

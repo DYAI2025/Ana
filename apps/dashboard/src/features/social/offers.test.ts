@@ -115,10 +115,10 @@ describe("AC2 · topical fit is specific; generic keywords never qualify a hypot
     }
     // remote WORK still qualifies, and a possessive in another clause does not block a real opportunity
     // (round 4: a possessive earlier in the SAME clause abstains, even when the author may be listing others' jobs)
-    expect(fitOf("Remote work opportunities for editors", "H1")).toEqual(["opportunities", "remote work"]);
+    expect(fitOf("Remote work opportunities for editors, apply by Friday", "H1")).toEqual(["opportunities", "remote work"]);
     expect(fitOf("Opportunities list: remote work", "H1")).toEqual(["opportunities", "remote work"]);
-    expect(fitOf("Remote opportunity for UGC creators", "H1")).toEqual(["opportunity", "ugc"]);
-    expect(fitOf("My picks. Top 5 UGC jobs this week", "H1")).toEqual(["jobs", "ugc"]);
+    expect(fitOf("Remote opportunity for UGC creators: apply now", "H1")).toEqual(["opportunity", "ugc"]);
+    expect(fitOf("My picks. Top 5 UGC jobs this week, apply via the link", "H1")).toEqual(["jobs", "ugc"]);
     expect(fitOf("My top 5 UGC jobs this week", "H1")).toEqual([]);
     expect(fitOf("Our brand is hiring", "H1")).toEqual(["hiring", "brand"]);
   });
@@ -127,7 +127,7 @@ describe("AC2 · topical fit is specific; generic keywords never qualify a hypot
     expect(fitOf("My morning workout workflow", "H4")).toEqual([]);
     expect(fitOf("My morning workout workflow", "H1")).toEqual([]);
     // a workflow counts only with a reusable-file cue
-    expect(fitOf("My content workflow as a Notion file", "H4")).toEqual(["workflow", "file", "notion"]);
+    expect(fitOf("My content workflow as a Notion file", "H4")).toEqual(["workflow", "file"]);
   });
 
   it("negative (review round 3): idioms, distant own jobs, negations and sentence breaks are not an H1 opportunity", () => {
@@ -206,8 +206,42 @@ describe("AC2 · topical fit is specific; generic keywords never qualify a hypot
     expect(fitOf("Downloadable creator toolkit", "H4")).toEqual(["toolkit", "downloadable"]);
   });
 
+  it("negative (review round 5): without an explicit offer signal, or under an advice frame, a job phrase is not an H1 opportunity", () => {
+    for (const caption of [
+      "How to get UGC jobs with no followers",
+      "How to find remote jobs in 2025",
+      "Where to find brand jobs as a small creator",
+      "5 remote jobs you can do from anywhere",
+      "How to apply for UGC jobs",
+      "Just shot a UGC job for a skincare brand",
+      "This UGC gig paid me $500",
+      "BTS of today's UGC job",
+      "Day in the life with a remote job in Bali",
+      "POV: you have a remote job and live in Bali",
+      "Reels are a huge creator opportunity",
+      "AI is a massive brand opportunity",
+      "Remote jobs are overrated",
+      "UGC jobs aren't what you think",
+      "Stop chasing brand jobs",
+      "The truth about UGC jobs",
+      "Why UGC jobs pay so little",
+      "Remote jobs for creators",
+    ]) {
+      expect(fitOf(caption, "H1"), caption).toEqual([]);
+    }
+    expect(fitOf("Remote jobs for creators, apply now", "H1")).toEqual(["jobs", "creators", "remote"]);
+    expect(fitOf("New this week #ugcjobs", "H1")).toEqual(["ugcjobs"]);
+  });
+
+  it("negative (review round 5): an app name or a distant cue does not make a routine an H4 file", () => {
+    for (const caption of ["Notion changed my workflow", "I use Notion for my workflow", "Notion workflow tour: how I plan my week", "Notion vs spreadsheets", "Organizing files is my whole workflow"]) {
+      expect(fitOf(caption, "H4"), caption).toEqual([]);
+    }
+    expect(fitOf("My Notion template for content planning", "H4")).toEqual(["template"]);
+  });
+
   it("positive (falsification round 2): real H1/H4 captions stay DERIVED candidates", () => {
-    expect(fitOf("UGC jobs for creators", "H1")).toEqual(["jobs", "ugc", "creators"]);
+    expect(fitOf("UGC jobs for creators, apply now", "H1")).toEqual(["jobs", "ugc", "creators"]);
     expect(fitOf("Brands hiring UGC creators", "H1")).toEqual(["hiring", "ugc", "creators", "brands"]);
     expect(fitOf("UGC rate card template", "H4")).toEqual(["template", "rate card"]);
     expect(fitOf("UGC rate card template", "H1")).toEqual([]);
@@ -220,8 +254,8 @@ describe("AC2 · topical fit is specific; generic keywords never qualify a hypot
 
   it("positive: compact hashtags and German/Italian job wording", () => {
     expect(fitOf("New this week #ugcjobs #remotework", "H1")).toEqual(["ugcjobs"]);
-    expect(fitOf("Stellenangebote für Creator", "H1")).toEqual(["stellenangebote", "creator"]);
-    expect(fitOf("Opportunità di lavoro per creator UGC", "H1")).toEqual(["opportunità di lavoro", "creator"]);
+    expect(fitOf("Stellenangebote für Creator: jetzt bewerben", "H1")).toEqual(["stellenangebote", "creator"]);
+    expect(fitOf("Opportunità di lavoro per creator UGC, candidature entro venerdì", "H1")).toEqual(["opportunità di lavoro", "creator"]);
     expect(fitOf("Meine Checklisten für Kooperationen", "H4")).toEqual(["checklisten"]);
   });
 
@@ -272,7 +306,7 @@ describe("AC2 · topical fit is specific; generic keywords never qualify a hypot
   });
 
   it("session corrections are hypothesis-specific, marked MANUAL_SESSION and never durable review", () => {
-    const s = snap([...filler(6), { id: "travel", caption: "Island trip vlog" }, { id: "job", caption: "Remote jobs for creators" }]);
+    const s = snap([...filler(6), { id: "travel", caption: "Island trip vlog" }, { id: "job", caption: "Remote jobs for creators, apply now" }]);
     const ev = evidenceOf(s, { travel: { H1: true }, job: { H1: false } });
     const h1 = lane(ev, "H1");
     expect(eligibleIds(h1)).toEqual(["travel"]);
@@ -337,7 +371,7 @@ describe("AC3 · four independent lanes; engagement is never product evidence", 
 });
 
 describe("AC4 · comparability limits are disclosed, missing data never becomes a value", () => {
-  const job = (id: string, extra: Partial<Spec> = {}): Spec => ({ id, caption: "Remote jobs for creators", ...extra });
+  const job = (id: string, extra: Partial<Spec> = {}): Spec => ({ id, caption: "Remote jobs for creators, apply now", ...extra });
 
   it("the 7-day cutoff and per-metric gates are unchanged", () => {
     expect([MATURE_AGE_DAYS, MIN_GROUP_N, MIN_THEME_N, MIN_PATTERN_GROUP_N]).toEqual([7, 5, 3, 8]);
@@ -437,9 +471,9 @@ describe("AC4 · H1-only vs H4-only comparison is descriptive, absolute and neve
   function withIndices(h1: number[], h4: number[], both: number[] = []): HypothesisEvidence[] {
     const mk = (id: string, caption: string, idx: number): PostAnalysis => ({ ...analyze(snap([{ id, caption }])).posts[0]!, excluded: null, contentActionIndex: idx });
     const posts = [
-      ...h1.map((v, i) => mk(`a${i}`, "UGC jobs for creators", v)),
+      ...h1.map((v, i) => mk(`a${i}`, "UGC jobs for creators, apply now", v)),
       ...h4.map((v, i) => mk(`b${i}`, "My checklist template", v)),
-      ...both.map((v, i) => mk(`c${i}`, "Remote jobs plus checklist template", v)),
+      ...both.map((v, i) => mk(`c${i}`, "Remote jobs plus checklist template, apply now", v)),
     ];
     const analysis: Analysis = { observedAt: OBSERVED, groups: [], posts };
     return hypothesisEvidence(analysis, ruleFit());
@@ -452,7 +486,7 @@ describe("AC4 · H1-only vs H4-only comparison is descriptive, absolute and neve
   it("review round 3: the comparison discloses format skew and unequal ages between the two disjoint groups", () => {
     const mk = (id: string, caption: string, format: PostFormat, days: number, idx: number): PostAnalysis => ({ ...analyze(snap([{ id, caption, format, days }])).posts[0]!, excluded: null, contentActionIndex: idx });
     const posts = [
-      ...Array.from({ length: 8 }, (_, i) => mk(`r${i}`, "UGC jobs for creators", "reel", 8 + (i % 3), 1.3)),
+      ...Array.from({ length: 8 }, (_, i) => mk(`r${i}`, "UGC jobs for creators, apply now", "reel", 8 + (i % 3), 1.3)),
       ...Array.from({ length: 8 }, (_, i) => mk(`f${i}`, "My checklist template", "image", 150 + i * 20, 1)),
     ];
     const c = engagementComparison(hypothesisEvidence({ observedAt: OBSERVED, groups: [], posts }, ruleFit()));
@@ -464,7 +498,7 @@ describe("AC4 · H1-only vs H4-only comparison is descriptive, absolute and neve
 
   it("review round 4: format-mix does not depend on post order", () => {
     const mk = (id: string, caption: string, format: PostFormat, idx: number): PostAnalysis => ({ ...analyze(snap([{ id, caption, format }])).posts[0]!, excluded: null, contentActionIndex: idx });
-    const h1 = Array.from({ length: 8 }, (_, i) => mk(`a${i}`, "UGC jobs for creators", i % 2 ? "image" : "reel", 1.2));
+    const h1 = Array.from({ length: 8 }, (_, i) => mk(`a${i}`, "UGC jobs for creators, apply now", i % 2 ? "image" : "reel", 1.2));
     const h4 = Array.from({ length: 8 }, (_, i) => mk(`b${i}`, "My checklist template", "reel", 1));
     for (const posts of [[...h1, ...h4], [...[...h1].reverse(), ...h4]]) {
       expect(engagementComparison(hypothesisEvidence({ observedAt: OBSERVED, groups: [], posts }, ruleFit())).limitations).toContain("format-mix");

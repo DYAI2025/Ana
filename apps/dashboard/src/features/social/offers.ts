@@ -280,7 +280,7 @@ export function engagementComparison(evidence: readonly HypothesisEvidence[]): E
     for (const p of ps) counts.set(p.post.format, (counts.get(p.post.format) ?? 0) + 1);
     return counts;
   };
-  // any format mix across the two groups: their medians then compare different format populations (order-independent)
+  // any format present beside another across the two groups (order-independent, conservative: also for equal mixes)
   if (share(both).size > 1) limitations.push("format-mix");
   if (evidence.some((e) => e.contentResonance.limitations.includes("stale-snapshot"))) limitations.push("stale-snapshot");
   const base = { nH1Only: only1.length, nH4Only: only4.length, nBoth: h1.length - only1.length, limitations };

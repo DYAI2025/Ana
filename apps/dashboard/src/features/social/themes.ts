@@ -81,6 +81,11 @@ export const CANDIDATES: readonly CandidateHypothesis[] = ["H1", "H4"];
  * - "hiring" announced (clause start, "now hiring", "we're hiring", "brands hiring", "<brand> is hiring") and followed by the domain term
  *   (at most one word between): "hiring UGC creators"; advice such as "stop hiring influencers" does not count;
  * - a plural list head with a colon: "Opportunities list: remote work" (a singular "Dream job: UGC creator" is a label).
+ * A construction is only a candidate: the caption must also carry an explicit offer signal (apply, casting call, open
+ * call, deadline, wanted, a list/board/listing, announced hiring, …), and a how-to or advice frame before it in the
+ * clause ("how to get UGC jobs", "tips to land brand jobs", "where to find remote jobs") abstains. Without the signal a
+ * construction is usually advice, commentary, the author's own job or lifestyle ("BTS of today's UGC job", "a day in the
+ * life with a remote job"), so the rule abstains (review round 5).
  * Anything else does not qualify, however close the words are ("great job creators", "a brand new opportunity to
  * travel", "my UGC side gig", "remote island trip, what an opportunity"); neither do travel, nomad, creator or UGC alone,
  * or "apply" alone. A few compact hashtags count on their own.
@@ -104,7 +109,11 @@ const H1_CONNECTORS: ReadonlySet<string> = new Set(["for", "für", "per"]);
 /** "our brand is hiring" */
 const COPULAS: ReadonlySet<string> = new Set(["is", "are", "ist", "sind", "è", "sono"]);
 /** Words before "hiring" that announce it ("now hiring", "we're hiring", "brand is hiring"); clause start counts too. */
-const HIRING_ANNOUNCERS: ReadonlySet<string> = new Set(["now", "re", "is", "are", "ist", "sind", "è", "sono"]);
+const HIRING_ANNOUNCERS: ReadonlySet<string> = new Set(["now", "re", "m", "currently", "still", "is", "are", "ist", "sind", "è", "sono"]);
+/** Explicit signals that something is on offer; at least one must appear somewhere in the caption (review round 5). */
+export const H1_OFFER_SIGNALS = ["apply", "applications", "application", "casting call", "open call", "deadline", "wanted", "list", "listing", "listings", "board", "roundup", "vacancy", "vacancies", "bewerben", "bewerbung", "bewirb", "candidati", "candidatura", "candidature"] as const;
+/** Advice or how-to frames: before a construction in the same clause they mean no job is on offer. */
+const ADVICE_FRAMES: ReadonlySet<string> = new Set(["how", "where", "tips", "tip", "ways", "guide", "wie", "wo", "tipps", "come", "dove", "consigli"]);
 /** List heads are plural ("UGC jobs: …", "Opportunities list: …"); a singular head before a colon is a label. */
 const H1_PLURAL_OPPORTUNITY: ReadonlySet<string> = new Set(["jobs", "gigs", "opportunities", "vacancies", "job listings", "stellenangebote", "offerte di lavoro"]);
 /** Job nouns that, after a first-person possessive ("my remote job"), name the author's own employment. */
@@ -126,15 +135,16 @@ export const H4_ARTIFACT_TERMS = ["template", "templates", "checklist", "checkli
 /**
  * "Workflow" alone is usually a routine ("my morning workout workflow"), "spreadsheet" an office job ("my spreadsheet job")
  * and "toolkit" a figure of speech ("my emotional toolkit"). They count only with a cue that the thing itself is a reusable
- * file, in the same clause, at most H4_CUE_GAP words away, with no new subject in between, and either before it as a
- * modifier ("downloadable workflow", "Notion workflow") or after it as an apposition ("workflow as a PDF"). A cue the
+ * file, in the same clause, with no new subject in between, and either right before it as a modifier (at most one word
+ * between: "downloadable workflow", "PDF workflow") or after it as an apposition at most H4_CUE_GAP words away
+ * ("workflow as a PDF"). An app name alone is not a file cue ("Notion changed my workflow"); "Notion template" is. A cue the
  * routine acts on does not count ("workflow for video files", "workflow to file taxes", "workflow: download emails").
  * Calls to action ("save this") are not cues: they move saves themselves.
  */
 export const H4_WEAK_ARTIFACT_TERMS = ["workflow", "workflows", "spreadsheet", "spreadsheets", "toolkit"] as const;
 /** "workflow as a PDF", "Workflow als Datei", "workflow come file" */
 const APPOSITION: ReadonlySet<string> = new Set(["as", "als", "come"]);
-export const H4_REUSABLE_FILE_CUES = ["file", "files", "pdf", "download", "downloadable", "notion", "google doc", "google sheet", "reusable", "plug and play", "datei", "dateien"] as const;
+export const H4_REUSABLE_FILE_CUES = ["file", "files", "pdf", "download", "downloadable", "notion template", "google doc", "google sheet", "reusable", "plug and play", "datei", "dateien"] as const;
 const H4_CUE_GAP = 3;
 const SUBJECT_PRONOUNS: ReadonlySet<string> = new Set(["i", "we", "you", "he", "she", "they", "ich", "wir", "du", "io", "noi", "tu"]);
 
@@ -189,6 +199,7 @@ export function deriveTopicalFit(caption: string | null, hypothesis: CandidateHy
               if (before(t, cs0, NEGATORS)) continue;
               const [lo, hi] = cs0 > we ? [we + 1, cs0] : [ce + 1, ws];
               if (cs0 > we && !APPOSITION.has(t[we + 1]!)) continue;
+              if (cs0 < ws && ws - ce - 1 > 1) continue; // a modifier sits right before it ("downloadable (creator) toolkit")
               if (hi - lo > H4_CUE_GAP || t.slice(lo, hi).some((x) => SUBJECT_PRONOUNS.has(x))) continue;
               hits.add(w);
               hits.add(c);
@@ -197,8 +208,10 @@ export function deriveTopicalFit(caption: string | null, hypothesis: CandidateHy
     }
     return [...H4_ARTIFACT_TERMS, ...H4_WEAK_ARTIFACT_TERMS, ...H4_REUSABLE_FILE_CUES].filter((k) => hits.has(k));
   }
+  const offered = cs.some((t) => H1_OFFER_SIGNALS.some((sig) => occurrences(t, sig).length > 0) || occurrences(t, "hiring").some(([os]) => os === 0 || HIRING_ANNOUNCERS.has(t[os - 1]!) || DOMAIN_WORDS.has(t[os - 1]!)));
   for (const t of cs) {
     for (const h of H1_HASHTAG_TERMS) if (occurrences(t, h).length) hits.add(h);
+    if (!offered) continue;
     for (const o of H1_OPPORTUNITY_TERMS)
       for (const occ of occurrences(t, o))
         for (const d of H1_DOMAIN_TERMS)
@@ -207,7 +220,7 @@ export function deriveTopicalFit(caption: string | null, hypothesis: CandidateHy
             if (H1_WORK_ONLY_DOMAINS.has(d) && H1_GENERIC_OPPORTUNITY.has(o)) continue;
             const start = Math.min(occ[0], dOcc[0]);
             if (H1_OWN_JOB_NOUNS.has(o) && (before(t, start, FIRST_PERSON_POSSESSIVES) || before(t, start, OWN_JOB_VERBS))) continue;
-            if (before(t, start, NEGATORS)) continue;
+            if (before(t, start, NEGATORS) || before(t, start, ADVICE_FRAMES)) continue;
             if (H1_OWN_JOB_NOUNS.has(o) && (t.slice(Math.max(0, start - 2), start).some((x) => PRAISE.has(x)) || (t[occ[1] + 1] === "well" && t[occ[1] + 2] === "done"))) continue;
             if ((o === "gig" || o === "gigs") && t[occ[1] + 1] === "economy") continue;
             hits.add(o);

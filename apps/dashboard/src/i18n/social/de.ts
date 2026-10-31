@@ -259,7 +259,7 @@ export const socialDe: Messages["social"] = {
       "maturity-not-age-matched": "Die 7-Tage-Grenze entfernt nur sehr junge Beiträge; sie macht Alter nicht vergleichbar.",
       "unequal-ages": "Die verglichenen Beiträge unterscheiden sich stark im Alter.",
       "format-skew": "Ein Format dominiert oder ein Format hat keine nutzbare Basis; die Lesart spiegelt vor allem ein Format.",
-      "format-mix": "Die beiden Gruppen enthalten mehr als ein Format; ihre Mediane vergleichen unterschiedliche Formatmischungen.",
+      "format-mix": "Die Gruppen enthalten zusammen mehr als ein Format; ein Teil jedes Unterschieds kann vom Format kommen, nicht vom Thema.",
       "stale-snapshot": "Dieser Snapshot ist nicht aktuell (die letzte Aktualisierung schlug fehl).",
       overlap: "Einige Beiträge passen zu beiden Hypothesen; sie sind ein Beleg, nicht zwei.",
       "no-causality": "Zeigt Zusammenhang, keine Ursache.",
