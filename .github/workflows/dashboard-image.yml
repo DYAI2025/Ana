@@ -4,8 +4,9 @@ name: dashboard-image
 # container, extracts its /app as the native bundle for hosts without Docker, proves the same gate with that bundle
 # under Node 24, and keeps both as the workflow artifact ana-dashboard-<sha>. This is the app side of the release
 # contract in deploy/ana-dashboard/README.md; the only host is the Contabo VPS vmi3693936 (ADR-ANA-001 v3).
-# <sha> is OUT_ID below. Release only artifacts of push runs on main: a pull_request run is named pr-<PR head> and is
-# test evidence for that head, never a release.
+# <sha> is OUT_ID below. Release only artifacts of push runs on main: a pull_request run is named pr-<PR head>, any
+# other non-release run test-<sha>; both are test evidence kept 3 days, never a release (deploy/fetch-release.sh and
+# release.sh check the run's event, branch and commit, not just the name).
 # No registry, no secrets, no deploy step.
 # Keep the push and pull_request path lists identical.
 on:
@@ -14,11 +15,15 @@ on:
     paths:
       - "apps/dashboard/**"
       - "deploy/ana-dashboard/**"
+      - "deploy/fetch-release.sh"
+      - "deploy/test-release-provenance.sh"
       - ".github/workflows/dashboard-image.yml"
   pull_request:
     paths:
       - "apps/dashboard/**"
       - "deploy/ana-dashboard/**"
+      - "deploy/fetch-release.sh"
+      - "deploy/test-release-provenance.sh"
       - ".github/workflows/dashboard-image.yml"
   workflow_dispatch:
 
@@ -30,9 +35,13 @@ env:
   # merge with the base), the pushed commit on push and workflow_dispatch. A PR run therefore does not test the merge
   # result; that the head contains the current base is checked at merge readiness (docs/delivery/DRS.md).
   SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
-  # names every bundle, image tag and artifact: <SOURCE_SHA> on push and workflow_dispatch, pr-<SOURCE_SHA> on
-  # pull_request. release.sh takes a bare 40-hex commit, so it can never pick up the output of a pull_request run.
-  OUT_ID: ${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.head.sha) || github.sha }}
+  # names every bundle, image tag and artifact: the bare <SOURCE_SHA> only on a push to main (a release candidate),
+  # pr-<SOURCE_SHA> on pull_request and test-<SOURCE_SHA> on any other run (workflow_dispatch on any branch). The step
+  # "Output name matches the event" asserts this at run time; deploy/test-release-provenance.sh pins this line.
+  # release.sh takes a bare 40-hex commit AND checks the bundle's .ana-build (event push, ref main, that commit).
+  OUT_ID: ${{ (github.event_name == 'push' && github.ref == 'refs/heads/main') && github.sha || format('{0}-{1}', github.event_name == 'pull_request' && 'pr' || 'test', github.event.pull_request.head.sha || github.sha) }}
+  # artifact retention: 30 days for release candidates (push to main), 3 days for test output (quota, 2026-10-31)
+  RETENTION_DAYS: ${{ (github.event_name == 'push' && github.ref == 'refs/heads/main') && 30 || 3 }}
 
 jobs:
   image:
@@ -47,6 +56,19 @@ jobs:
         run: |
           [ "$(git rev-parse HEAD)" = "$SOURCE_SHA" ] || { echo "FAIL: HEAD is $(git rev-parse HEAD), expected $SOURCE_SHA"; exit 1; }
           echo "source $SOURCE_SHA tree $(git rev-parse 'HEAD^{tree}')"
+      - name: Output name matches the event
+        shell: bash
+        run: |
+          # canary for release-shaped names: only a push to main may name its outputs with a bare 40-hex commit
+          if [ "$GITHUB_EVENT_NAME" = push ] && [ "$GITHUB_REF" = refs/heads/main ]; then
+            [ "$OUT_ID" = "$SOURCE_SHA" ] && [[ "$OUT_ID" =~ ^[0-9a-f]{40}$ ]] || { echo "FAIL: push to main, OUT_ID '$OUT_ID'"; exit 1; }
+            [ "$RETENTION_DAYS" = 30 ] || { echo "FAIL: release retention $RETENTION_DAYS"; exit 1; }
+          else
+            if [[ "$OUT_ID" =~ ^[0-9a-f]{40}$ ]]; then echo "FAIL: $GITHUB_EVENT_NAME on $GITHUB_REF has the release-shaped name $OUT_ID"; exit 1; fi
+            [[ "$OUT_ID" =~ ^(pr|test)-[0-9a-f]{40}$ && "$OUT_ID" == *"-$SOURCE_SHA" ]] || { echo "FAIL: OUT_ID '$OUT_ID'"; exit 1; }
+            [ "$RETENTION_DAYS" = 3 ] || { echo "FAIL: test-output retention $RETENTION_DAYS"; exit 1; }
+          fi
+          echo "event $GITHUB_EVENT_NAME ref $GITHUB_REF -> outputs $OUT_ID, retention $RETENTION_DAYS days"
       - name: Build
         run: docker build --platform linux/amd64 -t "ana-dashboard:${OUT_ID}" apps/dashboard
       - name: Image health check budget
@@ -90,6 +112,9 @@ jobs:
           grep -qF 'http://127.0.0.1:20242/ready' "$r" || fail "release.sh no longer polls 127.0.0.1:20242"
           grep -qE '^[[:space:]]*ExecStart[[:space:]]*=.*--metrics[[:space:]=]+127\.0\.0\.1:20242([[:space:]]|$)' "$t" || fail "tunnel: metrics not on 127.0.0.1:20242, where release.sh polls"
           bash -n "$r"
+      - name: Release provenance (only a push run on main is releasable; canaries for release-shaped PR names)
+        shell: bash
+        run: deploy/test-release-provenance.sh
       - name: Access gate inside the container
         shell: bash
         run: |
@@ -137,6 +162,9 @@ jobs:
           set -euo pipefail
           cid="$(docker create "ana-dashboard:${OUT_ID}")"
           mkdir bundle && docker cp "$cid:/app/." bundle/ && docker rm "$cid"
+          # provenance, checked by release.sh (covered by the .sha256): which run built this bundle, for which commit
+          printf '%s\n' "repository=$GITHUB_REPOSITORY" "workflow=.github/workflows/dashboard-image.yml" "event=$GITHUB_EVENT_NAME" \
+            "ref=$GITHUB_REF" "sha=$SOURCE_SHA" "run_id=$GITHUB_RUN_ID" "run_attempt=$GITHUB_RUN_ATTEMPT" > bundle/.ana-build
           tar -C bundle --owner=0 --group=0 --numeric-owner -czf "ana-dashboard-app-${OUT_ID}.tar.gz" .
           sha256sum "ana-dashboard-app-${OUT_ID}.tar.gz" | tee "ana-dashboard-app-${OUT_ID}.tar.gz.sha256"
       - uses: actions/setup-node@v4
@@ -187,4 +215,4 @@ jobs:
             ana-dashboard-app-${{ env.OUT_ID }}.tar.gz
             ana-dashboard-app-${{ env.OUT_ID }}.tar.gz.sha256
           if-no-files-found: error # the v4 default only warns
-          retention-days: 30
+          retention-days: ${{ env.RETENTION_DAYS }}

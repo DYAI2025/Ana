@@ -27,8 +27,15 @@ shown only by its evidence (section 2).
 
 1. **Artifact.** Release only `ana-dashboard-app-<sha>.tar.gz` with its `.sha256` from a **successful push run of
    `dashboard-image` on `main`** for that commit, and verify the checksum before unpacking. A pull_request run builds
-   the PR head and names its outputs `pr-<sha>` (artifact `ana-dashboard-pr-<sha>`): test output, never a release;
-   `release.sh` takes only a bare 40-hex commit, so it cannot find such a bundle. The bundle is the `/app` of the image whose access gate CI tested; it is built for linux/amd64
+   the PR head and names its outputs `pr-<sha>` (artifact `ana-dashboard-pr-<sha>`), any other run that is not a push
+   to `main` (e.g. `workflow_dispatch`) `test-<sha>`; both are test output kept 3 days, never a release. The name alone
+   is not trusted: pull_request runs before 329f4a9 uploaded release-shaped `ana-dashboard-<sha>` artifacts, often
+   named after GitHub's test merge commit. `deploy/fetch-release.sh` therefore checks the run itself through the
+   GitHub API (event push, branch `main`, that commit, success, this workflow, no fork) before it downloads, and
+   `release.sh` refuses any bundle whose `.ana-build` (written by the run into the bundle, covered by the `.sha256`)
+   does not say event push, ref `refs/heads/main`, workflow `dashboard-image.yml` and that commit; bundles built
+   before this rule have no `.ana-build` and are refused. `deploy/test-release-provenance.sh` proves both in CI. The
+   bundle is the `/app` of the image whose access gate CI tested, plus that `.ana-build`; it is built for linux/amd64
    only, and its only native code is `sharp` for linux-x64/glibc.
 2. **Runtime.** A Node version the bundle was tested with. The app declares Node >= 22.12; CI builds and tests the
    image on Node 22 and runs the extracted bundle under v24.22.0 (the Node of the Contabo host, observed 2026-10-27), checking that the
@@ -160,9 +167,8 @@ systemd-analyze verify /etc/systemd/system/dyai-ana-dashboard.service /etc/syste
 
 ```bash
 SHA=<full git sha of main>
-# only the artifact of the successful push run on main for that commit (invariant 1)
-RUN=$(gh run list -R DYAI2025/Ana -w dashboard-image.yml -b main -e push -c "$SHA" -s success --json databaseId -q '.[0].databaseId')
-[ -n "$RUN" ] && gh run download "$RUN" -R DYAI2025/Ana -n ana-dashboard-$SHA -D /tmp/ana-$SHA
+# only the artifact of the successful push run on main for that commit (invariant 1); stops on anything else
+deploy/fetch-release.sh dashboard "$SHA" /tmp/ana-$SHA
 ssh <contabo> install -d -m 700 /root/ana-release-in-$SHA
 scp /tmp/ana-$SHA/ana-dashboard-app-$SHA.tar.gz{,.sha256} <contabo>:/root/ana-release-in-$SHA/
 # runs as a transient unit, so a dropped ssh session cannot kill it half way
@@ -171,7 +177,9 @@ ssh <contabo> journalctl -u ana-release -o cat -n 50
 ```
 
 `release.sh` takes a lock, refuses credential files that are empty or not root:root/600, a team domain whose signing
-keys are not reachable from the host, a bundle whose checksum does not match and a bundle with symlinks that leave it.
+keys are not reachable from the host, a bundle whose checksum does not match, a bundle whose `.ana-build` does not
+name a push run of `dashboard-image` on `main` for that commit (invariant 1; `release.sh --check-bundle <sha> <dir>`
+runs only this check and touches nothing) and a bundle with symlinks that leave it.
 It unpacks the bundle read-only under `releases/<sha>` (`.next/cache` points at the unit's CacheDirectory), switches
 `current` atomically, restarts the dashboard (after `reset-failed`, so an earlier crash loop cannot block the start)
 and counts the release as verified only when the unit is active, `/api/healthz` answers 200 from the unit's own
