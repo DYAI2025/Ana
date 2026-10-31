@@ -202,6 +202,13 @@ function OfferSignals({
           <StateChip state="INSUFFICIENT_EVIDENCE" />
         )}
         <p className={styles.note}>{t("social.offers.comparisonNote")}</p>
+        <ul className={styles.limits} data-testid="comparison-limitations">
+          {comparison.limitations.map((l) => (
+            <li key={l} data-limitation={l}>
+              {t(`social.offers.limitations.${l}`)}
+            </li>
+          ))}
+        </ul>
       </article>
       <div className={styles.tableWrap}>
         <table className={styles.table}>
@@ -335,7 +342,7 @@ function HypothesisCard({ e, open, onToggle, decision, onDecide, onSelect }: { e
       {open ? (
         <div id={`${base}-inspect`} className={styles.inspection} data-testid={`inspection-${id}`}>
           <p className={styles.detailTitle}>{t("social.offers.eligibleTitle", { n: tf.eligible.length })}</p>
-          <ul className={styles.limits} data-testid={`eligible-${id}`} data-count={tf.eligible.length}>
+          <ul className={styles.limits} data-testid={`eligible-${id}`} data-count={tf.eligible.length} data-derived={tf.nDerived} data-manual={tf.nManual} data-overlap={tf.nOverlap}>
             {tf.eligible.length ? tf.eligible.slice(0, 12).map((x) => <FitRow key={x.p.post.media_id} x={x} onSelect={onSelect} />) : <li className={styles.muted}>{t("social.offers.topicalNone")}</li>}
           </ul>
           {tf.sessionExcluded.length ? (

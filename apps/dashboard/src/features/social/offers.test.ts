@@ -128,6 +128,38 @@ describe("AC2 · topical fit is specific; generic keywords never qualify a hypot
     expect(fitOf("My content workflow as a Notion file", "H4")).toEqual(["workflow", "file", "notion"]);
   });
 
+  it("negative (review round 3): idioms, distant own jobs, negations and sentence breaks are not an H1 opportunity", () => {
+    for (const caption of [
+      "A brand new opportunity to travel the world",
+      "Started a brand-new job in Lisbon",
+      "Great job creators! See you at the meetup",
+      "Good job, remote team!",
+      "Creator job well done",
+      "Collab with a hotel brand. Job of the day: relax by the pool",
+      "I quit my UGC side gig",
+      "I left my remote side job",
+      "Mein Job als Creator ist vorbei",
+      "I love my job for creators",
+      "Not a UGC job, not a brand deal, just a beach trip",
+      "No jobs for creators here",
+    ]) {
+      expect(fitOf(caption, "H1"), caption).toEqual([]);
+    }
+  });
+
+  it("negative (review round 3): a 'workflow' file cue counts only next to the workflow; negated artifacts do not count", () => {
+    for (const caption of [
+      "My morning workout workflow, then I file my taxes",
+      "My editing workflow for raw travel video files",
+      "My morning workflow before I download my emails",
+      "No template, no checklist, just vibes",
+    ]) {
+      expect(fitOf(caption, "H4"), caption).toEqual([]);
+    }
+    expect(fitOf("Downloadable workflow for brand pitches", "H4")).toEqual(["workflow", "downloadable"]);
+    expect(fitOf("My editing workflow as a PDF", "H4")).toEqual(["workflow", "pdf"]);
+  });
+
   it("positive (falsification round 2): real H1/H4 captions stay DERIVED candidates", () => {
     expect(fitOf("UGC jobs for creators", "H1")).toEqual(["jobs", "ugc", "creators"]);
     expect(fitOf("Brands hiring UGC creators", "H1")).toEqual(["hiring", "ugc", "creators", "brands"]);
@@ -327,6 +359,21 @@ describe("AC4 · comparability limits are disclosed, missing data never becomes 
   });
 });
 
+describe("AC4 · review round 3: format skew is read on the posts the median comes from", () => {
+  it("a mixed eligible set whose indexed posts are 6 Reels and 1 Feed post discloses format-skew", () => {
+    const specs: Spec[] = [
+      ...filler(6),
+      ...filler(6, "image", "feedfill"),
+      ...Array.from({ length: 6 }, (_, i): Spec => ({ id: `rt${i}`, caption: "Checklist template for pitches" })),
+      ...Array.from({ length: 6 }, (_, i): Spec => ({ id: `ft${i}`, caption: "Checklist template for pitches", format: "image", saves: i === 0 ? 30 : null })),
+    ];
+    const h4 = lane(evidenceOf(snap(specs)), "H4");
+    expect(h4.contentResonance.nEligible).toBe(12);
+    expect(h4.contentResonance.nIndexed).toBe(7);
+    expect(h4.contentResonance.limitations).toContain("format-skew");
+  });
+});
+
 describe("AC4 · H1-only vs H4-only comparison is descriptive, absolute and never a product lean", () => {
   /** Synthetic analysis with chosen indices: only the comparison arithmetic is under test here. */
   function withIndices(h1: number[], h4: number[], both: number[] = []): HypothesisEvidence[] {
@@ -341,7 +388,20 @@ describe("AC4 · H1-only vs H4-only comparison is descriptive, absolute and neve
   }
 
   it("needs MIN_PATTERN_GROUP_N disjoint posts on each side; overlap is excluded and counted once", () => {
-    expect(engagementComparison(withIndices(Array(7).fill(1.5), Array(8).fill(1), [2, 2]))).toEqual({ state: "INSUFFICIENT_EVIDENCE", nH1Only: 7, nH4Only: 8, nBoth: 2, medianH1Only: null, medianH4Only: null, difference: null });
+    expect(engagementComparison(withIndices(Array(7).fill(1.5), Array(8).fill(1), [2, 2]))).toEqual({ state: "INSUFFICIENT_EVIDENCE", nH1Only: 7, nH4Only: 8, nBoth: 2, medianH1Only: null, medianH4Only: null, difference: null, limitations: ["lifetime-accrual", "single-snapshot", "maturity-not-age-matched", "no-causality"] });
+  });
+
+  it("review round 3: the comparison discloses format skew and unequal ages between the two disjoint groups", () => {
+    const mk = (id: string, caption: string, format: PostFormat, days: number, idx: number): PostAnalysis => ({ ...analyze(snap([{ id, caption, format, days }])).posts[0]!, excluded: null, contentActionIndex: idx });
+    const posts = [
+      ...Array.from({ length: 8 }, (_, i) => mk(`r${i}`, "UGC jobs for creators", "reel", 8 + (i % 3), 1.3)),
+      ...Array.from({ length: 8 }, (_, i) => mk(`f${i}`, "My checklist template", "image", 150 + i * 20, 1)),
+    ];
+    const c = engagementComparison(hypothesisEvidence({ observedAt: OBSERVED, groups: [], posts }, ruleFit()));
+    expect(c.state).toBe("DESCRIPTIVE");
+    expect(c.limitations).toEqual(expect.arrayContaining(["format-skew", "unequal-ages"]));
+    const stale = engagementComparison(hypothesisEvidence({ observedAt: OBSERVED, groups: [], posts }, ruleFit(), { stale: true }));
+    expect(stale.limitations).toContain("stale-snapshot");
   });
 
   it("1.30 vs 1.00 → difference 0.30 index points: absolute, not 30 %, and no lean although the legacy 0.25 threshold is crossed", () => {

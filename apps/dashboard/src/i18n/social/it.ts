@@ -197,7 +197,7 @@ export const socialIt: Messages["social"] = {
     H3: "H3 · Pitch Room",
     H4: "H4 · Working File",
     H4Desc: "File riutilizzabili per creator e business dal lavoro di Ana",
-    H4Rule: "La pertinenza tematica richiede un file riutilizzabile specifico (modello, checklist, scheda, workflow, media kit). Soldi, carriera o consigli da soli non bastano.",
+    H4Rule: "La pertinenza tematica richiede un file riutilizzabile specifico (template, checklist, scheda, media kit; un workflow solo se la caption lo indica come file, es. PDF o download). Soldi, carriera o consigli da soli non bastano.",
     parked: "In sospeso",
     lanesLabel: "Corsie di evidenza per {id}",
     lanes: {

@@ -86,8 +86,9 @@ test("live: the cockpit renders real Instagram data through the server-side work
   const eligible = async (id: "H1" | "H4") => {
     const list = page.getByTestId(`eligible-${id}`);
     const total = Number(await list.getAttribute("data-count"));
-    const sources = tally(await list.getByTestId("fit-row").evaluateAll((els) => els.map((e) => e.getAttribute("data-source"))));
-    return { total, rendered_rows: await list.getByTestId("fit-row").count(), rendered_sources: sources };
+    const split = { derived: Number(await list.getAttribute("data-derived")), manual_session: Number(await list.getAttribute("data-manual")), overlap: Number(await list.getAttribute("data-overlap")) };
+    expect(split.derived + split.manual_session, "derived + session = eligible total").toBe(total);
+    return { total, split, rendered_rows: await list.getByTestId("fit-row").count() };
   };
   const h1 = await eligible("H1");
   const comparison = await page.getByTestId("engagement-comparison").getAttribute("data-state");
@@ -144,11 +145,11 @@ test("live: the cockpit renders real Instagram data through the server-side work
         patterns,
         hypotheses,
         h1_eligible: h1.total,
+        h1_eligible_split: h1.split,
         h1_eligible_rendered: h1.rendered_rows,
-        h1_eligible_sources: h1.rendered_sources,
         h4_eligible: h4.total,
+        h4_eligible_split: h4.split,
         h4_eligible_rendered: h4.rendered_rows,
-        h4_eligible_sources: h4.rendered_sources,
         engagement_comparison: comparison,
         commercial,
       },

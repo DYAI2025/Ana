@@ -165,7 +165,14 @@ function resonance(analysis: Analysis, eligible: EligiblePost[], stale: boolean)
   const limitations: ResonanceLimitation[] = ["lifetime-accrual", "single-snapshot", "maturity-not-age-matched", "no-causality"];
   if (ageDays && ageDays.max > ageDays.min * UNEQUAL_AGE_RATIO) limitations.push("unequal-ages");
   // mixed formats where one dominates or a minority format has no usable baseline (e.g. 49 Reels / 1 Feed post)
-  if (formats.length > 1 && (largest / eligible.length >= SKEW_SHARE || formats.some((f) => f.groupN < MIN_GROUP_N))) limitations.push("format-skew");
+  // the indexed posts are the ones the median is read from: a skew there counts even when the eligible set looks mixed
+  const indexedFormats = formats.filter((f) => f.nIndexed > 0);
+  const largestIndexed = Math.max(0, ...indexedFormats.map((f) => f.nIndexed));
+  if (
+    (formats.length > 1 && (largest / eligible.length >= SKEW_SHARE || formats.some((f) => f.groupN < MIN_GROUP_N))) ||
+    (indexedFormats.length > 1 && largestIndexed / indexed.length >= SKEW_SHARE)
+  )
+    limitations.push("format-skew");
   if (eligible.some((e) => e.overlap)) limitations.push("overlap");
   if (stale) limitations.push("stale-snapshot");
   const enough = indexed.length >= MIN_THEME_N;
@@ -241,6 +248,12 @@ export interface EngagementComparison {
    * not a relative percentage and not a multiplier. Descriptive content engagement only; it never ranks products.
    */
   difference: number | null;
+  /**
+   * limits of comparing the two disjoint groups with each other: always lifetime/single snapshot/maturity cutoff/no
+   * causality; plus format-skew when the groups' formats differ or one format dominates, unequal-ages across both
+   * groups, and a stale snapshot
+   */
+  limitations: ResonanceLimitation[];
 }
 
 /**
@@ -254,9 +267,25 @@ export function engagementComparison(evidence: readonly HypothesisEvidence[]): E
   const h4 = indexed("H4");
   const in1 = new Set(h1.map((e) => e.p.post.media_id));
   const in4 = new Set(h4.map((e) => e.p.post.media_id));
-  const only1 = h1.filter((e) => !in4.has(e.p.post.media_id)).map((e) => e.p.contentActionIndex!);
-  const only4 = h4.filter((e) => !in1.has(e.p.post.media_id)).map((e) => e.p.contentActionIndex!);
-  const base = { nH1Only: only1.length, nH4Only: only4.length, nBoth: h1.length - only1.length };
+  const posts1 = h1.filter((e) => !in4.has(e.p.post.media_id)).map((e) => e.p);
+  const posts4 = h4.filter((e) => !in1.has(e.p.post.media_id)).map((e) => e.p);
+  const only1 = posts1.map((p) => p.contentActionIndex!);
+  const only4 = posts4.map((p) => p.contentActionIndex!);
+  const limitations: ResonanceLimitation[] = ["lifetime-accrual", "single-snapshot", "maturity-not-age-matched", "no-causality"];
+  const both = [...posts1, ...posts4];
+  const ages = both.map((p) => p.ageDays).filter((a): a is number => a !== null);
+  if (ages.length && Math.max(...ages) > Math.min(...ages) * UNEQUAL_AGE_RATIO) limitations.push("unequal-ages");
+  const share = (ps: readonly PostAnalysis[]) => {
+    const counts = new Map<string, number>();
+    for (const p of ps) counts.set(p.post.format, (counts.get(p.post.format) ?? 0) + 1);
+    return counts;
+  };
+  const top = (ps: readonly PostAnalysis[]) => [...share(ps).entries()].sort((a, b) => b[1] - a[1])[0]?.[0];
+  const all = share(both);
+  if (both.length && ((all.size > 1 && Math.max(...all.values()) / both.length >= SKEW_SHARE) || (posts1.length && posts4.length && top(posts1) !== top(posts4))))
+    limitations.push("format-skew");
+  if (evidence.some((e) => e.contentResonance.limitations.includes("stale-snapshot"))) limitations.push("stale-snapshot");
+  const base = { nH1Only: only1.length, nH4Only: only4.length, nBoth: h1.length - only1.length, limitations };
   if (only1.length < MIN_PATTERN_GROUP_N || only4.length < MIN_PATTERN_GROUP_N) return { state: "INSUFFICIENT_EVIDENCE", ...base, medianH1Only: null, medianH4Only: null, difference: null };
   const m1 = median(only1)!;
   const m4 = median(only4)!;

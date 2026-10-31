@@ -156,6 +156,10 @@ test.describe("Instagram cockpit — real-data shape, honest states", () => {
     await expect(page.getByTestId("eligible-H1").getByTestId("fit-row")).toHaveCount(3);
     // the model total the live readback records (e2e-live/social.live.spec.ts), not only the rendered rows
     await expect(page.getByTestId("eligible-H1")).toHaveAttribute("data-count", "3");
+    await expect(page.getByTestId("eligible-H1")).toHaveAttribute("data-derived", "3");
+    await expect(page.getByTestId("eligible-H1")).toHaveAttribute("data-manual", "0");
+    // review round 3: the H1-only/H4-only comparison carries its own limits
+    await expect(page.getByTestId("comparison-limitations").locator('[data-limitation="maturity-not-age-matched"]')).toHaveCount(1);
     await expect(inspection).toContainText("Lifetime metrics keep growing");
     const first = inspection.getByTestId("evidence-post").first();
     await first.click();

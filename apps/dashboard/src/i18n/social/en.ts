@@ -196,7 +196,7 @@ export const socialEn = {
     H3: "H3 · Pitch Room",
     H4: "H4 · Working File",
     H4Desc: "Reusable creator and business files from Ana's own work",
-    H4Rule: "Topical fit needs a specific reusable file (template, checklist, worksheet, workflow, media kit). Money, career or tips alone do not qualify.",
+    H4Rule: "Topical fit needs a specific reusable file (template, checklist, worksheet, media kit; a workflow only when the caption calls it a file, e.g. PDF or download). Money, career or tips alone do not qualify.",
     parked: "Parked",
     lanesLabel: "Evidence lanes for {id}",
     lanes: {

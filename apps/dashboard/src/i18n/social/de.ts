@@ -197,7 +197,7 @@ export const socialDe: Messages["social"] = {
     H3: "H3 · Pitch Room",
     H4: "H4 · Working File",
     H4Desc: "Wiederverwendbare Creator- und Business-Dateien aus Anas eigener Arbeit",
-    H4Rule: "Thematische Passung braucht eine konkrete wiederverwendbare Datei (Vorlage, Checkliste, Arbeitsblatt, Workflow, Media Kit). Geld, Karriere oder Tipps allein reichen nicht.",
+    H4Rule: "Thematische Passung braucht eine konkrete wiederverwendbare Datei (Vorlage, Checkliste, Arbeitsblatt, Media Kit; ein Workflow nur, wenn die Caption ihn als Datei nennt, z. B. PDF oder Download). Geld, Karriere oder Tipps allein reichen nicht.",
     parked: "Geparkt",
     lanesLabel: "Evidenzspuren für {id}",
     lanes: {

@@ -152,12 +152,13 @@ Regenerate: `EVIDENCE_DIR=<dir> npx playwright test e2e/visual.spec.ts e2e/socia
 
 ## Live proof (real boundary)
 
-Run on the exact candidate SHA, loopback only, after `/admin/probe` and `/admin/insights-probe` pass (status
-CONNECTED alone is not a real read; Jira ANA-39 18072). A run by the PO, or an agent run the PO ratifies for that exact
-SHA (the ratification in Jira 18119 is bound to `e3dd023` and does not transfer). Run exactly as for
-ANA-38 (`docs/evidence/ANA-38/CHECKLIST.md` → "Live proof"). `e2e-live/social.live.spec.ts` now records, per
-hypothesis, the four lane states and the suggested next step, plus the H1 eligible count by source and the comparison
-state — counts and states only. Post the `live-social-result.json` summary to Jira ANA-39.
+R2G(6) is a PO-run readback on the exact candidate SHA, loopback only, after `/admin/probe` and `/admin/insights-probe`
+pass (status CONNECTED alone is not a real read; Jira ANA-39 18072). A run by an agent is AGENT_REPORTED: it can count
+only through a separate, SHA-bound PO decision outside the contract (Jira 18119 did so for `e3dd023`; it does not
+transfer). Run exactly as for
+ANA-38 (`docs/evidence/ANA-38/CHECKLIST.md` → "Live proof"). `e2e-live/social.live.spec.ts` records, per
+hypothesis, the four lane states and the suggested next step, the H1 and H4 eligible totals with their derived /
+session split (model counts) and the comparison state — counts and states only. Post the `live-social-result.json` summary to Jira ANA-39.
 
 ## Integration with LIVE-01 (PR #12)
 
