@@ -27,7 +27,7 @@ PASS or FAIL is set by a separate acceptor on the exact candidate SHA (docs/deli
 | AC | What is checked | Evidence |
 |---|---|---|
 | AC1 | Instagram read, native metrics, DTO, cockpit navigation unchanged | No change under `src/server`, `src/app/api`, `types.ts`; `insights.test.ts` pinned engine values unchanged (reel group n=18, median reach 3250, hidden winner syn004, practical-value 2.398, reuse 1.2615); `social.spec.ts` ANA-38 tests (AC1–AC10, failure states, mobile) green; real-boundary readback: **see "Live proof" — not run by the implementing session** |
-| AC2 | Negative/positive/ambiguous topical fit; theme override never qualifies; dual-topic overlap | `offers.test.ts` "AC2 · …" (23 tests, incl. review rounds 3–5 caption sets: travel-only high-save ≠ H1, "remote opportunity to travel" / own past job ≠ H1, personal "workout workflow" ≠ H4, generic money ≠ H4, generic creator/UGC ≠ H1, opportunity word without domain ≠ H1, opportunity and domain words that only co-occur ≠ H1, Italian "modello" ≠ H4, hashtag and DE/IT positives, generic tips ≠ H4, unclear/missing caption UNCLASSIFIED, creator-job → DERIVED H1 only, template → DERIVED H4 only, ANA-38 coupling regression, dual-topic overlap counted once, hypothesis-specific session corrections, before/after on the ANA-38 fixture); `social.spec.ts` "ANA-39 AC2 · a broad 'opportunities' theme override never qualifies H1 or H4" |
+| AC2 | Negative/positive/ambiguous topical fit; theme override never qualifies; dual-topic overlap | `offers.test.ts` "AC2 · …" (25 tests, incl. review rounds 3–6 caption sets: travel-only high-save ≠ H1, "remote opportunity to travel" / own past job ≠ H1, personal "workout workflow" ≠ H4, generic money ≠ H4, generic creator/UGC ≠ H1, opportunity word without domain ≠ H1, opportunity and domain words that only co-occur ≠ H1, Italian "modello" ≠ H4, hashtag and DE/IT positives, generic tips ≠ H4, unclear/missing caption UNCLASSIFIED, creator-job → DERIVED H1 only, template → DERIVED H4 only, ANA-38 coupling regression, dual-topic overlap counted once, hypothesis-specific session corrections, before/after on the ANA-38 fixture); `social.spec.ts` "ANA-39 AC2 · a broad 'opportunities' theme override never qualifies H1 or H4" |
 | AC3 | Four lanes, provenance, denominators, no product support/counterevidence | `offers.test.ts` "AC3 · …" (5 tests); `social.spec.ts` "ANA-39 AC2/AC3 · travel and money posts are no longer product evidence; four lanes…", "ANA-39 AC3/AC5 · session correction…" |
 | AC4 | Format n, observed, lifetime, maturity ≠ age matching, comparability; zero reach, missing saves/shares, zero median, <5, <3, <8, unequal ages, 49 Reels / 1 Feed, stale, overlap, absolute delta vs percentage | `offers.test.ts` "AC4 · comparability limits…" (9 tests), "AC4 · review round 3: format skew…" (2 tests) and "AC4 · H1-only vs H4-only comparison…" (5 tests); `social.spec.ts` "ANA-39 AC4 · a stale snapshot is disclosed…", disclosure assertions in "ANA-39 AC2/AC3" |
 | AC5 | Browser journey: H1/H4, source-post inspection, gaps, next step or ABSTAIN; before/after | `social.spec.ts` "AC7 · Substack offer signals…" (jump to post), "ANA-39 AC3/AC5 · … next step or ABSTAIN is selectable by keyboard", "ANA-39 AC5 · a chosen step that the evidence no longer offers is not shown as chosen"; screenshots below |
@@ -149,6 +149,16 @@ the construction abstains. H4: an app name alone is no file cue, and a modifier 
 The format-mix text now holds for equal mixes too. Accepted cost (recall, minor in round 5): real offers without such a
 signal ("Remote jobs for creators", "Job alert: …", "No experience needed") are no longer derived; an analyst includes
 them per session.
+
+Round 6 (adversarial review of `b8388d4`): 12 confirmed, 3 major. Two were holes in the round-5 gate itself: the
+everyday words "list", "board" and "wanted" counted as offer signals anywhere ("bucket list", "vision board", "always
+wanted"), and "brands are hiring" commentary read as an announcement. Fix: "list/board/listing/roundup" count only right
+after an opportunity noun, "wanted" only right after a domain word, generic subjects ("everyone/brands are hiring") and
+a judging copula later in the clause do not announce hiring, and "why" is an advice frame. H4: a Reels/CapCut
+"template" (with reel/capcut/trend/audio/edit in the clause, or "use (this) template") is an edit preset, not a file.
+The 9 minor round-6 findings (recall losses of the disclosed kind, H4 how-to/figurative mentions) are recorded, not
+patched: the classifier is frozen here, because six rounds show that each review finds new phrasings of the same class
+and only the PO precision decision below can close it.
 
 Residual limit (stated, not hidden): a caption keyword rule cannot read intent. The rule now abstains on ambiguous
 captions (e.g. "My top 5 UGC jobs this week" is no longer derived) and further idioms of the same class can exist. The

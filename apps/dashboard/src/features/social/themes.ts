@@ -109,11 +109,20 @@ const H1_CONNECTORS: ReadonlySet<string> = new Set(["for", "für", "per"]);
 /** "our brand is hiring" */
 const COPULAS: ReadonlySet<string> = new Set(["is", "are", "ist", "sind", "è", "sono"]);
 /** Words before "hiring" that announce it ("now hiring", "we're hiring", "brand is hiring"); clause start counts too. */
-const HIRING_ANNOUNCERS: ReadonlySet<string> = new Set(["now", "re", "m", "currently", "still", "is", "are", "ist", "sind", "è", "sono"]);
+const HIRING_ANNOUNCERS: ReadonlySet<string> = new Set(["now", "re", "m", "currently", "still", "is", "ist", "è"]);
+/** Generic subjects make "X is/are hiring" a trend statement, not an announcement ("everyone is hiring UGC creators"). */
+const GENERIC_SUBJECTS: ReadonlySet<string> = new Set(["everyone", "everybody", "anyone", "anybody", "nobody", "brands", "companies", "agencies", "more", "all"]);
 /** Explicit signals that something is on offer; at least one must appear somewhere in the caption (review round 5). */
-export const H1_OFFER_SIGNALS = ["apply", "applications", "application", "casting call", "open call", "deadline", "wanted", "list", "listing", "listings", "board", "roundup", "vacancy", "vacancies", "bewerben", "bewerbung", "bewirb", "candidati", "candidatura", "candidature"] as const;
+export const H1_OFFER_SIGNALS = ["apply", "applications", "application", "casting call", "open call", "deadline", "job board", "job listing", "job listings", "vacancy", "vacancies", "bewerben", "bewerbung", "bewirb", "candidati", "candidatura", "candidature"] as const;
+/**
+ * Everyday words that are an offer signal only right after an opportunity noun ("Opportunities list", "jobs board"), and
+ * "wanted" only right after a domain word ("UGC creators wanted"); "bucket list", "vision board", "always wanted" are not
+ * (review round 6).
+ */
+const H1_LIST_SIGNALS: ReadonlySet<string> = new Set(["list", "listing", "listings", "board", "roundup"]);
+const OPPORTUNITY_WORDS: ReadonlySet<string> = new Set(["job", "jobs", "gig", "gigs", "opportunity", "opportunities", "vacancies", "castings"]);
 /** Advice or how-to frames: before a construction in the same clause they mean no job is on offer. */
-const ADVICE_FRAMES: ReadonlySet<string> = new Set(["how", "where", "tips", "tip", "ways", "guide", "wie", "wo", "tipps", "come", "dove", "consigli"]);
+const ADVICE_FRAMES: ReadonlySet<string> = new Set(["how", "where", "why", "tips", "tip", "ways", "guide", "wie", "wo", "tipps", "come", "dove", "consigli"]);
 /** List heads are plural ("UGC jobs: …", "Opportunities list: …"); a singular head before a colon is a label. */
 const H1_PLURAL_OPPORTUNITY: ReadonlySet<string> = new Set(["jobs", "gigs", "opportunities", "vacancies", "job listings", "stellenangebote", "offerte di lavoro"]);
 /** Job nouns that, after a first-person possessive ("my remote job"), name the author's own employment. */
@@ -142,6 +151,8 @@ export const H4_ARTIFACT_TERMS = ["template", "templates", "checklist", "checkli
  * Calls to action ("save this") are not cues: they move saves themselves.
  */
 export const H4_WEAK_ARTIFACT_TERMS = ["workflow", "workflows", "spreadsheet", "spreadsheets", "toolkit"] as const;
+/** A Reels/CapCut "template" is an edit or audio preset, not a working file ("CapCut template in bio", "Use template"). */
+const EDIT_PRESET_WORDS: ReadonlySet<string> = new Set(["reel", "reels", "capcut", "tiktok", "trend", "trending", "audio", "transition", "edit"]);
 /** "workflow as a PDF", "Workflow als Datei", "workflow come file" */
 const APPOSITION: ReadonlySet<string> = new Set(["as", "als", "come"]);
 export const H4_REUSABLE_FILE_CUES = ["file", "files", "pdf", "download", "downloadable", "notion template", "google doc", "google sheet", "reusable", "plug and play", "datei", "dateien"] as const;
@@ -173,12 +184,25 @@ function occurrences(tokens: readonly string[], term: string): Array<[number, nu
  */
 const before = (tokens: readonly string[], start: number, set: ReadonlySet<string>) => tokens.slice(0, start).some((t) => set.has(t));
 
+/**
+ * "hiring" as an announcement: at the clause start, after "now/we're/I'm", after "<brand> is", or after a domain word
+ * ("5 brands hiring creators"); not after a generic subject ("everyone is hiring") and not when the clause goes on to
+ * judge it ("brands hiring influencers without contracts is a red flag").
+ */
+function announcedHiring(t: readonly string[], os: number): boolean {
+  if (t.slice(os + 1).some((w) => COPULAS.has(w))) return false;
+  if (os === 0) return true;
+  const prev = t[os - 1]!;
+  if (HIRING_ANNOUNCERS.has(prev)) return !(COPULAS.has(prev) && GENERIC_SUBJECTS.has(t[os - 2]!));
+  return DOMAIN_WORDS.has(prev) && !t.slice(0, os).some((w) => GENERIC_SUBJECTS.has(w) && w !== prev);
+}
+
 /** One H1 construction between an opportunity occurrence [os, oe] and a domain occurrence [ds, de], or false. */
 function h1Construction(t: readonly string[], o: string, [os, oe]: [number, number], [ds, de]: [number, number]): boolean {
   if (de === os - 1) return true; // "UGC jobs", "brands hiring"
   if (o === "hiring" && de === os - 2 && COPULAS.has(t[os - 1]!)) return true; // "our brand is hiring"
   if (ds === oe + 2 && H1_CONNECTORS.has(t[oe + 1]!) && !before(t, os, COPULAS)) return true; // "jobs for creators"
-  if (o === "hiring" && ds > oe && ds - oe - 1 <= 1 && (os === 0 || HIRING_ANNOUNCERS.has(t[os - 1]!) || DOMAIN_WORDS.has(t[os - 1]!))) return true; // "(brands) hiring (talented) creators"
+  if (o === "hiring" && ds > oe && ds - oe - 1 <= 1 && announcedHiring(t, os)) return true; // "(5 brands) hiring (talented) creators"
   if (H1_PLURAL_OPPORTUNITY.has(o) && ds > oe && t[ds - 1] === ":" && ds - 1 - oe - 1 <= 1) return true; // "Opportunities list: remote work"
   return false;
 }
@@ -190,7 +214,7 @@ export function deriveTopicalFit(caption: string | null, hypothesis: CandidateHy
   const hits = new Set<string>();
   if (hypothesis === "H4") {
     for (const t of cs) {
-      for (const a of H4_ARTIFACT_TERMS) if (occurrences(t, a).some(([s]) => !before(t, s, NEGATORS))) hits.add(a);
+      for (const a of H4_ARTIFACT_TERMS) if (occurrences(t, a).some(([s]) => !before(t, s, NEGATORS) && !(a.startsWith("template") && (t.some((w) => EDIT_PRESET_WORDS.has(w)) || t.slice(Math.max(0, s - 2), s).includes("use"))))) hits.add(a);
       for (const w of H4_WEAK_ARTIFACT_TERMS)
         for (const [ws, we] of occurrences(t, w)) {
           if (before(t, ws, NEGATORS)) continue;
@@ -208,7 +232,12 @@ export function deriveTopicalFit(caption: string | null, hypothesis: CandidateHy
     }
     return [...H4_ARTIFACT_TERMS, ...H4_WEAK_ARTIFACT_TERMS, ...H4_REUSABLE_FILE_CUES].filter((k) => hits.has(k));
   }
-  const offered = cs.some((t) => H1_OFFER_SIGNALS.some((sig) => occurrences(t, sig).length > 0) || occurrences(t, "hiring").some(([os]) => os === 0 || HIRING_ANNOUNCERS.has(t[os - 1]!) || DOMAIN_WORDS.has(t[os - 1]!)));
+  const offered = cs.some(
+    (t) =>
+      H1_OFFER_SIGNALS.some((sig) => occurrences(t, sig).length > 0) ||
+      t.some((w, i) => (H1_LIST_SIGNALS.has(w) && OPPORTUNITY_WORDS.has(t[i - 1]!)) || (w === "wanted" && DOMAIN_WORDS.has(t[i - 1]!))) ||
+      occurrences(t, "hiring").some(([os]) => announcedHiring(t, os)),
+  );
   for (const t of cs) {
     for (const h of H1_HASHTAG_TERMS) if (occurrences(t, h).length) hits.add(h);
     if (!offered) continue;

@@ -240,6 +240,35 @@ describe("AC2 · topical fit is specific; generic keywords never qualify a hypot
     expect(fitOf("My Notion template for content planning", "H4")).toEqual(["template"]);
   });
 
+  it("negative (review round 6): everyday 'list/board/wanted' and trend statements about hiring are no offer signal", () => {
+    for (const caption of [
+      "Grateful for this brand opportunity with @glow! Bucket list moment",
+      "Remote jobs are the future. Here's my packing list for Bali",
+      "Influencer gigs pay more than you think. Save this to your list",
+      "Remote work opportunities changed everything for me. Vision board manifesting",
+      "Thank you @nike for this brand opportunity, finally on board with the team",
+      "My first brand opportunity! Always wanted this",
+      "Always wanted a remote job and now I have one",
+      "2025 vision board: land a remote job",
+      "Why brands are hiring UGC creators instead of influencers in 2025",
+      "Everyone is hiring UGC creators right now and here is why",
+      "Is anyone else noticing that brands are hiring influencers less?",
+      "Brands hiring influencers without contracts is a red flag",
+    ]) {
+      expect(fitOf(caption, "H1"), caption).toEqual([]);
+    }
+    expect(fitOf("Opportunities list: remote work", "H1")).toEqual(["opportunities", "remote work"]);
+    expect(fitOf("UGC jobs this week: 5 brands hiring creators", "H1")).toEqual(["jobs", "hiring", "ugc", "creators", "brands"]);
+    expect(fitOf("Our brand is hiring", "H1")).toEqual(["hiring", "brand"]);
+  });
+
+  it("negative (review round 6): a Reels/CapCut 'template' is an edit preset, not a working file", () => {
+    for (const caption of ["Tap 'Use template' to try this trend", "Use this template for your next reel", "CapCut template in bio", "Reel template", "Trend template, use the audio", "#capcut #template"]) {
+      expect(fitOf(caption, "H4"), caption).toEqual([]);
+    }
+    expect(fitOf("My media kit template and rate card for pitching", "H4")).toEqual(["template", "media kit", "rate card"]);
+  });
+
   it("positive (falsification round 2): real H1/H4 captions stay DERIVED candidates", () => {
     expect(fitOf("UGC jobs for creators, apply now", "H1")).toEqual(["jobs", "ugc", "creators"]);
     expect(fitOf("Brands hiring UGC creators", "H1")).toEqual(["hiring", "ugc", "creators", "brands"]);
