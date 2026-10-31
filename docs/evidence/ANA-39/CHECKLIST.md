@@ -1,7 +1,10 @@
 # ANA-39 — F1.I1 Instagram Signal Truth & H1/H4 Evidence Repair: acceptance criteria → evidence
 
 Jira ANA-39 (parent ANA-1), normative contract Confluence 108920834 v3, DRS contract `.drs/ANA-39.json`.
-Base `c7b2c069538bee29d2ca41c73ecb3ce6839d8efc` (ANA-38 merged). Every committed fixture and screenshot is synthetic
+Implemented on base `c7b2c069538bee29d2ca41c73ecb3ce6839d8efc` (ANA-38 merged); integrated on 2026-10-31 with main
+`8199150c34d5fc07c0be87b96de32f8157e7938b` (ANA-42 Bright Silver, ANA-35/ANA-45 Brain). Against that main the PR diff holds
+ANA-39 files only: the branch's own PR-head workflow edits were dropped in the merge in favour of main's equivalent
+`SOURCE_SHA` / `pr-<sha>` convention (`docs/delivery/DRS.md`). Every committed fixture and screenshot is synthetic
 (`apps/dashboard/e2e/fake-social/core.mjs`, inline fixtures in `offers.test.ts`); no real caption, media id, permalink,
 thumbnail, metric value or credential is in this change.
 
@@ -16,7 +19,8 @@ PASS or FAIL is set by a separate acceptor on the exact candidate SHA (docs/deli
 | `offers.ts` | Per hypothesis four independent lanes: CONTENT_RESONANCE, TOPICAL_FIT, AUDIENCE_NEED (NOT_CONNECTED), COMMERCIAL_OUTCOME (NOT_CONNECTED). No `supporting` / `contradicting`, no blended `SIGNAL`, no `lean`. Above/below same-format median = engagement and low-resonance comparators. Next evidence actions + `ABSTAIN`. `nextTest` (0.25 lean) replaced by a descriptive H1-only/H4-only comparison with the absolute index difference. |
 | `insights.ts` | Calculations unchanged; `high_intent_*` renamed `content_action_*`, semantics documented ((saves + shares) ÷ reach is an action ratio, can exceed 1; 7 days = maturity cutoff, not age matching). |
 | UI | `Patterns.tsx` four-lane card, decision fieldset, inspection with eligible/excluded posts, disclosure (formats + baseline n, not compared + reason, observed, period, ages) and limits. `ContentRows.tsx` per-post topical fit with provenance and session correction. `InstagramCockpit.tsx` holds corrections and passes `stale`. EN/DE/IT: no "high intent" wording. |
-| Not touched | `src/app/api/**`, `src/server/**`, `proxy`, auth/access, worker, DTO (`types.ts`), deployment, CI. No new route, OAuth scope, persistence, storage, network call or external processing. |
+| Live readback | `Patterns.tsx` eligible list carries `data-count` (model total); `e2e-live/social.live.spec.ts` records H1 **and** H4 eligible totals from it (the inspection renders at most 12 rows) and asserts rendered = min(total, 12). |
+| Not touched | `src/app/api/**`, `src/server/**`, `proxy`, auth/access, worker, DTO (`types.ts`), deployment, CI workflows (against main 8199150). No new route, OAuth scope, persistence, storage, network call or external processing. |
 
 ## AC → tests
 
@@ -83,7 +87,16 @@ their own decision. This is a focused check, not a WCAG conformance claim for th
 
 ## Outcome Delta (decision quality, synthetic fixture; no revenue claim)
 
-Measured on `e2e/fake-social/core.mjs` with the base model (`c7b2c06`) and the candidate model.
+First measured on `e2e/fake-social/core.mjs` with the base model (`c7b2c06`) and the candidate model. **Re-measured
+2026-10-31** after the integration: the fixture changed on main since `c7b2c06` (LIVE-01/ANA-42), the H1/H4 model files
+(`offers.ts`, `themes.ts`, `insights.ts`) did not. Main `8199150`'s model and the candidate model on the fixture of
+`8199150` (28 posts), run as throwaway vitest files, not committed: before H1 9 posts `SIGNAL` (median index 0.87,
+4 supporting), H4 9 posts `SIGNAL` (median 1.97, 6 supporting), lean `INSUFFICIENT_EVIDENCE` (6/6 disjoint), a
+`opportunities` override on travel-only `syn005` puts it in H1 **and** H4; after H1 = syn002, syn008, syn022 and
+H4 = syn004, syn013, syn020 (`DERIVED`), both resonance `INSUFFICIENT_EVIDENCE` (2 of 3 comparable), need and outcome
+`NOT_CONNECTED`, suggested step *comparable observations*, comparison `INSUFFICIENT_EVIDENCE` (2/2/0), the override
+qualifies neither. Dropped memberships: H1 syn003, 005, 009, 011, 014, 017, 019 (all travel-family matches); H4
+syn002, 006, 009, 010, 014, 016, 018 (money / how-to / tips) — 14 of 18. The table below holds on that run.
 
 | | Before (ANA-38) | After (ANA-39) |
 |---|---|---|
@@ -125,7 +138,9 @@ implementing session re-ran lint, typecheck, unit tests and the social/visual/co
 
 ## Screenshots (synthetic fake worker)
 
-`screenshots/before-*` = base `c7b2c06`; `screenshots/after-*` = candidate. Same fixture, same framing.
+Regenerated 2026-10-31: `screenshots/before-*` = main `8199150` (pre-ANA-39 model on the ANA-42 Bright Silver shell);
+`screenshots/after-*` = the integrated candidate's app tree. Same fixture, same framing (one throwaway spec run on
+both trees: offer-signals panel element, H1 inspection viewport, ABSTAIN decision, row detail of syn004).
 
 - `before-1440x900-offer-signals-panel.jpg` / `after-1440x900-offer-signals-panel.jpg` — whole offer-signals panel
 - `before-390x844-offer-signals-panel.jpg` / `after-390x844-offer-signals-panel.jpg` — same on mobile
@@ -135,9 +150,11 @@ implementing session re-ran lint, typecheck, unit tests and the social/visual/co
 
 Regenerate: `EVIDENCE_DIR=<dir> npx playwright test e2e/visual.spec.ts e2e/social.spec.ts -g "instagram|mobile|offer signals"`.
 
-## Live proof (real boundary) — PO-run
+## Live proof (real boundary)
 
-The implementing cloud session has no worker key and must not obtain one. Run on the candidate SHA exactly as for
+Run on the exact candidate SHA, loopback only, after `/admin/probe` and `/admin/insights-probe` pass (status
+CONNECTED alone is not a real read; Jira ANA-39 18072). A run by the PO, or an agent run the PO ratifies for that exact
+SHA (the ratification in Jira 18119 is bound to `e3dd023` and does not transfer). Run exactly as for
 ANA-38 (`docs/evidence/ANA-38/CHECKLIST.md` → "Live proof"). `e2e-live/social.live.spec.ts` now records, per
 hypothesis, the four lane states and the suggested next step, plus the H1 eligible count by source and the comparison
 state — counts and states only. Post the `live-social-result.json` summary to Jira ANA-39.
