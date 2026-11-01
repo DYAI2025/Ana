@@ -192,7 +192,7 @@ export const socialDe: Messages["social"] = {
     intro: "H1 und H4 sind Produkthypothesen, keine Nachfrage. Jede wird über vier getrennte Evidenzspuren gelesen; Interaktion mit bestehenden Beiträgen bestätigt oder widerlegt kein Produkt.",
     H1: "H1 · Opportunity Drop",
     H1Desc: "Kuratierte Chancen für Creator-, UGC- und Remote-Arbeit",
-    H1Rule: "Thematische Passung braucht eine konkrete Chance oder einen Job (z. B. UGC-Job, Creator-Chance, Remote-Stelle). Reisen, Nomadenleben, Creator oder UGC allein reichen nicht.",
+    H1Rule: "Thematische Passung braucht einen konkreten Job oder eine konkrete Arbeitschance (z. B. UGC-Job, Remote-Job, Stellenangebote für Creator). Reisen, Nomadenleben, Creator oder UGC allein reichen nicht, auch keine Creator- oder Markenchance ohne Jobbezug.",
     H2: "H2 · Money Teardown",
     H3: "H3 · Pitch Room",
     H4: "H4 · Working File",

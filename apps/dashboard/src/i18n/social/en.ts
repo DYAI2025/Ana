@@ -191,7 +191,7 @@ export const socialEn = {
     intro: "H1 and H4 are product hypotheses, not demand. Each is read through four separate evidence lanes; engagement with existing posts never confirms or rules out a product.",
     H1: "H1 · Opportunity Drop",
     H1Desc: "Curated creator, UGC and remote work opportunities",
-    H1Rule: "Topical fit needs a specific opportunity or job (e.g. UGC job, creator opportunity, remote position). Travel, nomad, creator or UGC alone does not qualify.",
+    H1Rule: "Topical fit needs a specific job or work opportunity (e.g. UGC job, remote job, jobs for creators). Travel, nomad, creator or UGC alone does not qualify, nor does a creator or brand opportunity without job context.",
     H2: "H2 · Money Teardown",
     H3: "H3 · Pitch Room",
     H4: "H4 · Working File",

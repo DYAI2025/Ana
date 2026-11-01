@@ -93,7 +93,9 @@ export const CANDIDATES: readonly CandidateHypothesis[] = ["H1", "H4"];
  * 2026-10-31; this reverts the review-round-5 offer-signal gate and advice-frame abstention, which went beyond the contract).
  * Anything else does not qualify, however close the words are ("great job creators", "a brand new opportunity to
  * travel", "my UGC side gig", "remote island trip, what an opportunity"); neither do travel, nomad, creator or UGC alone,
- * or "apply" alone. A few compact hashtags count on their own.
+ * or "apply" alone. Compact job hashtags (#ugcjobs, #creatorjobs, #remotejobs) count without a domain term, under the same
+ * negation and own-job guards ("Not a #ugcjob", "I quit my #remotejob"). A bare generic opportunity hashtag (#creatoropportunity,
+ * #ugcopportunities) names no specific job: the rule abstains and an analyst can include the post for the session (PO 2026-11-02).
  *
  * Bare "remote" pairs only with job-specific terms (job, gig, hiring), not with a bare "opportunity" ("remote opportunity
  * to travel"); "remote work" pairs with any opportunity term. A first-person possessive just before the construction
@@ -133,7 +135,7 @@ const OWN_JOB_VERBS: ReadonlySet<string> = new Set(["booked", "landed", "wrapped
 const PRAISE: ReadonlySet<string> = new Set(["great", "good", "nice", "awesome", "amazing", "gut", "guter", "toller", "bravo", "ottimo", "bel"]);
 /** "not a UGC job", "no template needed", "kein Job", "nessun lavoro" */
 const NEGATORS: ReadonlySet<string> = new Set(["no", "not", "never", "without", "nobody", "nothing", "don", "doesn", "didn", "isn", "aren", "wasn", "weren", "won", "kein", "keine", "keinen", "nicht", "ohne", "non", "nessun", "nessuna", "senza"]);
-export const H1_HASHTAG_TERMS = ["ugcjob", "ugcjobs", "ugcopportunities", "creatorjobs", "creatoropportunity", "creatoropportunities", "remotejob", "remotejobs"] as const;
+export const H1_HASHTAG_TERMS = ["ugcjob", "ugcjobs", "creatorjobs", "remotejob", "remotejobs"] as const;
 /**
  * H4 (Working File) needs a specific reusable artifact: a template, checklist, worksheet, media kit or similar file.
  * Money, career, "tips", "guide", "how to" or "step by step" alone are not a reusable file. Ambiguous words (Italian
@@ -238,7 +240,7 @@ export function deriveTopicalFit(caption: string | null, hypothesis: CandidateHy
     return [...H4_ARTIFACT_TERMS, ...H4_WEAK_ARTIFACT_TERMS, ...H4_REUSABLE_FILE_CUES].filter((k) => hits.has(k));
   }
   for (const t of cs) {
-    for (const h of H1_HASHTAG_TERMS) if (occurrences(t, h).length) hits.add(h);
+    for (const h of H1_HASHTAG_TERMS) if (occurrences(t, h).some(([s]) => !before(t, s, NEGATORS) && !before(t, s, FIRST_PERSON_POSSESSIVES) && !before(t, s, OWN_JOB_VERBS))) hits.add(h);
     for (const o of H1_OPPORTUNITY_TERMS)
       for (const occ of occurrences(t, o))
         for (const d of H1_DOMAIN_TERMS)

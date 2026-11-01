@@ -192,7 +192,7 @@ export const socialIt: Messages["social"] = {
     intro: "H1 e H4 sono ipotesi di prodotto, non domanda. Ognuna è letta attraverso quattro corsie di evidenza separate; l'interazione con i post esistenti non conferma né esclude un prodotto.",
     H1: "H1 · Opportunity Drop",
     H1Desc: "Opportunità selezionate di lavoro creator, UGC e da remoto",
-    H1Rule: "La pertinenza tematica richiede un'opportunità o un lavoro specifico (es. lavoro UGC, opportunità per creator, posizione da remoto). Viaggi, vita nomade, creator o UGC da soli non bastano.",
+    H1Rule: "La pertinenza tematica richiede un lavoro o un'opportunità di lavoro specifica (es. UGC job, remote job, offerte di lavoro per creator). Viaggi, vita nomade, creator o UGC da soli non bastano, né un'opportunità per creator o brand senza contesto di lavoro.",
     H2: "H2 · Money Teardown",
     H3: "H3 · Pitch Room",
     H4: "H4 · Working File",

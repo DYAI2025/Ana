@@ -5,6 +5,7 @@
  */
 import { describe, expect, it } from "vitest";
 import { buildSnapshot } from "../../../e2e/fake-social/core.mjs";
+import { dictionaries } from "@/i18n/translate";
 import { normalizeSnapshot } from "@/server/social/normalize";
 import { analyze, MATURE_AGE_DAYS, MIN_GROUP_N, MIN_PATTERN_GROUP_N, MIN_THEME_N, type Analysis, type PostAnalysis } from "./insights";
 import { AUDIENCE_SIGNALS, COMMERCIAL_SIGNALS, engagementComparison, HYPOTHESES, hypothesisEvidence, LANES, type HypothesisEvidence, type TopicalFitOf } from "./offers";
@@ -509,6 +510,71 @@ describe("AC2 repair · H1 TOPICAL_FIT is a specific job/opportunity topic, not 
     expect(topicalFit(post({ id: "u", caption: "Big news soon 👀" }), "H1", {})).toEqual({ hypothesis: "H1", eligible: false, source: "unclassified", matched: [] });
     const howTo = post({ id: "h", caption: "How to land your first UGC job" });
     expect(topicalFit(howTo, "H1", { h: { H1: false } })).toEqual({ hypothesis: "H1", eligible: false, source: "manual-session", matched: ["job", "ugc"] });
+  });
+});
+
+// Final bounded repair (PO brief 2026-11-02, on 2fdfab9): a bare generic creator/UGC opportunity hashtag has no specific
+// job context, and the job hashtags skipped the negation and own-job guards every other H1 construction applies.
+describe("AC2 final repair · H1 hashtags: only job hashtags count, with the same guards as the other constructions", () => {
+  const unclassified = { hypothesis: "H1", eligible: false, source: "unclassified", matched: [] };
+
+  it.each([
+    "#creatoropportunity",
+    "#creatoropportunities",
+    "#ugcopportunities",
+    "AI is a massive brand opportunity #creatoropportunity",
+    "New this week #ugcopportunities #creatoropportunities",
+  ])("negative, generic opportunity hashtag: %s", (caption) => {
+    expect(topicalFit(post({ id: "n", caption }), "H1", {})).toEqual(unclassified);
+  });
+
+  it.each([
+    "Not a #ugcjob",
+    "I quit my #remotejob",
+    "No #ugcjobs this month",
+    "Just booked another #ugcjob",
+    "Our #creatorjobs are all filled",
+  ])("negative, the negation and own-job guards reach the job hashtags: %s", (caption) => {
+    expect(topicalFit(post({ id: "n", caption }), "H1", {})).toEqual(unclassified);
+  });
+
+  it.each([
+    ["#ugcjob", ["ugcjob"]],
+    ["#ugcjobs", ["ugcjobs"]],
+    ["#creatorjobs", ["creatorjobs"]],
+    ["#remotejob", ["remotejob"]],
+    ["#remotejobs", ["remotejobs"]],
+    ["How to land your first UGC job", ["job", "ugc"]],
+    ["Creator opportunities: apply before Friday", ["opportunities", "creator"]],
+    ["Brands hiring UGC creators", ["hiring", "ugc", "creators", "brands"]],
+  ] as const)("positive stays DERIVED: %s", (caption, matched) => {
+    expect(topicalFit(post({ id: "p", caption }), "H1", {})).toEqual({ hypothesis: "H1", eligible: true, source: "derived-keyword", matched });
+  });
+
+  it("guards read one clause, like every other construction: a separate hashtag clause still counts", () => {
+    expect(fitOf("I quit my day job. #remotejobs", "H1")).toEqual(["remotejobs"]);
+    expect(fitOf("I quit my day job\n#ugcjobs", "H1")).toEqual(["ugcjobs"]);
+  });
+
+  it("known cost, pinned: a job hashtag in a clause with a guard word abstains; an analyst can still include it per session", () => {
+    expect(fitOf("No experience needed #ugcjobs", "H1")).toEqual([]);
+    expect(fitOf("Got a new camera #ugcjobs", "H1")).toEqual([]);
+    const abstained = post({ id: "c", caption: "No experience needed #ugcjobs" });
+    expect(topicalFit(abstained, "H1", { c: { H1: true } })).toEqual({ hypothesis: "H1", eligible: true, source: "manual-session", matched: [] });
+  });
+
+  it("session-only manual correction stays available for a generic hashtag, and only for the corrected hypothesis", () => {
+    const generic = post({ id: "c", caption: "#creatoropportunity" });
+    expect(topicalFit(generic, "H1", { c: { H1: true } })).toEqual({ hypothesis: "H1", eligible: true, source: "manual-session", matched: [] });
+    expect(topicalFit(generic, "H4", { c: { H1: true } }).eligible).toBe(false);
+  });
+
+  it.each(["en", "de", "it"] as const)("the %s H1 rule names only examples the rule accepts, and rules out the generic opportunity", (locale) => {
+    const rule = dictionaries[locale].social.offers.H1Rule;
+    const examples = /\((?:e\.g\.|z\. B\.|es\.) ([^)]+)\)/u.exec(rule)?.[1]?.split(", ") ?? [];
+    expect(examples.length, rule).toBe(3);
+    for (const example of examples) expect(fitOf(example, "H1"), example).not.toEqual([]);
+    expect(rule).toMatch({ en: /creator or brand opportunity without job context/, de: /Creator- oder Markenchance ohne Jobbezug/, it: /opportunità per creator o brand senza contesto di lavoro/ }[locale]);
   });
 });
 
