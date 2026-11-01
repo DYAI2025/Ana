@@ -5,6 +5,7 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { useI18n } from "@/components/providers/I18nProvider";
 import { useReducedMotion } from "@/lib/hooks/useReducedMotion";
 import { channelStatuses, instagramView, orbitCount, pulseEvents, shares, type ChannelView, type PulseEvent, type ShareEntry } from "./model";
+import { BEN_ACTIVITIES, berlinDay, VINCE_ACTIVITIES, type BenActivity, type VinceActivity } from "./berlinDay";
 import { ANA_ACTIVITIES, ANA_OUTFITS, colorHex, currentActivity, SWATCHES, type AnaActivity, type AnaLookId, type ManualLook } from "./looks";
 import { PEOPLE, PROJECTS, type WorldPersonId } from "./people";
 import type { AudienceSeries, WorldPayload } from "./types";
@@ -204,6 +205,8 @@ export function WorldView() {
         anaStates: Object.fromEntries(
           [...ANA_ACTIVITIES, "sleeping" as const].map((a) => [a, t("world.people.ana.sub", { state: t(`world.look.activities.${a}`), place: anaPlaceLabel ?? "—" })]),
         ) as Record<AnaActivity | "sleeping", string>,
+        benStates: Object.fromEntries([...BEN_ACTIVITIES, "sleeping" as const].map((a) => [a, t(`world.berlinDay.ben.${a}`)])) as Record<BenActivity | "sleeping", string>,
+        vinceStates: Object.fromEntries([...VINCE_ACTIVITIES, "sleeping" as const].map((a) => [a, t(`world.berlinDay.vince.${a}`)])) as Record<VinceActivity | "sleeping", string>,
         clockApprox: "≈",
       },
       anaLook: { look: world.ana_look.look, colors: world.ana_look.colors },
@@ -484,6 +487,18 @@ export function WorldView() {
           <p>{s.id === "ana" ? (place ? place.label : t("world.places.anaUnknown")) : t("world.places.berlin")}</p>
           {s.id !== "ana" || place ? <p className={styles.muted}>{s.id === "ana" && !place?.tz ? t("world.people.localTimeEstimated", { time: local }) : t("world.people.localTime", { time: local })}</p> : null}
           {s.id === "ana" ? lookBlock(place ? anaNight(place) : false, local) : null}
+          {s.id === "ben" || s.id === "vince"
+            ? (() => {
+                const d = berlinDay(now);
+                const doing = d.night ? "sleeping" : s.id === "ben" ? d.ben : d.vince;
+                return (
+                  <section className={styles.section} data-testid={`world-${s.id}-day`} data-activity={doing}>
+                    <p>{t("world.berlinDay.now", { activity: t(`world.berlinDay.${s.id}.${doing}`) })}</p>
+                    <p className={styles.muted}>{d.night ? t("world.berlinDay.night") : t("world.berlinDay.rotation", { time: new Intl.DateTimeFormat(locale, { hour: "2-digit", minute: "2-digit" }).format(new Date(d.until)) })}</p>
+                  </section>
+                );
+              })()
+            : null}
           {own.length ? (
             <>
               <h4>{t("world.people.owns")}</h4>
