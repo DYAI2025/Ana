@@ -229,7 +229,8 @@ export function createWorldScene(
   office.frame.add(ai.group);
   pick(ai.group, { type: "person", id: "ben" });
   const wine = buildWineGlass();
-  wine.position.set(0, -0.31, 0.03);
+  wine.scale.setScalar(1.7);
+  wine.position.set(0, -0.31, 0.04);
   rigs.ben.armR.add(wine);
   const dumbbells = [buildDumbbell(), buildDumbbell()];
   dumbbells[0]?.position.set(0, -0.3, 0);
@@ -929,6 +930,9 @@ export function createWorldScene(
     ben.eyes.scale.y = 1;
     ben.body.position.y = 0.06;
     wine.visible = !day.night && day.ben === "wine";
+    // the futons are rolled out only for the night
+    benFuton.visible = day.night;
+    vinceFuton.visible = day.night;
     ai.group.visible = !day.night && day.ben === "ai";
     (office.laptopScreen.material as THREE.MeshBasicMaterial).color.setHSL(0.6, 0.85, day.night ? 0.3 : 0.74 + Math.sin(T * 2.5) * 0.04 * mo);
     if (day.night) {

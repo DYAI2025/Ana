@@ -569,7 +569,7 @@ export function buildDumbbell(): THREE.Group {
 /** A wine glass with red wine. */
 export function buildWineGlass(): THREE.Group {
   const g = new THREE.Group();
-  const glass = new THREE.MeshBasicMaterial({ color: 0xe8f1f8, transparent: true, opacity: 0.55 });
+  const glass = new THREE.MeshBasicMaterial({ color: 0xdfeaf3, transparent: true, opacity: 0.8 });
   const foot = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.006, 12), glass);
   g.add(foot);
   const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.005, 0.005, 0.07, 6), glass);
