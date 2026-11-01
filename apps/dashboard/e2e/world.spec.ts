@@ -163,6 +163,63 @@ test.describe("ANA World — 3D view over real dashboard data", () => {
     await expect(canvas).toHaveAttribute("data-orbit", "running");
   });
 
+  test("look · Ana follows her newest post and the team can pick a look and a colour", async ({ page }) => {
+    // reduced motion: the camera jumps to Ana and she does not bob, so her label is a still click target
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await openWorld(page);
+    const canvas = page.getByTestId("world-canvas");
+    const before = await (await page.request.get("/api/world")).json();
+    // the synthetic newest post names no look and the e2e server has no vision model
+    expect(before.world.ana_look).toMatchObject({ look: "everyday", look_source: "default", color_source: "default", image_reader: "off" });
+    await expect(canvas).toHaveAttribute("data-ana-look", "everyday");
+    await page.getByTestId("world-view-ana").click();
+    const anaLabel = page.locator(".world-label.person", { hasText: /^Ana/ });
+    await expect(anaLabel).not.toHaveClass(/is-hidden/);
+    await anaLabel.click();
+    const look = page.getByTestId("world-look");
+    await expect(look).toBeVisible();
+    await expect(page.getByTestId("world-look-now")).toHaveAttribute("data-source", "default");
+    await look.getByTestId("world-look-pick-scooter").click();
+    await expect(page.getByTestId("world-look-save")).toHaveAttribute("data-state", "saved");
+    await expect(canvas).toHaveAttribute("data-ana-look", "scooter");
+    await expect(page.getByTestId("world-look-now")).toHaveAttribute("data-source", "manual");
+    await expect(page.getByTestId("world-look-pick-scooter")).toHaveAttribute("aria-checked", "true");
+    await look.getByTestId("world-look-color-d8566f").click();
+    await expect(page.getByTestId("world-look-color")).toHaveAttribute("data-source", "manual");
+    const after = await (await page.request.get("/api/world")).json();
+    expect(after.world.ana_look).toMatchObject({ look: "scooter", look_source: "manual", color_source: "manual", colors: { primary: 0xd8566f } });
+    // depending on the time in the test region she rides or sleeps; both are the scooter look
+    await expect(canvas).toHaveAttribute("data-ana-pose", /^(riding|sleeping)$/);
+    await look.getByTestId("world-look-pick-auto").click();
+    await expect(look.getByTestId("world-look-pick-auto")).toHaveAttribute("aria-checked", "true");
+    // the colour pick keeps the look just picked, even before the next world read arrives
+    await look.getByTestId("world-look-color-auto").click();
+    await expect(look.getByTestId("world-look-color-auto")).toHaveAttribute("aria-checked", "true");
+    await expect(look.getByTestId("world-look-pick-auto")).toHaveAttribute("aria-checked", "true");
+    await expect(canvas).toHaveAttribute("data-ana-look", "everyday");
+  });
+
+  test("look · the pick endpoint refuses cross-site requests and unknown looks", async ({ page }) => {
+    const cross = await page.request.post("/api/world/look", { data: { look: "mermaid", color: "auto" }, headers: { "sec-fetch-site": "cross-site" } });
+    expect(cross.status()).toBe(403);
+    const bad = await page.request.post("/api/world/look", { data: { look: "dragon", color: "auto" } });
+    expect(bad.status()).toBe(400);
+    const badColor = await page.request.post("/api/world/look", { data: { look: "mermaid", color: "javascript:alert(1)" } });
+    expect(badColor.status()).toBe(400);
+  });
+
+  test("clocks · Berlin and Ana's place show their local time", async ({ page }) => {
+    await openWorld(page);
+    const minutes = (hhmm: string) => Number(hhmm.slice(0, 2)) * 60 + Number(hhmm.slice(3, 5));
+    const now = (tz: string) => minutes(new Intl.DateTimeFormat("en-GB", { timeZone: tz, hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).format(new Date()));
+    const near = (a: number, b: number) => Math.min(Math.abs(a - b), 1440 - Math.abs(a - b)) <= 1;
+    for (const [name, tz] of [["Berlin office", "Europe/Berlin"], ["Testregion", "Africa/Nairobi"]] as const) {
+      const sub = page.locator(".world-label:not(.person)", { hasText: name }).locator("small");
+      await expect(sub).toHaveText(/^\d\d:\d\d$/);
+      expect(near(minutes((await sub.textContent()) ?? ""), now(tz)), `${name} shows the time in ${tz}`).toBe(true);
+    }
+  });
+
   test("selection · clicking a country in the panel opens its numbers", async ({ page }) => {
     await openWorld(page);
     await page.getByTestId("world-audience-country").getByRole("button", { name: "Spain" }).click();

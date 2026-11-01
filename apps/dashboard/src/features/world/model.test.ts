@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { Observation, SocialPost } from "@/features/social/types";
 import { buildGeo, isLand, mainlandCentroid, unwrapRing } from "./geo";
 import { CHANNELS, channelStatuses, instagramView, median, ORBIT_MAX, orbitCount, pulseEvents, shares } from "./model";
+import { resolveLook } from "./looks";
 import type { WorldPayload } from "./types";
 import topology from "world-atlas/countries-110m.json";
 import codes from "i18n-iso-countries/codes.json";
@@ -59,6 +60,7 @@ function world(pulseLikes: number, pulseAt = "2026-10-31T20:00:00.000Z", extraPu
     audience: { state: "ok", reason: null, fetched_at: pulseAt, timeframe: "this_month", engaged_country: { state: "ok", reason: null, results: [{ key: "DE", value: 30 }, { key: "ES", value: 10 }] }, engaged_city: { state: "unavailable", reason: "meta-100", results: [] }, follower_country: { state: "unavailable", reason: null, results: [] }, follower_city: { state: "unavailable", reason: null, results: [] } },
     work: { state: "not-configured", reason: "not-configured", fetched_at: null, issues: [] },
     places: { ana: null },
+    ana_look: resolveLook(null, null),
     release: { sha: null, started_at: pulseAt },
   };
 }

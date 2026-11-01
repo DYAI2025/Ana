@@ -31,6 +31,9 @@ const rules = [
   { name: "e2e fake social key", test: (text) => count(text, /e2e-fake-social-key/g) },
   ...(socialKey && socialKey.length >= 8 ? [{ name: "configured SOCIAL_IG_INTERNAL_READ_KEY value", test: (text) => text.split(socialKey).length - 1 }] : []),
   { name: "BRAIN_API_TOKEN variable name", test: (text) => count(text, /BRAIN_API_TOKEN/g) },
+  { name: "ANTHROPIC_API_KEY variable name", test: (text) => count(text, /ANTHROPIC_API_KEY/g) },
+  { name: "Anthropic API key shape", test: (text) => count(text, /sk-ant-[A-Za-z0-9_-]{20,}/g) },
+  { name: "Anthropic API endpoint", test: (text) => count(text, /api\.anthropic\.com/g) },
   { name: "e2e fake brain token", test: (text) => count(text, /e2e-fake-brain-token/g) },
   // dashboard tokens (anad_) and personal access keys (anab_) as the Brain issues them
   { name: "ANA Brain token shape", test: (text) => count(text, /ana[bd]_[A-Za-z0-9_-]{32,}/g) },

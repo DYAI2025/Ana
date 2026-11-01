@@ -5,6 +5,7 @@
  */
 import type { SocialResult } from "@/features/social/types";
 import type { StatusCategory } from "@/features/work/types";
+import type { AnaLook } from "./looks";
 
 /** How one source answered this read. A missing source is never shown as data. */
 export type WorldSourceState = "ok" | "not-configured" | "unavailable" | "error" | "permission-required";
@@ -69,6 +70,8 @@ export interface WorldPlace {
   label: string;
   lat: number;
   lon: number;
+  /** IANA time zone of the place when the operator set one; null = local time is estimated from the longitude */
+  tz: string | null;
 }
 
 export interface WorldRelease {
@@ -85,5 +88,7 @@ export interface WorldPayload {
   audience: WorldAudience;
   work: WorldWork;
   places: { ana: WorldPlace | null };
+  /** what Ana's avatar wears: from her newest post, or picked by the team */
+  ana_look: AnaLook;
   release: WorldRelease;
 }

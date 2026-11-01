@@ -127,14 +127,24 @@ export function rnd(i: number): number {
   return x - Math.floor(x);
 }
 
-/** Frees geometries and the materials that are not shared from the toon cache (safe for rebuilt sub-trees). */
+/** Frees geometries and the materials (with their textures) that are not shared from the toon cache (safe for rebuilt sub-trees). */
 export function disposeGeometry(root: THREE.Object3D): void {
   const cached = new Set<THREE.Material>(toonCache.values());
+  const seen = new Set<unknown>();
   root.traverse((o) => {
     const m = o as THREE.Mesh;
     m.geometry?.dispose();
     const mats = Array.isArray(m.material) ? m.material : m.material ? [m.material] : [];
-    for (const mat of mats) if (!cached.has(mat) && mat !== INK) mat.dispose();
+    for (const mat of mats) {
+      if (cached.has(mat) || mat === INK || seen.has(mat)) continue;
+      seen.add(mat);
+      const map = (mat as THREE.MeshToonMaterial).map;
+      if (map && !seen.has(map)) {
+        seen.add(map);
+        map.dispose();
+      }
+      mat.dispose();
+    }
   });
 }
 

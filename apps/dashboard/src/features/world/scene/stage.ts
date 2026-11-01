@@ -324,3 +324,72 @@ export function buildAnaSpot(lat: number, lon: number): AnaSpot {
   frame.add(hammock);
   return { frame, anaSpot: new THREE.Vector3(-0.1, 0.1, 0.25), hammock };
 }
+
+export interface Scooter {
+  group: THREE.Group;
+  wheels: THREE.Object3D[];
+}
+
+/** A comic step-through scooter, front = +Z, about 0.85 long. The rider sits at `seat` (local coordinates). */
+export function buildScooter(color: number): Scooter & { seat: THREE.Vector3 } {
+  const g = new THREE.Group();
+  const wheels: THREE.Object3D[] = [];
+  for (const z of [0.3, -0.28]) {
+    const w = new THREE.Group();
+    const tyre = mesh(new THREE.TorusGeometry(0.09, 0.035, 8, 20), 0x24272d, 1.12);
+    tyre.rotation.y = Math.PI / 2;
+    w.add(tyre);
+    const hub = mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.05, 10), 0xc4c9d2, 0);
+    hub.rotation.z = Math.PI / 2;
+    w.add(hub);
+    w.position.set(0, 0.125, z);
+    g.add(w);
+    wheels.push(w);
+  }
+  const board = mesh(new THREE.BoxGeometry(0.17, 0.045, 0.4), color, 1.08);
+  board.position.set(0, 0.17, 0.02);
+  g.add(board);
+  const rear = mesh(new THREE.SphereGeometry(0.16, 18, 12), color, 1.06);
+  rear.scale.set(0.95, 0.8, 1.45);
+  rear.position.set(0, 0.27, -0.22);
+  g.add(rear);
+  const seat = mesh(new THREE.CapsuleGeometry(0.075, 0.2, 4, 10), 0x5a3a28, 1.1);
+  seat.rotation.x = Math.PI / 2;
+  seat.position.set(0, 0.4, -0.18);
+  g.add(seat);
+  const shield = mesh(new THREE.BoxGeometry(0.2, 0.36, 0.045), color, 1.08);
+  shield.rotation.x = -0.28;
+  shield.position.set(0, 0.34, 0.25);
+  g.add(shield);
+  const stem = mesh(new THREE.CylinderGeometry(0.022, 0.022, 0.2, 8), 0x9aa1ab, 1.1);
+  stem.position.set(0, 0.56, 0.3);
+  g.add(stem);
+  const bar = mesh(new THREE.CapsuleGeometry(0.02, 0.32, 3, 8), 0x24272d, 1.12);
+  bar.rotation.z = Math.PI / 2;
+  bar.position.set(0, 0.66, 0.29);
+  g.add(bar);
+  const lamp = new THREE.Mesh(new THREE.SphereGeometry(0.045, 12, 8), new THREE.MeshBasicMaterial({ color: 0xffe08a }));
+  lamp.position.set(0, 0.6, 0.35);
+  g.add(lamp);
+  const mud = mesh(new THREE.TorusGeometry(0.12, 0.025, 6, 16, Math.PI), color, 1.08);
+  mud.rotation.y = Math.PI / 2;
+  mud.position.set(0, 0.14, 0.3);
+  g.add(mud);
+  return { group: g, wheels, seat: new THREE.Vector3(0, 0.43, -0.16) };
+}
+
+/** A round beach rock for the mermaid to sit on; its top is at `top`. */
+export function buildRock(): { group: THREE.Group; top: THREE.Vector3 } {
+  const g = new THREE.Group();
+  const rock = mesh(new THREE.DodecahedronGeometry(0.26, 0), 0x9aa3ad, 1.06);
+  rock.scale.set(1.25, 0.8, 1);
+  rock.position.y = 0.12;
+  g.add(rock);
+  const pebble = mesh(new THREE.DodecahedronGeometry(0.09, 0), 0xb7bec7, 1.08);
+  pebble.position.set(0.3, 0.05, 0.12);
+  g.add(pebble);
+  const star = mesh(new THREE.ConeGeometry(0.05, 0.02, 5), 0xf2955e, 1.1);
+  star.position.set(-0.28, 0.03, 0.18);
+  g.add(star);
+  return { group: g, top: new THREE.Vector3(0, 0.3, 0) };
+}

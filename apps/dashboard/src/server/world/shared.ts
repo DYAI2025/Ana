@@ -4,7 +4,9 @@ import { jiraClientFromEnv, READ_BUDGET_MS } from "@/server/http";
 import { readSnapshot } from "@/server/jira/work";
 import { readSocialConfig } from "@/server/social/config";
 import { socialServiceFromEnv } from "@/server/social/service";
+import { readManual } from "./lookStore";
 import { createWorldService, type WorldService } from "./service";
+import { createVisionReader, visionConfigFromEnv } from "./vision";
 
 let shared: { key: string; service: WorldService } | null = null;
 
@@ -14,7 +16,8 @@ export function worldServiceFromEnv(): WorldService {
   const jiraConfigured = jiraClientFromEnv(READ_BUDGET_MS) !== null;
   const pulseRaw = Number(process.env.WORLD_PULSE_MS);
   const pulseMs = process.env.WORLD_PULSE_MS !== undefined && Number.isFinite(pulseRaw) && pulseRaw >= 0 ? pulseRaw : undefined;
-  const key = `${config?.workerOrigin ?? "-"}|${config?.key.length ?? 0}|${jiraConfigured}|${pulseMs ?? "d"}`;
+  const vision = visionConfigFromEnv();
+  const key = `${config?.workerOrigin ?? "-"}|${config?.key.length ?? 0}|${jiraConfigured}|${pulseMs ?? "d"}|${vision?.model ?? "-"}`;
   if (!shared || shared.key !== key) {
     shared = {
       key,
@@ -31,6 +34,8 @@ export function worldServiceFromEnv(): WorldService {
         workKeys: PROJECTS.flatMap((p) => p.jiraKeys),
         // WORLD_PULSE_MS shortens the pulse reuse window (e2e uses 0); the retry back-off shrinks with it
         timings: pulseMs === undefined ? undefined : { pulseMs, retryMs: Math.min(60_000, pulseMs) },
+        readManual: () => readManual(),
+        vision: vision ? createVisionReader(vision) : null,
       }),
     };
   }

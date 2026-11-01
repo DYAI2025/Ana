@@ -569,3 +569,59 @@ button.barLabel {
     animation: none;
   }
 }
+
+.lookPick,
+.swatches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  margin: 8px 0 4px;
+}
+
+.lookPick button,
+.swatches > button:first-child {
+  padding: 5px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--glass-edge-strong);
+  background: var(--surface-solid);
+  font: 600 12px/1.2 var(--font);
+  color: var(--text);
+  cursor: pointer;
+}
+
+.lookPick button[aria-checked="true"],
+.swatches > button:first-child[aria-checked="true"] {
+  background: var(--text);
+  color: var(--surface-solid);
+}
+
+.swatch {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 2px solid var(--surface-solid);
+  box-shadow: 0 0 0 1px var(--glass-edge-strong);
+  background: var(--swatch);
+  cursor: pointer;
+  padding: 0;
+}
+
+.swatch[aria-checked="true"] {
+  box-shadow: 0 0 0 2px var(--text);
+}
+
+.swatchNow {
+  width: 14px;
+  height: 14px;
+  border-radius: 4px;
+  background: var(--swatch);
+  margin-left: 4px;
+  border: 1px solid var(--glass-edge-strong);
+}
+
+.lookPick button[aria-disabled="true"],
+.swatches button[aria-disabled="true"] {
+  opacity: 0.6;
+  cursor: progress;
+}
