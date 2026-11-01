@@ -22,7 +22,9 @@ const MIN_KEY_LENGTH = 32;
 const MEDIA_FIELDS = 'id,media_type,permalink,timestamp,thumbnail_url';
 // Social snapshot (internal read contract for the dashboard BFF).
 const SNAPSHOT_BASE_FIELDS = MEDIA_FIELDS + ',media_product_type';
-const SNAPSHOT_OPTIONAL_FIELDS = 'caption,like_count,comments_count';
+// media_url: the image of IMAGE posts and carousel containers (Meta: thumbnail_url exists only for VIDEO); for VIDEO
+// it is the video file and is not passed on
+const SNAPSHOT_OPTIONAL_FIELDS = 'caption,like_count,comments_count,media_url';
 // Same maturity rule as the dashboard (apps/dashboard/src/features/social/insights.ts MATURE_AGE_DAYS).
 const SNAPSHOT_MATURE_DAYS = 7;
 const SNAPSHOT_DEFAULT_MAX = 30;
@@ -420,7 +422,8 @@ async function snapshotMedia(b, max) {
   return {optional, pages, hasMore, items:items.map(m => ({
     id:String(m.id), media_type:m.media_type ?? null, media_product_type:m.media_product_type ?? null,
     permalink:m.permalink ?? null, timestamp:m.timestamp ?? null, thumbnail_url:m.thumbnail_url ?? null,
-    ...(optional === 'ACCEPTED' ? {caption:typeof m.caption === 'string' ? m.caption : null, like_count:countOrNull(m.like_count), comments_count:countOrNull(m.comments_count)} : {})
+    ...(optional === 'ACCEPTED' ? {caption:typeof m.caption === 'string' ? m.caption : null, like_count:countOrNull(m.like_count), comments_count:countOrNull(m.comments_count),
+      image_url:m.media_type !== 'VIDEO' && typeof m.media_url === 'string' ? m.media_url : null} : {})
   }))};
 }
 function insightValue(entry) {

@@ -558,7 +558,8 @@ function pagedMedia(total, {fields = null} = {}) {
     const limit = Number(u.searchParams.get('limit'));
     const end = Math.min(total, start + limit);
     const data = Array.from({length: end - start}, (_, k) => ({
-      id: `m${start + k}`, media_type: 'VIDEO', media_product_type: 'REELS', permalink: `https://example.invalid/p/${start + k}`,
+      id: `m${start + k}`, media_type: (start + k) % 3 === 2 ? 'IMAGE' : 'VIDEO', media_product_type: (start + k) % 3 === 2 ? 'FEED' : 'REELS', permalink: `https://example.invalid/p/${start + k}`,
+      media_url: (start + k) % 3 === 2 ? `https://example.invalid/i/${start + k}.jpg` : `https://example.invalid/v/${start + k}.mp4`,
       timestamp: new Date(Date.now() - (start + k) * 0.5 * DAY * 1000).toISOString().replace('.000Z', '+0000'),
       thumbnail_url: `https://example.invalid/t/${start + k}.jpg`, caption: track(`synthetic caption ${start + k} ${'c'.repeat(8)}`),
       like_count: 5, comments_count: 1
@@ -567,6 +568,20 @@ function pagedMedia(total, {fields = null} = {}) {
     return Response.json({data, paging});
   };
 }
+test('social snapshot: image_url carries the picture of photo posts, never a video file', async () => {
+  const env = mockEnv();
+  await connect(env);
+  const fields = [];
+  installMeta({media: pagedMedia(6, {fields})});
+  const r = await snapshot(env, '?max=6');
+  assert.equal(r.status, 200);
+  const body = await r.json();
+  assert.match(fields[0], /media_url/);
+  for (const m of body.media.items) {
+    if (m.media_type === 'IMAGE') assert.equal(m.image_url, `https://example.invalid/i/${m.id.slice(1)}.jpg`);
+    else assert.equal(m.image_url, null, 'a video never passes its file URL on');
+  }
+});
 const snapshot = (env, q = '', key = INTERNAL_KEY) => worker.fetch(new Request(origin + '/internal/social-snapshot' + q, {headers: {Authorization: `Bearer ${key}`}}), env);
 
 test('social snapshot: internal key only, max validation, reauth and account checks', async () => {

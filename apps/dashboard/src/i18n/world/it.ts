@@ -113,7 +113,7 @@ export const worldIt: Messages["world"] = {
     manualExpired: "Una scelta di {time} non vale più: Ana ha pubblicato dopo.",
     colorDefault: "I suoi colori. Scegli un colore qui sotto per vestirla come nel post.",
     colorImage: "Colori dei vestiti letti da Claude dalla copertina di quel post (sicuro al {pct} %).",
-    noCover: "Il suo post più recente è un post foto senza copertina per Claude, quindi conta solo la didascalia.",
+    noCover: "Il suo post più recente non ha un'immagine leggibile dal server (worker più vecchio o post senza immagine), quindi conta solo la didascalia.",
     colorManual: "Colore scelto a mano.",
     pick: "Scegli un look",
     pickColor: "Colore dei vestiti",

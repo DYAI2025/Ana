@@ -89,10 +89,11 @@ export function ContentRows({
 
 function Thumb({ p }: { p: PostAnalysis }) {
   const [broken, setBroken] = useState(false);
-  if (p.post.thumbnail_url && !broken) {
+  const picture = p.post.thumbnail_url ?? p.post.image_url ?? null;
+  if (picture && !broken) {
     // Instagram CDN URL, rendered as-is (no proxy, no copy); decorative because the caption follows
     // eslint-disable-next-line @next/next/no-img-element
-    return <img className={styles.thumb} src={p.post.thumbnail_url} alt="" referrerPolicy="no-referrer" loading="lazy" onError={() => setBroken(true)} />;
+    return <img className={styles.thumb} src={picture} alt="" referrerPolicy="no-referrer" loading="lazy" onError={() => setBroken(true)} />;
   }
   return (
     <svg className={styles.thumb} viewBox="0 0 52 52" aria-hidden="true">
