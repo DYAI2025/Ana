@@ -75,15 +75,19 @@ export const CANDIDATES: readonly CandidateHypothesis[] = ["H1", "H4"];
 /**
  * H1 (Opportunity Drop) needs a specific creator/UGC/remote-work job or opportunity TOPIC, read from a few fixed
  * constructions inside one clause (clauses end at . ! ? ; , and line breaks):
- * - domain term directly before the opportunity term: "UGC jobs", "creator opportunities", "brands hiring"; a generic
- *   "opportunity" after a copula is commentary, not a topic ("AI is a massive brand opportunity", "Reels are a huge creator
- *   opportunity"), as in the connector form;
+ * - domain term directly before the opportunity term: "UGC jobs", "brands hiring", "remote work opportunities";
  * - opportunity term, a connector (for / für / per), then the domain term: "jobs for creators", "Stellenangebote für Creator",
  *   but not as the predicate of a copula ("Reels are a huge opportunity for brands" is commentary);
  * - "hiring" announced (clause start, "now hiring", "we're hiring", "brands hiring", "<brand> is hiring") and followed by the domain term
  *   (at most one word between): "hiring UGC creators"; advice such as "stop hiring influencers" does not count;
  * - a plural list head with a colon: "Opportunities list: remote work" (a singular "Dream job: UGC creator" is a label).
- * The topic is enough: a live job posting or an explicit offer signal ("apply", "deadline") is not required, and a how-to
+ * A generic "opportunity"/"opportunities" is a job topic only with work context in its clause: a remote-work domain
+ * ("remote work opportunities"), a job/work noun right before it ("job opportunities for creators") or a call to apply
+ * ("Creator opportunities: apply before Friday"). A bare "brand/creator opportunity" is business-opportunity commentary,
+ * with or without a copula ("AI is a massive brand opportunity", "Huge brand opportunity in AI right now", "Reels could be
+ * a major creator opportunity"), and so is an own sponsorship ("Grateful for this brand opportunity"); a list announcement
+ * without work context abstains too ("Here are 5 creator opportunities this week"; AC2 finding, frozen interpretation 2026-11-01).
+ * For a job-specific term the topic is enough: a live job posting or an explicit offer signal ("apply", "deadline") is not required, and a how-to
  * or advice frame does not block it ("How to land your first UGC job", "Where to find remote jobs as a creator"). A match
  * is DERIVED editorial relevance only, never audience need, demand or a commercial outcome (AC2 contract repair, PO
  * 2026-10-31; this reverts the review-round-5 offer-signal gate and advice-frame abstention, which went beyond the contract).
@@ -105,6 +109,11 @@ const DOMAIN_WORDS: ReadonlySet<string> = new Set(H1_DOMAIN_TERMS);
 /** Bare "remote" may mean a place ("remote opportunity to travel"); it needs a job-specific term. "remote work" does not. */
 const H1_WORK_ONLY_DOMAINS: ReadonlySet<string> = new Set(["remote", "remoto"]);
 const H1_GENERIC_OPPORTUNITY: ReadonlySet<string> = new Set(["opportunity", "opportunities"]);
+/** Work context for a generic "opportunity": a remote-work domain, a job/work noun right before it, or a call to apply. */
+const H1_WORK_DOMAINS: ReadonlySet<string> = new Set(["remote work", "remote working"]);
+const H1_WORK_MODIFIERS: ReadonlySet<string> = new Set(["job", "jobs", "gig", "gigs", "work"]);
+/** "apply now", "apply by Friday", "how to apply"; not "apply this hook" or "apply yourself". */
+const APPLY_CALL_FOLLOWERS: ReadonlySet<string> = new Set(["now", "here", "today", "via", "by", "before", "below", "through", "at", ":"]);
 /** "jobs for creators", "Stellenangebote für Creator", "opportunità di lavoro per creator" */
 const H1_CONNECTORS: ReadonlySet<string> = new Set(["for", "für", "per"]);
 /** "our brand is hiring" */
@@ -189,13 +198,18 @@ function announcedHiring(t: readonly string[], os: number): boolean {
 
 /** One H1 construction between an opportunity occurrence [os, oe] and a domain occurrence [ds, de], or false. */
 function h1Construction(t: readonly string[], o: string, [os, oe]: [number, number], [ds, de]: [number, number]): boolean {
-  // "UGC jobs", "brands hiring"; a generic "opportunity" as a copula predicate is commentary ("AI is a massive brand opportunity")
-  if (de === os - 1) return !(H1_GENERIC_OPPORTUNITY.has(o) && before(t, ds, COPULAS));
+  if (de === os - 1) return true; // "UGC jobs", "brands hiring"
   if (o === "hiring" && de === os - 2 && COPULAS.has(t[os - 1]!)) return true; // "our brand is hiring"
   if (ds === oe + 2 && H1_CONNECTORS.has(t[oe + 1]!) && !before(t, os, COPULAS)) return true; // "jobs for creators"
   if (o === "hiring" && ds > oe && ds - oe - 1 <= 1 && announcedHiring(t, os)) return true; // "(5 brands) hiring (talented) creators"
   if (H1_PLURAL_OPPORTUNITY.has(o) && ds > oe && t[ds - 1] === ":" && ds - 1 - oe - 1 <= 1) return true; // "Opportunities list: remote work"
   return false;
+}
+
+/** A generic "opportunity" at token os with domain d has work context in its clause (see H1 above). */
+function workContext(t: readonly string[], os: number, d: string): boolean {
+  if (H1_WORK_DOMAINS.has(d) || H1_WORK_MODIFIERS.has(t[os - 1]!)) return true;
+  return t.some((w, i) => w === "apply" && (i === t.length - 1 || APPLY_CALL_FOLLOWERS.has(t[i + 1]!)));
 }
 
 /** Caption keywords that make a post topically eligible, or [] (generic words only, never caption excerpts). */
@@ -230,7 +244,7 @@ export function deriveTopicalFit(caption: string | null, hypothesis: CandidateHy
         for (const d of H1_DOMAIN_TERMS)
           for (const dOcc of occurrences(t, d)) {
             if (!h1Construction(t, o, occ, dOcc)) continue;
-            if (H1_WORK_ONLY_DOMAINS.has(d) && H1_GENERIC_OPPORTUNITY.has(o)) continue;
+            if (H1_GENERIC_OPPORTUNITY.has(o) && (H1_WORK_ONLY_DOMAINS.has(d) || !workContext(t, occ[0], d))) continue;
             const start = Math.min(occ[0], dOcc[0]);
             if (H1_OWN_JOB_NOUNS.has(o) && (before(t, start, FIRST_PERSON_POSSESSIVES) || before(t, start, OWN_JOB_VERBS))) continue;
             if (before(t, start, NEGATORS)) continue;

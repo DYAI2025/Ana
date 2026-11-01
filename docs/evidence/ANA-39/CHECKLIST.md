@@ -15,7 +15,7 @@ PASS or FAIL is set by a separate acceptor on the exact candidate SHA (docs/deli
 
 | Area | Change |
 |---|---|
-| `themes.ts` | Themes stay a browsing aid. Hypothesis eligibility (TOPICAL_FIT) has its own rules: **H1** = opportunity/job term **adjacent to (or one word from)** a creator/UGC/remote/brand domain term, or a compact hashtag such as `#ugcjobs`; **H4** = reusable-artifact term (template, checklist, worksheet, media kit, …; "workflow" only with a file cue such as file, PDF, download, Notion). Bare "remote" pairs only with job terms, and the author's own job ("my remote job") is excluded. The ANA-38 family→hypothesis coupling (`opportunities` theme → H1 **and** H4) is removed. Session-only, hypothesis-specific corrections (`include` / `exclude` / caption rule). |
+| `themes.ts` | Themes stay a browsing aid. Hypothesis eligibility (TOPICAL_FIT) has its own rules: **H1** = opportunity/job term **adjacent to (or one word from)** a creator/UGC/remote/brand domain term, or a compact hashtag such as `#ugcjobs`; a generic "opportunity" needs work context (remote-work domain, "job/work opportunities", a call to apply); **H4** = reusable-artifact term (template, checklist, worksheet, media kit, …; "workflow" only with a file cue such as file, PDF, download, Notion). Bare "remote" pairs only with job terms, and the author's own job ("my remote job") is excluded. The ANA-38 family→hypothesis coupling (`opportunities` theme → H1 **and** H4) is removed. Session-only, hypothesis-specific corrections (`include` / `exclude` / caption rule). |
 | `offers.ts` | Per hypothesis four independent lanes: CONTENT_RESONANCE, TOPICAL_FIT, AUDIENCE_NEED (NOT_CONNECTED), COMMERCIAL_OUTCOME (NOT_CONNECTED). No `supporting` / `contradicting`, no blended `SIGNAL`, no `lean`. Above/below same-format median = engagement and low-resonance comparators. Next evidence actions + `ABSTAIN`. `nextTest` (0.25 lean) replaced by a descriptive H1-only/H4-only comparison with the absolute index difference. |
 | `insights.ts` | Calculations unchanged; `high_intent_*` renamed `content_action_*`, semantics documented ((saves + shares) ÷ reach is an action ratio, can exceed 1; 7 days = maturity cutoff, not age matching). |
 | UI | `Patterns.tsx` four-lane card, decision fieldset, inspection with eligible/excluded posts, disclosure (formats + baseline n, not compared + reason, observed, period, ages) and limits. `ContentRows.tsx` per-post topical fit with provenance and session correction. `InstagramCockpit.tsx` holds corrections and passes `stale`. EN/DE/IT: no "high intent" wording. |
@@ -182,11 +182,27 @@ required). Proof: the `offers.test.ts` cases "negative (AC2 finding) …" and "o
 exclude by hand, with identical H1 resonance, H4 lane, source metrics and NOT_CONNECTED lanes. Known cost: a generic
 "opportunity" announced with a copula ("Here are 5 creator opportunities this week") now abstains as well (pinned).
 
+Residual of that finding on `6b28633` (2026-11-01): the copula guard was incomplete. Without a copula ("Huge brand
+opportunity in AI right now") or with a modal ("Reels could be a major creator opportunity") the same commentary was
+still H1. The copula guard is replaced by one boundary for the generic terms "opportunity"/"opportunities" in every
+construction: they count only with work context in their clause, i.e. a remote-work domain ("remote work
+opportunities"), a job/work noun right before them ("job opportunities for creators") or a call to apply ("apply now",
+"apply by Friday", "how to apply"; not "apply this hook", "apply yourself"). Job-specific terms, "hiring", hashtags, all
+guards, H4 and the four lanes are unchanged; no offer signal is required for job topics. Proof: the `offers.test.ts`
+cases "negative (AC2 finding) …" and "outcome delta (AC2 finding) …" fail on `6b28633` (e.g. "Huge brand opportunity in
+AI right now" → `[opportunity, brand]`; outcome delta eligible `[g3, g4, job]`) and pass after the change; the four
+specific job-topic positives and the ANA-38 fixture before/after (syn002/syn008/syn022) are unchanged. Precision gain:
+own sponsorships without work context ("Grateful for this brand opportunity …") are no longer DERIVED. Recall cost,
+accepted: "Here are 5 creator opportunities this week" still abstains, as does any bare "creator opportunities" list
+whose call to apply sits in another clause; "Creator opportunities: casting call for UGC" stays H1 through the casting
+call, but the bare head no longer adds the keywords `opportunities`/`creator`. Not changed (out of this repair's scope):
+the compact hashtags `#creatoropportunity`, `#creatoropportunities` and `#ugcopportunities` still count on their own.
+
 Residual limit (stated, not hidden): a caption keyword rule cannot read intent. Without the gate, captions that mention
-the author's own current job or a thank-you for an own brand opportunity carry no guard cue and are now DERIVED ("Just
-shot a UGC job for a skincare brand", "BTS of today's UGC job", "POV: you have a remote job and live in Bali", "Grateful
-for this brand opportunity …"), as does generic opportunity commentary without a copula ("Huge brand opportunity in AI
-right now"); they are pinned in `offers.test.ts` as uncertain DERIVED suggestions that an analyst excludes per session. The rule still abstains where a
+the author's own current job carry no guard cue and are now DERIVED ("Just shot a UGC job for a skincare brand", "BTS of
+today's UGC job", "POV: you have a remote job and live in Bali"); they are pinned in `offers.test.ts` as uncertain
+DERIVED suggestions that an analyst excludes per session. (Own brand opportunities and generic opportunity commentary
+left this list on 2026-11-01: without work context they are UNCLASSIFIED.) The rule still abstains where a
 guard fires (e.g. "My top 5 UGC jobs this week", "I quit my remote job", "Not a UGC job"). The lane is labelled a
 DERIVED suggestion, never confirmed demand; a reviewed classification is not part of F1.I1.
 
