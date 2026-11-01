@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { Observation, SocialPost } from "@/features/social/types";
 import { buildGeo, isLand, mainlandCentroid, unwrapRing } from "./geo";
-import { CHANNELS, channelStatuses, instagramView, median, pulseEvents, shares } from "./model";
+import { CHANNELS, channelStatuses, instagramView, median, ORBIT_MAX, orbitCount, pulseEvents, shares } from "./model";
 import type { WorldPayload } from "./types";
 import topology from "world-atlas/countries-110m.json";
 import codes from "i18n-iso-countries/codes.json";
@@ -143,5 +143,14 @@ describe("geo", () => {
   it("unwraps antimeridian jumps", () => {
     expect(unwrapRing([[179, 0], [-179, 1], [-178, 2]])).toEqual([[179, 0], [181, 1], [182, 2]]);
     expect(mainlandCentroid({ type: "Feature", properties: {}, geometry: { type: "Polygon", coordinates: [[[0, 0], [2, 0], [2, 2], [0, 2], [0, 0]]] } })).toEqual({ lat: 1, lon: 1 });
+  });
+});
+
+describe("orbitCount", () => {
+  it("is the number of cards the orbit draws: all posts up to ORBIT_MAX", () => {
+    expect(ORBIT_MAX).toBe(30);
+    expect(orbitCount(new Array(50).fill(0))).toBe(30);
+    expect(orbitCount(new Array(28).fill(0))).toBe(28);
+    expect(orbitCount([])).toBe(0);
   });
 });

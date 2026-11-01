@@ -5,10 +5,11 @@
  */
 import * as THREE from "three";
 import type { Geo } from "../geo";
-import type { ChannelDef, ChannelStatus, PulseEvent, ShareEntry, WorldPost } from "../model";
+import { ORBIT_MAX, type ChannelDef, type ChannelStatus, type PulseEvent, type ShareEntry, type WorldPost } from "../model";
 import { BERLIN, PEOPLE, type ProjectShape, type WorldPersonId } from "../people";
 import type { WorldPlace } from "../types";
 import { buildAvatar, type AvatarRig } from "./avatar";
+import { declutter } from "./declutter";
 import { basic, disposeGeometry, disposeTree, ll, mesh, PALETTE, R } from "./kit";
 import { buildAnaSpot, buildClouds, buildGlobe, buildOffice, buildStation, type AnaSpot, type Station } from "./stage";
 
@@ -75,6 +76,11 @@ interface Label {
   minDist: number;
   maxDist: number;
   dx: number;
+  /** higher wins a contested spot; see declutter() */
+  priority: number;
+  w: number;
+  h: number;
+  shift: number;
   hidden?: boolean;
 }
 
@@ -235,7 +241,7 @@ export function createWorldScene(
 
   // ---------- labels ----------
   const labels: Label[] = [];
-  function label(text: string, sub: string | null, anchor: THREE.Object3D, ref: SceneRef | null, o: Partial<Pick<Label, "dy" | "focus" | "minDist" | "maxDist" | "dx">> & { cls?: string; tint?: string } = {}): Label {
+  function label(text: string, sub: string | null, anchor: THREE.Object3D, ref: SceneRef | null, o: Partial<Pick<Label, "dy" | "focus" | "minDist" | "maxDist" | "dx" | "priority">> & { cls?: string; tint?: string } = {}): Label {
     const el = document.createElement(ref ? "button" : "div");
     el.className = `world-label${o.cls ? ` ${o.cls}` : ""}`;
     if (ref) (el as HTMLButtonElement).type = "button";
@@ -246,11 +252,13 @@ export function createWorldScene(
     if (sub) {
       const s = document.createElement("small");
       s.textContent = sub;
+      // the line may be cut with an ellipsis; the full text stays available on hover
+      s.title = sub;
       el.appendChild(s);
     }
     if (ref) el.addEventListener("click", () => options.onSelect(ref));
     labelHost.appendChild(el);
-    const l: Label = { el, anchor, dy: o.dy ?? 0, focus: o.focus ?? null, minDist: o.minDist ?? 0, maxDist: o.maxDist ?? 999, dx: o.dx ?? 0 };
+    const l: Label = { el, anchor, dy: o.dy ?? 0, focus: o.focus ?? null, minDist: o.minDist ?? 0, maxDist: o.maxDist ?? 999, dx: o.dx ?? 0, priority: o.priority ?? 1, w: 0, h: 0, shift: 0 };
     labels.push(l);
     return l;
   }
@@ -334,7 +342,7 @@ export function createWorldScene(
     }
     const reaches = next.posts.map((p) => p.reach ?? 0);
     const maxReach = Math.max(1, ...reaches);
-    next.posts.slice(0, 30).forEach((p, i, arr) => {
+    next.posts.slice(0, ORBIT_MAX).forEach((p, i, arr) => {
       const ang = (i / arr.length) * Math.PI * 2;
       const slot = new THREE.Vector3(Math.cos(ang) * RING_R, 0, Math.sin(ang) * RING_R);
       const existing = cards.get(p.id);
@@ -439,7 +447,7 @@ export function createWorldScene(
     clearDataLabels();
     for (const p of next.projects) {
       const s = stations.get(p.id);
-      if (s) dataLabels.push(label(p.label, p.sub, s.group, { type: "project", id: p.id }, { dy: 0.75, focus: "berlin", maxDist: 20, cls: `station-${p.status}` }));
+      if (s) dataLabels.push(label(p.label, p.sub, s.group, { type: "project", id: p.id }, { dy: 0.75, focus: "berlin", maxDist: 20, cls: `station-${p.status}`, priority: 4 }));
     }
     const places = [BERLIN, ...(next.anaPlace ? [next.anaPlace] : [])].map((p) => ll(p.lat, p.lon, 1).normalize());
     for (const c of next.countries.slice(0, 6)) {
@@ -450,7 +458,7 @@ export function createWorldScene(
       const a = new THREE.Object3D();
       a.position.copy(ll(cen.lat, cen.lon, R + 0.6));
       arcs.add(a);
-      dataLabels.push(label(c.label, `${Math.round(c.share * 100)} %`, a, { type: "country", key: c.key }, { minDist: 22, maxDist: 60, cls: "country" }));
+      dataLabels.push(label(c.label, `${Math.round(c.share * 100)} %`, a, { type: "country", key: c.key }, { minDist: 22, maxDist: 60, cls: "country", priority: 2 }));
     }
     next.channels
       .filter((c) => c.def.id !== "instagram")
@@ -460,22 +468,22 @@ export function createWorldScene(
         const a = new THREE.Object3D();
         a.position.set(RING_R + 1.4 + i * 0.9, 0, 0);
         ring.add(a);
-        dataLabels.push(label(c.def.label, next.labels.notConnected, a, null, { minDist: 40, cls: "channel-off" }));
+        dataLabels.push(label(c.def.label, next.labels.notConnected, a, null, { minDist: 40, cls: "channel-off", priority: 1 }));
       });
     const L = next.labels;
     for (const l of staticLabels) l.el.remove();
     staticLabels.forEach((l) => labels.splice(labels.indexOf(l), 1));
     staticLabels.length = 0;
     staticLabels.push(
-      label(L.people.ben.name, L.people.ben.sub, rigs.ben.root, { type: "person", id: "ben" }, { dy: 1.45, focus: "berlin", maxDist: 22, cls: "person", tint: PEOPLE.ben.tint }),
-      label(L.people.vince.name, L.people.vince.sub, rigs.vince.root, { type: "person", id: "vince" }, { dy: 1.45, focus: "berlin", maxDist: 22, cls: "person", tint: PEOPLE.vince.tint }),
-      label(L.people.ana.name, L.people.ana.sub, rigs.ana.root, { type: "person", id: "ana" }, { dy: 1.5, focus: "ana", maxDist: 22, cls: "person", tint: PEOPLE.ana.tint }),
-      label(L.berlin, null, office.frame, { type: "place", id: "berlin" }, { dy: 2.4, minDist: 22 }),
-      label(L.anaPlace, null, anaLabelAnchor, { type: "place", id: "ana" }, { dy: 2.1, minDist: 22 }),
-      label(L.vps, L.vpsSub, sat, { type: "vps" }, { dy: 0.9, minDist: 18 }),
-      label(L.ring, L.ringSub, ringAnchor, { type: "ring" }, { dy: 1, minDist: 30 }),
+      label(L.people.ben.name, L.people.ben.sub, rigs.ben.root, { type: "person", id: "ben" }, { dy: 1.45, focus: "berlin", maxDist: 22, cls: "person", tint: PEOPLE.ben.tint, priority: 6 }),
+      label(L.people.vince.name, L.people.vince.sub, rigs.vince.root, { type: "person", id: "vince" }, { dy: 1.45, focus: "berlin", maxDist: 22, cls: "person", tint: PEOPLE.vince.tint, priority: 6 }),
+      label(L.people.ana.name, L.people.ana.sub, rigs.ana.root, { type: "person", id: "ana" }, { dy: 1.5, focus: "ana", maxDist: 22, cls: "person", tint: PEOPLE.ana.tint, priority: 6 }),
+      label(L.berlin, null, office.frame, { type: "place", id: "berlin" }, { dy: 2.4, minDist: 22, priority: 5 }),
+      label(L.anaPlace, null, anaLabelAnchor, { type: "place", id: "ana" }, { dy: 2.1, minDist: 22, priority: 5 }),
+      label(L.vps, L.vpsSub, sat, { type: "vps" }, { dy: 0.9, minDist: 18, priority: 3 }),
+      label(L.ring, L.ringSub, ringAnchor, { type: "ring" }, { dy: 1, minDist: 30, priority: 3 }),
     );
-    zzz = label("Z z z", null, rigs.ana.root, null, { dy: 1.2, dx: 46, focus: "ana", maxDist: 22, cls: "zzz" });
+    zzz = label("Z z z", null, rigs.ana.root, null, { dy: 1.2, dx: 46, focus: "ana", maxDist: 22, cls: "zzz", priority: 6 });
     staticLabels.push(zzz);
     canvas.dataset.ready = "true";
   }
@@ -567,20 +575,61 @@ export function createWorldScene(
   canvas.addEventListener("pointerup", onUp);
   canvas.addEventListener("pointercancel", onUp);
   canvas.addEventListener("wheel", onWheel, { passive: false });
+  // while the pointer is over the stage the orbit and the auto camera stand still, so a moving post card can be hit
+  let hovering = false;
+  let hoverAt: { x: number; y: number } | null = null;
+  canvas.dataset.orbit = reduced ? "still" : "running";
+  const onEnter = () => {
+    hovering = true;
+    if (!reduced) canvas.dataset.orbit = "paused";
+  };
+  const onLeave = () => {
+    hovering = false;
+    hoverAt = null;
+    canvas.style.cursor = "";
+    if (!reduced) canvas.dataset.orbit = "running";
+  };
+  // a late font subset changes label widths: measure again
+  const remeasure = () => {
+    for (const l of labels) l.w = 0;
+  };
+  document.fonts?.addEventListener?.("loadingdone", remeasure);
+  const onHover = (e: PointerEvent) => {
+    if (e.pointerType === "mouse" && pointers.size === 0) hoverAt = { x: e.offsetX, y: e.offsetY };
+  };
+  // the stage element holds the canvas and the labels, so pointing at a label does not count as leaving
+  const stage = canvas.parentElement ?? canvas;
+  stage.addEventListener("pointerenter", onEnter);
+  stage.addEventListener("pointerleave", onLeave);
+  canvas.addEventListener("pointermove", onHover);
+  function updateCursor() {
+    if (!hoverAt) return;
+    ndc.set((hoverAt.x / (canvas.clientWidth || 1)) * 2 - 1, -(hoverAt.y / (canvas.clientHeight || 1)) * 2 + 1);
+    hoverAt = null;
+    ray.setFromCamera(ndc, camera);
+    // "" leaves the stylesheet's grab/grabbing cursor in charge
+    canvas.style.cursor = ray.intersectObjects(pickables, false)[0] ? "pointer" : "";
+  }
 
   // ---------- loop ----------
   // lying on her back along the hammock (head towards the first palm), face up
   const sleepPose = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), 0.12).multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), Math.PI / 2)).multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI / 2));
   const clock = new THREE.Clock();
   let T = 0;
+  let orbitT = 0;
   let raf = 0;
   const tmp = new THREE.Vector3();
   const proj = new THREE.Vector3();
 
+  let shownCount = -1;
   function updateLabels() {
     const w = canvas.clientWidth;
     const h = canvas.clientHeight;
     const cp = camera.position;
+    const focused = document.activeElement;
+    const shown: Array<{ l: Label; x: number; y: number }> = [];
+    const off: Label[] = [];
+    // pass 1: projection only, no DOM reads or writes
     for (const l of labels) {
       l.anchor.updateWorldMatrix(true, false);
       const s = l.anchor.getWorldScale(tmp).x || 1;
@@ -600,10 +649,44 @@ export function createWorldScene(
       if (l.focus && cam.focus !== l.focus) vis = false;
       proj.copy(p).project(camera);
       if (proj.z > 1) vis = false;
-      l.el.classList.toggle("is-hidden", !vis);
-      if (l.el instanceof HTMLButtonElement) l.el.tabIndex = vis ? 0 : -1;
-      l.el.style.transform = `translate(${(proj.x * 0.5 + 0.5) * w + l.dx}px, ${(-proj.y * 0.5 + 0.5) * h}px) translate(-50%, -100%)`;
+      if (vis) shown.push({ l, x: (proj.x * 0.5 + 0.5) * w + l.dx, y: (-proj.y * 0.5 + 0.5) * h });
+      else off.push(l);
     }
+    // pass 2: measure labels whose size is unknown (once, and again after a font swap); visibility:hidden keeps the box
+    for (const { l } of shown) {
+      if (l.w === 0) {
+        l.w = l.el.offsetWidth;
+        l.h = l.el.offsetHeight;
+      }
+    }
+    // a label with keyboard focus keeps its spot (a mouse click focuses a button too, hence :focus-visible)
+    const placement = declutter(shown.map(({ l, x, y }) => ({ x, y, w: l.w, h: l.h, priority: l.el === focused && l.el.matches(":focus-visible") ? 99 : l.priority, prevShift: l.shift })));
+    // pass 3: writes only
+    for (const l of off) {
+      l.shift = 0;
+      hideLabel(l);
+    }
+    let count = 0;
+    shown.forEach(({ l, x, y }, i) => {
+      const at = placement[i];
+      if (!at || !at.visible) {
+        hideLabel(l);
+        return;
+      }
+      count++;
+      l.shift = at.shift;
+      l.el.classList.remove("is-hidden");
+      if (l.el instanceof HTMLButtonElement) l.el.tabIndex = 0;
+      l.el.style.transform = `translate(${x}px, ${y + at.shift}px) translate(-50%, -100%)`;
+    });
+    if (count !== shownCount) {
+      shownCount = count;
+      canvas.dataset.labels = String(count);
+    }
+  }
+  function hideLabel(l: Label) {
+    l.el.classList.add("is-hidden");
+    if (l.el instanceof HTMLButtonElement) l.el.tabIndex = -1;
   }
 
   function frame() {
@@ -612,7 +695,10 @@ export function createWorldScene(
     const dt = Math.min(0.05, clock.getDelta());
     T += dt;
     const mo = reduced ? 0 : 1;
-    if (cam.auto) cam.tLon += dt * 3;
+    const hold = hovering ? 0 : 1;
+    // orbit time stands still while the pointer is over the stage, so cards hold their exact place
+    orbitT += dt * hold;
+    if (cam.auto) cam.tLon += dt * 3 * hold;
     const k = reduced ? 1 : 1 - Math.pow(0.0025, dt);
     cam.lat += (cam.tLat - cam.lat) * k;
     cam.lon += (cam.tLon - cam.lon) * k;
@@ -666,11 +752,11 @@ export function createWorldScene(
       if (p && (p.status === "busy" || p.status === "recent")) s.lamp.scale.setScalar(1 + Math.sin(T * 4 + i) * 0.22 * mo);
     }
     // orbit
-    ringSpin.rotation.y += dt * 0.04 * mo;
+    ringSpin.rotation.y += dt * 0.04 * mo * hold;
     const anaWorld = rigs.ana.root.localToWorld(new THREE.Vector3(0, 1.2, 0));
     for (const c of cards.values()) {
       if (c.launch < 1) {
-        c.launch = Math.min(1, c.launch + dt * 0.5);
+        c.launch = Math.min(1, c.launch + dt * 0.5 * hold);
         const e = 1 - Math.pow(1 - c.launch, 3);
         const start = ringSpin.worldToLocal(anaWorld.clone());
         const mid = start.clone().add(c.slot).multiplyScalar(0.5).setLength(RING_R * 1.2);
@@ -678,11 +764,11 @@ export function createWorldScene(
         c.group.position.set(v * v * start.x + 2 * v * e * mid.x + e * e * c.slot.x, v * v * start.y + 2 * v * e * mid.y + e * e * c.slot.y, v * v * start.z + 2 * v * e * mid.z + e * e * c.slot.z);
       } else {
         c.group.position.copy(c.slot);
-        c.group.position.y = Math.sin(T * 1.1 + c.slot.x) * 0.15 * mo;
+        c.group.position.y = Math.sin(orbitT * 1.1 + c.slot.x) * 0.15 * mo;
       }
       c.group.lookAt(camera.position);
     }
-    const sa = T * 0.08 * mo + 1.2;
+    const sa = orbitT * 0.08 * mo + 1.2;
     sat.position.set(Math.cos(sa) * SAT_R, 0, Math.sin(sa) * SAT_R);
     sat.rotation.y = -sa;
     (led.material as THREE.MeshBasicMaterial).color.setHSL(0.4, 0.6, 0.42 + Math.sin(T * 5) * 0.1 * mo);
@@ -711,6 +797,7 @@ export function createWorldScene(
     }
     renderer.render(scene, camera);
     updateLabels();
+    updateCursor();
   }
 
   function resize() {
@@ -736,6 +823,10 @@ export function createWorldScene(
       canvas.removeEventListener("pointerup", onUp);
       canvas.removeEventListener("pointercancel", onUp);
       canvas.removeEventListener("wheel", onWheel);
+      stage.removeEventListener("pointerenter", onEnter);
+      stage.removeEventListener("pointerleave", onLeave);
+      document.fonts?.removeEventListener?.("loadingdone", remeasure);
+      canvas.removeEventListener("pointermove", onHover);
       for (const l of labels) l.el.remove();
       disposeTree(scene);
       heartGeo.dispose();

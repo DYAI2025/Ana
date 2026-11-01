@@ -122,6 +122,47 @@ test.describe("ANA World — 3D view over real dashboard data", () => {
     expect(overflow).toBeLessThanOrEqual(0);
   });
 
+  test("polish · no two visible labels overlap in any camera view", async ({ page }) => {
+    await openWorld(page);
+    for (const view of ["world", "berlin", "ana", "orbit"] as const) {
+      await page.getByTestId(`world-view-${view}`).click();
+      await page.waitForTimeout(2500);
+      const overlaps = await page.evaluate(() => {
+        const rs = [...document.querySelectorAll<HTMLElement>(".world-label:not(.is-hidden)")].map((el) => ({ text: el.textContent ?? "", r: el.getBoundingClientRect() }));
+        const out: string[] = [];
+        for (let i = 0; i < rs.length; i++)
+          for (let j = i + 1; j < rs.length; j++) {
+            const a = rs[i];
+            const b = rs[j];
+            if (!a || !b) continue;
+            if (a.r.left < b.r.right - 1 && b.r.left < a.r.right - 1 && a.r.top < b.r.bottom - 1 && b.r.top < a.r.bottom - 1) out.push(`${a.text} × ${b.text}`);
+          }
+        return { out, shown: rs.length };
+      });
+      expect(overlaps.out, `overlapping labels in view ${view}`).toEqual([]);
+      expect(overlaps.shown, `view ${view} still shows labels`).toBeGreaterThan(0);
+    }
+  });
+
+  test("polish · the orbit label counts the posts that are actually in the orbit", async ({ page }) => {
+    await openWorld(page);
+    const posts = await page.getByTestId("world-canvas").getAttribute("data-posts");
+    await page.getByTestId("world-view-orbit").click();
+    await expect(page.locator(".world-label", { hasText: "Instagram orbit" })).toContainText(`${posts} posts`);
+  });
+
+  test("polish · pointing at the stage marks the orbit paused, leaving marks it running again", async ({ page }) => {
+    await openWorld(page);
+    const canvas = page.getByTestId("world-canvas");
+    await expect(canvas).toHaveAttribute("data-orbit", "running");
+    const box = await canvas.boundingBox();
+    if (!box) throw new Error("no canvas box");
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+    await expect(canvas).toHaveAttribute("data-orbit", "paused");
+    await page.mouse.move(box.x + box.width + 40, box.y - 40);
+    await expect(canvas).toHaveAttribute("data-orbit", "running");
+  });
+
   test("selection · clicking a country in the panel opens its numbers", async ({ page }) => {
     await openWorld(page);
     await page.getByTestId("world-audience-country").getByRole("button", { name: "Spain" }).click();
