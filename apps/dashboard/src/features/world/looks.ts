@@ -33,8 +33,6 @@ export function isAnaActivity(v: unknown): v is AnaActivity {
 
 export const ACTIVITY_SLOT_MS = 20 * 60_000;
 export const POST_ACTIVITY_MS = 2 * 3_600_000;
-/** slots per block: within a block no activity repeats back to back */
-const SLOTS_PER_BLOCK = 72;
 
 function mix(n: number): number {
   let x = (n ^ 0x9e3779b9) >>> 0;
@@ -43,11 +41,14 @@ function mix(n: number): number {
   return (x ^ (x >>> 16)) >>> 0;
 }
 
-/** The activity of one 20-minute slot (slot = floor(time / 20 min)): deterministic, never twice in a row within a day-long block. */
+/**
+ * The activity of one 20-minute slot (slot = floor(time / 20 min)): deterministic, so every viewer sees the same one, and
+ * never the same twice in a row. v(s) = (2s + g(s)) mod 5 with a pseudo-random g(s) in {0, 1}: consecutive slots differ
+ * by 1, 2 or 3 (mod 5), never by 0, and all five activities come round.
+ */
 export function activityForSlot(slot: number): AnaActivity {
-  const start = slot - (((slot % SLOTS_PER_BLOCK) + SLOTS_PER_BLOCK) % SLOTS_PER_BLOCK);
-  let v = mix(start) % ANA_ACTIVITIES.length;
-  for (let s = start + 1; s <= slot; s++) v = (v + 1 + (mix(s) % (ANA_ACTIVITIES.length - 1))) % ANA_ACTIVITIES.length;
+  const n = ANA_ACTIVITIES.length;
+  const v = (((2 * slot + (mix(slot) & 1)) % n) + n) % n;
   return ANA_ACTIVITIES[v] as AnaActivity;
 }
 
@@ -58,13 +59,14 @@ export interface ActivityState {
   until: number | null;
 }
 
-export function currentActivity(look: Pick<AnaLook, "look" | "look_source" | "manual" | "manual_expired" | "post">, now: number): ActivityState {
+export function currentActivity(look: Pick<AnaLook, "auto_look" | "manual" | "manual_expired" | "post">, now: number): ActivityState {
   const m = look.manual && !look.manual_expired ? look.manual : null;
   if (m?.activity && m.activity !== "auto") return { activity: m.activity, source: "manual", until: null };
   // a pick from before activities existed: "scooter" was a look
   if (m?.look === "scooter") return { activity: "scooter", source: "manual", until: null };
   const postAt = look.post?.published_at ? Date.parse(look.post.published_at) : Number.NaN;
-  if (look.look === "scooter" && look.look_source !== "manual" && Number.isFinite(postAt) && now >= postAt && now - postAt < POST_ACTIVITY_MS) {
+  // the post's own look counts here, even when the team picked only an outfit or a colour
+  if (look.auto_look === "scooter" && Number.isFinite(postAt) && now >= postAt && now - postAt < POST_ACTIVITY_MS) {
     return { activity: "scooter", source: "post", until: postAt + POST_ACTIVITY_MS };
   }
   const slot = Math.floor(now / ACTIVITY_SLOT_MS);
@@ -87,6 +89,8 @@ export interface ManualLook {
 export interface AnaLook {
   look: AnaLookId;
   look_source: "manual" | "caption" | "image" | "default";
+  /** the look the newest post alone gives (caption or image), whatever the team picked */
+  auto_look: AnaLookId | null;
   colors: OutfitColors | null;
   color_source: "manual" | "image" | "default";
   /** the vision model's confidence when the look or the colours come from the image */
@@ -166,6 +170,7 @@ export function resolveLook(newest: NewestPost | null, manual: ManualLook | null
   const seen = image && image.confidence >= IMAGE_MIN_CONFIDENCE ? image : null;
   let look: AnaLookId = auto ?? seen?.look ?? "everyday";
   let lookSource: AnaLook["look_source"] = auto ? "caption" : seen?.look ? "image" : "default";
+  const autoLook: AnaLookId | null = auto ?? seen?.look ?? null;
   let colors: OutfitColors | null = seen?.colors ?? null;
   let colorSource: AnaLook["color_source"] = seen?.colors ? "image" : "default";
   if (manualApplies && manual) {
@@ -182,6 +187,7 @@ export function resolveLook(newest: NewestPost | null, manual: ManualLook | null
   return {
     look,
     look_source: lookSource,
+    auto_look: autoLook,
     colors,
     color_source: colorSource,
     image_confidence: lookSource === "image" || colorSource === "image" ? (seen?.confidence ?? null) : null,

@@ -194,6 +194,8 @@ export function createWorldScene(
   let mermaid = false;
   let outfitColors: OutfitColors | null = null;
   let activity: AnaActivity = "eating";
+  // at night she sleeps: no helmet, nothing in her hands, no music
+  let night = false;
   let lookKey = "";
   canvas.dataset.anaLook = "everyday";
   canvas.dataset.anaActivity = activity;
@@ -257,9 +259,10 @@ export function createWorldScene(
   }
 
   function rebuildAna() {
-    const key = `${mermaid}|${outfitColors?.primary ?? "-"}|${outfitColors?.secondary ?? "-"}|${activity}`;
+    const key = `${mermaid}|${outfitColors?.primary ?? "-"}|${outfitColors?.secondary ?? "-"}|${night ? "night" : activity}`;
     if (key === lookKey) return;
     const rigKey = (k: string) => k.split("|").slice(0, 3).join("|") + (k.endsWith("|scooter") ? "|helmet" : "");
+    const doing: AnaActivity | null = night ? null : activity;
     const newRig = rigKey(key) !== rigKey(lookKey);
     lookKey = key;
     unpick(anaRoot);
@@ -275,7 +278,7 @@ export function createWorldScene(
     if (newRig) {
       anaRoot.remove(rigs.ana.root);
       disposeGeometry(rigs.ana.root);
-      rigs.ana = buildAvatar(anaSpec(mermaid, outfitColors, activity === "scooter"));
+      rigs.ana = buildAvatar(anaSpec(mermaid, outfitColors, doing === "scooter"));
       anaRoot.add(rigs.ana.root);
     }
     disposeGeometry(lookProps);
@@ -294,22 +297,23 @@ export function createWorldScene(
       parent.add(o);
       handProps.push(o);
     };
+    // the scooter stays on the island at night too (parked)
     if (activity === "scooter") {
       ride = buildScooter(0x8fd3c1);
       lookProps.add(ride.group);
-    } else if (activity === "eating") {
+    } else if (doing === "eating") {
       const b = buildBowl();
       hands.bowl = b;
       hold(r.armL, b.bowl, 0, -0.31, 0.05);
       hold(r.armR, b.chopsticks, 0, -0.29, 0.02);
-    } else if (activity === "selfie") {
+    } else if (doing === "selfie") {
       const ph = buildSelfiePhone();
       hands.phone = ph;
       hold(r.armR, ph.phone, 0, -0.33, 0.02);
-    } else if (activity === "dancing") {
+    } else if (doing === "dancing") {
       music = buildMusic();
       lookProps.add(music.group);
-    } else if (activity === "reading") {
+    } else if (doing === "reading") {
       const bk = buildBook();
       hands.book = bk;
       bk.book.rotation.y = Math.PI;
@@ -873,6 +877,10 @@ export function createWorldScene(
     rigs.vince.armL.rotation.x = -0.25 + Math.sin(T * 1.6) * 0.15 * mo;
     rigs.vince.head.rotation.z = Math.sin(T * 1.5) * 0.08 * mo;
     rigs.vince.root.position.y = office.vinceSpot.y + Math.abs(Math.sin(T * 1.6)) * 0.015 * mo;
+    if (aNight !== night) {
+      night = aNight;
+      rebuildAna();
+    }
     if (anaSpot) {
       // Ana's day: one activity at a time in her last known outfit (decoration, not activity data); asleep at night
       const riding = !aNight && activity === "scooter" && ride !== null;
@@ -935,7 +943,7 @@ export function createWorldScene(
         r.head.rotation.x = 0.14 - bite * 0.1 * mo;
         hands.bowl.bowl.rotation.x = 1.15;
         hands.bowl.steam.forEach((p, k) => {
-          const f = (T * 0.6 + k / 3) % 1;
+          const f = ((mo ? T : 0) * 0.6 + k / 3) % 1;
           p.position.y = 0.04 + f * 0.16;
           (p.material as THREE.MeshBasicMaterial).opacity = 0.7 * (1 - f) * (mo || 1);
         });
@@ -958,7 +966,7 @@ export function createWorldScene(
         r.armR.rotation.set(-0.3, 0, 2.3 - Math.sin(beat) * 0.35 * mo);
         r.head.rotation.z = Math.sin(T * 2 + 0.6) * 0.12 * mo;
         music?.notes.forEach((n, k) => {
-          const f = (T * 0.35 + k / 3) % 1;
+          const f = ((mo ? T : 0) * 0.35 + k / 3) % 1;
           n.position.set(0.42 + Math.sin(f * 6 + k) * 0.08, 0.35 + f * 0.6, 0.3);
           for (const c of n.children) ((c as THREE.Mesh).material as THREE.MeshBasicMaterial).opacity = 1 - f;
         });

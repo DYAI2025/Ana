@@ -52,12 +52,13 @@ describe("resolveLook", () => {
 });
 
 describe("Ana's activities", () => {
-  it("picks one activity per 20-minute slot, the same for everyone, never twice in a row within a day", () => {
+  it("picks one activity per 20-minute slot, the same for everyone, never twice in a row (also across midnight)", () => {
     const base = Math.floor(Date.parse("2026-11-01T00:00:00Z") / ACTIVITY_SLOT_MS);
-    const day = Array.from({ length: 72 }, (_, i) => activityForSlot(base - (base % 72) + i));
-    for (let i = 1; i < day.length; i++) expect(day[i], `slot ${i}`).not.toBe(day[i - 1]);
-    for (const a of ANA_ACTIVITIES) expect(day).toContain(a);
+    const days = Array.from({ length: 72 * 30 }, (_, i) => activityForSlot(base - 36 + i));
+    for (let i = 1; i < days.length; i++) expect(days[i], `slot ${i}`).not.toBe(days[i - 1]);
+    for (const a of ANA_ACTIVITIES) expect(days.slice(0, 72)).toContain(a);
     expect(activityForSlot(base)).toBe(activityForSlot(base));
+    expect(ANA_ACTIVITIES).toContain(activityForSlot(-7));
   });
 
   it("rotation by default, the scooter for 2 hours after a scooter post, a hand pick above both", () => {
@@ -69,6 +70,8 @@ describe("Ana's activities", () => {
     expect(currentActivity(ride, Date.parse("2026-11-01T11:30:00Z")).source).toBe("rotation");
     const picked = resolveLook({ id: "p", published_at: "2026-11-01T09:00:00Z", permalink: null, caption: "rent a scooter" }, { look: "auto", color: "auto", activity: "reading", set_at: "2026-11-01T09:30:00Z" });
     expect(currentActivity(picked, now)).toEqual({ activity: "reading", source: "manual", until: null });
+    const outfitOnly = resolveLook({ id: "p", published_at: "2026-11-01T09:00:00Z", permalink: null, caption: "rent a scooter" }, { look: "mermaid", color: "auto", activity: "auto", set_at: "2026-11-01T09:30:00Z" });
+    expect(currentActivity(outfitOnly, now)).toMatchObject({ activity: "scooter", source: "post" });
     const old = resolveLook(null, { look: "scooter", color: "auto", set_at: "2026-11-01T09:30:00Z" });
     expect(currentActivity(old, now)).toEqual({ activity: "scooter", source: "manual", until: null });
   });
