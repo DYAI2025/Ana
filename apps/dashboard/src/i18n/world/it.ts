@@ -132,6 +132,13 @@ export const worldIt: Messages["world"] = {
     failed: "Impossibile salvare ({reason}).",
     openPost: "Apri quel post",
   },
+  berlinDay: {
+    ben: { laptop: "al portatile", wine: "beve un bicchiere di vino", ai: "parla con un'IA", sleeping: "dorme" },
+    vince: { phone: "al telefono", computer: "al computer", gym: "in palestra", sleeping: "dorme" },
+    now: "Ora: {activity}",
+    rotation: "Cambia a caso ogni 20 minuti, uguale per tutti; prossimo cambio alle {time}. Dalle 0 alle 7 dormono entrambi.",
+    night: "Notte a Berlino: dormono entrambi fino alle 7.",
+  },
   selectHint: "Tocca una persona, una stazione, una carta post, un paese o il satellite.",
   never: "mai",
   ago: { now: "proprio ora", min: "{n} min fa", h: "{n} h fa", d: "{n} g fa" },

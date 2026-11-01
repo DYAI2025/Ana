@@ -34,7 +34,7 @@ export function isAnaActivity(v: unknown): v is AnaActivity {
 export const ACTIVITY_SLOT_MS = 20 * 60_000;
 export const POST_ACTIVITY_MS = 2 * 3_600_000;
 
-function mix(n: number): number {
+export function mix(n: number): number {
   let x = (n ^ 0x9e3779b9) >>> 0;
   x = Math.imul(x ^ (x >>> 16), 0x85ebca6b) >>> 0;
   x = Math.imul(x ^ (x >>> 13), 0xc2b2ae35) >>> 0;

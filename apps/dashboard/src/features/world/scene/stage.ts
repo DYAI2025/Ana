@@ -507,3 +507,110 @@ export function buildMusic(): { group: THREE.Group; notes: THREE.Group[] } {
   }
   return { group, notes };
 }
+
+// ---------- Berlin office day (decoration) ----------
+
+/** A futon with pillow and blanket, long side along X; a sleeper's feet go at +X. */
+export function buildFuton(blanket: number): THREE.Group {
+  const g = new THREE.Group();
+  const mat = mesh(new THREE.BoxGeometry(0.95, 0.06, 0.38), 0xf4efe6, 1.06);
+  mat.position.y = 0.03;
+  g.add(mat);
+  const pillow = mesh(new THREE.BoxGeometry(0.2, 0.06, 0.28), 0xffffff, 1.08);
+  pillow.position.set(-0.36, 0.08, 0);
+  g.add(pillow);
+  const cover = mesh(new THREE.BoxGeometry(0.55, 0.05, 0.4), blanket, 1.06);
+  cover.position.set(0.16, 0.09, 0);
+  g.add(cover);
+  return g;
+}
+
+/** A small outdoor gym corner: rubber mat, bench and a dumbbell rack. */
+export function buildGymCorner(): THREE.Group {
+  const g = new THREE.Group();
+  const mat = mesh(new THREE.BoxGeometry(0.6, 0.02, 0.5), 0x2b2f38, 1.06);
+  mat.position.y = 0.01;
+  g.add(mat);
+  const bench = mesh(new THREE.BoxGeometry(0.14, 0.05, 0.42), 0xd8566f, 1.08);
+  bench.position.set(-0.36, 0.17, 0);
+  g.add(bench);
+  for (const z of [-0.15, 0.15]) {
+    const leg = mesh(new THREE.BoxGeometry(0.1, 0.15, 0.04), 0x24272d, 1.1);
+    leg.position.set(-0.36, 0.075, z);
+    g.add(leg);
+  }
+  const rack = mesh(new THREE.BoxGeometry(0.06, 0.24, 0.3), 0x9aa1ab, 1.08);
+  rack.position.set(0.36, 0.12, -0.1);
+  g.add(rack);
+  for (const y of [0.08, 0.18]) {
+    const db = buildDumbbell();
+    db.rotation.y = Math.PI / 2;
+    db.position.set(0.4, y, -0.1);
+    g.add(db);
+  }
+  return g;
+}
+
+/** A dumbbell, bar along X. */
+export function buildDumbbell(): THREE.Group {
+  const g = new THREE.Group();
+  const bar = mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.16, 6), 0x9aa1ab, 0);
+  bar.rotation.z = Math.PI / 2;
+  g.add(bar);
+  for (const s of [-1, 1]) {
+    const plate = mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.035, 10), 0x24272d, 1.1);
+    plate.rotation.z = Math.PI / 2;
+    plate.position.x = s * 0.07;
+    g.add(plate);
+  }
+  return g;
+}
+
+/** A wine glass with red wine. */
+export function buildWineGlass(): THREE.Group {
+  const g = new THREE.Group();
+  const glass = new THREE.MeshBasicMaterial({ color: 0xdfeaf3, transparent: true, opacity: 0.8 });
+  const foot = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.006, 12), glass);
+  g.add(foot);
+  const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.005, 0.005, 0.07, 6), glass);
+  stem.position.y = 0.035;
+  g.add(stem);
+  const bowl = new THREE.Mesh(new THREE.SphereGeometry(0.035, 12, 8, 0, Math.PI * 2, Math.PI * 0.35, Math.PI * 0.65), glass);
+  bowl.position.y = 0.1;
+  g.add(bowl);
+  const wine = mesh(new THREE.SphereGeometry(0.03, 12, 8, 0, Math.PI * 2, Math.PI * 0.55, Math.PI * 0.45), 0x7a1f2b, 0);
+  wine.position.y = 0.1;
+  g.add(wine);
+  return g;
+}
+
+/** A floating AI orb with a ring and two speech bubbles (one at the orb, one for the person talking to it). */
+export function buildAiOrb(): { group: THREE.Group; orb: THREE.Mesh; ring: THREE.Mesh; bubbles: THREE.Group[] } {
+  const group = new THREE.Group();
+  const orb = new THREE.Mesh(new THREE.IcosahedronGeometry(0.08, 1), new THREE.MeshBasicMaterial({ color: 0x9fd8ff }));
+  group.add(orb);
+  const halo = new THREE.Mesh(new THREE.SphereGeometry(0.12, 16, 12), new THREE.MeshBasicMaterial({ color: 0x9fd8ff, transparent: true, opacity: 0.25 }));
+  orb.add(halo);
+  const ring = new THREE.Mesh(new THREE.TorusGeometry(0.14, 0.008, 6, 32), new THREE.MeshBasicMaterial({ color: 0x5b7fd6 }));
+  ring.rotation.x = Math.PI / 2.4;
+  group.add(ring);
+  const bubbles: THREE.Group[] = [];
+  for (let i = 0; i < 2; i++) {
+    const b = new THREE.Group();
+    const white = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true });
+    const cloud = new THREE.Mesh(new THREE.CircleGeometry(0.07, 20), white);
+    cloud.scale.set(1.35, 0.85, 1);
+    b.add(cloud);
+    const tailTri = new THREE.Mesh(new THREE.CircleGeometry(0.025, 3), white);
+    tailTri.position.set(i ? 0.05 : -0.05, -0.06, 0);
+    b.add(tailTri);
+    for (let k = 0; k < 3; k++) {
+      const dot = new THREE.Mesh(new THREE.CircleGeometry(0.01, 8), new THREE.MeshBasicMaterial({ color: i ? 0x5b7fd6 : 0x24272d, transparent: true }));
+      dot.position.set((k - 1) * 0.028, 0, 0.001);
+      b.add(dot);
+    }
+    group.add(b);
+    bubbles.push(b);
+  }
+  return { group, orb, ring, bubbles };
+}

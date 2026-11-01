@@ -6,13 +6,14 @@
 import * as THREE from "three";
 import type { Geo } from "../geo";
 import { ORBIT_MAX, type ChannelDef, type ChannelStatus, type PulseEvent, type ShareEntry, type WorldPost } from "../model";
+import { berlinDay, type BenActivity, type VinceActivity } from "../berlinDay";
 import type { AnaActivity, AnaLookId, OutfitColors } from "../looks";
 import { BERLIN, PEOPLE, type AvatarSpec, type ProjectShape, type WorldPersonId } from "../people";
 import type { WorldPlace } from "../types";
 import { buildAvatar, type AvatarRig } from "./avatar";
 import { declutter } from "./declutter";
 import { basic, disposeGeometry, disposeTree, ll, mesh, PALETTE, R } from "./kit";
-import { buildAnaSpot, buildBook, buildBowl, buildClouds, buildGlobe, buildMusic, buildOffice, buildRock, buildScooter, buildSelfiePhone, buildStation, type AnaSpot, type Station } from "./stage";
+import { buildAiOrb, buildAnaSpot, buildBook, buildBowl, buildClouds, buildDumbbell, buildFuton, buildGlobe, buildGymCorner, buildMusic, buildOffice, buildRock, buildScooter, buildSelfiePhone, buildStation, buildWineGlass, type AnaSpot, type Station } from "./stage";
 
 export type StationStatus = "busy" | "recent" | "idle" | "done" | "no-source" | "no-jira";
 
@@ -40,6 +41,9 @@ export interface SceneLabels {
   notConnected: string;
   /** Ana's label line per state, already including her place */
   anaStates: Record<AnaActivity | "sleeping", string>;
+  /** Ben's and Vince's label line per activity */
+  benStates: Record<BenActivity | "sleeping", string>;
+  vinceStates: Record<VinceActivity | "sleeping", string>;
   /** prefix of an estimated clock ("≈") */
   clockApprox: string;
 }
@@ -170,6 +174,12 @@ export function createWorldScene(
         pickables.push(o);
       }
     });
+  // three.js raycasts hidden objects too: only what is drawn can be hit
+  const shown = (o: THREE.Object3D | null): boolean => {
+    for (let n = o; n; n = n.parent) if (!n.visible) return false;
+    return true;
+  };
+  const firstShown = (hits: THREE.Intersection[]) => hits.find((h) => shown(h.object));
   const unpick = (root: THREE.Object3D) => {
     const set = new Set<THREE.Object3D>();
     root.traverse((o) => set.add(o));
@@ -208,6 +218,46 @@ export function createWorldScene(
   office.frame.add(rigs.vince.root);
   pick(rigs.ben.root, { type: "person", id: "ben" });
   pick(rigs.vince.root, { type: "person", id: "vince" });
+  // their day (decoration): futons for the night, a gym corner, an AI to talk to, a glass of wine, dumbbells
+  const benFuton = buildFuton(0x5b7fd6);
+  benFuton.position.set(-0.5, 0.1, -0.27);
+  office.frame.add(benFuton);
+  const vinceFuton = buildFuton(0x8a5cf6);
+  vinceFuton.position.set(0.5, 0.1, -0.27);
+  office.frame.add(vinceFuton);
+  const gym = buildGymCorner();
+  gym.position.set(0.72, 0.1, 0.8);
+  gym.rotation.y = -0.3;
+  office.frame.add(gym);
+  pick(gym, { type: "person", id: "vince" });
+  const ai = buildAiOrb();
+  ai.group.position.set(-0.4, 1.02, 0.42);
+  office.frame.add(ai.group);
+  pick(ai.group, { type: "person", id: "ben" });
+  const wine = buildWineGlass();
+  wine.scale.setScalar(1.7);
+  wine.position.set(0, -0.31, 0.04);
+  rigs.ben.armR.add(wine);
+  const dumbbells = [buildDumbbell(), buildDumbbell()];
+  dumbbells[0]?.position.set(0, -0.3, 0);
+  dumbbells[1]?.position.set(0, -0.3, 0);
+  if (dumbbells[0]) rigs.vince.armL.add(dumbbells[0]);
+  if (dumbbells[1]) rigs.vince.armR.add(dumbbells[1]);
+  // a held prop stays upright: its world orientation follows the person, not the arm
+  const parentInv = new THREE.Quaternion();
+  const rootWorld = new THREE.Quaternion();
+  const keepLevel = (prop: THREE.Object3D, root: THREE.Object3D) => {
+    const parent = prop.parent;
+    if (!parent) return;
+    parent.updateWorldMatrix(true, false);
+    parent.getWorldQuaternion(parentInv).invert();
+    root.getWorldQuaternion(rootWorld);
+    prop.quaternion.copy(parentInv.multiply(rootWorld));
+  };
+  let day = berlinDay(Date.now());
+  let lastDay = -1;
+  canvas.dataset.benActivity = day.ben;
+  canvas.dataset.vinceActivity = day.vince;
 
   // ---------- Ana ----------
   let anaSpot: AnaSpot | null = null;
@@ -611,8 +661,8 @@ export function createWorldScene(
     staticLabels.forEach((l) => labels.splice(labels.indexOf(l), 1));
     staticLabels.length = 0;
     staticLabels.push(
-      label(L.people.ben.name, L.people.ben.sub, rigs.ben.root, { type: "person", id: "ben" }, { dy: 1.45, focus: "berlin", maxDist: 22, cls: "person", tint: PEOPLE.ben.tint, priority: 6 }),
-      label(L.people.vince.name, L.people.vince.sub, rigs.vince.root, { type: "person", id: "vince" }, { dy: 1.45, focus: "berlin", maxDist: 22, cls: "person", tint: PEOPLE.vince.tint, priority: 6 }),
+      (benLabel = label(L.people.ben.name, L.people.ben.sub, rigs.ben.root, { type: "person", id: "ben" }, { dy: 1.45, focus: "berlin", maxDist: 22, cls: "person", tint: PEOPLE.ben.tint, priority: 6 })),
+      (vinceLabel = label(L.people.vince.name, L.people.vince.sub, rigs.vince.root, { type: "person", id: "vince" }, { dy: 1.45, focus: "berlin", maxDist: 22, cls: "person", tint: PEOPLE.vince.tint, priority: 6 })),
       (anaLabel = label(L.people.ana.name, L.people.ana.sub, anaRoot, { type: "person", id: "ana" }, { dy: 1.5, focus: "ana", maxDist: 22, cls: "person", tint: PEOPLE.ana.tint, priority: 6 })),
       (berlinLabel = label(L.berlin, "", office.frame, { type: "place", id: "berlin" }, { dy: 2.4, minDist: 22, priority: 5 })),
       (placeLabel = label(L.anaPlace, "", anaLabelAnchor, { type: "place", id: "ana" }, { dy: 2.1, minDist: 22, priority: 5 })),
@@ -621,12 +671,20 @@ export function createWorldScene(
     );
     lastClock = -1;
     zzz = label("Z z z", null, anaRoot, null, { dy: 1.2, dx: 46, focus: "ana", maxDist: 22, cls: "zzz", priority: 6 });
+    benZzz = label("Z z z", null, rigs.ben.root, null, { dy: 1.2, dx: 40, focus: "berlin", maxDist: 22, cls: "zzz", priority: 6 });
+    vinceZzz = label("Z z z", null, rigs.vince.root, null, { dy: 1.2, dx: 40, focus: "berlin", maxDist: 22, cls: "zzz", priority: 6 });
+    staticLabels.push(benZzz, vinceZzz);
+    lastDay = -1;
     staticLabels.push(zzz);
     canvas.dataset.ready = "true";
   }
   const staticLabels: Label[] = [];
   let zzz: Label | null = null;
   let anaLabel: Label | null = null;
+  let benLabel: Label | null = null;
+  let vinceLabel: Label | null = null;
+  let benZzz: Label | null = null;
+  let vinceZzz: Label | null = null;
   let berlinLabel: Label | null = null;
   let placeLabel: Label | null = null;
   let lastClock = -1;
@@ -705,7 +763,7 @@ export function createWorldScene(
       ndc.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
       ray.setFromCamera(ndc, camera);
       const ocean = world.getObjectByName("ocean");
-      const hit = ray.intersectObjects(ocean ? [...pickables, ocean] : pickables, false)[0];
+      const hit = firstShown(ray.intersectObjects(ocean ? [...pickables, ocean] : pickables, false));
       const ref = hit ? refOf.get(hit.object) : undefined;
       if (ref) options.onSelect(ref);
     }
@@ -754,7 +812,7 @@ export function createWorldScene(
     hoverAt = null;
     ray.setFromCamera(ndc, camera);
     // "" leaves the stylesheet's grab/grabbing cursor in charge
-    canvas.style.cursor = ray.intersectObjects(pickables, false)[0] ? "pointer" : "";
+    canvas.style.cursor = firstShown(ray.intersectObjects(pickables, false)) ? "pointer" : "";
   }
 
   // ---------- loop ----------
@@ -856,8 +914,23 @@ export function createWorldScene(
 
     clouds.rotation.y += dt * 0.008 * mo;
     // time of day from the real clock: Berlin exactly, Ana's place from its time zone (estimated without one)
-    const bNight = isNight(berlinHour()) || berlinHour() >= 18;
-    office.windows.color.setHex(bNight ? 0xffd66b : 0xaab8c8);
+    // Ben and Vince: one activity per 20 minutes from the clock, asleep from midnight to 7 in Berlin
+    if (T - lastDay >= 1 || lastDay < 0) {
+      lastDay = T;
+      day = berlinDay(Date.now());
+      const b = day.night ? "sleeping" : day.ben;
+      const v = day.night ? "sleeping" : day.vince;
+      if (canvas.dataset.benActivity !== b) canvas.dataset.benActivity = b;
+      if (canvas.dataset.vinceActivity !== v) canvas.dataset.vinceActivity = v;
+      if (data) {
+        setSub(benLabel, data.labels.benStates[b]);
+        setSub(vinceLabel, data.labels.vinceStates[v]);
+      }
+      if (benZzz) benZzz.hidden = !day.night;
+      if (vinceZzz) vinceZzz.hidden = !day.night;
+    }
+    // the windows glow in the evening, dark while they sleep
+    office.windows.color.setHex(!day.night && berlinHour() >= 18 ? 0xffd66b : 0xaab8c8);
     const place = data?.anaPlace ?? null;
     const aNight = place !== null && isNight(anaHour(place));
     if (T - lastClock >= 1 || lastClock < 0) {
@@ -866,17 +939,96 @@ export function createWorldScene(
       if (place) setSub(placeLabel, place.tz ? clockIn(place.tz) : `${data?.labels.clockApprox ?? "≈"} ${estimatedClock(place.lon)}`);
       if (data) setSub(anaLabel, data.labels.anaStates[aNight ? "sleeping" : activity]);
     }
-    // Ben types, Vince talks on the phone, Ana films or sleeps (decoration, not activity data)
-    rigs.ben.root.rotation.y = 0.55;
-    rigs.ben.armL.rotation.x = -1.15 + Math.sin(T * 13) * 0.16 * mo;
-    rigs.ben.armR.rotation.x = -1.15 + Math.sin(T * 13 + 1.7) * 0.16 * mo;
-    rigs.ben.body.position.y = 0.06;
-    rigs.ben.head.rotation.x = 0.12 + Math.sin(T * 0.7) * 0.03 * mo;
-    (office.laptopScreen.material as THREE.MeshBasicMaterial).color.setHSL(0.6, 0.85, 0.74 + Math.sin(T * 2.5) * 0.04 * mo);
-    rigs.vince.armR.rotation.set(-2.35, 0, 0.3);
-    rigs.vince.armL.rotation.x = -0.25 + Math.sin(T * 1.6) * 0.15 * mo;
-    rigs.vince.head.rotation.z = Math.sin(T * 1.5) * 0.08 * mo;
-    rigs.vince.root.position.y = office.vinceSpot.y + Math.abs(Math.sin(T * 1.6)) * 0.015 * mo;
+    // Ben: mostly at the laptop, sometimes a glass of wine, sometimes talking to an AI (decoration, not activity data)
+    const ben = rigs.ben;
+    ben.armL.rotation.set(0, 0, 0);
+    ben.armR.rotation.set(0, 0, 0);
+    ben.head.rotation.set(0, 0, 0);
+    ben.eyes.scale.y = 1;
+    ben.body.position.y = 0.06;
+    wine.visible = !day.night && day.ben === "wine";
+    // the futons are rolled out only for the night
+    benFuton.visible = day.night;
+    vinceFuton.visible = day.night;
+    ai.group.visible = !day.night && day.ben === "ai";
+    (office.laptopScreen.material as THREE.MeshBasicMaterial).color.setHSL(0.6, 0.85, day.night ? 0.3 : 0.74 + Math.sin(T * 2.5) * 0.04 * mo);
+    if (day.night) {
+      ben.root.position.set(benFuton.position.x + 0.42, 0.25, benFuton.position.z);
+      ben.root.quaternion.copy(sleepPose);
+      ben.body.position.y = 0;
+      ben.eyes.scale.y = 0.12;
+    } else {
+      ben.root.position.copy(office.benSpot);
+      ben.root.quaternion.setFromEuler(new THREE.Euler(0, 0.55, 0));
+      if (day.ben === "laptop") {
+        ben.armL.rotation.x = -1.15 + Math.sin(T * 13) * 0.16 * mo;
+        ben.armR.rotation.x = -1.15 + Math.sin(T * 13 + 1.7) * 0.16 * mo;
+        ben.head.rotation.x = 0.12 + Math.sin(T * 0.7) * 0.03 * mo;
+      } else if (day.ben === "wine") {
+        // a sip every 6 s, the glass kept upright
+        const c = ((mo ? T : 0) % 6) / 6;
+        const lift = c < 0.3 ? Math.sin((c / 0.3) * Math.PI) : 0;
+        ben.armL.rotation.x = -1.15 + Math.sin(T * 3) * 0.05 * mo;
+        ben.armR.rotation.set(-1.0 - lift * 1.3, 0, -0.25);
+        keepLevel(wine, ben.root);
+        ben.head.rotation.x = 0.1 - lift * 0.25;
+      } else {
+        // talking with the AI orb above the desk: turns in speech bubbles, a gesturing hand
+        const turn = Math.floor((mo ? T : 0) / 2.5) % 2;
+        ben.armL.rotation.x = -1.15;
+        ben.armR.rotation.set(-1.45 + Math.sin(T * 1.8) * 0.3 * mo * (turn === 0 ? 1 : 0.2), 0, -0.25);
+        ben.head.rotation.set(-0.3, -0.2, 0);
+        ai.orb.rotation.y += dt * 0.8 * mo;
+        ai.ring.rotation.z += dt * 1.4 * mo;
+        ai.orb.scale.setScalar(1 + (turn === 1 ? Math.sin(T * 8) * 0.08 * mo : 0));
+        const [mine, its] = ai.bubbles;
+        if (mine && its) {
+          mine.position.set(-0.32, 0.18, -0.3);
+          its.position.set(0.12, 0.2, 0);
+          mine.visible = turn === 0;
+          its.visible = turn === 1;
+          mine.lookAt(camera.position);
+          its.lookAt(camera.position);
+        }
+      }
+    }
+    // Vince: on the phone, at his computer, sometimes at the gym
+    const vince = rigs.vince;
+    vince.armL.rotation.set(0, 0, 0);
+    vince.armR.rotation.set(0, 0, 0);
+    vince.head.rotation.set(0, 0, 0);
+    vince.body.position.y = 0;
+    vince.eyes.scale.y = 1;
+    if (vince.prop) vince.prop.visible = !day.night && day.vince === "phone";
+    for (const d of dumbbells) d.visible = !day.night && day.vince === "gym";
+    if (day.night) {
+      vince.root.position.set(vinceFuton.position.x + 0.42, 0.25, vinceFuton.position.z);
+      vince.root.quaternion.copy(sleepPose);
+      vince.eyes.scale.y = 0.12;
+    } else if (day.vince === "phone") {
+      vince.root.position.copy(office.vinceSpot);
+      vince.root.position.y += Math.abs(Math.sin(T * 1.6)) * 0.015 * mo;
+      vince.root.quaternion.setFromEuler(new THREE.Euler(0, -0.55, 0));
+      vince.armR.rotation.set(-2.35, 0, 0.3);
+      vince.armL.rotation.x = -0.25 + Math.sin(T * 1.6) * 0.15 * mo;
+      vince.head.rotation.z = Math.sin(T * 1.5) * 0.08 * mo;
+    } else if (day.vince === "computer") {
+      // at the standing table, facing the website on the monitor
+      vince.root.position.set(0.64, 0.1, 0.26);
+      vince.root.quaternion.setFromEuler(new THREE.Euler(0, -0.5 + Math.PI, 0));
+      vince.armL.rotation.x = -1.2 + Math.sin(T * 9) * 0.08 * mo;
+      vince.armR.rotation.x = -1.1 + Math.sin(T * 2.2) * 0.12 * mo;
+      vince.head.rotation.x = 0.05;
+    } else {
+      // dumbbell curls on the mat, the dumbbells kept level
+      vince.root.position.set(gym.position.x, 0.12, gym.position.z + 0.04);
+      vince.root.quaternion.setFromEuler(new THREE.Euler(0, 0.15, 0));
+      const curl = (Math.sin(T * 3) + 1) / 2;
+      vince.armL.rotation.set(-0.1 - curl * 1.7 * mo, 0, 0.12);
+      vince.armR.rotation.set(-0.1 - (1 - curl) * 1.7 * mo, 0, -0.12);
+      for (const d of dumbbells) keepLevel(d, vince.root);
+      vince.body.position.y = Math.abs(Math.sin(T * 3)) * 0.01 * mo;
+    }
     if (aNight !== night) {
       night = aNight;
       rebuildAna();

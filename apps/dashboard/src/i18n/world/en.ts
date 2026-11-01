@@ -131,6 +131,13 @@ export const worldEn = {
     failed: "Could not save ({reason}).",
     openPost: "Open that post",
   },
+  berlinDay: {
+    ben: { laptop: "at his laptop", wine: "having a glass of wine", ai: "talking with an AI", sleeping: "asleep" },
+    vince: { phone: "on the phone", computer: "at his computer", gym: "at the gym", sleeping: "asleep" },
+    now: "Now: {activity}",
+    rotation: "Changes at random every 20 minutes, the same for everyone; next change at {time}. Both sleep from midnight to 7.",
+    night: "Night in Berlin: both sleep until 7.",
+  },
   selectHint: "Tap a person, a station, a post card, a country or the satellite.",
   never: "never",
   ago: { now: "just now", min: "{n} min ago", h: "{n} h ago", d: "{n} d ago" },

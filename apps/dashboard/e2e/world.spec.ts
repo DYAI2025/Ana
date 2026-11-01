@@ -238,6 +238,26 @@ test.describe("ANA World — 3D view over real dashboard data", () => {
     }
   });
 
+  test("berlin day · Ben and Vince follow the Berlin clock: awake by day, asleep from midnight to 7", async ({ page }) => {
+    test.setTimeout(60_000);
+    // 10:01 in Berlin (CET)
+    await page.clock.setFixedTime(new Date("2026-11-03T09:01:00Z"));
+    await openWorld(page);
+    const canvas = page.getByTestId("world-canvas");
+    await expect(canvas).toHaveAttribute("data-ben-activity", /^(laptop|wine|ai)$/);
+    await expect(canvas).toHaveAttribute("data-vince-activity", /^(phone|computer|gym)$/);
+    const ben = await canvas.getAttribute("data-ben-activity");
+    await page.getByTestId("world-view-berlin").click();
+    await page.locator(".world-label.person", { hasText: /^Ben/ }).dispatchEvent("click");
+    await expect(page.getByTestId("world-ben-day")).toHaveAttribute("data-activity", ben ?? "");
+    // 02:30 in Berlin
+    await page.clock.setFixedTime(new Date("2026-11-03T01:30:00Z"));
+    await page.reload();
+    await page.locator('[data-testid="world-canvas"][data-ready="true"]').waitFor({ timeout: 20_000 });
+    await expect(canvas).toHaveAttribute("data-ben-activity", "sleeping");
+    await expect(canvas).toHaveAttribute("data-vince-activity", "sleeping");
+  });
+
   test("selection · clicking a country in the panel opens its numbers", async ({ page }) => {
     await openWorld(page);
     await page.getByTestId("world-audience-country").getByRole("button", { name: "Spain" }).click();
