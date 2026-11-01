@@ -387,7 +387,7 @@ export function WorldView() {
   const lookBlock = (night: boolean, local: string) => {
     if (!world) return null;
     const l = world.ana_look;
-    const fresh = localPick && Date.parse(world.generated_at) < Date.parse(localPick.at) ? localPick : null;
+    const fresh = localPick && Date.parse(l.read_at ?? world.generated_at) < Date.parse(localPick.at) ? localPick : null;
     const m = fresh ? fresh.manual : l.manual && !l.manual_expired ? l.manual : null;
     const pickedLook: AnaLookId | "auto" = m ? m.look : "auto";
     const pickedColor = m ? m.color : "auto";
@@ -603,7 +603,7 @@ export function WorldView() {
         <div>
           <dt>{t("world.sources.look")}</dt>
           <dd>
-            <em data-state={world?.ana_look.image_reader === "on" ? "ok" : "not-configured"}>{world?.ana_look.image_reader === "on" ? t("world.sources.stateOk") : t("world.sources.stateMissing")}</em> {t("world.sources.lookBody")}
+            <em data-state={world && world.ana_look.image_reader !== "off" ? "ok" : "not-configured"}>{world && world.ana_look.image_reader !== "off" ? t("world.sources.stateOk") : t("world.sources.stateMissing")}</em> {t("world.sources.lookBody")}
           </dd>
         </div>
         <div>

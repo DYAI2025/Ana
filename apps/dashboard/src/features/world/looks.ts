@@ -43,6 +43,8 @@ export interface AnaLook {
   manual: ManualLook | null;
   /** true when a stored manual pick no longer applies because Ana posted after it */
   manual_expired: boolean;
+  /** server time just before the manual pick was read (null outside the service) */
+  read_at: string | null;
 }
 
 /** Caption rules, checked in order. Words are matched as words; emoji anywhere. */
@@ -131,5 +133,6 @@ export function resolveLook(newest: NewestPost | null, manual: ManualLook | null
     post: newest ? { id: newest.id, published_at: newest.published_at, permalink: newest.permalink } : null,
     manual,
     manual_expired: manual !== null && !manualApplies,
+    read_at: null,
   };
 }

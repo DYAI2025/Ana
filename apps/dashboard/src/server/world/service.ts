@@ -140,6 +140,7 @@ export function createWorldService(deps: WorldDeps): WorldService {
 
   return {
     async read() {
+      const readAt = new Date(now()).toISOString();
       const instagramPromise: Promise<SocialResult> = deps.social ? deps.social.read() : Promise.resolve({ ok: false, failure: NOT_CONFIGURED });
       const [instagram, p, a, w, manual] = await Promise.all([instagramPromise, pulse(), audience(), work(), deps.readManual ? deps.readManual().catch(() => null) : Promise.resolve(null)]);
       const newestRaw = instagram.ok
@@ -179,7 +180,7 @@ export function createWorldService(deps: WorldDeps): WorldService {
         audience: audienceOut,
         work: workOut,
         places: { ana: readAnaPlace(env) },
-        ana_look: resolveLook(newest, manual, image, imageReader),
+        ana_look: { ...resolveLook(newest, manual, image, imageReader), read_at: readAt },
         release: readRelease(),
       };
     },
