@@ -22,9 +22,10 @@ const MIN_KEY_LENGTH = 32;
 const MEDIA_FIELDS = 'id,media_type,permalink,timestamp,thumbnail_url';
 // Social snapshot (internal read contract for the dashboard BFF).
 const SNAPSHOT_BASE_FIELDS = MEDIA_FIELDS + ',media_product_type';
-// media_url: the image of IMAGE posts and carousel containers (Meta: thumbnail_url exists only for VIDEO); for VIDEO
-// it is the video file and is not passed on
-const SNAPSHOT_OPTIONAL_FIELDS = 'caption,like_count,comments_count,media_url';
+const SNAPSHOT_OPTIONAL_FIELDS = 'caption,like_count,comments_count';
+// media_url: the picture of IMAGE posts and carousel containers (Meta: thumbnail_url exists only for VIDEO). It has its
+// own fallback step, so a refusal never costs caption and counters. For VIDEO it is the video file: never passed on.
+const SNAPSHOT_PICTURE_FIELD = 'media_url';
 // Same maturity rule as the dashboard (apps/dashboard/src/features/social/insights.ts MATURE_AGE_DAYS).
 const SNAPSHOT_MATURE_DAYS = 7;
 const SNAPSHOT_DEFAULT_MAX = 30;
@@ -395,10 +396,22 @@ async function snapshotIdentity(b) {
   }
 }
 const countOrNull = v => Number.isFinite(v) && v >= 0 ? v : null;
+// the picture of a photo post or carousel; a carousel that opens with a video can carry a video file URL: refused
+function pictureUrl(m) {
+  if (m.media_type === 'VIDEO' || typeof m.media_url !== 'string') return null;
+  try { return /\.(mp4|mov|m4v|webm)$/i.test(new URL(m.media_url).pathname) ? null : m.media_url; } catch { return null; }
+}
 // Follows paging.cursors.after through metaFetch; Meta's paging.next URL carries the token and is never used or returned.
 // media_product_type stays in the base set: without it Reels and feed videos could not be kept apart.
 async function snapshotMedia(b, max) {
-  let fields = SNAPSHOT_BASE_FIELDS + ',' + SNAPSHOT_OPTIONAL_FIELDS, optional = 'ACCEPTED', after = null, pages = 0, hasMore = false;
+  // fallback steps on Meta error 100 (invalid field), first page only: all fields -> without media_url -> base fields
+  const steps = [
+    {fields:SNAPSHOT_BASE_FIELDS + ',' + SNAPSHOT_OPTIONAL_FIELDS + ',' + SNAPSHOT_PICTURE_FIELD, optional:'ACCEPTED', picture:'ACCEPTED'},
+    {fields:SNAPSHOT_BASE_FIELDS + ',' + SNAPSHOT_OPTIONAL_FIELDS, optional:'ACCEPTED', picture:'REJECTED_BY_META'},
+    {fields:SNAPSHOT_BASE_FIELDS, optional:'REJECTED_BY_META', picture:'REJECTED_BY_META'},
+  ];
+  let step = 0, after = null, pages = 0, hasMore = false;
+  let {fields, optional, picture} = steps[0];
   const items = [];
   while (items.length < max) {
     const params = {fields, limit:Math.min(SNAPSHOT_PAGE_SIZE, max - items.length)};
@@ -407,8 +420,8 @@ async function snapshotMedia(b, max) {
     try { page = await b.fetch('/me/media', params); }
     catch (e) {
       // only "invalid field or parameter" means Meta refused an optional field; anything else fails the read
-      if (!(e instanceof MetaError) || e.metaCode !== 100 || pages > 0 || optional !== 'ACCEPTED') throw e;
-      fields = SNAPSHOT_BASE_FIELDS; optional = 'REJECTED_BY_META';
+      if (!(e instanceof MetaError) || e.metaCode !== 100 || pages > 0 || step >= steps.length - 1) throw e;
+      ({fields, optional, picture} = steps[++step]);
       continue;
     }
     pages++;
@@ -419,11 +432,11 @@ async function snapshotMedia(b, max) {
     if (!hasMore) break;
     after = cursor;
   }
-  return {optional, pages, hasMore, items:items.map(m => ({
+  return {optional, picture, pages, hasMore, items:items.map(m => ({
     id:String(m.id), media_type:m.media_type ?? null, media_product_type:m.media_product_type ?? null,
     permalink:m.permalink ?? null, timestamp:m.timestamp ?? null, thumbnail_url:m.thumbnail_url ?? null,
-    ...(optional === 'ACCEPTED' ? {caption:typeof m.caption === 'string' ? m.caption : null, like_count:countOrNull(m.like_count), comments_count:countOrNull(m.comments_count),
-      image_url:m.media_type !== 'VIDEO' && typeof m.media_url === 'string' ? m.media_url : null} : {})
+    ...(optional === 'ACCEPTED' ? {caption:typeof m.caption === 'string' ? m.caption : null, like_count:countOrNull(m.like_count), comments_count:countOrNull(m.comments_count)} : {}),
+    ...(picture === 'ACCEPTED' ? {image_url:pictureUrl(m)} : {})
   }))};
 }
 function insightValue(entry) {
@@ -529,7 +542,7 @@ async function readSocialSnapshot(req,env,url) {
       followers_count:{value:followers, state:followers===null?'unavailable':'ok'},
       media_count:{value:identity.extras?countOrNull(identity.me.media_count):null, state:identity.extras&&countOrNull(identity.me.media_count)!==null?'ok':'unavailable'},
       metrics:account_metrics},
-    media:{requested_max:+maxRaw, returned:media.items.length, pages_fetched:media.pages, has_more:media.hasMore, optional_fields_state:media.optional,
+    media:{requested_max:+maxRaw, returned:media.items.length, pages_fetched:media.pages, has_more:media.hasMore, optional_fields_state:media.optional, picture_field_state:media.picture,
       items:media.items.map((m,i)=>({...m, insights:insights[i]}))},
     insights:{requested_metrics:MEDIA_INSIGHT_METRICS, priority:'mature-first', mature_days:SNAPSHOT_MATURE_DAYS, halted:b.halted,
       posts_with_insights:insights.filter(x=>x.state==='ok'||x.state==='partial').length, budget:{limit:b.limit, used:b.used}}

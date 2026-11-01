@@ -582,6 +582,34 @@ test('social snapshot: image_url carries the picture of photo posts, never a vid
     else assert.equal(m.image_url, null, 'a video never passes its file URL on');
   }
 });
+
+test('social snapshot: a refused media_url costs only the picture, never caption and counters', async () => {
+  const env = mockEnv();
+  await connect(env);
+  const fields = [];
+  const inner = pagedMedia(3, {fields});
+  installMeta({media: u => u.searchParams.get('fields').includes('media_url')
+    ? (fields.push(u.searchParams.get('fields')), Response.json({error: {message: 'synthetic', type: 'OAuthException', code: 100}}, {status: 400}))
+    : inner(u)});
+  const body = await (await snapshot(env, '?max=3')).json();
+  assert.equal(body.media.optional_fields_state, 'ACCEPTED');
+  assert.equal(body.media.picture_field_state, 'REJECTED_BY_META');
+  assert.equal(typeof body.media.items[0].caption, 'string');
+  assert.ok(!('image_url' in body.media.items[0]));
+  assert.equal(fields.length, 2, 'one refused attempt, then one read without media_url');
+});
+
+test('social snapshot: a carousel that opens with a video passes no video file', async () => {
+  const env = mockEnv();
+  await connect(env);
+  installMeta({media: () => Response.json({data: [
+    {id: 'c1', media_type: 'CAROUSEL_ALBUM', media_product_type: 'FEED', permalink: 'https://example.invalid/p/c1', timestamp: '2026-11-01T10:00:00+0000', media_url: 'https://example.invalid/v/c1.mp4?x=1', caption: 'c', like_count: 1, comments_count: 0},
+    {id: 'c2', media_type: 'CAROUSEL_ALBUM', media_product_type: 'FEED', permalink: 'https://example.invalid/p/c2', timestamp: '2026-11-01T09:00:00+0000', media_url: 'https://example.invalid/i/c2.jpg', caption: 'c', like_count: 1, comments_count: 0},
+  ], paging: {cursors: {before: 'a', after: 'b'}}})});
+  const body = await (await snapshot(env, '?max=2')).json();
+  assert.equal(body.media.items[0].image_url, null);
+  assert.equal(body.media.items[1].image_url, 'https://example.invalid/i/c2.jpg');
+});
 const snapshot = (env, q = '', key = INTERNAL_KEY) => worker.fetch(new Request(origin + '/internal/social-snapshot' + q, {headers: {Authorization: `Bearer ${key}`}}), env);
 
 test('social snapshot: internal key only, max validation, reauth and account checks', async () => {
