@@ -9,7 +9,7 @@ describe("lookStore", () => {
   it("stores, reads and removes a manual pick", async () => {
     const file = path.join(mkdtempSync(path.join(os.tmpdir(), "look-")), "world-ana-look.json");
     expect(await readManual(file)).toBeNull();
-    const pick = { look: "scooter" as const, color: "#d8566f", set_at: "2026-11-01T10:00:00.000Z" };
+    const pick = { look: "everyday" as const, color: "#d8566f", activity: "reading" as const, set_at: "2026-11-01T10:00:00.000Z" };
     await writeManual(pick, file);
     expect(await readManual(file)).toEqual(pick);
     await writeManual(null, file);
@@ -21,6 +21,9 @@ describe("lookStore", () => {
     expect(parseManual({ look: "auto", color: "red", set_at: "2026-11-01T10:00:00.000Z" })).toBeNull();
     expect(parseManual({ look: "auto", color: "auto", set_at: "yesterday" })).toBeNull();
     expect(parseManual("x")).toBeNull();
+    expect(parseManual({ look: "auto", color: "auto", activity: "skydiving", set_at: "2026-11-01T10:00:00.000Z" })).toBeNull();
+    // picks stored before activities existed read as "auto"
+    expect(parseManual({ look: "scooter", color: "auto", set_at: "2026-11-01T10:00:00.000Z" })?.activity).toBe("auto");
   });
 
   it("uses the unit's cache directory on the server and an override for tests", () => {

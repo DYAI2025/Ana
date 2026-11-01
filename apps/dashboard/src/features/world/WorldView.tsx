@@ -5,7 +5,7 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { useI18n } from "@/components/providers/I18nProvider";
 import { useReducedMotion } from "@/lib/hooks/useReducedMotion";
 import { channelStatuses, instagramView, orbitCount, pulseEvents, shares, type ChannelView, type PulseEvent, type ShareEntry } from "./model";
-import { ANA_LOOKS, colorHex, SWATCHES, type AnaLookId, type ManualLook } from "./looks";
+import { ANA_ACTIVITIES, ANA_OUTFITS, colorHex, currentActivity, SWATCHES, type AnaActivity, type AnaLookId, type ManualLook } from "./looks";
 import { PEOPLE, PROJECTS, type WorldPersonId } from "./people";
 import type { AudienceSeries, WorldPayload } from "./types";
 import type { SceneData, SceneRef, StationStatus, ViewName, WorldScene } from "./scene/world";
@@ -166,6 +166,16 @@ export function WorldView() {
   const countries: Array<ShareEntry & { label: string }> = useMemo(() => (world ? shares(seriesOf(world, layer, "country")).map((c) => ({ ...c, label: country(c.key) })) : []), [world, layer, country]);
   const anaPlaceLabel = world?.places.ana?.label ?? null;
 
+  // the look as the panel last saved it (until a world read from after the save arrives)
+  const effectiveLook = useMemo(() => {
+    if (!world) return null;
+    const l = world.ana_look;
+    const fresh = localPick && Date.parse(l.read_at ?? world.generated_at) < Date.parse(localPick.at) ? localPick : null;
+    return fresh ? { ...l, manual: fresh.manual, manual_expired: false } : l;
+  }, [world, localPick]);
+  const anaActivity = useMemo(() => (effectiveLook ? currentActivity(effectiveLook, now) : null), [effectiveLook, now]);
+  const anaActivityId = anaActivity?.activity ?? null;
+
   const sceneData: SceneData | null = useMemo(() => {
     if (!world || !ig) return null;
     return {
@@ -180,7 +190,7 @@ export function WorldView() {
       }),
       labels: {
         people: {
-          ana: { name: PEOPLE.ana.name, sub: t("world.people.ana.sub", { state: t(`world.look.states.${world.ana_look.look}`), place: anaPlaceLabel ?? "—" }) },
+          ana: { name: PEOPLE.ana.name, sub: t("world.people.ana.sub", { state: t("world.look.activities.eating"), place: anaPlaceLabel ?? "—" }) },
           ben: { name: PEOPLE.ben.name, sub: t("world.people.ben.sub") },
           vince: { name: PEOPLE.vince.name, sub: t("world.people.vince.sub") },
         },
@@ -191,12 +201,9 @@ export function WorldView() {
         ring: t("world.ring.name"),
         ringSub: t("world.ring.sub", { n: orbitCount(ig.posts) }),
         notConnected: t("world.channels.not-connected"),
-        anaStates: {
-          everyday: t("world.people.ana.sub", { state: t("world.look.states.everyday"), place: anaPlaceLabel ?? "—" }),
-          scooter: t("world.people.ana.sub", { state: t("world.look.states.scooter"), place: anaPlaceLabel ?? "—" }),
-          mermaid: t("world.people.ana.sub", { state: t("world.look.states.mermaid"), place: anaPlaceLabel ?? "—" }),
-          sleeping: t("world.people.ana.sub", { state: t("world.look.states.sleeping"), place: anaPlaceLabel ?? "—" }),
-        },
+        anaStates: Object.fromEntries(
+          [...ANA_ACTIVITIES, "sleeping" as const].map((a) => [a, t("world.people.ana.sub", { state: t(`world.look.activities.${a}`), place: anaPlaceLabel ?? "—" })]),
+        ) as Record<AnaActivity | "sleeping", string>,
         clockApprox: "≈",
       },
       anaLook: { look: world.ana_look.look, colors: world.ana_look.colors },
@@ -246,6 +253,9 @@ export function WorldView() {
   useEffect(() => {
     if (gl === "ok") sceneRef.current?.focus(view);
   }, [gl, view]);
+  useEffect(() => {
+    if (gl === "ok" && anaActivityId) sceneRef.current?.setAnaActivity(anaActivityId);
+  }, [gl, anaActivityId]);
 
   const postTitle = (id: string | null) => {
     const p = ig?.posts.find((x) => x.id === id);
@@ -366,11 +376,11 @@ export function WorldView() {
     return h >= 23 || h < 7;
   };
 
-  const saveLook = async (look: AnaLookId | "auto", color: string) => {
+  const saveLook = async (look: AnaLookId | "auto", color: string, activity: AnaActivity | "auto") => {
     if (lookSave.state === "saving") return;
     setLookSave({ state: "saving" });
     try {
-      const r = await fetch("/api/world/look", { method: "POST", headers: { "Content-Type": "application/json", Accept: "application/json" }, body: JSON.stringify({ look, color }) });
+      const r = await fetch("/api/world/look", { method: "POST", headers: { "Content-Type": "application/json", Accept: "application/json" }, body: JSON.stringify({ look, color, activity }) });
       const body = (await r.json().catch(() => ({}))) as { ok?: boolean; reason?: string; manual?: ManualLook | null; at?: string };
       if (!r.ok || !body.ok) {
         setLookSave({ state: "failed", reason: `HTTP ${r.status}` });
@@ -385,20 +395,35 @@ export function WorldView() {
   };
 
   const lookBlock = (night: boolean, local: string) => {
-    if (!world) return null;
+    if (!world || !effectiveLook || !anaActivity) return null;
     const l = world.ana_look;
-    const fresh = localPick && Date.parse(l.read_at ?? world.generated_at) < Date.parse(localPick.at) ? localPick : null;
-    const m = fresh ? fresh.manual : l.manual && !l.manual_expired ? l.manual : null;
-    const pickedLook: AnaLookId | "auto" = m ? m.look : "auto";
+    const m = effectiveLook.manual && !effectiveLook.manual_expired ? effectiveLook.manual : null;
+    // a pick from before activities existed stored the scooter as a look
+    const pickedLook: AnaLookId | "auto" = m ? (m.look === "scooter" ? "everyday" : m.look) : "auto";
     const pickedColor = m ? m.color : "auto";
+    const pickedActivity: AnaActivity | "auto" = m ? (m.activity && m.activity !== "auto" ? m.activity : m.look === "scooter" ? "scooter" : "auto") : "auto";
     const postTime = l.post?.published_at ? ago(l.post.published_at) : "—";
+    const clock = (ms: number | null) => (ms === null ? "—" : new Intl.DateTimeFormat(locale, { hour: "2-digit", minute: "2-digit" }).format(new Date(ms)));
+    const doing = night ? "sleeping" : anaActivity.activity;
+    const busy = lookSave.state === "saving";
     return (
       <section className={styles.section} aria-labelledby="world-look" data-testid="world-look">
         <h4 id="world-look">{t("world.look.title")}</h4>
-        <p data-testid="world-look-now" data-look={l.look} data-source={l.look_source}>
-          {t("world.look.now", { look: t(`world.look.states.${night ? "sleeping" : l.look}`) })}
+        <p data-testid="world-activity-now" data-activity={doing} data-source={anaActivity.source}>
+          {t("world.look.activityNow", { activity: t(`world.look.activities.${doing}`) })}
         </p>
-        {night ? <p className={styles.muted}>{t("world.look.night", { time: local })}</p> : null}
+        <p className={styles.muted}>
+          {night
+            ? t("world.look.night", { time: local })
+            : anaActivity.source === "manual"
+              ? t("world.look.activityManual")
+              : anaActivity.source === "post"
+                ? t("world.look.activityPost", { time: clock(anaActivity.until) })
+                : t("world.look.activityRotation", { time: clock(anaActivity.until) })}
+        </p>
+        <p data-testid="world-look-now" data-look={l.look} data-source={l.look_source}>
+          {t("world.look.outfitNow", { outfit: t(`world.look.states.${l.look === "mermaid" ? "mermaid" : "everyday"}`) })}
+        </p>
         <p className={styles.muted}>
           {l.look_source === "manual" && m ? t("world.look.fromManual", { time: ago(m.set_at) }) : !l.post ? t("world.look.noPost") : l.look_source === "caption" ? t("world.look.fromCaption", { time: postTime }) : l.look_source === "image" ? t("world.look.fromImage", { time: postTime, pct: Math.round((l.image_confidence ?? 0) * 100) }) : t("world.look.fromDefault", { time: postTime })}
         </p>
@@ -412,19 +437,28 @@ export function WorldView() {
             {t("world.look.openPost")}
           </a>
         ) : null}
+        <h4>{t("world.look.pickActivity")}</h4>
+        <div role="radiogroup" aria-label={t("world.look.pickActivity")} className={styles.lookPick}>
+          {(["auto", ...ANA_ACTIVITIES] as const).map((k) => (
+            <button key={k} type="button" role="radio" aria-checked={pickedActivity === k} aria-disabled={busy} onClick={() => void saveLook(pickedLook, pickedColor, k)} data-testid={`world-activity-pick-${k}`}>
+              {k === "auto" ? t("world.look.activityAuto") : t(`world.look.activities.${k}`)}
+            </button>
+          ))}
+        </div>
+        <h4>{t("world.look.pick")}</h4>
         <div role="radiogroup" aria-label={t("world.look.pick")} className={styles.lookPick}>
-          {(["auto", ...ANA_LOOKS] as const).map((k) => (
-            <button key={k} type="button" role="radio" aria-checked={pickedLook === k} aria-disabled={lookSave.state === "saving"} onClick={() => void saveLook(k, pickedColor)} data-testid={`world-look-pick-${k}`}>
+          {(["auto", ...ANA_OUTFITS] as const).map((k) => (
+            <button key={k} type="button" role="radio" aria-checked={pickedLook === k} aria-disabled={busy} onClick={() => void saveLook(k, pickedColor, pickedActivity)} data-testid={`world-look-pick-${k}`}>
               {k === "auto" ? t("world.look.auto") : t(`world.look.states.${k}`)}
             </button>
           ))}
         </div>
         <div role="radiogroup" aria-label={t("world.look.pickColor")} className={styles.swatches}>
-          <button type="button" role="radio" aria-checked={pickedColor === "auto"} aria-disabled={lookSave.state === "saving"} onClick={() => void saveLook(pickedLook, "auto")} data-testid="world-look-color-auto">
+          <button type="button" role="radio" aria-checked={pickedColor === "auto"} aria-disabled={busy} onClick={() => void saveLook(pickedLook, "auto", pickedActivity)} data-testid="world-look-color-auto">
             {t("world.look.auto")}
           </button>
           {SWATCHES.map((c) => (
-            <button key={c} type="button" role="radio" aria-checked={pickedColor === c} aria-label={t("world.look.colorName", { hex: c })} title={c} aria-disabled={lookSave.state === "saving"} onClick={() => void saveLook(pickedLook, c)} className={styles.swatch} style={{ ["--swatch" as string]: c }} data-testid={`world-look-color-${c.slice(1)}`} />
+            <button key={c} type="button" role="radio" aria-checked={pickedColor === c} aria-label={t("world.look.colorName", { hex: c })} title={c} aria-disabled={busy} onClick={() => void saveLook(pickedLook, c, pickedActivity)} className={styles.swatch} style={{ ["--swatch" as string]: c }} data-testid={`world-look-color-${c.slice(1)}`} />
           ))}
           {l.colors ? <span className={styles.swatchNow} style={{ ["--swatch" as string]: colorHex(l.colors.primary) }} aria-hidden="true" /> : null}
         </div>

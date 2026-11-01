@@ -393,3 +393,117 @@ export function buildRock(): { group: THREE.Group; top: THREE.Vector3 } {
   g.add(star);
   return { group: g, top: new THREE.Vector3(0, 0.3, 0) };
 }
+
+// ---------- activity props (decoration; sizes in avatar units, a hand sits at y -0.27 below the shoulder pivot) ----------
+
+/** A noodle bowl held level in the left hand, with chopsticks for the right and three steam puffs. */
+export function buildBowl(): { bowl: THREE.Group; chopsticks: THREE.Group; steam: THREE.Mesh[] } {
+  const bowl = new THREE.Group();
+  const cup = mesh(new THREE.SphereGeometry(0.075, 16, 10, 0, Math.PI * 2, Math.PI / 2, Math.PI / 2), 0xf4f6fb, 1.08, { side: THREE.DoubleSide });
+  bowl.add(cup);
+  const rim = mesh(new THREE.TorusGeometry(0.073, 0.008, 6, 20), 0xd8566f, 0);
+  rim.rotation.x = Math.PI / 2;
+  bowl.add(rim);
+  const noodles = mesh(new THREE.CylinderGeometry(0.066, 0.066, 0.012, 16), 0xf2c35b, 0);
+  noodles.position.y = -0.012;
+  bowl.add(noodles);
+  const steam: THREE.Mesh[] = [];
+  for (let i = 0; i < 3; i++) {
+    const puff = new THREE.Mesh(new THREE.SphereGeometry(0.022, 8, 6), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.7 }));
+    puff.position.set((i - 1) * 0.025, 0.04, 0);
+    bowl.add(puff);
+    steam.push(puff);
+  }
+  const chopsticks = new THREE.Group();
+  for (const x of [-0.008, 0.008]) {
+    const stick = mesh(new THREE.CylinderGeometry(0.005, 0.004, 0.2, 5), PALETTE.wood, 0);
+    stick.position.set(x, -0.06, 0.03);
+    stick.rotation.x = 0.5;
+    chopsticks.add(stick);
+  }
+  return { bowl, chopsticks, steam };
+}
+
+/** A phone held up for a selfie; `flash` blinks when she takes a picture. */
+export function buildSelfiePhone(): { phone: THREE.Group; flash: THREE.Mesh } {
+  const phone = new THREE.Group();
+  const body = mesh(new THREE.BoxGeometry(0.05, 0.095, 0.012), 0x1b1d22, 1.12);
+  phone.add(body);
+  const screen = new THREE.Mesh(new THREE.PlaneGeometry(0.04, 0.08), new THREE.MeshBasicMaterial({ color: 0x9cc0ff }));
+  screen.position.z = -0.007;
+  screen.rotation.y = Math.PI;
+  phone.add(screen);
+  const flash = new THREE.Mesh(new THREE.SphereGeometry(0.03, 10, 8), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0 }));
+  flash.position.set(0, 0.03, 0.012);
+  phone.add(flash);
+  return { phone, flash };
+}
+
+/** An open book held in both hands; `page` turns. */
+export function buildBook(): { book: THREE.Group; page: THREE.Group } {
+  const book = new THREE.Group();
+  for (const s of [-1, 1]) {
+    const half = mesh(new THREE.BoxGeometry(0.1, 0.13, 0.012), 0x2fa39a, 1.1);
+    half.position.x = s * 0.05;
+    half.rotation.y = -s * 0.25;
+    book.add(half);
+    const paper = new THREE.Mesh(new THREE.PlaneGeometry(0.088, 0.118), new THREE.MeshBasicMaterial({ color: 0xfbf7ee, side: THREE.DoubleSide }));
+    paper.position.set(s * 0.05, 0, 0.008);
+    paper.rotation.y = -s * 0.25;
+    book.add(paper);
+  }
+  const page = new THREE.Group();
+  const leaf = new THREE.Mesh(new THREE.PlaneGeometry(0.088, 0.118), new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.DoubleSide }));
+  leaf.position.x = 0.044;
+  page.add(leaf);
+  page.position.z = 0.01;
+  book.add(page);
+  return { book, page };
+}
+
+/** A striped beach lounger; she sits at `seat`, leaning back. Front = +Z. */
+export function buildLounger(): { group: THREE.Group; seat: THREE.Vector3 } {
+  const g = new THREE.Group();
+  const stripes = [0xf27d72, 0xfbf7ee, 0xf27d72];
+  stripes.forEach((c, i) => {
+    const seat = mesh(new THREE.BoxGeometry(0.42, 0.03, 0.12), c, 1.06);
+    seat.position.set(0, 0.22, 0.16 - i * 0.12);
+    g.add(seat);
+    const back = mesh(new THREE.BoxGeometry(0.42, 0.03, 0.12), c, 1.06);
+    back.rotation.x = 1.0;
+    back.position.set(0, 0.31 + i * 0.1, -0.2 - i * 0.065);
+    g.add(back);
+  });
+  for (const [x, z] of [[-0.18, 0.18], [0.18, 0.18], [-0.18, -0.2], [0.18, -0.2]] as const) {
+    const leg = mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.22, 5), PALETTE.wood, 1.1);
+    leg.position.set(x, 0.11, z);
+    g.add(leg);
+  }
+  return { group: g, seat: new THREE.Vector3(0, 0.235, -0.02) };
+}
+
+/** Floating music notes and a small speaker for dancing. */
+export function buildMusic(): { group: THREE.Group; notes: THREE.Group[] } {
+  const group = new THREE.Group();
+  const box = mesh(new THREE.BoxGeometry(0.16, 0.2, 0.12), 0x24272d, 1.1);
+  box.position.set(0.42, 0.2, 0.3);
+  group.add(box);
+  for (const y of [0.25, 0.15]) {
+    const cone = new THREE.Mesh(new THREE.CircleGeometry(0.04, 16), new THREE.MeshBasicMaterial({ color: 0x9aa1ab }));
+    cone.position.set(0.42, y, 0.362);
+    group.add(cone);
+  }
+  const notes: THREE.Group[] = [];
+  for (let i = 0; i < 3; i++) {
+    const n = new THREE.Group();
+    const head = new THREE.Mesh(new THREE.SphereGeometry(0.03, 10, 8), new THREE.MeshBasicMaterial({ color: i % 2 ? 0xd8566f : 0x5b7fd6, transparent: true }));
+    head.scale.set(1.2, 0.9, 0.6);
+    n.add(head);
+    const stem = new THREE.Mesh(new THREE.BoxGeometry(0.008, 0.09, 0.008), head.material);
+    stem.position.set(0.03, 0.045, 0);
+    n.add(stem);
+    group.add(n);
+    notes.push(n);
+  }
+  return { group, notes };
+}
