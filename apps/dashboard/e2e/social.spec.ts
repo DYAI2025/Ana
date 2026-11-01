@@ -178,7 +178,7 @@ test.describe("Instagram cockpit — real-data shape, honest states", () => {
       await expect(card.getByTestId(`lane-${id}-CONTENT_RESONANCE`)).toContainText("2 of 3 eligible posts can be compared; at least 3 are needed.");
       await expect(card).not.toContainText(/supporting|contradicting|high.intent|lean/i);
     }
-    await expect(page.getByTestId("hypothesis-H1")).toContainText("Travel, nomad, creator or UGC alone does not qualify.");
+    await expect(page.getByTestId("hypothesis-H1")).toContainText("Travel, nomad, creator or UGC alone does not qualify, nor does a creator or brand opportunity without job context.");
     await page.getByTestId("inspect-hypothesis-H1").click();
     const rows = page.getByTestId("eligible-H1").getByTestId("fit-row");
     await expect(rows.nth(0)).toHaveAttribute("data-media-id", "syn002");
