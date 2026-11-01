@@ -174,6 +174,12 @@ export function createWorldScene(
         pickables.push(o);
       }
     });
+  // three.js raycasts hidden objects too: only what is drawn can be hit
+  const shown = (o: THREE.Object3D | null): boolean => {
+    for (let n = o; n; n = n.parent) if (!n.visible) return false;
+    return true;
+  };
+  const firstShown = (hits: THREE.Intersection[]) => hits.find((h) => shown(h.object));
   const unpick = (root: THREE.Object3D) => {
     const set = new Set<THREE.Object3D>();
     root.traverse((o) => set.add(o));
@@ -237,6 +243,17 @@ export function createWorldScene(
   dumbbells[1]?.position.set(0, -0.3, 0);
   if (dumbbells[0]) rigs.vince.armL.add(dumbbells[0]);
   if (dumbbells[1]) rigs.vince.armR.add(dumbbells[1]);
+  // a held prop stays upright: its world orientation follows the person, not the arm
+  const parentInv = new THREE.Quaternion();
+  const rootWorld = new THREE.Quaternion();
+  const keepLevel = (prop: THREE.Object3D, root: THREE.Object3D) => {
+    const parent = prop.parent;
+    if (!parent) return;
+    parent.updateWorldMatrix(true, false);
+    parent.getWorldQuaternion(parentInv).invert();
+    root.getWorldQuaternion(rootWorld);
+    prop.quaternion.copy(parentInv.multiply(rootWorld));
+  };
   let day = berlinDay(Date.now());
   let lastDay = -1;
   canvas.dataset.benActivity = day.ben;
@@ -746,7 +763,7 @@ export function createWorldScene(
       ndc.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
       ray.setFromCamera(ndc, camera);
       const ocean = world.getObjectByName("ocean");
-      const hit = ray.intersectObjects(ocean ? [...pickables, ocean] : pickables, false)[0];
+      const hit = firstShown(ray.intersectObjects(ocean ? [...pickables, ocean] : pickables, false));
       const ref = hit ? refOf.get(hit.object) : undefined;
       if (ref) options.onSelect(ref);
     }
@@ -795,7 +812,7 @@ export function createWorldScene(
     hoverAt = null;
     ray.setFromCamera(ndc, camera);
     // "" leaves the stylesheet's grab/grabbing cursor in charge
-    canvas.style.cursor = ray.intersectObjects(pickables, false)[0] ? "pointer" : "";
+    canvas.style.cursor = firstShown(ray.intersectObjects(pickables, false)) ? "pointer" : "";
   }
 
   // ---------- loop ----------
@@ -953,7 +970,7 @@ export function createWorldScene(
         const lift = c < 0.3 ? Math.sin((c / 0.3) * Math.PI) : 0;
         ben.armL.rotation.x = -1.15 + Math.sin(T * 3) * 0.05 * mo;
         ben.armR.rotation.set(-1.0 - lift * 1.3, 0, -0.25);
-        wine.rotation.x = -ben.armR.rotation.x;
+        keepLevel(wine, ben.root);
         ben.head.rotation.x = 0.1 - lift * 0.25;
       } else {
         // talking with the AI orb above the desk: turns in speech bubbles, a gesturing hand
@@ -1009,7 +1026,7 @@ export function createWorldScene(
       const curl = (Math.sin(T * 3) + 1) / 2;
       vince.armL.rotation.set(-0.1 - curl * 1.7 * mo, 0, 0.12);
       vince.armR.rotation.set(-0.1 - (1 - curl) * 1.7 * mo, 0, -0.12);
-      dumbbells.forEach((d, k) => (d.rotation.x = -(k === 0 ? vince.armL : vince.armR).rotation.x));
+      for (const d of dumbbells) keepLevel(d, vince.root);
       vince.body.position.y = Math.abs(Math.sin(T * 3)) * 0.01 * mo;
     }
     if (aNight !== night) {
