@@ -7,8 +7,8 @@
 export type WorldPersonId = "ana" | "ben" | "vince";
 
 export type HairStyle = "long-wavy" | "swept-back" | "buzz";
-export type Outfit = "sundress" | "open-shirt" | "tee";
-export type Prop = "coconut" | "laptop" | "phone";
+export type Outfit = "sundress" | "open-shirt" | "tee" | "mermaid";
+export type Prop = "coconut" | "laptop" | "phone" | "none";
 
 export interface AvatarSpec {
   skin: number;
@@ -25,6 +25,8 @@ export interface AvatarSpec {
   necklace: boolean;
   armTattoo: boolean;
   prop: Prop;
+  /** a scooter helmet in this colour */
+  helmet?: number;
   /** relative body height (1 = Ben) and shoulder width */
   height: number;
   shoulders: number;

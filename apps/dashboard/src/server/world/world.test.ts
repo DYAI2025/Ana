@@ -62,8 +62,15 @@ describe("normalizePulse / normalizeAudience — worker answers are checked, nev
 
 describe("readAnaPlace / readRelease", () => {
   it("accepts a region label with coordinates and refuses anything else", () => {
-    expect(readAnaPlace({ WORLD_ANA_PLACE: "Regionstest;-1.29;36.82" })).toEqual({ label: "Regionstest", lat: -1.29, lon: 36.82 });
-    for (const bad of ["", "Regionstest", "x;100;0", "x;0;181", "<b>;1;1", "a;1.123456;2", "a;1;2;3"]) expect(readAnaPlace({ WORLD_ANA_PLACE: bad })).toBeNull();
+    expect(readAnaPlace({ WORLD_ANA_PLACE: "Regionstest;-1.29;36.82" })).toEqual({ label: "Regionstest", lat: -1.29, lon: 36.82, tz: null });
+    for (const bad of ["", "Regionstest", "x;100;0", "x;0;181", "<b>;1;1", "a;1.123456;2", "a;1;2;Europe/Berlin;x"]) expect(readAnaPlace({ WORLD_ANA_PLACE: bad })).toBeNull();
+    expect(readAnaPlace({})).toBeNull();
+  });
+
+  it("takes an optional IANA time zone and drops an unknown one", () => {
+    expect(readAnaPlace({ WORLD_ANA_PLACE: "Regionstest;-1.29;36.82;Africa/Nairobi" })?.tz).toBe("Africa/Nairobi");
+    expect(readAnaPlace({ WORLD_ANA_PLACE: "Regionstest;-1.29;36.82;Mars/Olympus" })).toEqual({ label: "Regionstest", lat: -1.29, lon: 36.82, tz: null });
+    expect(readAnaPlace({ WORLD_ANA_PLACE: "Regionstest;-1.29;36.82;3" })?.tz).toBeNull();
     expect(readAnaPlace({})).toBeNull();
   });
 

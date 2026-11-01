@@ -7,6 +7,8 @@ import type { SocialConfig } from "@/server/social/config";
 import { InvalidWorkerResponse } from "@/server/social/normalize";
 import { NOT_CONFIGURED, workerFailure, type SnapshotService } from "@/server/social/service";
 import { MISSING_SERIES, normalizeAudience, normalizePulse, type NormalizedAudience, type NormalizedPulse } from "./normalize";
+import { resolveLook, type ImageLook, type ManualLook, type NewestPost } from "@/features/world/looks";
+import type { VisionReader } from "./vision";
 import { readAnaPlace, readRelease } from "./presence";
 
 export const PULSE_PATH = "/internal/social-pulse";
@@ -36,6 +38,12 @@ export interface WorldDeps {
   fetchImpl?: typeof fetch;
   now?: () => number;
   timings?: Partial<WorldTimings>;
+  /** the stored manual look pick; absent = none */
+  readManual?: () => Promise<ManualLook | null>;
+  /** the vision model on the newest post's cover image; absent = not configured */
+  vision?: VisionReader | null;
+  /** how long one read waits for the vision answer before answering without it (the next read has it) */
+  visionWaitMs?: number;
 }
 
 type Load<T> = { ok: true; value: T } | { ok: false; state: WorldSourceState; reason: string };
@@ -133,7 +141,17 @@ export function createWorldService(deps: WorldDeps): WorldService {
   return {
     async read() {
       const instagramPromise: Promise<SocialResult> = deps.social ? deps.social.read() : Promise.resolve({ ok: false, failure: NOT_CONFIGURED });
-      const [instagram, p, a, w] = await Promise.all([instagramPromise, pulse(), audience(), work()]);
+      const [instagram, p, a, w, manual] = await Promise.all([instagramPromise, pulse(), audience(), work(), deps.readManual ? deps.readManual().catch(() => null) : Promise.resolve(null)]);
+      const newestRaw = instagram.ok
+        ? [...instagram.snapshot.posts].filter((x) => x.published_at).sort((x, y) => Date.parse(y.published_at ?? "") - Date.parse(x.published_at ?? ""))[0] ?? null
+        : null;
+      const newest: NewestPost | null = newestRaw ? { id: newestRaw.media_id, published_at: newestRaw.published_at, permalink: newestRaw.permalink, caption: newestRaw.caption } : null;
+      const vision = deps.vision;
+      const image: ImageLook | null =
+        newestRaw && vision
+          ? await Promise.race([vision.read(newestRaw.media_id, newestRaw.thumbnail_url).catch(() => null), new Promise<null>((r) => setTimeout(() => r(null), deps.visionWaitMs ?? 3_000))])
+          : null;
+
       const pulseOut: WorldPulse = {
         state: p.value ? "ok" : (p.failure?.state ?? "unavailable"),
         reason: p.value ? null : (p.failure?.reason ?? null),
@@ -159,6 +177,7 @@ export function createWorldService(deps: WorldDeps): WorldService {
         audience: audienceOut,
         work: workOut,
         places: { ana: readAnaPlace(env) },
+        ana_look: resolveLook(newest, manual, image, vision ? "on" : "off"),
         release: readRelease(),
       };
     },

@@ -83,6 +83,28 @@ function wingTattoo(): THREE.CanvasTexture {
   });
 }
 
+function fishScales(primary: number, secondary: number): THREE.CanvasTexture {
+  return canvasTexture(
+    64,
+    (ctx, s) => {
+      ctx.fillStyle = hex(primary);
+      ctx.fillRect(0, 0, s, s);
+      ctx.strokeStyle = hex(secondary);
+      ctx.lineWidth = 2.2;
+      ctx.globalAlpha = 0.75;
+      const r = s / 8;
+      for (let row = 0; row < 5; row++)
+        for (let col = 0; col < 5; col++) {
+          ctx.beginPath();
+          ctx.arc(col * r * 2 + (row % 2) * r, row * r * 1.6, r, 0, Math.PI);
+          ctx.stroke();
+        }
+      ctx.globalAlpha = 1;
+    },
+    [3, 2],
+  );
+}
+
 function capsule(r: number, len: number, color: number, ink = 1.12): THREE.Mesh {
   return mesh(new THREE.CapsuleGeometry(r, len, 4, 10), color, ink);
 }
@@ -249,6 +271,55 @@ function facialHair(spec: AvatarSpec, head: THREE.Group): void {
 function torso(spec: AvatarSpec, body: THREE.Group): void {
   const s = spec.shoulders;
   const kind = spec.outfit.kind;
+  if (kind === "mermaid") {
+    // shell top, bare waist, scaled hips and a tail of five segments (body.userData.tail) ending in a fin
+    const { primary, secondary } = spec.outfit;
+    const waist = capsule(0.1 * s, 0.12, spec.skin);
+    waist.position.y = 0.5;
+    body.add(waist);
+    for (const x of [-0.052, 0.052]) {
+      const shell = mesh(new THREE.SphereGeometry(0.052, 14, 10, 0, Math.PI * 2, 0, Math.PI * 0.5), secondary, 1.1);
+      shell.rotation.x = Math.PI / 2;
+      shell.scale.set(1, 1, 0.7);
+      shell.position.set(x, 0.565, 0.075);
+      body.add(shell);
+    }
+    const tex = fishScales(primary, secondary);
+    const hips = mesh(new THREE.SphereGeometry(0.13, 18, 12), 0xffffff, 1.05, { map: tex });
+    hips.scale.set(1.05, 0.9, 0.9);
+    hips.position.y = 0.38;
+    body.add(hips);
+    const tail = new THREE.Group();
+    tail.position.y = 0.34;
+    body.add(tail);
+    const segments: THREE.Group[] = [];
+    let parent: THREE.Group = tail;
+    let r = 0.112;
+    for (let i = 0; i < 5; i++) {
+      const seg = new THREE.Group();
+      seg.position.y = i === 0 ? 0 : -0.07;
+      parent.add(seg);
+      const m = mesh(new THREE.SphereGeometry(r, 16, 10), 0xffffff, 1.05, { map: tex });
+      m.scale.set(1, 0.9, 0.85);
+      m.position.y = -0.035;
+      seg.add(m);
+      segments.push(seg);
+      parent = seg;
+      r *= 0.8;
+    }
+    const fin = new THREE.Group();
+    fin.position.y = -0.09;
+    parent.add(fin);
+    for (const sx of [-1, 1]) {
+      const f = mesh(new THREE.ConeGeometry(0.06, 0.17, 4), secondary, 1.08);
+      f.scale.set(1, 1, 0.3);
+      f.rotation.z = sx * 1.05;
+      f.position.set(sx * 0.065, -0.035, 0);
+      fin.add(f);
+    }
+    body.userData.tail = segments;
+    return;
+  }
   if (kind === "sundress") {
     const dress = mesh(new THREE.CylinderGeometry(0.125, 0.245, 0.44, 22, 1, true), 0xffffff, 0, { map: gingham(spec.outfit.primary, spec.outfit.secondary), side: THREE.DoubleSide });
     inked(dress, 1.04);
@@ -338,7 +409,7 @@ export function buildAvatar(spec: AvatarSpec): AvatarRig {
   const body = new THREE.Group();
   root.add(body);
   torso(spec, body);
-  const sleeve = spec.outfit.kind === "tee" ? spec.outfit.primary : spec.outfit.kind === "open-shirt" ? spec.outfit.primary : null;
+  const sleeve = spec.outfit.kind === "tee" || spec.outfit.kind === "open-shirt" ? spec.outfit.primary : null;
   const armL = arm(-1, spec, spec.outfit.kind === "open-shirt" ? null : sleeve);
   const armR = arm(1, spec, spec.outfit.kind === "open-shirt" ? null : sleeve);
   if (spec.outfit.kind === "open-shirt") {
@@ -382,6 +453,27 @@ export function buildAvatar(spec: AvatarSpec): AvatarRig {
   const eyes = face(spec, head);
   hair(spec, head);
   facialHair(spec, head);
+  if (spec.helmet !== undefined) {
+    const helmet = mesh(new THREE.SphereGeometry(HEAD_R * 1.2, 24, 16, 0, Math.PI * 2, 0, Math.PI * 0.5), spec.helmet, 1.05);
+    helmet.rotation.x = -0.22;
+    helmet.position.set(0, 0.025, -0.01);
+    head.add(helmet);
+    const visor = mesh(new THREE.BoxGeometry(0.2, 0.016, 0.09), spec.helmet, 1.1);
+    visor.rotation.x = 0.35;
+    visor.position.set(0, HEAD_R * 0.66, HEAD_R * 0.98);
+    head.add(visor);
+    const stripe = mesh(new THREE.TorusGeometry(HEAD_R * 1.19, 0.012, 6, 32, Math.PI), 0xf4f6fb, 0);
+    stripe.rotation.set(0, Math.PI / 2, 0);
+    stripe.position.y = 0.025;
+    head.add(stripe);
+  }
+  if (spec.outfit.kind === "mermaid") {
+    // a little shell in the hair
+    const shell = mesh(new THREE.ConeGeometry(0.035, 0.05, 8), spec.outfit.secondary, 1.1);
+    shell.rotation.z = -0.9;
+    shell.position.set(-HEAD_R * 0.82, HEAD_R * 0.55, HEAD_R * 0.3);
+    head.add(shell);
+  }
   body.add(head);
   let held: THREE.Object3D | null = null;
   if (spec.prop === "coconut" || spec.prop === "phone") {

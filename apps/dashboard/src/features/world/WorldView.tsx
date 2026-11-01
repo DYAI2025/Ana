@@ -5,6 +5,7 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { useI18n } from "@/components/providers/I18nProvider";
 import { useReducedMotion } from "@/lib/hooks/useReducedMotion";
 import { channelStatuses, instagramView, orbitCount, pulseEvents, shares, type ChannelView, type PulseEvent, type ShareEntry } from "./model";
+import { ANA_LOOKS, colorHex, SWATCHES, type AnaLookId } from "./looks";
 import { PEOPLE, PROJECTS, type WorldPersonId } from "./people";
 import type { AudienceSeries, WorldPayload } from "./types";
 import type { SceneData, SceneRef, StationStatus, ViewName, WorldScene } from "./scene/world";
@@ -19,6 +20,7 @@ function useWorld(sinkRef: { current: (e: PulseEvent[]) => void }) {
   const [failure, setFailure] = useState<string | null>(null);
   const [events, setEvents] = useState<PulseEvent[]>([]);
   const prevRef = useRef<WorldPayload | null>(null);
+  const reloadRef = useRef<() => void>(() => undefined);
   useEffect(() => {
     let alive = true;
     let busy = false;
@@ -58,6 +60,10 @@ function useWorld(sinkRef: { current: (e: PulseEvent[]) => void }) {
       if (timer) clearTimeout(timer);
       void load();
     };
+    reloadRef.current = () => {
+      if (timer) clearTimeout(timer);
+      void load();
+    };
     void load();
     window.addEventListener("focus", again);
     document.addEventListener("visibilitychange", again);
@@ -68,7 +74,8 @@ function useWorld(sinkRef: { current: (e: PulseEvent[]) => void }) {
       document.removeEventListener("visibilitychange", again);
     };
   }, [sinkRef]);
-  return { world, failure, events };
+  const reload = useCallback(() => reloadRef.current(), []);
+  return { world, failure, events, reload };
 }
 
 function supportsWebGL(): boolean {
@@ -90,7 +97,8 @@ export function WorldView() {
   const reduced = useReducedMotion();
   const sceneRef = useRef<WorldScene | null>(null);
   const sinkRef = useRef<(e: PulseEvent[]) => void>((ev) => sceneRef.current?.burst(ev));
-  const { world, failure, events } = useWorld(sinkRef);
+  const { world, failure, events, reload } = useWorld(sinkRef);
+  const [lookSave, setLookSave] = useState<{ state: "idle" | "saving" | "saved" | "failed"; reason?: string }>({ state: "idle" });
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const labelsRef = useRef<HTMLDivElement>(null);
   const [gl, setGl] = useState<"loading" | "ok" | "unsupported">("loading");
@@ -159,7 +167,7 @@ export function WorldView() {
       }),
       labels: {
         people: {
-          ana: { name: PEOPLE.ana.name, sub: t("world.people.ana.sub", { place: anaPlaceLabel ?? "—" }) },
+          ana: { name: PEOPLE.ana.name, sub: t("world.people.ana.sub", { state: t(`world.look.states.${world.ana_look.look}`), place: anaPlaceLabel ?? "—" }) },
           ben: { name: PEOPLE.ben.name, sub: t("world.people.ben.sub") },
           vince: { name: PEOPLE.vince.name, sub: t("world.people.vince.sub") },
         },
@@ -170,7 +178,15 @@ export function WorldView() {
         ring: t("world.ring.name"),
         ringSub: t("world.ring.sub", { n: orbitCount(ig.posts) }),
         notConnected: t("world.channels.not-connected"),
+        anaStates: {
+          everyday: t("world.people.ana.sub", { state: t("world.look.states.everyday"), place: anaPlaceLabel ?? "—" }),
+          scooter: t("world.people.ana.sub", { state: t("world.look.states.scooter"), place: anaPlaceLabel ?? "—" }),
+          mermaid: t("world.people.ana.sub", { state: t("world.look.states.mermaid"), place: anaPlaceLabel ?? "—" }),
+          sleeping: t("world.people.ana.sub", { state: t("world.look.states.sleeping"), place: anaPlaceLabel ?? "—" }),
+        },
+        clockApprox: "≈",
       },
+      anaLook: { look: world.ana_look.look, colors: world.ana_look.colors },
     };
   }, [world, ig, countries, stationOf, t, anaPlaceLabel]);
 
@@ -332,6 +348,76 @@ export function WorldView() {
     </div>
   );
 
+  const anaNight = (place: { lon: number; tz: string | null }) => {
+    const h = place.tz ? Number(new Intl.DateTimeFormat("en-GB", { timeZone: place.tz, hour: "2-digit", hourCycle: "h23" }).format(new Date(now))) : (((new Date(now).getUTCHours() + Math.round(place.lon / 15)) % 24) + 24) % 24;
+    return h >= 23 || h < 7;
+  };
+
+  const saveLook = async (look: AnaLookId | "auto", color: string) => {
+    setLookSave({ state: "saving" });
+    try {
+      const r = await fetch("/api/world/look", { method: "POST", headers: { "Content-Type": "application/json", Accept: "application/json" }, body: JSON.stringify({ look, color }) });
+      const body = (await r.json().catch(() => ({}))) as { ok?: boolean; reason?: string };
+      if (!r.ok || !body.ok) {
+        setLookSave({ state: "failed", reason: body.reason ?? `HTTP ${r.status}` });
+        return;
+      }
+      setLookSave({ state: "saved" });
+      reload();
+    } catch {
+      setLookSave({ state: "failed", reason: "network" });
+    }
+  };
+
+  const lookBlock = (night: boolean, local: string) => {
+    if (!world) return null;
+    const l = world.ana_look;
+    const m = l.manual && !l.manual_expired ? l.manual : null;
+    const pickedLook: AnaLookId | "auto" = m ? m.look : "auto";
+    const pickedColor = m ? m.color : "auto";
+    const postTime = l.post?.published_at ? ago(l.post.published_at) : "—";
+    return (
+      <section className={styles.section} aria-labelledby="world-look" data-testid="world-look">
+        <h4 id="world-look">{t("world.look.title")}</h4>
+        <p data-testid="world-look-now" data-look={l.look} data-source={l.look_source}>
+          {t("world.look.now", { look: t(`world.look.states.${night ? "sleeping" : l.look}`) })}
+        </p>
+        {night ? <p className={styles.muted}>{t("world.look.night", { time: local })}</p> : null}
+        <p className={styles.muted}>
+          {l.look_source === "manual" && m ? t("world.look.fromManual", { time: ago(m.set_at) }) : !l.post ? t("world.look.noPost") : l.look_source === "caption" ? t("world.look.fromCaption", { time: postTime }) : l.look_source === "image" ? t("world.look.fromImage", { time: postTime, pct: Math.round((l.image_confidence ?? 0) * 100) }) : t("world.look.fromDefault", { time: postTime })}
+        </p>
+        {l.manual_expired && l.manual ? <p className={styles.muted}>{t("world.look.manualExpired", { time: ago(l.manual.set_at) })}</p> : null}
+        <p className={styles.muted} data-testid="world-look-color" data-source={l.color_source}>
+          {l.color_source === "manual" ? t("world.look.colorManual") : l.color_source === "image" ? t("world.look.colorImage", { pct: Math.round((l.image_confidence ?? 0) * 100) }) : t("world.look.colorDefault")}
+        </p>
+        {l.post?.permalink ? (
+          <a href={l.post.permalink} target="_blank" rel="noopener noreferrer">
+            {t("world.look.openPost")}
+          </a>
+        ) : null}
+        <div role="radiogroup" aria-label={t("world.look.pick")} className={styles.lookPick}>
+          {(["auto", ...ANA_LOOKS] as const).map((k) => (
+            <button key={k} type="button" role="radio" aria-checked={pickedLook === k} disabled={lookSave.state === "saving"} onClick={() => void saveLook(k, pickedColor)} data-testid={`world-look-pick-${k}`}>
+              {k === "auto" ? t("world.look.auto") : t(`world.look.states.${k}`)}
+            </button>
+          ))}
+        </div>
+        <div role="radiogroup" aria-label={t("world.look.pickColor")} className={styles.swatches}>
+          <button type="button" role="radio" aria-checked={pickedColor === "auto"} disabled={lookSave.state === "saving"} onClick={() => void saveLook(pickedLook, "auto")} data-testid="world-look-color-auto">
+            {t("world.look.auto")}
+          </button>
+          {SWATCHES.map((c) => (
+            <button key={c} type="button" role="radio" aria-checked={pickedColor === c} aria-label={t("world.look.colorName", { hex: c })} title={c} disabled={lookSave.state === "saving"} onClick={() => void saveLook(pickedLook, c)} className={styles.swatch} style={{ ["--swatch" as string]: c }} data-testid={`world-look-color-${c.slice(1)}`} />
+          ))}
+          {l.colors ? <span className={styles.swatchNow} style={{ ["--swatch" as string]: colorHex(l.colors.primary) }} aria-hidden="true" /> : null}
+        </div>
+        <p className={styles.muted} role="status" data-testid="world-look-save" data-state={lookSave.state}>
+          {lookSave.state === "saving" ? t("world.look.saving") : lookSave.state === "saved" ? t("world.look.saved") : lookSave.state === "failed" ? t("world.look.failed", { reason: lookSave.reason ?? "?" }) : ""}
+        </p>
+      </section>
+    );
+  };
+
   const selectionPane = (() => {
     if (!selected || !world || !ig) return <div className={styles.pane}><p className={styles.muted}>{t("world.selectHint")}</p></div>;
     const s = selected;
@@ -339,12 +425,14 @@ export function WorldView() {
       const p = PEOPLE[s.id as WorldPersonId];
       const own = PROJECTS.filter((x) => x.owner === s.id);
       const place = s.id === "ana" ? world.places.ana : null;
-      const local = place ? new Date(now + Math.round(place.lon / 15) * 3_600_000).toISOString().slice(11, 16) : new Intl.DateTimeFormat(locale, { timeZone: "Europe/Berlin", hour: "2-digit", minute: "2-digit" }).format(new Date(now));
+      const clock = (tz: string) => new Intl.DateTimeFormat(locale, { timeZone: tz, hour: "2-digit", minute: "2-digit" }).format(new Date(now));
+      const local = place ? (place.tz ? clock(place.tz) : new Date(now + Math.round(place.lon / 15) * 3_600_000).toISOString().slice(11, 16)) : clock("Europe/Berlin");
       return (
         <div className={styles.pane}>
           <h3 className={styles.selTitle} style={{ ["--tint" as string]: p.tint }}>{p.name}</h3>
           <p>{s.id === "ana" ? (place ? place.label : t("world.places.anaUnknown")) : t("world.places.berlin")}</p>
-          {s.id !== "ana" || place ? <p className={styles.muted}>{s.id === "ana" ? t("world.people.localTimeEstimated", { time: local }) : t("world.people.localTime", { time: local })}</p> : null}
+          {s.id !== "ana" || place ? <p className={styles.muted}>{s.id === "ana" && !place?.tz ? t("world.people.localTimeEstimated", { time: local }) : t("world.people.localTime", { time: local })}</p> : null}
+          {s.id === "ana" ? lookBlock(place ? anaNight(place) : false, local) : null}
           {own.length ? (
             <>
               <h4>{t("world.people.owns")}</h4>
@@ -493,6 +581,12 @@ export function WorldView() {
           <dt>{t("world.sources.place")}</dt>
           <dd>
             <em data-state={world?.places.ana ? "ok" : "not-configured"}>{world?.places.ana ? t("world.sources.stateOk") : t("world.sources.stateMissing")}</em> {t("world.sources.placeBody")}
+          </dd>
+        </div>
+        <div>
+          <dt>{t("world.sources.look")}</dt>
+          <dd>
+            <em data-state={world?.ana_look.image_reader === "on" ? "ok" : "not-configured"}>{world?.ana_look.image_reader === "on" ? t("world.sources.stateOk") : t("world.sources.stateMissing")}</em> {t("world.sources.lookBody")}
           </dd>
         </div>
         <div>

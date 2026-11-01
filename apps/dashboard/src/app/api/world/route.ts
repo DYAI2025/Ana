@@ -1,4 +1,5 @@
 import { refuseUnauthorized } from "@/server/http";
+import { writeManual } from "@/server/world/lookStore";
 import { resetWorldService, worldServiceFromEnv } from "@/server/world/shared";
 
 // always answered by the server process: never a build-time copy
@@ -26,6 +27,7 @@ export async function GET(request: Request) {
   // test control for the Playwright suite only: never enabled outside e2e (playwright.config.ts sets it)
   if (process.env.SOCIAL_IG_E2E_CONTROLS === "1" && new URL(request.url).searchParams.has("__reset")) {
     resetWorldService();
+    await writeManual(null);
     return new Response(null, { status: 204 });
   }
   const world = await worldServiceFromEnv().read();
