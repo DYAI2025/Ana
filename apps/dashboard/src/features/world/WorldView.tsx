@@ -491,9 +491,10 @@ export function WorldView() {
             ? (() => {
                 const d = berlinDay(now);
                 const doing = d.night ? "sleeping" : s.id === "ben" ? d.ben : d.vince;
+                const label = s.id === "ben" ? t(`world.berlinDay.ben.${d.night ? "sleeping" : d.ben}`) : t(`world.berlinDay.vince.${d.night ? "sleeping" : d.vince}`);
                 return (
                   <section className={styles.section} data-testid={`world-${s.id}-day`} data-activity={doing}>
-                    <p>{t("world.berlinDay.now", { activity: t(`world.berlinDay.${s.id}.${doing}`) })}</p>
+                    <p>{t("world.berlinDay.now", { activity: label })}</p>
                     <p className={styles.muted}>{d.night ? t("world.berlinDay.night") : t("world.berlinDay.rotation", { time: new Intl.DateTimeFormat(locale, { hour: "2-digit", minute: "2-digit" }).format(new Date(d.until)) })}</p>
                   </section>
                 );
