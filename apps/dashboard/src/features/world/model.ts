@@ -15,10 +15,14 @@ export interface ChannelDef {
   color: number;
 }
 
-/** Same order as the ANA-42 channel picker. Only Instagram has an adapter today. */
-/** The orbit shows at most this many posts (the newest first); the KPI and the ring label use the same number. */
+/** The orbit shows at most this many posts (the newest first); every count of "posts in the orbit" uses orbitCount(). */
 export const ORBIT_MAX = 30;
 
+export function orbitCount(posts: readonly unknown[]): number {
+  return Math.min(ORBIT_MAX, posts.length);
+}
+
+/** Same order as the ANA-42 channel picker. Only Instagram has an adapter today. */
 export const CHANNELS: readonly ChannelDef[] = [
   { id: "instagram", label: "Instagram", color: 0xd8566f },
   { id: "substack", label: "Substack", color: 0xe0823a },

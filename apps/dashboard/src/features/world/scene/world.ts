@@ -576,19 +576,24 @@ export function createWorldScene(
   // while the pointer is over the stage the orbit and the auto camera stand still, so a moving post card can be hit
   let hovering = false;
   let hoverAt: { x: number; y: number } | null = null;
-  canvas.dataset.orbit = "running";
+  canvas.dataset.orbit = reduced ? "still" : "running";
   const onEnter = () => {
     hovering = true;
-    canvas.dataset.orbit = "paused";
+    if (!reduced) canvas.dataset.orbit = "paused";
   };
   const onLeave = () => {
     hovering = false;
     hoverAt = null;
     canvas.style.cursor = "";
-    canvas.dataset.orbit = "running";
+    if (!reduced) canvas.dataset.orbit = "running";
   };
+  // a late font subset changes label widths: measure again
+  const remeasure = () => {
+    for (const l of labels) l.w = 0;
+  };
+  document.fonts?.addEventListener?.("loadingdone", remeasure);
   const onHover = (e: PointerEvent) => {
-    if (e.pointerType === "mouse" && pointers.size === 0) hoverAt = { x: e.clientX, y: e.clientY };
+    if (e.pointerType === "mouse" && pointers.size === 0) hoverAt = { x: e.offsetX, y: e.offsetY };
   };
   // the stage element holds the canvas and the labels, so pointing at a label does not count as leaving
   const stage = canvas.parentElement ?? canvas;
@@ -597,11 +602,11 @@ export function createWorldScene(
   canvas.addEventListener("pointermove", onHover);
   function updateCursor() {
     if (!hoverAt) return;
-    const r = canvas.getBoundingClientRect();
-    ndc.set(((hoverAt.x - r.left) / r.width) * 2 - 1, -((hoverAt.y - r.top) / r.height) * 2 + 1);
+    ndc.set((hoverAt.x / (canvas.clientWidth || 1)) * 2 - 1, -(hoverAt.y / (canvas.clientHeight || 1)) * 2 + 1);
     hoverAt = null;
     ray.setFromCamera(ndc, camera);
-    canvas.style.cursor = ray.intersectObjects(pickables, false)[0] ? "pointer" : "grab";
+    // "" leaves the stylesheet's grab/grabbing cursor in charge
+    canvas.style.cursor = ray.intersectObjects(pickables, false)[0] ? "pointer" : "";
   }
 
   // ---------- loop ----------
@@ -609,15 +614,20 @@ export function createWorldScene(
   const sleepPose = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), 0.12).multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), Math.PI / 2)).multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI / 2));
   const clock = new THREE.Clock();
   let T = 0;
+  let orbitT = 0;
   let raf = 0;
   const tmp = new THREE.Vector3();
   const proj = new THREE.Vector3();
 
+  let shownCount = -1;
   function updateLabels() {
     const w = canvas.clientWidth;
     const h = canvas.clientHeight;
     const cp = camera.position;
+    const focused = document.activeElement;
     const shown: Array<{ l: Label; x: number; y: number }> = [];
+    const off: Label[] = [];
+    // pass 1: projection only, no DOM reads or writes
     for (const l of labels) {
       l.anchor.updateWorldMatrix(true, false);
       const s = l.anchor.getWorldScale(tmp).x || 1;
@@ -637,33 +647,40 @@ export function createWorldScene(
       if (l.focus && cam.focus !== l.focus) vis = false;
       proj.copy(p).project(camera);
       if (proj.z > 1) vis = false;
-      const x = (proj.x * 0.5 + 0.5) * w + l.dx;
-      const y = (-proj.y * 0.5 + 0.5) * h;
-      if (vis) {
-        // size is read once per label (its text does not change); visibility:hidden keeps the layout box measurable
-        if (l.w === 0) {
-          l.w = l.el.offsetWidth;
-          l.h = l.el.offsetHeight;
-        }
-        shown.push({ l, x, y });
-      } else {
-        l.shift = 0;
-        hideLabel(l);
+      if (vis) shown.push({ l, x: (proj.x * 0.5 + 0.5) * w + l.dx, y: (-proj.y * 0.5 + 0.5) * h });
+      else off.push(l);
+    }
+    // pass 2: measure labels whose size is unknown (once, and again after a font swap); visibility:hidden keeps the box
+    for (const { l } of shown) {
+      if (l.w === 0) {
+        l.w = l.el.offsetWidth;
+        l.h = l.el.offsetHeight;
       }
     }
-    const placement = declutter(shown.map(({ l, x, y }) => ({ x, y, w: l.w, h: l.h, priority: l.priority, prevShift: l.shift })));
+    // a label with keyboard focus keeps its spot
+    const placement = declutter(shown.map(({ l, x, y }) => ({ x, y, w: l.w, h: l.h, priority: l.el === focused ? 99 : l.priority, prevShift: l.shift })));
+    // pass 3: writes only
+    for (const l of off) {
+      l.shift = 0;
+      hideLabel(l);
+    }
+    let count = 0;
     shown.forEach(({ l, x, y }, i) => {
       const at = placement[i];
       if (!at || !at.visible) {
         hideLabel(l);
         return;
       }
+      count++;
       l.shift = at.shift;
       l.el.classList.remove("is-hidden");
       if (l.el instanceof HTMLButtonElement) l.el.tabIndex = 0;
       l.el.style.transform = `translate(${x}px, ${y + at.shift}px) translate(-50%, -100%)`;
     });
-    canvas.dataset.labels = String(placement.filter((p) => p.visible).length);
+    if (count !== shownCount) {
+      shownCount = count;
+      canvas.dataset.labels = String(count);
+    }
   }
   function hideLabel(l: Label) {
     l.el.classList.add("is-hidden");
@@ -677,6 +694,8 @@ export function createWorldScene(
     T += dt;
     const mo = reduced ? 0 : 1;
     const hold = hovering ? 0 : 1;
+    // orbit time stands still while the pointer is over the stage, so cards hold their exact place
+    orbitT += dt * hold;
     if (cam.auto) cam.tLon += dt * 3 * hold;
     const k = reduced ? 1 : 1 - Math.pow(0.0025, dt);
     cam.lat += (cam.tLat - cam.lat) * k;
@@ -735,7 +754,7 @@ export function createWorldScene(
     const anaWorld = rigs.ana.root.localToWorld(new THREE.Vector3(0, 1.2, 0));
     for (const c of cards.values()) {
       if (c.launch < 1) {
-        c.launch = Math.min(1, c.launch + dt * 0.5);
+        c.launch = Math.min(1, c.launch + dt * 0.5 * hold);
         const e = 1 - Math.pow(1 - c.launch, 3);
         const start = ringSpin.worldToLocal(anaWorld.clone());
         const mid = start.clone().add(c.slot).multiplyScalar(0.5).setLength(RING_R * 1.2);
@@ -743,7 +762,7 @@ export function createWorldScene(
         c.group.position.set(v * v * start.x + 2 * v * e * mid.x + e * e * c.slot.x, v * v * start.y + 2 * v * e * mid.y + e * e * c.slot.y, v * v * start.z + 2 * v * e * mid.z + e * e * c.slot.z);
       } else {
         c.group.position.copy(c.slot);
-        c.group.position.y = Math.sin(T * 1.1 + c.slot.x) * 0.15 * mo;
+        c.group.position.y = Math.sin(orbitT * 1.1 + c.slot.x) * 0.15 * mo;
       }
       c.group.lookAt(camera.position);
     }
@@ -804,6 +823,7 @@ export function createWorldScene(
       canvas.removeEventListener("wheel", onWheel);
       stage.removeEventListener("pointerenter", onEnter);
       stage.removeEventListener("pointerleave", onLeave);
+      document.fonts?.removeEventListener?.("loadingdone", remeasure);
       canvas.removeEventListener("pointermove", onHover);
       for (const l of labels) l.el.remove();
       disposeTree(scene);

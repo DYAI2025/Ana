@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { useI18n } from "@/components/providers/I18nProvider";
 import { useReducedMotion } from "@/lib/hooks/useReducedMotion";
-import { channelStatuses, instagramView, ORBIT_MAX, pulseEvents, shares, type ChannelView, type PulseEvent, type ShareEntry } from "./model";
+import { channelStatuses, instagramView, orbitCount, pulseEvents, shares, type ChannelView, type PulseEvent, type ShareEntry } from "./model";
 import { PEOPLE, PROJECTS, type WorldPersonId } from "./people";
 import type { AudienceSeries, WorldPayload } from "./types";
 import type { SceneData, SceneRef, StationStatus, ViewName, WorldScene } from "./scene/world";
@@ -168,7 +168,7 @@ export function WorldView() {
         vps: t("world.vps.name"),
         vpsSub: world.release.sha ? t("world.vps.sub", { sha: world.release.sha.slice(0, 7) }) : t("world.vps.subLocal"),
         ring: t("world.ring.name"),
-        ringSub: t("world.ring.sub", { n: Math.min(ORBIT_MAX, ig.posts.length) }),
+        ringSub: t("world.ring.sub", { n: orbitCount(ig.posts) }),
         notConnected: t("world.channels.not-connected"),
       },
     };
@@ -290,7 +290,7 @@ export function WorldView() {
         </div>
         <div data-testid="world-kpi-posts">
           <span>{t("world.kpi.posts")}</span>
-          <b>{num(ig ? Math.min(ORBIT_MAX, ig.posts.length) : null)}</b>
+          <b>{num(ig ? orbitCount(ig.posts) : null)}</b>
         </div>
       </div>
       <section className={styles.section} aria-labelledby="world-feed">
@@ -449,7 +449,7 @@ export function WorldView() {
       return (
         <div className={styles.pane}>
           <h3 className={styles.selTitle}>{t("world.ring.name")}</h3>
-          <p>{t("world.ring.sub", { n: ig.posts.length })}</p>
+          <p>{t("world.ring.sub", { n: orbitCount(ig.posts) })}</p>
           <p className={styles.muted}>{t("world.ring.body")}</p>
         </div>
       );

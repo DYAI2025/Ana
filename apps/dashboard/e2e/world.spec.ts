@@ -151,7 +151,7 @@ test.describe("ANA World — 3D view over real dashboard data", () => {
     await expect(page.locator(".world-label", { hasText: "Instagram orbit" })).toContainText(`${posts} posts`);
   });
 
-  test("polish · pointing at the stage stops the orbit, leaving starts it again", async ({ page }) => {
+  test("polish · pointing at the stage marks the orbit paused, leaving marks it running again", async ({ page }) => {
     await openWorld(page);
     const canvas = page.getByTestId("world-canvas");
     await expect(canvas).toHaveAttribute("data-orbit", "running");
