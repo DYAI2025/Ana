@@ -252,6 +252,8 @@ export function createWorldScene(
     if (sub) {
       const s = document.createElement("small");
       s.textContent = sub;
+      // the line may be cut with an ellipsis; the full text stays available on hover
+      s.title = sub;
       el.appendChild(s);
     }
     if (ref) el.addEventListener("click", () => options.onSelect(ref));
@@ -657,8 +659,8 @@ export function createWorldScene(
         l.h = l.el.offsetHeight;
       }
     }
-    // a label with keyboard focus keeps its spot
-    const placement = declutter(shown.map(({ l, x, y }) => ({ x, y, w: l.w, h: l.h, priority: l.el === focused ? 99 : l.priority, prevShift: l.shift })));
+    // a label with keyboard focus keeps its spot (a mouse click focuses a button too, hence :focus-visible)
+    const placement = declutter(shown.map(({ l, x, y }) => ({ x, y, w: l.w, h: l.h, priority: l.el === focused && l.el.matches(":focus-visible") ? 99 : l.priority, prevShift: l.shift })));
     // pass 3: writes only
     for (const l of off) {
       l.shift = 0;
@@ -766,7 +768,7 @@ export function createWorldScene(
       }
       c.group.lookAt(camera.position);
     }
-    const sa = T * 0.08 * mo + 1.2;
+    const sa = orbitT * 0.08 * mo + 1.2;
     sat.position.set(Math.cos(sa) * SAT_R, 0, Math.sin(sa) * SAT_R);
     sat.rotation.y = -sa;
     (led.material as THREE.MeshBasicMaterial).color.setHSL(0.4, 0.6, 0.42 + Math.sin(T * 5) * 0.1 * mo);
