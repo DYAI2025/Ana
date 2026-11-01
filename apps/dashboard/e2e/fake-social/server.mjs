@@ -29,6 +29,10 @@ const server = http.createServer(async (req, res) => {
     fake.reset();
     return send(res, 200, { ok: true });
   }
+  if (path === "/__fake/world" && req.method === "POST") {
+    fake.setWorld(raw ? JSON.parse(raw) : null);
+    return send(res, 200, { ok: true });
+  }
   if (path === "/__fake/fault" && req.method === "POST") {
     fake.setFault(raw ? JSON.parse(raw) : null);
     return send(res, 200, { ok: true });

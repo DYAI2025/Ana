@@ -1,5 +1,6 @@
 import type { Messages } from "./en";
 import { socialDe } from "./social/de";
+import { worldDe } from "./world/de";
 
 export const de: Messages = {
   app: {
@@ -17,6 +18,7 @@ export const de: Messages = {
     whiteboard: "Whiteboard",
     calendar: "Kalender",
     pulse: "Signale",
+    world: "Welt",
     vault: "Ablage",
     toolbox: "Werkzeuge",
   },
@@ -284,6 +286,7 @@ export const de: Messages = {
     localNote: "Prototyp · bleibt in diesem Tab",
   },
   social: socialDe,
+  world: worldDe,
   pulse: {
     socialTitle: "Social · Instagram",
     socialBody: "Echte Instagram-Beiträge und Kennzahlen, nur lesend auf diesem Computer.",

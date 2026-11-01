@@ -16,10 +16,15 @@ export const SNAPSHOT_PATH = "/internal/social-snapshot";
  * never headers, the key or a response body.
  */
 export async function fetchWorkerSnapshot(config: SocialConfig, fetchImpl: typeof fetch = fetch): Promise<WorkerResponse> {
+  return fetchWorkerJson(config, `${SNAPSHOT_PATH}?max=${config.maxPosts}`, fetchImpl);
+}
+
+/** One authorized GET of an internal worker read contract (snapshot, pulse, audience); same error mapping for all. */
+export async function fetchWorkerJson(config: SocialConfig, pathAndQuery: string, fetchImpl: typeof fetch = fetch): Promise<WorkerResponse> {
   let response: Response;
   let text: string;
   try {
-    response = await fetchImpl(`${config.workerOrigin}${SNAPSHOT_PATH}?max=${config.maxPosts}`, {
+    response = await fetchImpl(`${config.workerOrigin}${pathAndQuery}`, {
       method: "GET",
       headers: { Authorization: `Bearer ${config.key}`, Accept: "application/json" },
       signal: AbortSignal.timeout(config.timeoutMs),

@@ -2,7 +2,7 @@
  * The controlled set of top-level modules (Confluence 07 REQ-F-004: modules are not user-created).
  * Backlog is a sub-view of Board and is reached from Board, the Work lens and search.
  */
-export const PRIMARY_VIEWS = ["now", "board", "sessions", "brain", "whiteboard", "calendar", "pulse", "vault", "toolbox"] as const;
+export const PRIMARY_VIEWS = ["now", "board", "sessions", "brain", "whiteboard", "calendar", "pulse", "world", "vault", "toolbox"] as const;
 export type PrimaryViewId = (typeof PRIMARY_VIEWS)[number];
 export type ViewId = PrimaryViewId | "backlog";
 
@@ -15,6 +15,7 @@ export const VIEW_HREF: Readonly<Record<ViewId, string>> = {
   whiteboard: "/whiteboard",
   calendar: "/calendar",
   pulse: "/pulse",
+  world: "/world",
   vault: "/vault",
   toolbox: "/toolbox",
 };

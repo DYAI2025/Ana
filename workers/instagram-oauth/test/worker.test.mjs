@@ -914,3 +914,96 @@ test('no secret, token, code, state or invite ever appears in logs (whole suite)
   for (const s of [APP_SECRET, ADMIN_KEY, INTERNAL_KEY, LONG_TOKEN, SHORT_TOKEN, 'ROTATED_TOKEN', 'OLD_TOKEN', 'test-code', a.state, a.invite, '/instagram/callback?'])
     assert.ok(!all.includes(s), 'log leak: ' + s);
 });
+
+// =================== world pulse and audience (ANA World) ===================
+const internalGet = (env, path, key = INTERNAL_KEY) => worker.fetch(new Request(origin + path, key ? {headers: {Authorization: `Bearer ${key}`}} : {}), env);
+
+test('social pulse: internal key only, max validation, reauth, account mismatch', async () => {
+  const env = mockEnv();
+  assert.equal((await internalGet(env, '/internal/social-pulse', null)).status, 401);
+  assert.equal((await internalGet(env, '/internal/social-pulse', ADMIN_KEY)).status, 401, 'admin key is not the internal read key');
+  assert.equal((await internalGet(env, '/internal/social-pulse?max=0', null)).status, 401, 'auth is checked before input');
+  assert.equal((await internalGet(env, '/internal/social-pulse')).status, 409, 'no token -> reauth-required');
+  await connect(env);
+  for (const q of ['?max=0', '?max=26', '?max=abc', '?max=-1']) assert.equal((await internalGet(env, '/internal/social-pulse' + q)).status, 400, q);
+  installMeta({me: () => Response.json({user_id: IG_USER_ID, username: 'someoneelse'})});
+  assert.equal((await internalGet(env, '/internal/social-pulse')).status, 409, 'account mismatch');
+});
+
+test('social pulse: one media page with public counters, at most 3 Meta calls, no token in output', async () => {
+  const env = mockEnv();
+  await connect(env);
+  const calls = installMeta({
+    me: () => Response.json({user_id: IG_USER_ID, username: 'anasavu', followers_count: 1234, media_count: 77}),
+    media: () => Response.json({data: [
+      {id: 'p1', timestamp: '2026-10-31T10:00:00+0000', media_product_type: 'REELS', like_count: 12, comments_count: 3},
+      {id: 'p2', timestamp: '2026-10-30T10:00:00+0000', media_product_type: 'FEED', like_count: -1},
+    ], paging: {next: `https://graph.instagram.com/v26.0/me/media?access_token=${LONG_TOKEN}`}}),
+  });
+  const r = await internalGet(env, '/internal/social-pulse?max=5');
+  assert.equal(r.status, 200);
+  const text = await r.text();
+  assert.ok(!text.includes(LONG_TOKEN) && !text.includes('access_token'));
+  const body = JSON.parse(text);
+  assert.equal(body.pulse_version, 1);
+  assert.deepEqual(body.account, {followers_count: 1234, media_count: 77});
+  assert.deepEqual(body.items[0], {id: 'p1', timestamp: '2026-10-31T10:00:00+0000', media_product_type: 'REELS', like_count: 12, comments_count: 3});
+  assert.equal(body.items[1].like_count, null, 'a negative count is not a count');
+  assert.equal(body.items[1].comments_count, null, 'a missing count is null, never 0');
+  const meta = calls.filter(c => c.url.origin === 'https://graph.instagram.com');
+  assert.ok(meta.length <= 3);
+  const media = meta.find(c => c.url.pathname === '/v26.0/me/media');
+  assert.equal(media.url.searchParams.get('limit'), '5');
+  assert.equal(media.url.searchParams.get('fields'), 'id,timestamp,media_product_type,like_count,comments_count');
+});
+
+test('social pulse: a Meta failure on the media read is a 502 with an error class only', async () => {
+  const env = mockEnv();
+  await connect(env);
+  installMeta({media: metaError(4, 400)});
+  const r = await internalGet(env, '/internal/social-pulse');
+  assert.equal(r.status, 502);
+  assert.deepEqual(await r.json(), {error: 'instagram-media-fetch-failed', reason: 'meta-4'});
+});
+
+const demo = (name, breakdown, rows) => Response.json({data: [{name, period: 'lifetime', total_value: {breakdowns: [{dimension_keys: ['timeframe', breakdown], results: rows.map(([k, v]) => ({dimension_values: ['THIS_MONTH', k], value: v}))}]}}]});
+
+test('social audience: four documented demographic reads, aggregated results, per-metric states', async () => {
+  const env = mockEnv();
+  await connect(env);
+  const calls = installMeta({
+    insights: u => {
+      const metric = u.searchParams.get('metric'), breakdown = u.searchParams.get('breakdown');
+      if (metric === 'follower_demographics' && breakdown === 'city') return metaError(100)();
+      if (metric === 'follower_demographics') return Response.json({data: []});
+      return breakdown === 'country' ? demo(metric, 'country', [['DE', 120], ['ES', 40], ['', 9], ['IT', -3]]) : demo(metric, 'city', [['Berlin, Berlin', 30]]);
+    },
+  });
+  const r = await internalGet(env, '/internal/social-audience');
+  assert.equal(r.status, 200);
+  const body = await r.json();
+  assert.equal(body.audience_version, 1);
+  const [ec, ecity, fc, fcity] = body.metrics;
+  assert.deepEqual([ec.name, ec.breakdown, ec.timeframe, ec.state], ['engaged_audience_demographics', 'country', 'this_month', 'ok']);
+  assert.deepEqual(ec.results, [{key: 'DE', value: 120}, {key: 'ES', value: 40}], 'empty keys and negative values are dropped');
+  assert.deepEqual(ecity.results, [{key: 'Berlin, Berlin', value: 30}]);
+  assert.deepEqual([fc.state, fc.error_class], ['unavailable', 'empty-response']);
+  assert.deepEqual([fcity.state, fcity.error_class], ['unavailable', 'meta-100']);
+  const reads = calls.filter(c => c.url.pathname === `/v26.0/${IG_USER_ID}/insights`);
+  assert.equal(reads.length, 4);
+  for (const c of reads) {
+    assert.equal(c.url.searchParams.get('period'), 'lifetime');
+    assert.equal(c.url.searchParams.get('timeframe'), 'this_month');
+    assert.equal(c.url.searchParams.get('metric_type'), 'total_value');
+  }
+});
+
+test('social audience: a throttle stops further reads and is reported as error / not_fetched, never as data', async () => {
+  const env = mockEnv();
+  await connect(env);
+  installMeta({insights: metaError(4, 400)});
+  const body = await (await internalGet(env, '/internal/social-audience')).json();
+  assert.deepEqual(body.metrics.map(m => m.state), ['error', 'not_fetched', 'not_fetched', 'not_fetched']);
+  assert.ok(body.metrics.every(m => m.results.length === 0));
+  assert.equal((await internalGet(env, '/internal/social-audience', null)).status, 401);
+});

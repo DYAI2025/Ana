@@ -27,7 +27,7 @@ const rules = [
   ...(token && token.length >= 8 ? [{ name: "configured JIRA_API_TOKEN value", test: (text) => text.split(token).length - 1 }] : []),
   { name: "SOCIAL_IG_* variable name", test: (text) => count(text, /SOCIAL_IG_[A-Z_]+/g) },
   { name: "Bearer authorization header", test: (text) => count(text, /Bearer [A-Za-z0-9._~+/-]{16,}=*/g) },
-  { name: "worker internal path", test: (text) => count(text, /internal\/social-snapshot/g) },
+  { name: "worker internal path", test: (text) => count(text, /internal\/social-(snapshot|pulse|audience)/g) },
   { name: "e2e fake social key", test: (text) => count(text, /e2e-fake-social-key/g) },
   ...(socialKey && socialKey.length >= 8 ? [{ name: "configured SOCIAL_IG_INTERNAL_READ_KEY value", test: (text) => text.split(socialKey).length - 1 }] : []),
   { name: "BRAIN_API_TOKEN variable name", test: (text) => count(text, /BRAIN_API_TOKEN/g) },

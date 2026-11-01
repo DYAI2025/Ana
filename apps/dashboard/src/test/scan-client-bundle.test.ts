@@ -38,6 +38,10 @@ describe("scan-client-bundle", () => {
     ["ANA Brain token shape", BRAIN_SHAPE],
     ["ANA Brain token shape", KEY_SHAPE],
     ["JIRA_API_TOKEN variable name", "JIRA_API_TOKEN"],
+    // ANA-48: every internal worker read contract, not only the snapshot
+    ["worker internal path", "/internal/social-snapshot"],
+    ["worker internal path", "/internal/social-pulse"],
+    ["worker internal path", "/internal/social-audience"],
   ])("fails on %s without printing the value", (rule, canary) => {
     const r = scan(build(`const x=${JSON.stringify(canary)};`));
     expect(r.status).toBe(1);
