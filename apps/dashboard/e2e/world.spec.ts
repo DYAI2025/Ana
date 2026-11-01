@@ -123,6 +123,8 @@ test.describe("ANA World — 3D view over real dashboard data", () => {
   });
 
   test("polish · no two visible labels overlap in any camera view", async ({ page }) => {
+    // four views with a 2.5 s settle each under software WebGL: about 20 s on CI
+    test.setTimeout(60_000);
     await openWorld(page);
     for (const view of ["world", "berlin", "ana", "orbit"] as const) {
       await page.getByTestId(`world-view-${view}`).click();
