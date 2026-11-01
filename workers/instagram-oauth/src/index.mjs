@@ -23,6 +23,9 @@ const MEDIA_FIELDS = 'id,media_type,permalink,timestamp,thumbnail_url';
 // Social snapshot (internal read contract for the dashboard BFF).
 const SNAPSHOT_BASE_FIELDS = MEDIA_FIELDS + ',media_product_type';
 const SNAPSHOT_OPTIONAL_FIELDS = 'caption,like_count,comments_count';
+// media_url: the picture of IMAGE posts and carousel containers (Meta: thumbnail_url exists only for VIDEO). It has its
+// own fallback step, so a refusal never costs caption and counters. For VIDEO it is the video file: never passed on.
+const SNAPSHOT_PICTURE_FIELD = 'media_url';
 // Same maturity rule as the dashboard (apps/dashboard/src/features/social/insights.ts MATURE_AGE_DAYS).
 const SNAPSHOT_MATURE_DAYS = 7;
 const SNAPSHOT_DEFAULT_MAX = 30;
@@ -393,10 +396,22 @@ async function snapshotIdentity(b) {
   }
 }
 const countOrNull = v => Number.isFinite(v) && v >= 0 ? v : null;
+// the picture of a photo post or carousel; a carousel that opens with a video can carry a video file URL: refused
+function pictureUrl(m) {
+  if (m.media_type === 'VIDEO' || typeof m.media_url !== 'string') return null;
+  try { return /\.(mp4|mov|m4v|webm)$/i.test(new URL(m.media_url).pathname) ? null : m.media_url; } catch { return null; }
+}
 // Follows paging.cursors.after through metaFetch; Meta's paging.next URL carries the token and is never used or returned.
 // media_product_type stays in the base set: without it Reels and feed videos could not be kept apart.
 async function snapshotMedia(b, max) {
-  let fields = SNAPSHOT_BASE_FIELDS + ',' + SNAPSHOT_OPTIONAL_FIELDS, optional = 'ACCEPTED', after = null, pages = 0, hasMore = false;
+  // fallback steps on Meta error 100 (invalid field), first page only: all fields -> without media_url -> base fields
+  const steps = [
+    {fields:SNAPSHOT_BASE_FIELDS + ',' + SNAPSHOT_OPTIONAL_FIELDS + ',' + SNAPSHOT_PICTURE_FIELD, optional:'ACCEPTED', picture:'ACCEPTED'},
+    {fields:SNAPSHOT_BASE_FIELDS + ',' + SNAPSHOT_OPTIONAL_FIELDS, optional:'ACCEPTED', picture:'REJECTED_BY_META'},
+    {fields:SNAPSHOT_BASE_FIELDS, optional:'REJECTED_BY_META', picture:'REJECTED_BY_META'},
+  ];
+  let step = 0, after = null, pages = 0, hasMore = false;
+  let {fields, optional, picture} = steps[0];
   const items = [];
   while (items.length < max) {
     const params = {fields, limit:Math.min(SNAPSHOT_PAGE_SIZE, max - items.length)};
@@ -405,8 +420,8 @@ async function snapshotMedia(b, max) {
     try { page = await b.fetch('/me/media', params); }
     catch (e) {
       // only "invalid field or parameter" means Meta refused an optional field; anything else fails the read
-      if (!(e instanceof MetaError) || e.metaCode !== 100 || pages > 0 || optional !== 'ACCEPTED') throw e;
-      fields = SNAPSHOT_BASE_FIELDS; optional = 'REJECTED_BY_META';
+      if (!(e instanceof MetaError) || e.metaCode !== 100 || pages > 0 || step >= steps.length - 1) throw e;
+      ({fields, optional, picture} = steps[++step]);
       continue;
     }
     pages++;
@@ -417,10 +432,11 @@ async function snapshotMedia(b, max) {
     if (!hasMore) break;
     after = cursor;
   }
-  return {optional, pages, hasMore, items:items.map(m => ({
+  return {optional, picture, pages, hasMore, items:items.map(m => ({
     id:String(m.id), media_type:m.media_type ?? null, media_product_type:m.media_product_type ?? null,
     permalink:m.permalink ?? null, timestamp:m.timestamp ?? null, thumbnail_url:m.thumbnail_url ?? null,
-    ...(optional === 'ACCEPTED' ? {caption:typeof m.caption === 'string' ? m.caption : null, like_count:countOrNull(m.like_count), comments_count:countOrNull(m.comments_count)} : {})
+    ...(optional === 'ACCEPTED' ? {caption:typeof m.caption === 'string' ? m.caption : null, like_count:countOrNull(m.like_count), comments_count:countOrNull(m.comments_count)} : {}),
+    ...(picture === 'ACCEPTED' ? {image_url:pictureUrl(m)} : {})
   }))};
 }
 function insightValue(entry) {
@@ -526,11 +542,83 @@ async function readSocialSnapshot(req,env,url) {
       followers_count:{value:followers, state:followers===null?'unavailable':'ok'},
       media_count:{value:identity.extras?countOrNull(identity.me.media_count):null, state:identity.extras&&countOrNull(identity.me.media_count)!==null?'ok':'unavailable'},
       metrics:account_metrics},
-    media:{requested_max:+maxRaw, returned:media.items.length, pages_fetched:media.pages, has_more:media.hasMore, optional_fields_state:media.optional,
+    media:{requested_max:+maxRaw, returned:media.items.length, pages_fetched:media.pages, has_more:media.hasMore, optional_fields_state:media.optional, picture_field_state:media.picture,
       items:media.items.map((m,i)=>({...m, insights:insights[i]}))},
     insights:{requested_metrics:MEDIA_INSIGHT_METRICS, priority:'mature-first', mature_days:SNAPSHOT_MATURE_DAYS, halted:b.halted,
       posts_with_insights:insights.filter(x=>x.state==='ok'||x.state==='partial').length, budget:{limit:b.limit, used:b.used}}
   });
+}
+// ---- World pulse and audience (ANA World, additive internal read contracts) ----
+// Pulse: one cheap read of the newest posts' public counters so the dashboard can show real like/comment deltas
+// within a minute. Audience: Meta's aggregated demographics (top 45, up to 48 h delayed). Neither carries per-like or
+// per-comment origin: Meta does not provide it.
+const PULSE_DEFAULT_MAX = 12;
+const PULSE_MAX = 25;
+const PULSE_SUBREQUEST_BUDGET = 3;
+const AUDIENCE_SUBREQUEST_BUDGET = 6;
+const AUDIENCE_TIMEFRAME = 'this_month';
+const AUDIENCE_READS = [
+  ['engaged_audience_demographics', 'country'], ['engaged_audience_demographics', 'city'],
+  ['follower_demographics', 'country'], ['follower_demographics', 'city'],
+];
+// The caller has already checked INTERNAL_READ_KEY.
+async function internalIdentity(env, budget) {
+  const token=await usableToken(env);
+  if(!token)return {response:json({error:'reauth-required'},409)};
+  const b=metaBudget(token,budget);
+  let identity;
+  try { identity=await snapshotIdentity(b); }
+  catch(e) { return {response:json({error:'instagram-identity-failed',reason:errorClass(e)},502)}; }
+  if(!isExpectedAccount(identity.me,env))return {response:json({error:'account-mismatch'},409)};
+  return {b, identity};
+}
+async function readSocialPulse(req,env,url) {
+  if(!(await authorizeAdmin(req,env,'INTERNAL_READ_KEY')))return json({error:'unauthorized'},401);
+  const maxRaw=url.searchParams.get('max')||String(PULSE_DEFAULT_MAX);
+  if(!/^\d{1,2}$/.test(maxRaw) || +maxRaw<1 || +maxRaw>PULSE_MAX)return json({error:'invalid-max'},400);
+  const ctx=await internalIdentity(env,PULSE_SUBREQUEST_BUDGET);
+  if(ctx.response)return ctx.response;
+  let page;
+  try { page=await ctx.b.fetch('/me/media',{fields:'id,timestamp,media_product_type,like_count,comments_count',limit:+maxRaw}); }
+  catch(e) { return json({error:'instagram-media-fetch-failed',reason:errorClass(e)},502); }
+  const data=Array.isArray(page?.data)?page.data:[];
+  const followers=ctx.identity.extras?countOrNull(ctx.identity.me.followers_count):null;
+  const mediaCount=ctx.identity.extras?countOrNull(ctx.identity.me.media_count):null;
+  return json({
+    pulse_version:1, fetched_at:new Date().toISOString(), provider:'instagram', api_version:GRAPH_VERSION,
+    account:{followers_count:followers, media_count:mediaCount},
+    items:data.slice(0,+maxRaw).map(m=>({id:String(m.id), timestamp:m.timestamp ?? null, media_product_type:m.media_product_type ?? null,
+      like_count:countOrNull(m.like_count), comments_count:countOrNull(m.comments_count)}))
+  });
+}
+function demographicResults(entry) {
+  const breakdowns=entry?.total_value?.breakdowns;
+  const results=Array.isArray(breakdowns)&&Array.isArray(breakdowns[0]?.results)?breakdowns[0].results:[];
+  return results.map(r=>{
+    const dims=Array.isArray(r?.dimension_values)?r.dimension_values:[];
+    const key=dims.length?String(dims[dims.length-1]):null;
+    return {key, value:countOrNull(r?.value)};
+  }).filter(r=>r.key!==null && r.key.length>0 && r.key.length<=120 && r.value!==null);
+}
+async function readSocialAudience(req,env) {
+  if(!(await authorizeAdmin(req,env,'INTERNAL_READ_KEY')))return json({error:'unauthorized'},401);
+  const ctx=await internalIdentity(env,AUDIENCE_SUBREQUEST_BUDGET);
+  if(ctx.response)return ctx.response;
+  const userId=ctx.identity.me.user_id;
+  const metrics=[];
+  for (const [name, breakdown] of AUDIENCE_READS) {
+    const base={name, breakdown, timeframe:AUDIENCE_TIMEFRAME};
+    try {
+      const data=await ctx.b.fetch(`/${userId}/insights`,{metric:name, period:'lifetime', timeframe:AUDIENCE_TIMEFRAME, metric_type:'total_value', breakdown});
+      const entry=(Array.isArray(data?.data)?data.data:[]).find(x=>x?.name===name);
+      const results=demographicResults(entry);
+      metrics.push(results.length?{...base, state:'ok', results}:{...base, state:'unavailable', error_class:'empty-response', results:[]});
+    } catch(e) {
+      const cls=notSent(e)?e.message:errorClass(e);
+      metrics.push({...base, state:e instanceof MetaError&&e.metaCode===100?'unavailable':notSent(e)?'not_fetched':'error', error_class:cls, results:[]});
+    }
+  }
+  return json({audience_version:1, fetched_at:new Date().toISOString(), provider:'instagram', api_version:GRAPH_VERSION, metrics});
 }
 async function refresh(env,force=false) {
   const row=await findToken(env);
@@ -588,6 +676,8 @@ async function route(req,env,url) {
   }
   if(req.method==='GET' && url.pathname==='/internal/media')return readMedia(req,env,url);
   if(req.method==='GET' && url.pathname==='/internal/social-snapshot')return readSocialSnapshot(req,env,url);
+  if(req.method==='GET' && url.pathname==='/internal/social-pulse')return readSocialPulse(req,env,url);
+  if(req.method==='GET' && url.pathname==='/internal/social-audience')return readSocialAudience(req,env);
   if(req.method==='GET' && url.pathname==='/instagram/start')return startPage(req,env,url);
   if(req.method==='POST' && url.pathname==='/instagram/start')return startLogin(req,env);
   if(req.method==='GET' && url.pathname===CALLBACK_PATH)return callback(req,env,url);

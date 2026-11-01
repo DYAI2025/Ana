@@ -38,6 +38,14 @@ describe("scan-client-bundle", () => {
     ["ANA Brain token shape", BRAIN_SHAPE],
     ["ANA Brain token shape", KEY_SHAPE],
     ["JIRA_API_TOKEN variable name", "JIRA_API_TOKEN"],
+    // ANA-48: every internal worker read contract, not only the snapshot
+    ["worker internal path", "/internal/social-snapshot"],
+    ["worker internal path", "/internal/social-pulse"],
+    ["worker internal path", "/internal/social-audience"],
+    // ANA-48 looks: the vision model key stays on the server
+    ["ANTHROPIC_API_KEY variable name", "process.env.ANTHROPIC_API_KEY"],
+    ["Anthropic API key shape", "sk-ant-" + "x".repeat(40)],
+    ["Anthropic API endpoint", "https://api.anthropic.com/v1/messages"],
   ])("fails on %s without printing the value", (rule, canary) => {
     const r = scan(build(`const x=${JSON.stringify(canary)};`));
     expect(r.status).toBe(1);

@@ -140,6 +140,7 @@ export function normalizeSnapshot(raw: unknown): SocialSnapshot {
       caption: typeof item.caption === "string" ? item.caption : null,
       permalink: httpsOrNull(item.permalink),
       thumbnail_url: httpsOrNull(item.thumbnail_url),
+      image_url: httpsOrNull(item.image_url),
       published_at: published && !Number.isNaN(Date.parse(published)) ? new Date(Date.parse(published)).toISOString() : null,
       insights_state: insightsState,
       observations,
