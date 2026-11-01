@@ -67,9 +67,11 @@ These are kept as stricter repository-specific rules under canonical §9.
 - **Exact PR-head CI.** The brain, dashboard, dashboard-image and drs workflows check out `SOURCE_SHA` — the PR head
   (`pull_request.head.sha`) on a pull request, `github.sha` on a push — and assert `git rev-parse HEAD` equals it.
   A pull request run therefore tests the PR head itself, not GitHub's test merge with the base. Bundles, image tags
-  and artifacts are named `<sha>` on a push and `pr-<sha>` on a pull request: PR outputs are test evidence for that
-  head, and `release.sh` (bare 40-hex commit only) cannot pick them up. Only artifacts of a successful push run on
-  `main` are released.
+  and artifacts are named `<sha>` only on a push to `main`, `pr-<sha>` on a pull request and `test-<sha>` on any other
+  run; non-release artifacts are kept 3 days, release candidates 30. PR outputs are test evidence for that head. Only
+  artifacts of a successful push run on `main` are released, and that is checked on the run, not on the name:
+  `deploy/fetch-release.sh` reads the run from the GitHub API and `release.sh` checks the bundle's `.ana-build`
+  (`deploy/test-release-provenance.sh`, run by the brain and dashboard-image workflows).
 - **Base at R4M.** Because a PR run does not test the merge result, the R4M readback also confirms that the head
   contains the current base (`git merge-base --is-ancestor <base> <head>`). If the base moved past the head, R4M is
   not GREEN until the base is merged in and the new head has passed CI.

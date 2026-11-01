@@ -16,8 +16,14 @@ legacy service is stopped before the DNS switch and is never started again next 
 
 1. **Artifact.** Release only `ana-brain-app-<sha>.tar.gz` with its `.sha256` from a **successful push run of the
    `brain` workflow on `main`** for that commit. A pull_request run builds the PR head and names its artifact
-   `ana-brain-pr-<sha>` (bundle `ana-brain-app-pr-<sha>.tar.gz`): test output, never a release; `release.sh` takes only
-   a bare 40-hex commit, so it cannot find such a bundle.
+   `ana-brain-pr-<sha>` (bundle `ana-brain-app-pr-<sha>.tar.gz`), any other non-release run `ana-brain-test-<sha>`:
+   test output kept 3 days, never a release. The name alone is not trusted (pull_request runs before 329f4a9 uploaded
+   release-shaped `ana-brain-<sha>` artifacts): fetch the bundle with `deploy/fetch-release.sh brain <sha> <dir>`,
+   which checks the run through the GitHub API (event push, branch `main`, that commit, success, `brain.yml`, no
+   fork), and `release.sh` refuses a bundle whose `.ana-build` (written by the run, covered by the `.sha256`) does not
+   say event push, ref `refs/heads/main`, workflow `brain.yml` and that commit; bundles built before this rule have no
+   `.ana-build` and are refused (`release.sh --check-bundle <sha> <dir>` runs only this check;
+   `deploy/test-release-provenance.sh` proves it in CI).
    CI builds the bundle (`dist/` + production `node_modules`), starts it under Node v24.22.0 and checks `/healthz` 200,
    `/mcp` and `/projection` 401 without a credential, and the loopback bind.
 2. **Loopback only.** The Brain listens on `127.0.0.1:8790`, its Qdrant on `127.0.0.1:6333` (gRPC off), its Ollama on
@@ -156,7 +162,9 @@ mv -T "$t/vault" /var/lib/ana-brain/vault && rmdir "$t"
 chown -R ana-brain:ana-brain /var/lib/ana-brain/vault && chmod 0700 /var/lib/ana-brain/vault
 ```
 
-**Release** the Brain (first release, then every later one), detached from the SSH session:
+**Release** the Brain (first release, then every later one), detached from the SSH session. The bundle directory holds
+`ana-brain-app-<sha>.tar.gz` and its `.sha256`, fetched on the operator's machine with
+`deploy/fetch-release.sh brain <sha> <dir>` (invariant 1) and copied to the host:
 
 ```bash
 systemd-run --unit=ana-brain-release --wait --collect /srv/dyai/runtime/ana-brain/release.sh <sha> <bundle dir>

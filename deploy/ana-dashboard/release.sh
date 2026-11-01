@@ -25,6 +25,37 @@ unit=dyai-ana-dashboard.service
 tunnel=dyai-ana-tunnel.service
 
 fail() { echo "release: $*" >&2; exit 1; }
+# --- bundle checksum and provenance (README section 1, invariant 1) -------------------------------------------------
+# A bundle is released only if it came from a successful push run of the dashboard-image workflow on main for exactly this
+# commit. deploy/fetch-release.sh checks that run against the GitHub API on the operator's machine before download;
+# here the host checks what the run wrote into the bundle itself (.ana-build, covered by the .sha256): a pull_request
+# or workflow_dispatch artifact, a run on another branch, repository or workflow, or a renamed bundle of another commit
+# is refused even when its file name is a bare 40-hex commit. The file is written by the run that built the bundle, so
+# it guards against a wrong or renamed artifact, not against a forged one; the API check covers the run itself.
+check_bundle() {
+  local s=$1 tarball=$2 want have info kv k v
+  [[ -f "$tarball" && -f "$tarball.sha256" ]] || { echo "$tarball and its .sha256 file must exist"; return 1; }
+  want="$(awk '{print $1}' "$tarball.sha256")"
+  have="$(sha256sum "$tarball" | awk '{print $1}')"
+  [[ "$want" =~ ^[0-9a-f]{64}$ && "$want" == "$have" ]] || { echo "checksum mismatch for $tarball"; return 1; }
+  info="$(tar -xzOf "$tarball" ./.ana-build 2>/dev/null)" || { echo "$tarball has no .ana-build: not a bundle of a push run on main"; return 1; }
+  for kv in repository=DYAI2025/Ana workflow=.github/workflows/dashboard-image.yml event=push ref=refs/heads/main "sha=$s"; do
+    k="${kv%%=*}" v="${kv#*=}"
+    [[ "$(printf '%s\n' "$info" | grep -c "^$k=")" == 1 && "$(printf '%s\n' "$info" | sed -n "s/^$k=//p")" == "$v" ]] ||
+      { echo "provenance: $k is '$(printf '%s\n' "$info" | sed -n "s/^$k=//p" | head -1)', expected '$v' (release only push runs of dashboard-image on main)"; return 1; }
+  done
+  printf '%s\n' "$info" | grep -qE '^run_id=[0-9]+$' || { echo "provenance: no run_id"; return 1; }
+}
+
+# check a bundle without touching the host (as CI does with deploy/test-release-provenance.sh):
+#   release.sh --check-bundle <sha> <bundle dir>
+if [[ "${1:-}" == "--check-bundle" ]]; then
+  [[ "${2:-}" =~ ^[0-9a-f]{40}$ && -n "${3:-}" ]] || fail "usage: release.sh --check-bundle <full git sha> <bundle dir>"
+  why="$(check_bundle "$2" "$3/ana-dashboard-app-$2.tar.gz")" || fail "$why"
+  echo "release: bundle ana-dashboard-app-$2.tar.gz: checksum ok, push run $(tar -xzOf "$3/ana-dashboard-app-$2.tar.gz" ./.ana-build | sed -n 's/^run_id=//p') of dashboard-image on main"
+  exit 0
+fi
+
 [[ "$(id -u)" == 0 ]] || fail "run as root"
 cd "$base"
 exec 9>.release.lock
@@ -64,10 +95,7 @@ certs="$(curl -sf -m 10 "$team/cdn-cgi/access/certs" || true)"
 
 if [[ ! -d "releases/$sha" ]]; then
   tarball="$src/ana-dashboard-app-$sha.tar.gz"
-  [[ -f "$tarball" && -f "$tarball.sha256" ]] || fail "$tarball and its .sha256 file must exist"
-  want="$(awk '{print $1}' "$tarball.sha256")"
-  have="$(sha256sum "$tarball" | awk '{print $1}')"
-  [[ "$want" =~ ^[0-9a-f]{64}$ && "$want" == "$have" ]] || fail "checksum mismatch for $tarball"
+  why="$(check_bundle "$sha" "$tarball")" || fail "$why"
   tmp="$(mktemp -d "releases/.$sha.XXXXXX")"
   bad() { rm -rf "$tmp"; fail "$1"; }
   tar -xzf "$tarball" -C "$tmp" --no-same-owner --no-same-permissions || bad "bundle could not be unpacked"
