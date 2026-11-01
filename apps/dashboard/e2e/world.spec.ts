@@ -124,9 +124,9 @@ test.describe("ANA World — 3D view over real dashboard data", () => {
 
   test("selection · clicking a country in the panel opens its numbers", async ({ page }) => {
     await openWorld(page);
-    await page.getByTestId("world-audience-country").getByRole("button", { name: "Thailand" }).click();
+    await page.getByTestId("world-audience-country").getByRole("button", { name: "Spain" }).click();
     await expect(page.getByTestId("world-tab-selection")).toHaveAttribute("aria-selected", "true");
-    await expect(page.getByRole("tabpanel")).toContainText("Thailand");
+    await expect(page.getByRole("tabpanel")).toContainText("Spain");
     await expect(page.getByRole("tabpanel")).toContainText("220");
   });
 });

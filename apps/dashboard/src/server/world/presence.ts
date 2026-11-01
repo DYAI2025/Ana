@@ -3,7 +3,7 @@ import type { WorldPlace, WorldRelease } from "@/features/world/types";
 
 /**
  * Ana's current region, set by the operator on the server (`WORLD_ANA_PLACE=label;lat;lon`, e.g.
- * "Nordthailand;18.79;98.98"). Region level only, never committed to Git. Anything malformed means "unknown".
+ * "Region;-1.29;36.82"). Region level only, never committed to Git. Anything malformed means "unknown".
  */
 export function readAnaPlace(env: Readonly<Record<string, string | undefined>> = process.env): WorldPlace | null {
   const raw = env.WORLD_ANA_PLACE?.trim();

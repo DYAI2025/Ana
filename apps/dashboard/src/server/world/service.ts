@@ -52,6 +52,7 @@ function cachedSource<T>(load: () => Promise<Load<T>>, goodMs: () => number, ret
     if (!fresh && !backingOff) {
       if (!inFlight) {
         inFlight = load()
+          .catch((): Load<T> => ({ ok: false, state: "error", reason: "unexpected" }))
           .then((r) => {
             if (r.ok) {
               good = { value: r.value, at: now() };

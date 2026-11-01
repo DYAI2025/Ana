@@ -21,8 +21,16 @@ function useWorld(sinkRef: { current: (e: PulseEvent[]) => void }) {
   const prevRef = useRef<WorldPayload | null>(null);
   useEffect(() => {
     let alive = true;
+    let busy = false;
     let timer: ReturnType<typeof setTimeout> | undefined;
+    const schedule = (ms: number) => {
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(() => void load(), ms);
+    };
+    // one read at a time and one pending timer: returning to the tab never starts a second poll chain
     const load = async () => {
+      if (busy || !alive) return;
+      busy = true;
       try {
         const r = await fetch("/api/world", { cache: "no-store", headers: { Accept: "application/json" } });
         const body = (await r.json()) as { ok: true; world: WorldPayload } | { ok: false; reason?: string };
@@ -40,12 +48,13 @@ function useWorld(sinkRef: { current: (e: PulseEvent[]) => void }) {
       } catch {
         if (alive) setFailure("network");
       } finally {
-        if (alive) timer = setTimeout(load, document.hidden ? POLL_MS * 2 : POLL_MS);
+        busy = false;
+        if (alive) schedule(document.hidden ? POLL_MS * 2 : POLL_MS);
       }
     };
     // coming back to the tab reads at once instead of waiting for the next minute
     const again = () => {
-      if (document.hidden || !alive) return;
+      if (document.hidden || !alive || busy) return;
       if (timer) clearTimeout(timer);
       void load();
     };
@@ -218,7 +227,7 @@ export function WorldView() {
     if (e.kind === "new-post") return t("world.feed.newPost");
     if (e.kind === "followers") return t("world.feed.followers", { n: e.delta > 0 ? `+${e.delta}` : String(e.delta) });
     const key = e.kind === "likes" ? (e.delta > 0 ? "world.feed.likes" : "world.feed.likesDown") : e.delta > 0 ? "world.feed.comments" : "world.feed.commentsDown";
-    return t(key, { n: e.delta > 0 ? e.delta : e.delta, post: postTitle(e.postId) });
+    return t(key, { n: e.delta, post: postTitle(e.postId) });
   };
 
   const pulseLine = !world ? t("world.pulse.waiting") : world.pulse.state === "ok" ? t("world.pulse.live", { time: ago(world.pulse.fetched_at) }) : world.pulse.fetched_at ? t("world.pulse.failed", { reason: world.pulse.reason ?? world.pulse.state }) : t("world.pulse.waiting");

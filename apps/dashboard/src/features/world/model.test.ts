@@ -56,7 +56,7 @@ function world(pulseLikes: number, pulseAt = "2026-10-31T20:00:00.000Z", extraPu
       },
     },
     pulse: { state: "ok", reason: null, fetched_at: pulseAt, followers: 1010, media_count: 3, items: [{ id: "a", published_at: "2026-10-30T10:00:00.000Z", like_count: pulseLikes, comments_count: 4 }, ...extraPulse] },
-    audience: { state: "ok", reason: null, fetched_at: pulseAt, timeframe: "this_month", engaged_country: { state: "ok", reason: null, results: [{ key: "DE", value: 30 }, { key: "TH", value: 10 }] }, engaged_city: { state: "unavailable", reason: "meta-100", results: [] }, follower_country: { state: "unavailable", reason: null, results: [] }, follower_city: { state: "unavailable", reason: null, results: [] } },
+    audience: { state: "ok", reason: null, fetched_at: pulseAt, timeframe: "this_month", engaged_country: { state: "ok", reason: null, results: [{ key: "DE", value: 30 }, { key: "ES", value: 10 }] }, engaged_city: { state: "unavailable", reason: "meta-100", results: [] }, follower_country: { state: "unavailable", reason: null, results: [] }, follower_city: { state: "unavailable", reason: null, results: [] } },
     work: { state: "not-configured", reason: "not-configured", fetched_at: null, issues: [] },
     places: { ana: null },
     release: { sha: null, started_at: pulseAt },
@@ -112,7 +112,7 @@ describe("pulseEvents", () => {
 
 describe("shares and median", () => {
   it("computes shares of Meta's returned top entries", () => {
-    expect(shares({ state: "ok", reason: null, results: [{ key: "DE", value: 30 }, { key: "TH", value: 10 }] })).toEqual([{ key: "DE", value: 30, share: 0.75 }, { key: "TH", value: 10, share: 0.25 }]);
+    expect(shares({ state: "ok", reason: null, results: [{ key: "DE", value: 30 }, { key: "ES", value: 10 }] })).toEqual([{ key: "DE", value: 30, share: 0.75 }, { key: "ES", value: 10, share: 0.25 }]);
     expect(shares({ state: "unavailable", reason: null, results: [] })).toEqual([]);
     expect(median([3, 1, 2])).toBe(2);
     expect(median([1, 2, 3, 4])).toBe(2.5);
@@ -122,9 +122,9 @@ describe("shares and median", () => {
 
 describe("geo", () => {
   const geo = buildGeo(topology as unknown as Topology, codes as unknown as string[][]);
-  it("puts Berlin and Chiang Mai on land and the open oceans in water", () => {
+  it("puts Berlin and Nairobi on land and the open oceans in water", () => {
     expect(isLand(geo.land, geo.width, geo.height, 52.52, 13.4)).toBe(true);
-    expect(isLand(geo.land, geo.width, geo.height, 18.79, 98.98)).toBe(true);
+    expect(isLand(geo.land, geo.width, geo.height, -1.29, 36.82)).toBe(true);
     expect(isLand(geo.land, geo.width, geo.height, 0, -30)).toBe(false);
     expect(isLand(geo.land, geo.width, geo.height, -40, -120)).toBe(false);
     expect(isLand(geo.land, geo.width, geo.height, 65, 100)).toBe(true);
@@ -132,9 +132,9 @@ describe("geo", () => {
 
   it("maps ISO alpha-2 codes to mainland centroids", () => {
     const de = geo.centroids.get("DE");
-    const th = geo.centroids.get("TH");
+    const es = geo.centroids.get("ES");
     expect(de && Math.abs(de.lat - 51.2) < 2 && Math.abs(de.lon - 10.4) < 2).toBe(true);
-    expect(th && Math.abs(th.lat - 15) < 3 && Math.abs(th.lon - 101) < 3).toBe(true);
+    expect(es && Math.abs(es.lat - 40.2) < 3 && Math.abs(es.lon + 3.6) < 3).toBe(true);
     const us = geo.centroids.get("US");
     expect(us && us.lon < -80 && us.lon > -110).toBe(true);
     expect(geo.centroids.size).toBeGreaterThan(150);

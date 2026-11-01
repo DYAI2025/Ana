@@ -395,6 +395,7 @@ export function createWorldScene(
         otherRings.add(ring);
       });
     // audience arcs
+    unpick(arcs);
     disposeGeometry(arcs);
     arcs.clear();
     comets.length = 0;

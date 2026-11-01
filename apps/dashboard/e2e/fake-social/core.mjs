@@ -110,9 +110,9 @@ export function buildAudience({ unavailable = false } = {}) {
     provider: "instagram",
     api_version: "v26.0",
     metrics: [
-      series("engaged_audience_demographics", "country", [["DE", 410], ["TH", 220], ["US", 160], ["IT", 90], ["BR", 40]]),
+      series("engaged_audience_demographics", "country", [["DE", 410], ["ES", 220], ["US", 160], ["IT", 90], ["BR", 40]]),
       series("engaged_audience_demographics", "city", [["Synthetic City A", 120], ["Synthetic City B", 60]]),
-      series("follower_demographics", "country", [["DE", 5200], ["US", 2100], ["TH", 900]]),
+      series("follower_demographics", "country", [["DE", 5200], ["US", 2100], ["ES", 900]]),
       series("follower_demographics", "city", [["Synthetic City A", 900]]),
     ],
   };

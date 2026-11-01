@@ -22,7 +22,7 @@ const audienceBody = {
   audience_version: 1,
   fetched_at: "2026-10-31T20:00:00.000Z",
   metrics: [
-    { name: "engaged_audience_demographics", breakdown: "country", timeframe: "this_month", state: "ok", results: [{ key: "TH", value: 40 }, { key: "DE", value: 120 }, { key: "Germany", value: 9 }] },
+    { name: "engaged_audience_demographics", breakdown: "country", timeframe: "this_month", state: "ok", results: [{ key: "ES", value: 40 }, { key: "DE", value: 120 }, { key: "Germany", value: 9 }] },
     { name: "engaged_audience_demographics", breakdown: "city", timeframe: "this_month", state: "ok", results: [{ key: "Berlin, Berlin", value: 30 }] },
     { name: "follower_demographics", breakdown: "country", timeframe: "this_month", state: "unavailable", error_class: "meta-100", results: [] },
   ],
@@ -52,7 +52,7 @@ describe("normalizePulse / normalizeAudience — worker answers are checked, nev
   it("sorts country shares, drops non-ISO country keys and keeps unavailable series honest", () => {
     const a = normalizeAudience(audienceBody);
     expect(a.timeframe).toBe("this_month");
-    expect(a.engaged_country.results).toEqual([{ key: "DE", value: 120 }, { key: "TH", value: 40 }]);
+    expect(a.engaged_country.results).toEqual([{ key: "DE", value: 120 }, { key: "ES", value: 40 }]);
     expect(a.engaged_city.results).toEqual([{ key: "Berlin, Berlin", value: 30 }]);
     expect(a.follower_country).toEqual({ state: "unavailable", reason: "meta-100", results: [] });
     expect(a.follower_city.state).toBe("not_fetched");
@@ -62,8 +62,8 @@ describe("normalizePulse / normalizeAudience — worker answers are checked, nev
 
 describe("readAnaPlace / readRelease", () => {
   it("accepts a region label with coordinates and refuses anything else", () => {
-    expect(readAnaPlace({ WORLD_ANA_PLACE: "Nordthailand;18.79;98.98" })).toEqual({ label: "Nordthailand", lat: 18.79, lon: 98.98 });
-    for (const bad of ["", "Nordthailand", "x;100;0", "x;0;181", "<b>;1;1", "a;1.123456;2", "a;1;2;3"]) expect(readAnaPlace({ WORLD_ANA_PLACE: bad })).toBeNull();
+    expect(readAnaPlace({ WORLD_ANA_PLACE: "Regionstest;-1.29;36.82" })).toEqual({ label: "Regionstest", lat: -1.29, lon: 36.82 });
+    for (const bad of ["", "Regionstest", "x;100;0", "x;0;181", "<b>;1;1", "a;1.123456;2", "a;1;2;3"]) expect(readAnaPlace({ WORLD_ANA_PLACE: bad })).toBeNull();
     expect(readAnaPlace({})).toBeNull();
   });
 
@@ -79,12 +79,12 @@ describe("createWorldService — caches, back-off and honest states", () => {
     let t = 0;
     let likes = 10;
     const w = fakeWorker({ [PULSE_PATH]: () => Response.json(pulseBody(likes)), [AUDIENCE_PATH]: () => Response.json(audienceBody) });
-    const service = createWorldService({ social, socialConfig: config, readWork: null, workKeys: [], fetchImpl: w.impl, now: () => t, env: { WORLD_ANA_PLACE: "Nordthailand;18.79;98.98" } });
+    const service = createWorldService({ social, socialConfig: config, readWork: null, workKeys: [], fetchImpl: w.impl, now: () => t, env: { WORLD_ANA_PLACE: "Regionstest;-1.29;36.82" } });
     const first = await service.read();
     expect(first.pulse.state).toBe("ok");
     expect(first.pulse.items[0]?.like_count).toBe(10);
     expect(first.audience.engaged_country.results[0]).toEqual({ key: "DE", value: 120 });
-    expect(first.places.ana?.label).toBe("Nordthailand");
+    expect(first.places.ana?.label).toBe("Regionstest");
     expect(first.work).toMatchObject({ state: "not-configured", issues: [] });
     likes = 13;
     t = 30_000;

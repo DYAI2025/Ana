@@ -976,7 +976,7 @@ test('social audience: four documented demographic reads, aggregated results, pe
       const metric = u.searchParams.get('metric'), breakdown = u.searchParams.get('breakdown');
       if (metric === 'follower_demographics' && breakdown === 'city') return metaError(100)();
       if (metric === 'follower_demographics') return Response.json({data: []});
-      return breakdown === 'country' ? demo(metric, 'country', [['DE', 120], ['TH', 40], ['', 9], ['IT', -3]]) : demo(metric, 'city', [['Berlin, Berlin', 30]]);
+      return breakdown === 'country' ? demo(metric, 'country', [['DE', 120], ['ES', 40], ['', 9], ['IT', -3]]) : demo(metric, 'city', [['Berlin, Berlin', 30]]);
     },
   });
   const r = await internalGet(env, '/internal/social-audience');
@@ -985,7 +985,7 @@ test('social audience: four documented demographic reads, aggregated results, pe
   assert.equal(body.audience_version, 1);
   const [ec, ecity, fc, fcity] = body.metrics;
   assert.deepEqual([ec.name, ec.breakdown, ec.timeframe, ec.state], ['engaged_audience_demographics', 'country', 'this_month', 'ok']);
-  assert.deepEqual(ec.results, [{key: 'DE', value: 120}, {key: 'TH', value: 40}], 'empty keys and negative values are dropped');
+  assert.deepEqual(ec.results, [{key: 'DE', value: 120}, {key: 'ES', value: 40}], 'empty keys and negative values are dropped');
   assert.deepEqual(ecity.results, [{key: 'Berlin, Berlin', value: 30}]);
   assert.deepEqual([fc.state, fc.error_class], ['unavailable', 'empty-response']);
   assert.deepEqual([fcity.state, fcity.error_class], ['unavailable', 'meta-100']);
