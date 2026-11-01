@@ -6,13 +6,13 @@
 import * as THREE from "three";
 import type { Geo } from "../geo";
 import { ORBIT_MAX, type ChannelDef, type ChannelStatus, type PulseEvent, type ShareEntry, type WorldPost } from "../model";
-import type { AnaLookId, OutfitColors } from "../looks";
+import type { AnaActivity, AnaLookId, OutfitColors } from "../looks";
 import { BERLIN, PEOPLE, type AvatarSpec, type ProjectShape, type WorldPersonId } from "../people";
 import type { WorldPlace } from "../types";
 import { buildAvatar, type AvatarRig } from "./avatar";
 import { declutter } from "./declutter";
 import { basic, disposeGeometry, disposeTree, ll, mesh, PALETTE, R } from "./kit";
-import { buildAnaSpot, buildClouds, buildGlobe, buildOffice, buildRock, buildScooter, buildStation, type AnaSpot, type Station } from "./stage";
+import { buildAnaSpot, buildBook, buildBowl, buildClouds, buildGlobe, buildMusic, buildOffice, buildRock, buildScooter, buildSelfiePhone, buildStation, type AnaSpot, type Station } from "./stage";
 
 export type StationStatus = "busy" | "recent" | "idle" | "done" | "no-source" | "no-jira";
 
@@ -39,7 +39,7 @@ export interface SceneLabels {
   ringSub: string;
   notConnected: string;
   /** Ana's label line per state, already including her place */
-  anaStates: Record<AnaLookId | "sleeping", string>;
+  anaStates: Record<AnaActivity | "sleeping", string>;
   /** prefix of an estimated clock ("≈") */
   clockApprox: string;
 }
@@ -68,6 +68,8 @@ export type ViewName = "world" | "berlin" | "ana" | "orbit";
 
 export interface WorldScene {
   setData(data: SceneData): void;
+  /** what Ana does by day (the panel computes it from the clock, her newest post or a hand pick) */
+  setAnaActivity(activity: AnaActivity): void;
   burst(events: readonly PulseEvent[]): void;
   focus(view: ViewName): void;
   resize(): void;
@@ -114,13 +116,13 @@ function anaHour(place: WorldPlace, now = new Date()): number {
   return place.tz ? hourIn(place.tz, now) : estimatedLocalHour(place.lon, now);
 }
 
-/** Ana's avatar for one look; colours from her newest post or the team's pick replace the dress colours. */
-function anaSpec(look: AnaLookId, colors: OutfitColors | null): AvatarSpec {
+/** Ana's avatar in her last known outfit: the mermaid costume or the summer dress in the colours of her newest post. */
+function anaSpec(mermaid: boolean, colors: OutfitColors | null, helmet: boolean): AvatarSpec {
   const base = PEOPLE.ana.avatar;
-  if (look === "mermaid") return { ...base, outfit: { kind: "mermaid", primary: colors?.primary ?? 0x2fa39a, secondary: colors?.secondary ?? 0xf6c6d0 }, prop: "none" };
-  const outfit = { kind: "sundress" as const, primary: colors?.primary ?? base.outfit.primary, secondary: colors?.secondary ?? base.outfit.secondary };
-  if (look === "scooter") return { ...base, outfit, prop: "none", sunglassesOnHead: false, helmet: 0xf27d72 };
-  return { ...base, outfit };
+  const outfit = mermaid
+    ? { kind: "mermaid" as const, primary: colors?.primary ?? 0x2fa39a, secondary: colors?.secondary ?? 0xf6c6d0 }
+    : { kind: "sundress" as const, primary: colors?.primary ?? base.outfit.primary, secondary: colors?.secondary ?? base.outfit.secondary };
+  return { ...base, outfit, prop: "none", ...(helmet ? { sunglassesOnHead: false, helmet: 0xf27d72 } : {}) };
 }
 function berlinHour(now = new Date()): number {
   return Number(new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/Berlin", hour: "2-digit", hourCycle: "h23" }).format(now));
@@ -178,17 +180,25 @@ export function createWorldScene(
   const office = buildOffice(BERLIN.lat, BERLIN.lon);
   world.add(office.frame);
   pick(office.frame, { type: "place", id: "berlin" });
-  const rigs: Record<WorldPersonId, AvatarRig> = { ana: buildAvatar(anaSpec("everyday", null)), ben: buildAvatar(PEOPLE.ben.avatar), vince: buildAvatar(PEOPLE.vince.avatar) };
+  const rigs: Record<WorldPersonId, AvatarRig> = { ana: buildAvatar(anaSpec(false, null, false)), ben: buildAvatar(PEOPLE.ben.avatar), vince: buildAvatar(PEOPLE.vince.avatar) };
   // Ana's rig is rebuilt when her look changes; everything that places or follows her uses this stable holder
   const anaRoot = new THREE.Group();
   anaRoot.add(rigs.ana.root);
-  // look props (scooter, rock) live on Ana's island
+  // props on Ana's island (rock, scooter, speaker) and in her hands (bowl, chopsticks, phone, book)
   const lookProps = new THREE.Group();
   let ride: ReturnType<typeof buildScooter> | null = null;
   let rock: ReturnType<typeof buildRock> | null = null;
-  let currentLook: AnaLookId = "everyday";
-  let lookKey = "everyday|-|-";
+  let music: ReturnType<typeof buildMusic> | null = null;
+  let hands: { bowl?: ReturnType<typeof buildBowl>; phone?: ReturnType<typeof buildSelfiePhone>; book?: ReturnType<typeof buildBook> } = {};
+  const handProps: THREE.Object3D[] = [];
+  let mermaid = false;
+  let outfitColors: OutfitColors | null = null;
+  let activity: AnaActivity = "eating";
+  // at night she sleeps: no helmet, nothing in her hands, no music
+  let night = false;
+  let lookKey = "";
   canvas.dataset.anaLook = "everyday";
+  canvas.dataset.anaActivity = activity;
   rigs.ben.root.position.copy(office.benSpot);
   rigs.ben.root.scale.multiplyScalar(0.9);
   office.frame.add(rigs.ben.root);
@@ -233,35 +243,84 @@ export function createWorldScene(
   }
   const anaLabelAnchor = new THREE.Object3D();
 
+  /** the outfit from her newest post (or a pick): rebuilt only when it changes */
   function dressAna(look: AnaLookId, colors: OutfitColors | null) {
-    const key = `${look}|${colors?.primary ?? "-"}|${colors?.secondary ?? "-"}`;
+    mermaid = look === "mermaid";
+    outfitColors = colors;
+    canvas.dataset.anaLook = look;
+    rebuildAna();
+  }
+
+  function setAnaActivity(next: AnaActivity) {
+    if (next === activity) return;
+    activity = next;
+    canvas.dataset.anaActivity = next;
+    rebuildAna();
+  }
+
+  function rebuildAna() {
+    const key = `${mermaid}|${outfitColors?.primary ?? "-"}|${outfitColors?.secondary ?? "-"}|${night ? "night" : activity}`;
     if (key === lookKey) return;
+    const rigKey = (k: string) => k.split("|").slice(0, 3).join("|") + (k.endsWith("|scooter") ? "|helmet" : "");
+    const doing: AnaActivity | null = night ? null : activity;
+    const newRig = rigKey(key) !== rigKey(lookKey);
     lookKey = key;
-    currentLook = look;
     unpick(anaRoot);
     unpick(lookProps);
-    anaRoot.remove(rigs.ana.root);
-    disposeGeometry(rigs.ana.root);
-    rigs.ana = buildAvatar(anaSpec(look, colors));
-    anaRoot.add(rigs.ana.root);
     // back on the island before the old props go (a rider sits inside the scooter group)
     if (anaSpot && anaRoot.parent !== anaSpot.frame) anaSpot.frame.add(anaRoot);
+    for (const h of handProps) {
+      h.parent?.remove(h);
+      disposeGeometry(h);
+    }
+    handProps.length = 0;
+    hands = {};
+    if (newRig) {
+      anaRoot.remove(rigs.ana.root);
+      disposeGeometry(rigs.ana.root);
+      rigs.ana = buildAvatar(anaSpec(mermaid, outfitColors, doing === "scooter"));
+      anaRoot.add(rigs.ana.root);
+    }
     disposeGeometry(lookProps);
     lookProps.clear();
     ride = null;
     rock = null;
-    if (look === "scooter") {
-      ride = buildScooter(0x8fd3c1);
-      lookProps.add(ride.group);
-    }
-    if (look === "mermaid") {
+    music = null;
+    if (mermaid) {
       rock = buildRock();
       rock.group.position.set(0.05, 0.1, 0.42);
       lookProps.add(rock.group);
     }
+    const r = rigs.ana;
+    const hold = (parent: THREE.Object3D, o: THREE.Object3D, x: number, y: number, z: number) => {
+      o.position.set(x, y, z);
+      parent.add(o);
+      handProps.push(o);
+    };
+    // the scooter stays on the island at night too (parked)
+    if (activity === "scooter") {
+      ride = buildScooter(0x8fd3c1);
+      lookProps.add(ride.group);
+    } else if (doing === "eating") {
+      const b = buildBowl();
+      hands.bowl = b;
+      hold(r.armL, b.bowl, 0, -0.31, 0.05);
+      hold(r.armR, b.chopsticks, 0, -0.29, 0.02);
+    } else if (doing === "selfie") {
+      const ph = buildSelfiePhone();
+      hands.phone = ph;
+      hold(r.armR, ph.phone, 0, -0.33, 0.02);
+    } else if (doing === "dancing") {
+      music = buildMusic();
+      lookProps.add(music.group);
+    } else if (doing === "reading") {
+      const bk = buildBook();
+      hands.book = bk;
+      bk.book.rotation.y = Math.PI;
+      hold(r.body, bk.book, 0, mermaid ? 0.52 : 0.8, mermaid ? 0.24 : 0.3);
+    }
     pick(anaRoot, { type: "person", id: "ana" });
     pick(lookProps, { type: "person", id: "ana" });
-    canvas.dataset.anaLook = look;
   }
 
   // ---------- stations ----------
@@ -805,7 +864,7 @@ export function createWorldScene(
       lastClock = T;
       setSub(berlinLabel, clockIn("Europe/Berlin"));
       if (place) setSub(placeLabel, place.tz ? clockIn(place.tz) : `${data?.labels.clockApprox ?? "≈"} ${estimatedClock(place.lon)}`);
-      if (data) setSub(anaLabel, data.labels.anaStates[aNight ? "sleeping" : currentLook]);
+      if (data) setSub(anaLabel, data.labels.anaStates[aNight ? "sleeping" : activity]);
     }
     // Ben types, Vince talks on the phone, Ana films or sleeps (decoration, not activity data)
     rigs.ben.root.rotation.y = 0.55;
@@ -818,28 +877,30 @@ export function createWorldScene(
     rigs.vince.armL.rotation.x = -0.25 + Math.sin(T * 1.6) * 0.15 * mo;
     rigs.vince.head.rotation.z = Math.sin(T * 1.5) * 0.08 * mo;
     rigs.vince.root.position.y = office.vinceSpot.y + Math.abs(Math.sin(T * 1.6)) * 0.015 * mo;
+    if (aNight !== night) {
+      night = aNight;
+      rebuildAna();
+    }
     if (anaSpot) {
-      const riding = !aNight && currentLook === "scooter" && ride !== null;
+      // Ana's day: one activity at a time in her last known outfit (decoration, not activity data); asleep at night
+      const riding = !aNight && activity === "scooter" && ride !== null;
+      const inHammock = aNight || (activity === "reading" && !mermaid);
       const holder = riding && ride ? ride.group : anaSpot.frame;
       if (anaRoot.parent !== holder) holder.add(anaRoot);
-      const tail = rigs.ana.body.userData.tail as THREE.Group[] | undefined;
-      let pose: string;
-      rigs.ana.head.rotation.y = 0;
-      if (aNight) {
-        pose = "sleeping";
+      const r = rigs.ana;
+      const tail = r.body.userData.tail as THREE.Group[] | undefined;
+      r.body.position.set(0, 0, 0);
+      r.body.rotation.set(0, 0, 0);
+      r.head.rotation.set(0, 0, 0);
+      r.armL.rotation.set(0, 0, 0);
+      r.armR.rotation.set(0, 0, 0);
+      r.eyes.scale.y = 1;
+      tail?.forEach((seg) => seg.rotation.set(0, 0, 0));
+      // where she is
+      if (inHammock) {
         anaRoot.position.set(0.4, 0.5, -0.38);
         anaRoot.quaternion.copy(sleepPose);
-        rigs.ana.eyes.scale.y = 0.12;
-        rigs.ana.armL.rotation.set(0, 0, 0);
-        rigs.ana.armR.rotation.set(-0.2, 0, 0);
-        tail?.forEach((seg) => seg.rotation.set(0, 0, 0));
-        if (ride) {
-          // parked next to the hammock
-          ride.group.position.set(-0.55, 0.1, 0.5);
-          ride.group.rotation.set(0, 0.7, 0);
-        }
       } else if (riding && ride) {
-        pose = "riding";
         // a loop around the island; heading follows the path, a slight lean into the curve
         const a = T * 0.5 * mo + 0.6;
         const rx = 0.5;
@@ -850,32 +911,72 @@ export function createWorldScene(
         for (const w of ride.wheels) w.rotation.x += dt * 9 * mo;
         anaRoot.position.set(0, ride.seat.y - 0.32, ride.seat.z);
         anaRoot.quaternion.identity();
-        rigs.ana.eyes.scale.y = 1;
-        rigs.ana.armL.rotation.set(-1.25, 0, 0.12);
-        rigs.ana.armR.rotation.set(-1.25, 0, -0.12);
-        rigs.ana.head.rotation.y = Math.sin(T * 0.9) * 0.25 * mo;
-      } else if (currentLook === "mermaid" && rock) {
-        pose = "sitting";
+      } else if (rock) {
         anaRoot.position.set(rock.group.position.x, rock.group.position.y + rock.top.y - 0.16, rock.group.position.z);
         anaRoot.quaternion.setFromEuler(new THREE.Euler(0, 0.25, 0));
-        rigs.ana.eyes.scale.y = 1;
-        // waving, the tail flapping slowly
-        rigs.ana.armL.rotation.set(0, 0, 0.25);
-        rigs.ana.armR.rotation.set(-2.85 + Math.sin(T * 3) * 0.22 * mo, 0, 0.3);
-        tail?.forEach((seg, k) => seg.rotation.set(-0.46 + Math.sin(T * 2.2 - k * 0.7) * 0.1 * mo, 0, 0));
       } else {
-        pose = "standing";
         anaRoot.position.copy(anaSpot.anaSpot);
-        anaRoot.position.y += Math.abs(Math.sin(T * 2.2)) * 0.025 * mo;
         anaRoot.quaternion.setFromEuler(new THREE.Euler(0, 0.25, 0));
-        rigs.ana.eyes.scale.y = 1;
-        rigs.ana.armL.rotation.set(0, 0, 0);
-        // the coconut, raised like in her photo
-        rigs.ana.armR.rotation.set(-2.6 + Math.sin(T * 1.8) * 0.1 * mo, 0, 0.35);
       }
-      if (ride && !riding && !aNight) {
+      if (ride && !riding) {
+        // parked next to the hammock
         ride.group.position.set(-0.55, 0.1, 0.5);
         ride.group.rotation.set(0, 0.7, 0);
+      }
+      if (rock && tail) tail.forEach((seg, k) => seg.rotation.set(-0.46 + Math.sin(T * (activity === "dancing" ? 4.4 : 2.2) - k * 0.7) * 0.1 * mo, 0, 0));
+      if (riding && tail) tail.forEach((seg) => seg.rotation.set(-0.35, 0, 0));
+      // what she does
+      let pose: string = aNight ? "sleeping" : activity;
+      if (aNight) {
+        r.eyes.scale.y = 0.12;
+        r.armR.rotation.set(-0.2, 0, 0);
+      } else if (activity === "scooter") {
+        if (!riding) pose = "standing";
+        r.armL.rotation.set(-1.25, 0, 0.12);
+        r.armR.rotation.set(-1.25, 0, -0.12);
+        r.head.rotation.y = Math.sin(T * 0.9) * 0.25 * mo;
+      } else if (activity === "eating" && hands.bowl) {
+        // the bowl in the left hand stays level; chopsticks go from the bowl to her mouth
+        const bite = (Math.sin(T * 1.7) + 1) / 2;
+        r.armL.rotation.set(-1.15, 0, 0.3);
+        r.armR.rotation.set(-1.15 - bite * 1.15 * mo, 0, -0.38);
+        r.head.rotation.x = 0.14 - bite * 0.1 * mo;
+        hands.bowl.bowl.rotation.x = 1.15;
+        hands.bowl.steam.forEach((p, k) => {
+          const f = ((mo ? T : 0) * 0.6 + k / 3) % 1;
+          p.position.y = 0.04 + f * 0.16;
+          (p.material as THREE.MeshBasicMaterial).opacity = 0.7 * (1 - f) * (mo || 1);
+        });
+      } else if (activity === "selfie" && hands.phone) {
+        // phone held up in front, a peace sign, a little head tilt; the flash blinks every 4 s
+        // arm stretched out front-right, the phone turned back to her face; the other hand up in a peace sign
+        r.armR.rotation.set(-1.55, 0, 0.8);
+        r.armL.rotation.set(0, 0, -2.55);
+        r.head.rotation.set(-0.08, 0.28, -0.14 + Math.sin(T * 1.3) * 0.05 * mo);
+        hands.phone.phone.rotation.set(1.55, 0.9, 0);
+        const f = (T % 4) / 4;
+        (hands.phone.flash.material as THREE.MeshBasicMaterial).opacity = f < 0.05 && mo ? 1 - f / 0.05 : 0;
+      } else if (activity === "dancing") {
+        const beat = T * 4;
+        if (!rock) anaRoot.position.y += Math.abs(Math.sin(beat)) * 0.05 * mo;
+        if (!rock) anaRoot.rotateY(Math.sin(T * 0.8) * 0.5 * mo);
+        r.body.rotation.z = Math.sin(T * 2) * 0.14 * mo;
+        // arms up and out to the sides (clear of her hair), swinging on the beat
+        r.armL.rotation.set(-0.3, 0, -2.3 - Math.sin(beat) * 0.35 * mo);
+        r.armR.rotation.set(-0.3, 0, 2.3 - Math.sin(beat) * 0.35 * mo);
+        r.head.rotation.z = Math.sin(T * 2 + 0.6) * 0.12 * mo;
+        music?.notes.forEach((n, k) => {
+          const f = ((mo ? T : 0) * 0.35 + k / 3) % 1;
+          n.position.set(0.42 + Math.sin(f * 6 + k) * 0.08, 0.35 + f * 0.6, 0.3);
+          for (const c of n.children) ((c as THREE.Mesh).material as THREE.MeshBasicMaterial).opacity = 1 - f;
+        });
+      } else if (activity === "reading" && hands.book) {
+        // in the hammock (or on her rock as a mermaid), the book held up; a page turns every 5 s
+        r.armL.rotation.set(-1.45, 0, 0.22);
+        r.armR.rotation.set(-1.45, 0, -0.22);
+        r.head.rotation.x = mermaid ? 0.3 : 0.1;
+        const f = (T % 5) / 5;
+        hands.book.page.rotation.y = f < 0.2 && mo ? -(f / 0.2) * Math.PI : 0;
       }
       anaSpot.hammock.visible = true;
       if (canvas.dataset.anaPose !== pose) canvas.dataset.anaPose = pose;
@@ -951,6 +1052,7 @@ export function createWorldScene(
 
   return {
     setData,
+    setAnaActivity,
     burst,
     focus,
     resize,

@@ -3,7 +3,7 @@ import { randomUUID } from "node:crypto";
 import { promises as fs } from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { COLOR_RE, isAnaLook, type ManualLook } from "@/features/world/looks";
+import { COLOR_RE, isAnaActivity, isAnaLook, type ManualLook } from "@/features/world/looks";
 
 /**
  * The team's manual look pick for Ana: one small JSON file. On the VPS it lives in the unit's CacheDirectory
@@ -22,8 +22,9 @@ export function parseManual(raw: unknown): ManualLook | null {
   const look = o.look === "auto" || isAnaLook(o.look) ? o.look : null;
   const color = o.color === "auto" || (typeof o.color === "string" && COLOR_RE.test(o.color)) ? o.color : null;
   const setAt = typeof o.set_at === "string" && Number.isFinite(Date.parse(o.set_at)) ? o.set_at : null;
-  if (look === null || color === null || setAt === null) return null;
-  return { look, color, set_at: setAt };
+  const activity = o.activity === undefined || o.activity === "auto" ? "auto" : isAnaActivity(o.activity) ? o.activity : null;
+  if (look === null || color === null || setAt === null || activity === null) return null;
+  return { look, color, activity, set_at: setAt };
 }
 
 export async function readManual(file: string = lookFile()): Promise<ManualLook | null> {

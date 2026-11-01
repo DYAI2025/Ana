@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { lighten, lookFromCaption, parseColor, resolveLook, type NewestPost } from "./looks";
+import { ACTIVITY_SLOT_MS, ANA_ACTIVITIES, activityForSlot, currentActivity, lighten, lookFromCaption, parseColor, POST_ACTIVITY_MS, resolveLook, type NewestPost } from "./looks";
 
 const post = (caption: string | null, published_at = "2026-10-29T10:00:00.000Z"): NewestPost => ({ id: "p1", published_at, permalink: "https://example.invalid/p1", caption });
 
@@ -48,5 +48,31 @@ describe("resolveLook", () => {
     expect(parseColor("#34508f")).toBe(0x34508f);
     expect(parseColor("#34508")).toBeNull();
     expect(parseColor("red")).toBeNull();
+  });
+});
+
+describe("Ana's activities", () => {
+  it("picks one activity per 20-minute slot, the same for everyone, never twice in a row (also across midnight)", () => {
+    const base = Math.floor(Date.parse("2026-11-01T00:00:00Z") / ACTIVITY_SLOT_MS);
+    const days = Array.from({ length: 72 * 30 }, (_, i) => activityForSlot(base - 36 + i));
+    for (let i = 1; i < days.length; i++) expect(days[i], `slot ${i}`).not.toBe(days[i - 1]);
+    for (const a of ANA_ACTIVITIES) expect(days.slice(0, 72)).toContain(a);
+    expect(activityForSlot(base)).toBe(activityForSlot(base));
+    expect(ANA_ACTIVITIES).toContain(activityForSlot(-7));
+  });
+
+  it("rotation by default, the scooter for 2 hours after a scooter post, a hand pick above both", () => {
+    const now = Date.parse("2026-11-01T10:30:00Z");
+    const plain = resolveLook({ id: "p", published_at: "2026-11-01T09:00:00Z", permalink: null, caption: "a quiet morning" }, null);
+    expect(currentActivity(plain, now)).toMatchObject({ source: "rotation", until: (Math.floor(now / ACTIVITY_SLOT_MS) + 1) * ACTIVITY_SLOT_MS });
+    const ride = resolveLook({ id: "p", published_at: "2026-11-01T09:00:00Z", permalink: null, caption: "rent a scooter 🛵" }, null);
+    expect(currentActivity(ride, now)).toEqual({ activity: "scooter", source: "post", until: Date.parse("2026-11-01T09:00:00Z") + POST_ACTIVITY_MS });
+    expect(currentActivity(ride, Date.parse("2026-11-01T11:30:00Z")).source).toBe("rotation");
+    const picked = resolveLook({ id: "p", published_at: "2026-11-01T09:00:00Z", permalink: null, caption: "rent a scooter" }, { look: "auto", color: "auto", activity: "reading", set_at: "2026-11-01T09:30:00Z" });
+    expect(currentActivity(picked, now)).toEqual({ activity: "reading", source: "manual", until: null });
+    const outfitOnly = resolveLook({ id: "p", published_at: "2026-11-01T09:00:00Z", permalink: null, caption: "rent a scooter" }, { look: "mermaid", color: "auto", activity: "auto", set_at: "2026-11-01T09:30:00Z" });
+    expect(currentActivity(outfitOnly, now)).toMatchObject({ activity: "scooter", source: "post" });
+    const old = resolveLook(null, { look: "scooter", color: "auto", set_at: "2026-11-01T09:30:00Z" });
+    expect(currentActivity(old, now)).toEqual({ activity: "scooter", source: "manual", until: null });
   });
 });

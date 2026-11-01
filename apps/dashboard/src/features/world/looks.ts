@@ -20,17 +20,83 @@ export interface OutfitColors {
   secondary: number;
 }
 
-/** What the team picked by hand. "auto" leaves that part to the newest post. */
+/**
+ * What Ana does by day in the world. Not data: a random pick every 20 minutes, the same for every viewer (it follows
+ * the clock), unless her newest post names the scooter (then she rides for 2 hours) or the team picks one by hand.
+ */
+export const ANA_ACTIVITIES = ["scooter", "eating", "selfie", "dancing", "reading"] as const;
+export type AnaActivity = (typeof ANA_ACTIVITIES)[number];
+
+export function isAnaActivity(v: unknown): v is AnaActivity {
+  return typeof v === "string" && (ANA_ACTIVITIES as readonly string[]).includes(v);
+}
+
+export const ACTIVITY_SLOT_MS = 20 * 60_000;
+export const POST_ACTIVITY_MS = 2 * 3_600_000;
+
+function mix(n: number): number {
+  let x = (n ^ 0x9e3779b9) >>> 0;
+  x = Math.imul(x ^ (x >>> 16), 0x85ebca6b) >>> 0;
+  x = Math.imul(x ^ (x >>> 13), 0xc2b2ae35) >>> 0;
+  return (x ^ (x >>> 16)) >>> 0;
+}
+
+/**
+ * The activity of one 20-minute slot (slot = floor(time / 20 min)): deterministic, so every viewer sees the same one, and
+ * never the same twice in a row. v(s) = (2s + g(s)) mod 5 with a pseudo-random g(s) in {0, 1, 2}; g never drops from 2
+ * to 0 between neighbours, so consecutive slots differ by 1 to 4 steps (mod 5), never by 0. Over 99,000 slots: no
+ * repeat, the five activities equally often.
+ */
+function jitter(slot: number): number {
+  const r = mix(slot) % 3;
+  return r === 0 && mix(slot - 1) % 3 === 2 ? 1 : r;
+}
+
+export function activityForSlot(slot: number): AnaActivity {
+  const n = ANA_ACTIVITIES.length;
+  const v = (((2 * slot + jitter(slot)) % n) + n) % n;
+  return ANA_ACTIVITIES[v] as AnaActivity;
+}
+
+export interface ActivityState {
+  activity: AnaActivity;
+  source: "manual" | "post" | "rotation";
+  /** when this activity changes on its own (ms), null when picked by hand */
+  until: number | null;
+}
+
+export function currentActivity(look: Pick<AnaLook, "auto_look" | "manual" | "manual_expired" | "post">, now: number): ActivityState {
+  const m = look.manual && !look.manual_expired ? look.manual : null;
+  if (m?.activity && m.activity !== "auto") return { activity: m.activity, source: "manual", until: null };
+  // a pick from before activities existed: "scooter" was a look
+  if (m?.look === "scooter") return { activity: "scooter", source: "manual", until: null };
+  const postAt = look.post?.published_at ? Date.parse(look.post.published_at) : Number.NaN;
+  // the post's own look counts here, even when the team picked only an outfit or a colour
+  if (look.auto_look === "scooter" && Number.isFinite(postAt) && now >= postAt && now - postAt < POST_ACTIVITY_MS) {
+    return { activity: "scooter", source: "post", until: postAt + POST_ACTIVITY_MS };
+  }
+  const slot = Math.floor(now / ACTIVITY_SLOT_MS);
+  return { activity: activityForSlot(slot), source: "rotation", until: (slot + 1) * ACTIVITY_SLOT_MS };
+}
+
+/** Outfits the avatar can wear; "scooter" from a post or an older pick means the summer dress. */
+export const ANA_OUTFITS = ["everyday", "mermaid"] as const;
+
+/** What the team picked by hand. "auto" leaves that part to the newest post (the activity: to the clock). */
 export interface ManualLook {
   look: AnaLookId | "auto";
   /** "#rrggbb" or "auto" */
   color: string | "auto";
+  /** absent in picks stored before activities existed = "auto" */
+  activity?: AnaActivity | "auto";
   set_at: string;
 }
 
 export interface AnaLook {
   look: AnaLookId;
   look_source: "manual" | "caption" | "image" | "default";
+  /** the look the newest post alone gives (caption or image), whatever the team picked */
+  auto_look: AnaLookId | null;
   colors: OutfitColors | null;
   color_source: "manual" | "image" | "default";
   /** the vision model's confidence when the look or the colours come from the image */
@@ -110,6 +176,7 @@ export function resolveLook(newest: NewestPost | null, manual: ManualLook | null
   const seen = image && image.confidence >= IMAGE_MIN_CONFIDENCE ? image : null;
   let look: AnaLookId = auto ?? seen?.look ?? "everyday";
   let lookSource: AnaLook["look_source"] = auto ? "caption" : seen?.look ? "image" : "default";
+  const autoLook: AnaLookId | null = auto ?? seen?.look ?? null;
   let colors: OutfitColors | null = seen?.colors ?? null;
   let colorSource: AnaLook["color_source"] = seen?.colors ? "image" : "default";
   if (manualApplies && manual) {
@@ -126,6 +193,7 @@ export function resolveLook(newest: NewestPost | null, manual: ManualLook | null
   return {
     look,
     look_source: lookSource,
+    auto_look: autoLook,
     colors,
     color_source: colorSource,
     image_confidence: lookSource === "image" || colorSource === "image" ? (seen?.confidence ?? null) : null,

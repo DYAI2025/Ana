@@ -123,6 +123,8 @@ test.describe("ANA World — 3D view over real dashboard data", () => {
   });
 
   test("polish · no two visible labels overlap in any camera view", async ({ page }) => {
+    // four views with a 2.5 s settle each under software WebGL: about 20 s on CI
+    test.setTimeout(60_000);
     await openWorld(page);
     for (const view of ["world", "berlin", "ana", "orbit"] as const) {
       await page.getByTestId(`world-view-${view}`).click();
@@ -181,24 +183,36 @@ test.describe("ANA World — 3D view over real dashboard data", () => {
     const look = page.getByTestId("world-look");
     await expect(look).toBeVisible();
     await expect(page.getByTestId("world-look-now")).toHaveAttribute("data-source", "default");
-    await look.getByTestId("world-look-pick-scooter").click();
+    // by day a random activity every 20 minutes, from the clock
+    await expect(page.getByTestId("world-activity-now")).toHaveAttribute("data-source", "rotation");
+    await expect(canvas).toHaveAttribute("data-ana-activity", /^(scooter|eating|selfie|dancing|reading)$/);
+    // the team picks an activity: it replaces the rotation
+    await look.getByTestId("world-activity-pick-dancing").click();
     await expect(page.getByTestId("world-look-save")).toHaveAttribute("data-state", "saved");
-    await expect(canvas).toHaveAttribute("data-ana-look", "scooter");
-    await expect(page.getByTestId("world-look-now")).toHaveAttribute("data-source", "manual");
-    await expect(page.getByTestId("world-look-pick-scooter")).toHaveAttribute("aria-checked", "true");
+    await expect(look.getByTestId("world-activity-pick-dancing")).toHaveAttribute("aria-checked", "true");
+    await expect(page.getByTestId("world-activity-now")).toHaveAttribute("data-source", "manual");
+    await expect(canvas).toHaveAttribute("data-ana-activity", "dancing");
+    // depending on the time in the test region she dances or sleeps
+    await expect(canvas).toHaveAttribute("data-ana-pose", /^(dancing|sleeping)$/);
+    // the outfit and its colour, keeping the activity just picked
+    await look.getByTestId("world-look-pick-mermaid").click();
+    await expect(look.getByTestId("world-look-pick-mermaid")).toHaveAttribute("aria-checked", "true");
+    await expect(canvas).toHaveAttribute("data-ana-look", "mermaid");
     await look.getByTestId("world-look-color-d8566f").click();
     await expect(page.getByTestId("world-look-color")).toHaveAttribute("data-source", "manual");
+    await expect(look.getByTestId("world-activity-pick-dancing")).toHaveAttribute("aria-checked", "true");
     const after = await (await page.request.get("/api/world")).json();
-    expect(after.world.ana_look).toMatchObject({ look: "scooter", look_source: "manual", color_source: "manual", colors: { primary: 0xd8566f } });
-    // depending on the time in the test region she rides or sleeps; both are the scooter look
-    await expect(canvas).toHaveAttribute("data-ana-pose", /^(riding|sleeping)$/);
+    expect(after.world.ana_look).toMatchObject({ look: "mermaid", look_source: "manual", color_source: "manual", colors: { primary: 0xd8566f }, manual: { activity: "dancing" } });
+    // back to automatic, one part after the other: each click keeps the parts already picked
+    await look.getByTestId("world-activity-pick-auto").click();
+    await expect(look.getByTestId("world-activity-pick-auto")).toHaveAttribute("aria-checked", "true");
     await look.getByTestId("world-look-pick-auto").click();
     await expect(look.getByTestId("world-look-pick-auto")).toHaveAttribute("aria-checked", "true");
-    // the colour pick keeps the look just picked, even before the next world read arrives
     await look.getByTestId("world-look-color-auto").click();
     await expect(look.getByTestId("world-look-color-auto")).toHaveAttribute("aria-checked", "true");
-    await expect(look.getByTestId("world-look-pick-auto")).toHaveAttribute("aria-checked", "true");
+    await expect(look.getByTestId("world-activity-pick-auto")).toHaveAttribute("aria-checked", "true");
     await expect(canvas).toHaveAttribute("data-ana-look", "everyday");
+    await expect(page.getByTestId("world-activity-now")).toHaveAttribute("data-source", "rotation");
   });
 
   test("look · the pick endpoint refuses cross-site requests and unknown looks", async ({ page }) => {
@@ -208,6 +222,8 @@ test.describe("ANA World — 3D view over real dashboard data", () => {
     expect(bad.status()).toBe(400);
     const badColor = await page.request.post("/api/world/look", { data: { look: "mermaid", color: "javascript:alert(1)" } });
     expect(badColor.status()).toBe(400);
+    const badActivity = await page.request.post("/api/world/look", { data: { look: "auto", color: "auto", activity: "skydiving" } });
+    expect(badActivity.status()).toBe(400);
   });
 
   test("clocks · Berlin and Ana's place show their local time", async ({ page }) => {
