@@ -5,7 +5,7 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { useI18n } from "@/components/providers/I18nProvider";
 import { useReducedMotion } from "@/lib/hooks/useReducedMotion";
 import { channelStatuses, instagramView, orbitCount, pulseEvents, shares, type ChannelView, type PulseEvent, type ShareEntry } from "./model";
-import { ANA_LOOKS, colorHex, SWATCHES, type AnaLookId } from "./looks";
+import { ANA_LOOKS, colorHex, SWATCHES, type AnaLookId, type ManualLook } from "./looks";
 import { PEOPLE, PROJECTS, type WorldPersonId } from "./people";
 import type { AudienceSeries, WorldPayload } from "./types";
 import type { SceneData, SceneRef, StationStatus, ViewName, WorldScene } from "./scene/world";
@@ -24,6 +24,8 @@ function useWorld(sinkRef: { current: (e: PulseEvent[]) => void }) {
   useEffect(() => {
     let alive = true;
     let busy = false;
+    // a reload asked for while a read is running happens right after it (a write must not be hidden by an older read)
+    let again2 = false;
     let timer: ReturnType<typeof setTimeout> | undefined;
     const schedule = (ms: number) => {
       if (timer) clearTimeout(timer);
@@ -51,7 +53,12 @@ function useWorld(sinkRef: { current: (e: PulseEvent[]) => void }) {
         if (alive) setFailure("network");
       } finally {
         busy = false;
-        if (alive) schedule(document.hidden ? POLL_MS * 2 : POLL_MS);
+        if (alive) {
+          if (again2) {
+            again2 = false;
+            schedule(0);
+          } else schedule(document.hidden ? POLL_MS * 2 : POLL_MS);
+        }
       }
     };
     // coming back to the tab reads at once instead of waiting for the next minute
@@ -61,6 +68,10 @@ function useWorld(sinkRef: { current: (e: PulseEvent[]) => void }) {
       void load();
     };
     reloadRef.current = () => {
+      if (busy) {
+        again2 = true;
+        return;
+      }
       if (timer) clearTimeout(timer);
       void load();
     };
@@ -99,6 +110,8 @@ export function WorldView() {
   const sinkRef = useRef<(e: PulseEvent[]) => void>((ev) => sceneRef.current?.burst(ev));
   const { world, failure, events, reload } = useWorld(sinkRef);
   const [lookSave, setLookSave] = useState<{ state: "idle" | "saving" | "saved" | "failed"; reason?: string }>({ state: "idle" });
+  // the pick just saved, shown until a world read from after the save arrives (server times on both sides)
+  const [localPick, setLocalPick] = useState<{ manual: ManualLook | null; at: string } | null>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const labelsRef = useRef<HTMLDivElement>(null);
   const [gl, setGl] = useState<"loading" | "ok" | "unsupported">("loading");
@@ -354,14 +367,16 @@ export function WorldView() {
   };
 
   const saveLook = async (look: AnaLookId | "auto", color: string) => {
+    if (lookSave.state === "saving") return;
     setLookSave({ state: "saving" });
     try {
       const r = await fetch("/api/world/look", { method: "POST", headers: { "Content-Type": "application/json", Accept: "application/json" }, body: JSON.stringify({ look, color }) });
-      const body = (await r.json().catch(() => ({}))) as { ok?: boolean; reason?: string };
+      const body = (await r.json().catch(() => ({}))) as { ok?: boolean; reason?: string; manual?: ManualLook | null; at?: string };
       if (!r.ok || !body.ok) {
-        setLookSave({ state: "failed", reason: body.reason ?? `HTTP ${r.status}` });
+        setLookSave({ state: "failed", reason: `HTTP ${r.status}` });
         return;
       }
+      setLocalPick({ manual: body.manual ?? null, at: body.at ?? new Date().toISOString() });
       setLookSave({ state: "saved" });
       reload();
     } catch {
@@ -372,7 +387,8 @@ export function WorldView() {
   const lookBlock = (night: boolean, local: string) => {
     if (!world) return null;
     const l = world.ana_look;
-    const m = l.manual && !l.manual_expired ? l.manual : null;
+    const fresh = localPick && Date.parse(world.generated_at) < Date.parse(localPick.at) ? localPick : null;
+    const m = fresh ? fresh.manual : l.manual && !l.manual_expired ? l.manual : null;
     const pickedLook: AnaLookId | "auto" = m ? m.look : "auto";
     const pickedColor = m ? m.color : "auto";
     const postTime = l.post?.published_at ? ago(l.post.published_at) : "—";
@@ -387,6 +403,7 @@ export function WorldView() {
           {l.look_source === "manual" && m ? t("world.look.fromManual", { time: ago(m.set_at) }) : !l.post ? t("world.look.noPost") : l.look_source === "caption" ? t("world.look.fromCaption", { time: postTime }) : l.look_source === "image" ? t("world.look.fromImage", { time: postTime, pct: Math.round((l.image_confidence ?? 0) * 100) }) : t("world.look.fromDefault", { time: postTime })}
         </p>
         {l.manual_expired && l.manual ? <p className={styles.muted}>{t("world.look.manualExpired", { time: ago(l.manual.set_at) })}</p> : null}
+        {l.image_reader === "no-cover" && l.look_source !== "manual" ? <p className={styles.muted}>{t("world.look.noCover")}</p> : null}
         <p className={styles.muted} data-testid="world-look-color" data-source={l.color_source}>
           {l.color_source === "manual" ? t("world.look.colorManual") : l.color_source === "image" ? t("world.look.colorImage", { pct: Math.round((l.image_confidence ?? 0) * 100) }) : t("world.look.colorDefault")}
         </p>
@@ -397,17 +414,17 @@ export function WorldView() {
         ) : null}
         <div role="radiogroup" aria-label={t("world.look.pick")} className={styles.lookPick}>
           {(["auto", ...ANA_LOOKS] as const).map((k) => (
-            <button key={k} type="button" role="radio" aria-checked={pickedLook === k} disabled={lookSave.state === "saving"} onClick={() => void saveLook(k, pickedColor)} data-testid={`world-look-pick-${k}`}>
+            <button key={k} type="button" role="radio" aria-checked={pickedLook === k} aria-disabled={lookSave.state === "saving"} onClick={() => void saveLook(k, pickedColor)} data-testid={`world-look-pick-${k}`}>
               {k === "auto" ? t("world.look.auto") : t(`world.look.states.${k}`)}
             </button>
           ))}
         </div>
         <div role="radiogroup" aria-label={t("world.look.pickColor")} className={styles.swatches}>
-          <button type="button" role="radio" aria-checked={pickedColor === "auto"} disabled={lookSave.state === "saving"} onClick={() => void saveLook(pickedLook, "auto")} data-testid="world-look-color-auto">
+          <button type="button" role="radio" aria-checked={pickedColor === "auto"} aria-disabled={lookSave.state === "saving"} onClick={() => void saveLook(pickedLook, "auto")} data-testid="world-look-color-auto">
             {t("world.look.auto")}
           </button>
           {SWATCHES.map((c) => (
-            <button key={c} type="button" role="radio" aria-checked={pickedColor === c} aria-label={t("world.look.colorName", { hex: c })} title={c} disabled={lookSave.state === "saving"} onClick={() => void saveLook(pickedLook, c)} className={styles.swatch} style={{ ["--swatch" as string]: c }} data-testid={`world-look-color-${c.slice(1)}`} />
+            <button key={c} type="button" role="radio" aria-checked={pickedColor === c} aria-label={t("world.look.colorName", { hex: c })} title={c} aria-disabled={lookSave.state === "saving"} onClick={() => void saveLook(pickedLook, c)} className={styles.swatch} style={{ ["--swatch" as string]: c }} data-testid={`world-look-color-${c.slice(1)}`} />
           ))}
           {l.colors ? <span className={styles.swatchNow} style={{ ["--swatch" as string]: colorHex(l.colors.primary) }} aria-hidden="true" /> : null}
         </div>

@@ -187,7 +187,11 @@ test.describe("ANA World — 3D view over real dashboard data", () => {
     // depending on the time in the test region she rides or sleeps; both are the scooter look
     await expect(canvas).toHaveAttribute("data-ana-pose", /^(riding|sleeping)$/);
     await look.getByTestId("world-look-pick-auto").click();
+    await expect(look.getByTestId("world-look-pick-auto")).toHaveAttribute("aria-checked", "true");
+    // the colour pick keeps the look just picked, even before the next world read arrives
     await look.getByTestId("world-look-color-auto").click();
+    await expect(look.getByTestId("world-look-color-auto")).toHaveAttribute("aria-checked", "true");
+    await expect(look.getByTestId("world-look-pick-auto")).toHaveAttribute("aria-checked", "true");
     await expect(canvas).toHaveAttribute("data-ana-look", "everyday");
   });
 

@@ -620,8 +620,8 @@ button.barLabel {
   border: 1px solid var(--glass-edge-strong);
 }
 
-.lookPick button:disabled,
-.swatches button:disabled {
+.lookPick button[aria-disabled="true"],
+.swatches button[aria-disabled="true"] {
   opacity: 0.6;
   cursor: progress;
 }

@@ -147,10 +147,12 @@ export function createWorldService(deps: WorldDeps): WorldService {
         : null;
       const newest: NewestPost | null = newestRaw ? { id: newestRaw.media_id, published_at: newestRaw.published_at, permalink: newestRaw.permalink, caption: newestRaw.caption } : null;
       const vision = deps.vision;
+      let timer: ReturnType<typeof setTimeout> | undefined;
       const image: ImageLook | null =
-        newestRaw && vision
-          ? await Promise.race([vision.read(newestRaw.media_id, newestRaw.thumbnail_url).catch(() => null), new Promise<null>((r) => setTimeout(() => r(null), deps.visionWaitMs ?? 3_000))])
+        newestRaw?.thumbnail_url && vision
+          ? await Promise.race([vision.read(newestRaw.media_id, newestRaw.thumbnail_url).catch(() => null), new Promise<null>((r) => (timer = setTimeout(() => r(null), deps.visionWaitMs ?? 3_000)))]).finally(() => clearTimeout(timer))
           : null;
+      const imageReader = !vision ? "off" : newestRaw && !newestRaw.thumbnail_url ? "no-cover" : "on";
 
       const pulseOut: WorldPulse = {
         state: p.value ? "ok" : (p.failure?.state ?? "unavailable"),
@@ -177,7 +179,7 @@ export function createWorldService(deps: WorldDeps): WorldService {
         audience: audienceOut,
         work: workOut,
         places: { ana: readAnaPlace(env) },
-        ana_look: resolveLook(newest, manual, image, vision ? "on" : "off"),
+        ana_look: resolveLook(newest, manual, image, imageReader),
         release: readRelease(),
       };
     },

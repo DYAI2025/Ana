@@ -113,6 +113,7 @@ export const worldDe: Messages["world"] = {
     manualExpired: "Eine Wahl von {time} gilt nicht mehr: Ana hat seitdem gepostet.",
     colorDefault: "Ihre eigenen Farben. Wähle unten eine Farbe, um sie wie im Post anzuziehen.",
     colorImage: "Farben ihrer Kleidung von Claude aus dem Titelbild dieses Posts gelesen ({pct} % sicher).",
+    noCover: "Ihr neuester Post ist ein Fotopost ohne Titelbild für Claude, deshalb zählt nur die Bildunterschrift.",
     colorManual: "Farbe von Hand gewählt.",
     pick: "Look wählen",
     pickColor: "Kleidungsfarbe",

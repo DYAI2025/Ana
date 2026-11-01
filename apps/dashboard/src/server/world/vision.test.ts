@@ -96,3 +96,36 @@ describe("resolveLook with the image", () => {
     expect(resolveLook({ ...post, caption: "my mermaid costume" }, null, { look: "scooter", colors: { primary: 1, secondary: 2 }, confidence: 0.9 }, "on")).toMatchObject({ look: "mermaid", look_source: "caption", color_source: "image" });
   });
 });
+
+describe("createVisionReader — failures stay recoverable", () => {
+  it("a body that fails mid-read neither sticks nor caches, and is tried again after the back-off", async () => {
+    let t = 0;
+    let calls = 0;
+    const flaky = (async (input: string | URL | Request) => {
+      calls++;
+      if (String(input).startsWith("https://api.anthropic.com/")) return Response.json({ content: [{ type: "text", text: '{"ana_visible": true, "look": "none", "outfit_primary": "#123456", "outfit_secondary": null, "confidence": 0.9}' }] });
+      const body = new ReadableStream<Uint8Array>({
+        start(c) {
+          c.error(new Error("reset"));
+        },
+      });
+      return new Response(body, { headers: { "content-type": "image/jpeg" } });
+    }) as typeof fetch;
+    const reader = createVisionReader(config, flaky, () => t);
+    expect(await reader.read("p9", COVER)).toBeNull();
+    expect(calls).toBe(1);
+    t += 11 * 60_000;
+    await reader.read("p9", COVER);
+    expect(calls).toBe(2);
+  });
+
+  it("refuses an image above 3 MB by its declared length", async () => {
+    let api = 0;
+    const big = (async (input: string | URL | Request) => {
+      if (String(input).startsWith("https://api.anthropic.com/")) api++;
+      return new Response(new Uint8Array(10), { headers: { "content-type": "image/jpeg", "content-length": String(4_000_000) } });
+    }) as typeof fetch;
+    expect(await createVisionReader(config, big).read("p10", COVER)).toBeNull();
+    expect(api).toBe(0);
+  });
+});

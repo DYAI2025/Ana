@@ -74,6 +74,35 @@ export function parseVisionAnswer(text: string): VisionLook | null {
   return { look, colors: primary === null ? null : { primary, secondary: secondary ?? lighten(primary) }, confidence };
 }
 
+/** The body, read up to MAX_BYTES: null when larger, undefined when the read failed (network, timeout). */
+async function readCapped(r: Response): Promise<Uint8Array | null | undefined> {
+  if (!r.body) return null;
+  const reader = r.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  try {
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      total += value.length;
+      if (total > MAX_BYTES) {
+        await reader.cancel().catch(() => undefined);
+        return null;
+      }
+      chunks.push(value);
+    }
+  } catch {
+    return undefined;
+  }
+  const out = new Uint8Array(total);
+  let at = 0;
+  for (const c of chunks) {
+    out.set(c, at);
+    at += c.length;
+  }
+  return out;
+}
+
 export interface VisionReader {
   /** the answer for one post's cover image; cached per post (a "nothing clear" answer too) */
   read(postId: string, coverUrl: string | null): Promise<VisionLook | null>;
@@ -95,8 +124,10 @@ export function createVisionReader(config: VisionConfig, fetchImpl: typeof fetch
     if (!image.ok) return undefined;
     const type = (image.headers.get("content-type") ?? "").split(";")[0]?.trim().toLowerCase() ?? "";
     if (!IMAGE_TYPES.has(type)) return null;
-    const bytes = new Uint8Array(await image.arrayBuffer());
-    if (bytes.length === 0 || bytes.length > MAX_BYTES) return null;
+    if (Number(image.headers.get("content-length") ?? "0") > MAX_BYTES) return null;
+    const bytes = await readCapped(image);
+    if (bytes === undefined) return undefined;
+    if (bytes === null || bytes.length === 0) return null;
     let r: Response;
     try {
       r = await fetchImpl(API, {
@@ -133,17 +164,19 @@ export function createVisionReader(config: VisionConfig, fetchImpl: typeof fetch
       if (failed !== undefined && now() - failed < 10 * 60_000) return null;
       let p = inFlight.get(postId);
       if (!p) {
-        p = call(url).then((v) => {
-          inFlight.delete(postId);
-          if (v === undefined) {
-            failedAt.set(postId, now());
-            return null;
-          }
-          failedAt.delete(postId);
-          if (cache.size >= 24) cache.delete(cache.keys().next().value as string);
-          cache.set(postId, v);
-          return v;
-        });
+        p = call(url)
+          .catch((): undefined => undefined)
+          .then((v) => {
+            if (v === undefined) {
+              failedAt.set(postId, now());
+              return null;
+            }
+            failedAt.delete(postId);
+            if (cache.size >= 24) cache.delete(cache.keys().next().value as string);
+            cache.set(postId, v);
+            return v;
+          })
+          .finally(() => inFlight.delete(postId));
         inFlight.set(postId, p);
       }
       return p;

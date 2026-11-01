@@ -112,6 +112,7 @@ export const worldEn = {
     manualExpired: "A pick from {time} no longer applies: Ana has posted since.",
     colorDefault: "Her own colours. Pick a colour below to dress her like in her post.",
     colorImage: "Colours of her clothes read from the cover image of that post by Claude ({pct} % sure).",
+    noCover: "Her newest post is a photo post without a cover image for Claude, so only the caption counts.",
     colorManual: "Colour picked by hand.",
     pick: "Pick a look",
     pickColor: "Outfit colour",

@@ -188,6 +188,7 @@ export function createWorldScene(
   let rock: ReturnType<typeof buildRock> | null = null;
   let currentLook: AnaLookId = "everyday";
   let lookKey = "everyday|-|-";
+  canvas.dataset.anaLook = "everyday";
   rigs.ben.root.position.copy(office.benSpot);
   rigs.ben.root.scale.multiplyScalar(0.9);
   office.frame.add(rigs.ben.root);

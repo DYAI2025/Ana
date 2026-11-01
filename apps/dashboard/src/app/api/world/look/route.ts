@@ -19,5 +19,5 @@ export async function POST(request: Request) {
   } catch {
     return Response.json({ ok: false, reason: "the pick could not be stored on the server" }, { status: 500, headers: { "Cache-Control": "no-store" } });
   }
-  return Response.json({ ok: true, manual: pick.look === "auto" && pick.color === "auto" ? null : pick }, { headers: { "Cache-Control": "no-store" } });
+  return Response.json({ ok: true, manual: pick.look === "auto" && pick.color === "auto" ? null : pick, at: pick.set_at }, { headers: { "Cache-Control": "no-store" } });
 }

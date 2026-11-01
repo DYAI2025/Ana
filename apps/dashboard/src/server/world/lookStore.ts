@@ -1,4 +1,5 @@
 import "server-only";
+import { randomUUID } from "node:crypto";
 import { promises as fs } from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -39,7 +40,7 @@ export async function writeManual(value: ManualLook | null, file: string = lookF
     return;
   }
   await fs.mkdir(path.dirname(file), { recursive: true });
-  const tmp = `${file}.${process.pid}.tmp`;
+  const tmp = `${file}.${randomUUID()}.tmp`;
   await fs.writeFile(tmp, JSON.stringify(value), { mode: 0o600 });
   await fs.rename(tmp, file);
 }

@@ -35,8 +35,8 @@ export interface AnaLook {
   color_source: "manual" | "image" | "default";
   /** the vision model's confidence when the look or the colours come from the image */
   image_confidence: number | null;
-  /** whether the server reads cover images with the vision model at all */
-  image_reader: "on" | "off";
+  /** whether the server reads cover images with the vision model; "no-cover" = on, but the newest post has no cover image */
+  image_reader: "on" | "off" | "no-cover";
   /** the post the automatic look and colours come from */
   post: { id: string; published_at: string | null; permalink: string | null } | null;
   /** the stored manual pick, also when a newer post has already replaced it */
@@ -100,7 +100,7 @@ export const IMAGE_MIN_CONFIDENCE = 0.55;
  * The look the avatar wears: caption first, then the image, then the summer dress; colours from the image when the
  * model is sure enough. A manual pick older than the newest post is kept for display but not applied.
  */
-export function resolveLook(newest: NewestPost | null, manual: ManualLook | null, image: ImageLook | null = null, imageReader: "on" | "off" = "off"): AnaLook {
+export function resolveLook(newest: NewestPost | null, manual: ManualLook | null, image: ImageLook | null = null, imageReader: AnaLook["image_reader"] = "off"): AnaLook {
   const newestAt = newest?.published_at ? Date.parse(newest.published_at) : Number.NaN;
   const manualAt = manual ? Date.parse(manual.set_at) : Number.NaN;
   const manualApplies = manual !== null && Number.isFinite(manualAt) && (!Number.isFinite(newestAt) || manualAt >= newestAt);
