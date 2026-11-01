@@ -1,0 +1,40 @@
+{
+  "drs_version": "1.0",
+  "jira": "ANA-50",
+  "state": "IN_PROGRESS",
+  "delivery_profile": "STANDARD_CODE",
+  "ic": {
+    "definition": "ENABLER (CI/ops), Jira ANA-50 AC1-AC4. AC1 retention: dashboard-image.yml and brain.yml upload with retention-days = env.RETENTION_DAYS, 30 only for a push to main and 3 for every other run; pinned by deploy/test-release-provenance.sh and asserted at run time by the step 'Output name matches the event'. AC2 names: OUT_ID is the bare commit only on a push to refs/heads/main, pr-<PR head> on pull_request, test-<sha> otherwise; the run-time step fails any release-shaped name on another event; the exact PR-head checkout and SHA assertion are unchanged. AC3 release path: every bundle carries .ana-build (repository, workflow, event, ref, sha, run_id) inside the tarball covered by its .sha256; deploy/ana-dashboard/release.sh and deploy/ana-brain/release.sh refuse a bundle that is not from a push run of their workflow on main for exactly that commit (release.sh --check-bundle runs only this check); deploy/fetch-release.sh checks the run via the GitHub API (event push, head_branch main, head_sha, conclusion success, workflow path, repository = head repository) and that the bundle names that run, and replaces the documented download step. AC4: deploy/test-release-provenance.sh runs in brain (contabo-kit) and dashboard-image (image) and includes canaries: a pull_request bundle renamed to the bare commit, workflow_dispatch, another branch, the other kit's workflow, another commit, no .ana-build, a duplicated field, a bad checksum, and for fetch-release.sh a pull_request run, another branch, a failed run, another workflow, a fork, a missing artifact, a foreign run_id and no run.",
+    "state": "NOT_EVALUATED",
+    "claimed": null,
+    "evidence": []
+  },
+  "r2g": {
+    "definition": "On the exact candidate SHA: (1) GitHub Actions workflows brain (jobs check, contabo-kit, bundle), dashboard-image (image) and drs (validate) are green on runs whose checkout step printed that SHA, and the dashboard workflow is green where it runs. (2) The step 'Output name matches the event' of the pull_request runs printed outputs pr-<candidate SHA> and retention 3 days; the uploaded artifacts are ana-dashboard-pr-<candidate SHA> and ana-brain-pr-<candidate SHA>. (3) deploy/test-release-provenance.sh passed in both workflows. (4) shellcheck -S warning passes on the changed scripts (brain contabo-kit). (5) The diff contains no secret and touches no credential, Cloudflare Access setting, unit file or host; no deployment happened. Stale evidence (another SHA) is inadmissible; a new commit invalidates R2G.",
+    "state": "NOT_EVALUATED",
+    "claimed": null,
+    "candidate_sha": null,
+    "evidence": [],
+    "allowed_paths": [
+      ".drs/ANA-50.json",
+      ".github/workflows/brain.yml",
+      ".github/workflows/dashboard-image.yml",
+      "deploy/fetch-release.sh",
+      "deploy/test-release-provenance.sh",
+      "deploy/ana-dashboard/release.sh",
+      "deploy/ana-dashboard/README.md",
+      "deploy/ana-brain/release.sh",
+      "deploy/ana-brain/README.md",
+      "docs/delivery/DRS.md"
+    ]
+  },
+  "r4m": {
+    "definition": "The unchanged R2G candidate has: the PO as acceptor (PO decision 2026-11-01: merge on green CI; the implementing session never accepts its own candidate), 0 open blocking findings, the PR targets main and is mergeable, and an exact readback immediately before the merge of base SHA, head SHA (= candidate), that the head contains the current base (git merge-base --is-ancestor) and that the R2G (1) check runs are bound to the candidate. R4M is not a release: the Contabo host keeps its installed release.sh until a separately approved reinstall.",
+    "state": "NOT_EVALUATED",
+    "claimed": null,
+    "evidence": []
+  },
+  "scope_note": "Contract written after the implementation commit (a4d57a2) on PO instruction of 2026-11-01, which also lifted the original gate 'only after PR #13 is merged or closed'. Not touched: PR #13, apps/**, credentials, Cloudflare Access, units, any host.",
+  "synced_at": "2026-11-01T22:50:00Z",
+  "source": "offline: ANA Jira has no DRS custom fields; the gate definitions are mirrored in Jira ANA-50 by a comment and acceptance states are recorded in Jira and the pull request, not in this file"
+}
