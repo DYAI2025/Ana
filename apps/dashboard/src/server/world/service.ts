@@ -148,12 +148,14 @@ export function createWorldService(deps: WorldDeps): WorldService {
         : null;
       const newest: NewestPost | null = newestRaw ? { id: newestRaw.media_id, published_at: newestRaw.published_at, permalink: newestRaw.permalink, caption: newestRaw.caption } : null;
       const vision = deps.vision;
+      // the cover of a video, or the picture of a photo post / carousel
+      const cover = newestRaw ? (newestRaw.thumbnail_url ?? newestRaw.image_url ?? null) : null;
       let timer: ReturnType<typeof setTimeout> | undefined;
       const image: ImageLook | null =
-        newestRaw?.thumbnail_url && vision
-          ? await Promise.race([vision.read(newestRaw.media_id, newestRaw.thumbnail_url).catch(() => null), new Promise<null>((r) => (timer = setTimeout(() => r(null), deps.visionWaitMs ?? 3_000)))]).finally(() => clearTimeout(timer))
+        newestRaw && cover && vision
+          ? await Promise.race([vision.read(newestRaw.media_id, cover).catch(() => null), new Promise<null>((r) => (timer = setTimeout(() => r(null), deps.visionWaitMs ?? 3_000)))]).finally(() => clearTimeout(timer))
           : null;
-      const imageReader = !vision ? "off" : newestRaw && !newestRaw.thumbnail_url ? "no-cover" : "on";
+      const imageReader = !vision ? "off" : newestRaw && !cover ? "no-cover" : "on";
 
       const pulseOut: WorldPulse = {
         state: p.value ? "ok" : (p.failure?.state ?? "unavailable"),

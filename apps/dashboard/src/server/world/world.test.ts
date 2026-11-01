@@ -153,3 +153,28 @@ describe("GET /api/world — same gate as the Instagram route", () => {
     expect([401, 403]).toContain(r.status);
   });
 });
+
+describe("createWorldService — Ana's look from the newest post's picture", () => {
+  const post = (id: string, at: string, extra: Record<string, unknown>) => ({ media_id: id, media_type: "IMAGE", media_product_type: "FEED", format: "image", caption: "a quiet morning", permalink: null, thumbnail_url: null, published_at: at, insights_state: "ok", observations: [], ...extra });
+  const withPosts = (posts: unknown[]): SnapshotService => ({ read: async () => ({ ok: true, stale: false, snapshot: { posts } }) as never, reset: () => {} });
+
+  it("reads the picture of a photo post (image_url) and the cover of a video (thumbnail_url)", async () => {
+    const seen: Array<string | null> = [];
+    const vision = { read: async (_id: string, url: string | null) => (seen.push(url), { look: "scooter" as const, colors: { primary: 0x112233, secondary: 0xffffff }, confidence: 0.9 }) };
+    const photo = createWorldService({ social: withPosts([post("p1", "2026-11-01T10:00:00.000Z", { image_url: "https://x.cdninstagram.com/i.jpg" })]), socialConfig: null, readWork: null, workKeys: [], vision });
+    const a = (await photo.read()).ana_look;
+    expect(seen).toEqual(["https://x.cdninstagram.com/i.jpg"]);
+    expect(a).toMatchObject({ look: "scooter", look_source: "image", color_source: "image", image_reader: "on" });
+    const video = createWorldService({ social: withPosts([post("v1", "2026-11-01T10:00:00.000Z", { media_type: "VIDEO", thumbnail_url: "https://x.cdninstagram.com/t.jpg", image_url: null })]), socialConfig: null, readWork: null, workKeys: [], vision });
+    await video.read();
+    expect(seen[1]).toBe("https://x.cdninstagram.com/t.jpg");
+  });
+
+  it("says no-cover when the newest post has no picture at all", async () => {
+    let calls = 0;
+    const vision = { read: async () => (calls++, null) };
+    const s = createWorldService({ social: withPosts([post("p2", "2026-11-01T10:00:00.000Z", {})]), socialConfig: null, readWork: null, workKeys: [], vision });
+    expect((await s.read()).ana_look.image_reader).toBe("no-cover");
+    expect(calls).toBe(0);
+  });
+});

@@ -164,6 +164,8 @@ test.describe("ANA World — 3D view over real dashboard data", () => {
   });
 
   test("look · Ana follows her newest post and the team can pick a look and a colour", async ({ page }) => {
+    // several saves, world reads and 3D rebuilds under software WebGL: about 29 s on CI, so the default 30 s is too tight
+    test.setTimeout(90_000);
     // reduced motion: the camera jumps to Ana and she does not bob, so her label is a still click target
     await page.emulateMedia({ reducedMotion: "reduce" });
     await openWorld(page);

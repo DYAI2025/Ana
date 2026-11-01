@@ -54,6 +54,8 @@ export interface SocialPost {
   caption: string | null;
   permalink: string | null;
   thumbnail_url: string | null;
+  /** the picture of a photo post or carousel (Meta gives thumbnail_url only for videos); absent from older workers */
+  image_url?: string | null;
   published_at: string | null;
   insights_state: "ok" | "partial" | "unavailable" | "error" | "not_fetched";
   observations: Observation[];
