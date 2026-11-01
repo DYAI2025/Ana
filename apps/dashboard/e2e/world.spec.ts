@@ -164,6 +164,8 @@ test.describe("ANA World — 3D view over real dashboard data", () => {
   });
 
   test("look · Ana follows her newest post and the team can pick a look and a colour", async ({ page }) => {
+    // reduced motion: the camera jumps to Ana and she does not bob, so her label is a still click target
+    await page.emulateMedia({ reducedMotion: "reduce" });
     await openWorld(page);
     const canvas = page.getByTestId("world-canvas");
     const before = await (await page.request.get("/api/world")).json();
@@ -171,7 +173,9 @@ test.describe("ANA World — 3D view over real dashboard data", () => {
     expect(before.world.ana_look).toMatchObject({ look: "everyday", look_source: "default", color_source: "default", image_reader: "off" });
     await expect(canvas).toHaveAttribute("data-ana-look", "everyday");
     await page.getByTestId("world-view-ana").click();
-    await page.locator(".world-label.person", { hasText: /^Ana/ }).click();
+    const anaLabel = page.locator(".world-label.person", { hasText: /^Ana/ });
+    await expect(anaLabel).not.toHaveClass(/is-hidden/);
+    await anaLabel.click();
     const look = page.getByTestId("world-look");
     await expect(look).toBeVisible();
     await expect(page.getByTestId("world-look-now")).toHaveAttribute("data-source", "default");
