@@ -2,8 +2,9 @@
 
 Jira ANA-39 (parent ANA-1), normative contract Confluence 108920834 v3, DRS contract `.drs/ANA-39.json`.
 Implemented on base `c7b2c069538bee29d2ca41c73ecb3ce6839d8efc` (ANA-38 merged); integrated on 2026-10-31 with main
-`8199150c34d5fc07c0be87b96de32f8157e7938b` (ANA-42 Bright Silver, ANA-35/ANA-45 Brain). Against that main the PR diff holds
-ANA-39 files only: the branch's own PR-head workflow edits were dropped in the merge in favour of main's equivalent
+`8199150c34d5fc07c0be87b96de32f8157e7938b` (ANA-42 Bright Silver, ANA-35/ANA-45 Brain) and on 2026-11-02 with main
+`0ecd727b4e1ce7b7b72d0d346e2cb5065274eb50` (ANA-48 World, ANA-50 release provenance; no conflict, see "Integration with main
+and R2G(4) binding"). Against that main the PR diff holds ANA-39 files only: the branch's own PR-head workflow edits were dropped in the merge in favour of main's equivalent
 `SOURCE_SHA` / `pr-<sha>` convention (`docs/delivery/DRS.md`). Every committed fixture and screenshot is synthetic
 (`apps/dashboard/e2e/fake-social/core.mjs`, inline fixtures in `offers.test.ts`); no real caption, media id, permalink,
 thumbnail, metric value or credential is in this change.
@@ -15,12 +16,12 @@ PASS or FAIL is set by a separate acceptor on the exact candidate SHA (docs/deli
 
 | Area | Change |
 |---|---|
-| `themes.ts` | Themes stay a browsing aid. Hypothesis eligibility (TOPICAL_FIT) has its own rules: **H1** = opportunity/job term **adjacent to (or one word from)** a creator/UGC/remote/brand domain term, or a compact hashtag such as `#ugcjobs`; a generic "opportunity" needs work context (remote-work domain, "job/work opportunities", a call to apply); **H4** = reusable-artifact term (template, checklist, worksheet, media kit, …; "workflow" only with a file cue such as file, PDF, download, Notion). Bare "remote" pairs only with job terms, and the author's own job ("my remote job") is excluded. The ANA-38 family→hypothesis coupling (`opportunities` theme → H1 **and** H4) is removed. Session-only, hypothesis-specific corrections (`include` / `exclude` / caption rule). |
+| `themes.ts` | Themes stay a browsing aid. Hypothesis eligibility (TOPICAL_FIT) has its own rules: **H1** = opportunity/job term **adjacent to (or one word from)** a creator/UGC/remote/brand domain term, or a compact job hashtag such as `#ugcjobs` under the same guards; a generic "opportunity" needs work context (remote-work domain, "job/work opportunities", a call to apply); **H4** = reusable-artifact term (template, checklist, worksheet, media kit, …; "workflow" only with a file cue such as file, PDF, download, Notion). Bare "remote" pairs only with job terms, and the author's own job ("my remote job") is excluded. The ANA-38 family→hypothesis coupling (`opportunities` theme → H1 **and** H4) is removed. Session-only, hypothesis-specific corrections (`include` / `exclude` / caption rule). |
 | `offers.ts` | Per hypothesis four independent lanes: CONTENT_RESONANCE, TOPICAL_FIT, AUDIENCE_NEED (NOT_CONNECTED), COMMERCIAL_OUTCOME (NOT_CONNECTED). No `supporting` / `contradicting`, no blended `SIGNAL`, no `lean`. Above/below same-format median = engagement and low-resonance comparators. Next evidence actions + `ABSTAIN`. `nextTest` (0.25 lean) replaced by a descriptive H1-only/H4-only comparison with the absolute index difference. |
 | `insights.ts` | Calculations unchanged; `high_intent_*` renamed `content_action_*`, semantics documented ((saves + shares) ÷ reach is an action ratio, can exceed 1; 7 days = maturity cutoff, not age matching). |
 | UI | `Patterns.tsx` four-lane card, decision fieldset, inspection with eligible/excluded posts, disclosure (formats + baseline n, not compared + reason, observed, period, ages) and limits. `ContentRows.tsx` per-post topical fit with provenance and session correction. `InstagramCockpit.tsx` holds corrections and passes `stale`. EN/DE/IT: no "high intent" wording. |
 | Live readback | `Patterns.tsx` eligible list carries `data-count` (model total); `e2e-live/social.live.spec.ts` records H1 **and** H4 eligible totals from it (the inspection renders at most 12 rows) and asserts rendered = min(total, 12). |
-| Not touched | `src/app/api/**`, `src/server/**`, `proxy`, auth/access, worker, DTO (`types.ts`), deployment, CI workflows (against main 8199150). No new route, OAuth scope, persistence, storage, network call or external processing. |
+| Not touched | `src/app/api/**`, `src/server/**`, `proxy`, auth/access, worker, DTO (`types.ts`), deployment, CI workflows (against main 0ecd727). No new route, OAuth scope, persistence, storage, network call or external processing. |
 
 ## AC → tests
 
@@ -97,6 +98,26 @@ H4 = syn004, syn013, syn020 (`DERIVED`), both resonance `INSUFFICIENT_EVIDENCE` 
 `NOT_CONNECTED`, suggested step *comparable observations*, comparison `INSUFFICIENT_EVIDENCE` (2/2/0), the override
 qualifies neither. Dropped memberships: H1 syn003, 005, 009, 011, 014, 017, 019 (all travel-family matches); H4
 syn002, 006, 009, 010, 014, 016, 018 (money / how-to / tips) — 14 of 18. The table below holds on that run.
+
+**Re-measured 2026-11-02 on the integration candidate:** model of main `0ecd727` against the candidate model, fixture blob
+`e78cf4a` identical in both trees, 28 posts, throwaway vitest files, not committed. Before: H1 9 posts `SIGNAL` (median 0.87, 4
+supporting, 5 contradicting), H4 9 posts `SIGNAL` (median 1.97, 6 supporting, 3 contradicting), lean `INSUFFICIENT_EVIDENCE`
+(6/6); an `opportunities` override on `syn005` (already H1 through travel) adds it to H4 too. After: H1 syn002, syn008, syn022
+and H4 syn004, syn013, syn020, both `DERIVED` with 0 session corrections and 0 overlap, resonance `INSUFFICIENT_EVIDENCE` (2 of 3
+comparable), need and outcome `NOT_CONNECTED`, suggested step *comparable observations*, comparison `INSUFFICIENT_EVIDENCE`
+(2/2/0); the override qualifies neither. The dropped memberships are the 14 listed above. The fixture has no hashtag caption,
+so the final repair moves no fixture number; its delta is the caption matrix (H1 eligibility; base = the family mapping):
+
+| Caption (synthetic) | Base `0ecd727` | `2fdfab9` | Candidate |
+|---|---|---|---|
+| `#creatoropportunity` / `#creatoropportunities` / `#ugcopportunities` | no | yes | no |
+| `AI is a massive brand opportunity #creatoropportunity` | yes | yes | no |
+| `Not a #ugcjob` / `I quit my #remotejob` | no | yes | no |
+| `#ugcjobs` | no | yes | yes |
+| `How to land your first UGC job` | no (H4 yes) | yes | yes |
+| `Creator opportunities: apply before Friday` / `Brands hiring UGC creators` | yes | yes | yes |
+
+The bare-hashtag and guard false positives were introduced by ANA-39, not inherited from the base. REVENUE_UPLIFT: NOT_MEASURED.
 
 | | Before (ANA-38) | After (ANA-39) |
 |---|---|---|
@@ -196,7 +217,19 @@ own sponsorships without work context ("Grateful for this brand opportunity …"
 accepted: "Here are 5 creator opportunities this week" still abstains, as does any bare "creator opportunities" list
 whose call to apply sits in another clause; "Creator opportunities: casting call for UGC" stays H1 through the casting
 call, but the bare head no longer adds the keywords `opportunities`/`creator`. Not changed (out of this repair's scope):
-the compact hashtags `#creatoropportunity`, `#creatoropportunities` and `#ugcopportunities` still count on their own.
+the compact hashtags `#creatoropportunity`, `#creatoropportunities` and `#ugcopportunities` still counted on their own
+at that commit (closed by the final bounded repair below).
+
+Final bounded repair (PO brief 2026-11-02, on `2fdfab9`; the brief states the product interpretation, Jira and Confluence do
+not yet): a bare generic creator/UGC opportunity hashtag gives no specific job context, and conservative abstention is
+preferred. `ugcopportunities`, `creatoropportunity` and `creatoropportunities` leave `H1_HASHTAG_TERMS`; `ugcjob(s)`,
+`creatorjobs` and `remotejob(s)` stay and now apply the negation, first-person possessive and own-job verb guards of the
+other constructions, read over one clause. The `H1Rule` copy (EN/DE/IT) drops the "creator opportunity" example and states
+that a creator or brand opportunity without job context does not qualify; each example it names is accepted by the rule.
+Proof: `offers.test.ts` block "AC2 final repair · …", 15 failed / 62 passed on the unchanged `2fdfab9` classifier and copy,
+77 / 77 after the change. Known cost, pinned: a job hashtag in a clause holding a guard word abstains ("No experience needed
+#ugcjobs", "Got a new camera #ugcjobs"); a hashtag in its own clause or line still counts. The praise guard was not extended
+to hashtags (the brief names negation and own-job). Session-only inclusion stays available for every abstained post.
 
 Residual limit (stated, not hidden): a caption keyword rule cannot read intent. Without the gate, captions that mention
 the author's own current job carry no guard cue and are now DERIVED ("Just shot a UGC job for a skincare brand", "BTS of
@@ -217,9 +250,12 @@ DERIVED suggestion, never confirmed demand; a reviewed classification is not par
 
 ## Screenshots (synthetic fake worker)
 
-Regenerated 2026-10-31: `screenshots/before-*` = main `8199150` (pre-ANA-39 model on the ANA-42 Bright Silver shell);
-`screenshots/after-*` = the integrated candidate's app tree. Same fixture, same framing (one throwaway spec run on
-both trees: offer-signals panel element, H1 inspection viewport, ABSTAIN decision, row detail of syn004).
+Regenerated 2026-11-02: `screenshots/before-*` = main `0ecd727` (pre-ANA-39 model on its shell); `screenshots/after-*` =
+the integrated candidate's app tree. One throwaway spec ran on both trees with the same steps, viewport and reduced motion:
+offer-signals panel element, H1 inspection viewport, ABSTAIN decision, row detail of syn004. The inspection image uses the same
+`scrollIntoViewIfNeeded` step on both trees; the after panel is taller, so the two scroll positions differ. All text is synthetic
+(fake worker). Historical baseline: `screenshots/baseline-8199150/before-*`, unchanged files from main `8199150`; the
+previous after-images stay in the history of `2fdfab9`.
 
 - `before-1440x900-offer-signals-panel.jpg` / `after-1440x900-offer-signals-panel.jpg` — whole offer-signals panel
 - `before-390x844-offer-signals-panel.jpg` / `after-390x844-offer-signals-panel.jpg` — same on mobile
@@ -238,6 +274,20 @@ transfer). Run exactly as for
 ANA-38 (`docs/evidence/ANA-38/CHECKLIST.md` → "Live proof"). `e2e-live/social.live.spec.ts` records, per
 hypothesis, the four lane states and the suggested next step, the H1 and H4 eligible totals with their derived /
 session split (model counts) and the comparison state — counts and states only. Post the `live-social-result.json` summary to Jira ANA-39.
+
+## Integration with main and R2G(4) binding
+
+Merge of `0ecd727` on 2026-11-02: no conflict. `ContentRows.tsx` auto-merged and keeps both ANA-39's topical-fit row and
+ANA-48's `image_url` thumbnail fallback. Against `0ecd727` these paths are unchanged (`git diff --quiet`, rc 0, canary on
+`themes.ts` rc 1): `e2e/fake-social`, `fake-jira`, `fake-brain`, `fixtures.ts`, `visual.spec.ts`, `playwright.config.ts`,
+`next.config.ts`, `src/components/shell`, `src/app`, `src/lib`; also `src/server`, `src/proxy.ts`, `src/features/world`,
+`src/features/social/types.ts`, `workers`, `deploy`, `.github`. `/api/world*` passes the same access gate
+(`refuseUnauthorized`, `readWriteRequest`). So fixture, shell and harness of the before and after images are the same files.
+
+R2G(4) named main `8199150` as the current base. It is rebound to `0ecd727`: 8199150 lacks the ANA-48 World navigation entry,
+so its shell is no longer the current one. The requirements are kept and the identity of fixture and shell is added.
+ANA-48's cover-image vision call (`src/server/world/vision.ts`, off without `ANTHROPIC_API_KEY`) arrives from main; this change
+adds no external processing, and the AC6 statement is bound to the ANA-39 diff.
 
 ## Integration with LIVE-01 (PR #12)
 
