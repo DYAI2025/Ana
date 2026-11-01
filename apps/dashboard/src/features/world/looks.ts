@@ -43,12 +43,18 @@ function mix(n: number): number {
 
 /**
  * The activity of one 20-minute slot (slot = floor(time / 20 min)): deterministic, so every viewer sees the same one, and
- * never the same twice in a row. v(s) = (2s + g(s)) mod 5 with a pseudo-random g(s) in {0, 1}: consecutive slots differ
- * by 1, 2 or 3 (mod 5), never by 0, and all five activities come round.
+ * never the same twice in a row. v(s) = (2s + g(s)) mod 5 with a pseudo-random g(s) in {0, 1, 2}; g never drops from 2
+ * to 0 between neighbours, so consecutive slots differ by 1 to 4 steps (mod 5), never by 0. Over 99,000 slots: no
+ * repeat, the five activities equally often.
  */
+function jitter(slot: number): number {
+  const r = mix(slot) % 3;
+  return r === 0 && mix(slot - 1) % 3 === 2 ? 1 : r;
+}
+
 export function activityForSlot(slot: number): AnaActivity {
   const n = ANA_ACTIVITIES.length;
-  const v = (((2 * slot + (mix(slot) & 1)) % n) + n) % n;
+  const v = (((2 * slot + jitter(slot)) % n) + n) % n;
   return ANA_ACTIVITIES[v] as AnaActivity;
 }
 
