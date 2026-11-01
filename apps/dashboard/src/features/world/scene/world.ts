@@ -941,10 +941,11 @@ export function createWorldScene(
         });
       } else if (activity === "selfie" && hands.phone) {
         // phone held up in front, a peace sign, a little head tilt; the flash blinks every 4 s
-        r.armR.rotation.set(-2.2, 0, -0.5);
-        r.armL.rotation.set(-2.9, 0, 0.35);
-        r.head.rotation.set(-0.1, -0.12, 0.16 + Math.sin(T * 1.3) * 0.05 * mo);
-        hands.phone.phone.rotation.set(2.2 - 0.25, 0, 0);
+        // arm stretched out front-right, the phone turned back to her face; the other hand up in a peace sign
+        r.armR.rotation.set(-1.55, 0, 0.8);
+        r.armL.rotation.set(0, 0, -2.55);
+        r.head.rotation.set(-0.08, 0.28, -0.14 + Math.sin(T * 1.3) * 0.05 * mo);
+        hands.phone.phone.rotation.set(1.55, 0.9, 0);
         const f = (T % 4) / 4;
         (hands.phone.flash.material as THREE.MeshBasicMaterial).opacity = f < 0.05 && mo ? 1 - f / 0.05 : 0;
       } else if (activity === "dancing") {
@@ -952,8 +953,9 @@ export function createWorldScene(
         if (!rock) anaRoot.position.y += Math.abs(Math.sin(beat)) * 0.05 * mo;
         if (!rock) anaRoot.rotateY(Math.sin(T * 0.8) * 0.5 * mo);
         r.body.rotation.z = Math.sin(T * 2) * 0.14 * mo;
-        r.armL.rotation.set(-2.5 + Math.sin(beat) * 0.45 * mo, 0, 0.35);
-        r.armR.rotation.set(-2.5 - Math.sin(beat) * 0.45 * mo, 0, -0.35);
+        // arms up and out to the sides (clear of her hair), swinging on the beat
+        r.armL.rotation.set(-0.3, 0, -2.3 - Math.sin(beat) * 0.35 * mo);
+        r.armR.rotation.set(-0.3, 0, 2.3 - Math.sin(beat) * 0.35 * mo);
         r.head.rotation.z = Math.sin(T * 2 + 0.6) * 0.12 * mo;
         music?.notes.forEach((n, k) => {
           const f = (T * 0.35 + k / 3) % 1;
