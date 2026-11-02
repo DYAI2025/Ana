@@ -756,6 +756,8 @@ export function createWorldScene(
     return { lat, lon };
   }
   let grab: { lat: number; lon: number } | null = null;
+  // a drag (not a tap) takes over from a running view transition where it stands, so nothing jumps
+  let frozen = false;
   // Turns camera and look point together as one rigid rotation about the globe's centre. In the close views the camera
   // looks at a point on the surface, not at the centre; turning only the camera swung the view about the globe's axis,
   // far from the middle of the screen. Turning both slides the globe under a fixed camera rig instead.
@@ -766,6 +768,10 @@ export function createWorldScene(
   const yAxis = new THREE.Vector3(0, 1, 0);
   const nextLook = new THREE.Vector3();
   const forward = new THREE.Vector3();
+  function angleTurn(dx: number, dy: number, f: number) {
+    // at the close-view limit the sideways part still applies
+    if (!turn(dy * f, -dx * f)) turn(0, -dx * f);
+  }
   function turn(dLat: number, dLon: number): boolean {
     const lat = Math.max(-75, Math.min(78, cam.tLat + dLat));
     qTurn.setFromUnitVectors(ll(cam.tLat, cam.tLon, 1, turnFrom), ll(lat, cam.tLon, 1, turnTo));
@@ -784,14 +790,8 @@ export function createWorldScene(
     canvas.setPointerCapture(e.pointerId);
     pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
     down = { x: e.clientX, y: e.clientY, moved: 0 };
-    if (pointers.size === 1) {
-      // a drag takes over from a running view transition where it stands, so nothing jumps
-      cam.tLat = cam.lat;
-      cam.tLon = cam.lon;
-      cam.tLook.copy(cam.look);
-      placeCamera();
-      grab = surfaceAt(e.clientX, e.clientY);
-    } else grab = null;
+    grab = pointers.size === 1 ? surfaceAt(e.clientX, e.clientY) : null;
+    frozen = false;
     if (pointers.size === 2) {
       const [a, b] = [...pointers.values()];
       if (a && b) {
@@ -820,6 +820,12 @@ export function createWorldScene(
       cam.look.copy(cam.tLook);
       placeCamera();
     };
+    if (!frozen) {
+      frozen = true;
+      cam.tLat = cam.lat;
+      cam.tLon = cam.lon;
+      cam.tLook.copy(cam.look);
+    }
     snap();
     const f = 0.22 * (cam.dist / 36);
     let at = grab ? surfaceAt(e.clientX, e.clientY) : null;
@@ -829,6 +835,7 @@ export function createWorldScene(
       const err = (h: { lat: number; lon: number }, g: { lat: number; lon: number }) => Math.hypot(g.lat - h.lat, wrap180(g.lon - h.lon) * Math.cos((h.lat * Math.PI) / 180));
       let budget = Math.max(0.5, 3 * f * (Math.abs(dx) + Math.abs(dy)));
       let e0 = err(at, grab);
+      let stalled = false;
       for (let i = 0; i < 3 && e0 > 0.02 && budget > 0; i++) {
         let dLat = grab.lat - at.lat;
         let dLon = wrap180(grab.lon - at.lon);
@@ -838,7 +845,10 @@ export function createWorldScene(
           dLon *= budget / size;
         }
         const before = { lat: cam.tLat, lon: cam.tLon, look: cam.tLook.clone() };
-        if (!turn(dLat, dLon)) break;
+        if (!turn(dLat, dLon)) {
+          if (i === 0) stalled = true;
+          break;
+        }
         snap();
         const next = surfaceAt(e.clientX, e.clientY);
         const e1 = next ? err(next, grab) : Infinity;
@@ -847,15 +857,21 @@ export function createWorldScene(
           cam.tLon = before.lon;
           cam.tLook.copy(before.look);
           snap();
+          if (i === 0) stalled = true;
           break;
         }
         budget -= Math.min(budget, size);
         at = next;
         e0 = e1;
       }
+      // the grabbed point cannot be held here (pole, clamp, view limit): turn by angle so the drag never stalls
+      if (stalled) {
+        angleTurn(dx, dy, f);
+        snap();
+      }
     } else {
       // off the globe, at the rim or near a pole: turn by angle, and grab again once the pointer is over solid ground
-      turn(dy * f, -dx * f);
+      angleTurn(dx, dy, f);
       snap();
       grab = surfaceAt(e.clientX, e.clientY);
     }
