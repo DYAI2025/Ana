@@ -8,6 +8,7 @@ import { readManual } from "./lookStore";
 import { readHistory, recordHistory } from "./audienceHistory";
 import { createWorldService, type WorldService } from "./service";
 import { createVisionReader, visionConfigFromEnv } from "./vision";
+import { createPostTagger } from "./tagger";
 
 let shared: { key: string; service: WorldService } | null = null;
 
@@ -38,6 +39,8 @@ export function worldServiceFromEnv(): WorldService {
         readManual: () => readManual(),
         vision: vision ? createVisionReader(vision) : null,
         history: { read: () => readHistory(), record: (e) => recordHistory(e) },
+        // same key and model as the look reader; Ana agreed to the categories on 2026-11-02
+        tagger: vision ? createPostTagger(vision) : null,
       }),
     };
   }

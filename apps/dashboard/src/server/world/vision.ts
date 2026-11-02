@@ -103,6 +103,54 @@ async function readCapped(r: Response): Promise<Uint8Array | null | undefined> {
   return out;
 }
 
+/** A post's cover image from Meta's CDN as base64: null = not usable (type, size), undefined = the read failed. */
+export async function fetchCover(url: URL, fetchImpl: typeof fetch): Promise<{ type: string; data: string } | null | undefined> {
+  let image: Response;
+  try {
+    image = await fetchImpl(url, { redirect: "error", signal: AbortSignal.timeout(8_000) });
+  } catch {
+    return undefined;
+  }
+  if (!image.ok) return undefined;
+  const type = (image.headers.get("content-type") ?? "").split(";")[0]?.trim().toLowerCase() ?? "";
+  if (!IMAGE_TYPES.has(type)) return null;
+  if (Number(image.headers.get("content-length") ?? "0") > MAX_BYTES) return null;
+  const bytes = await readCapped(image);
+  if (bytes === undefined) return undefined;
+  if (bytes === null || bytes.length === 0) return null;
+  return { type, data: Buffer.from(bytes).toString("base64") };
+}
+
+export type ModelContent = Array<{ type: "image"; source: { type: "base64"; media_type: string; data: string } } | { type: "text"; text: string }>;
+
+/** One Messages API call; the answer's text, or undefined when the call failed. */
+export async function askModel(config: VisionConfig, content: ModelContent, fetchImpl: typeof fetch, maxTokens: number): Promise<string | undefined> {
+  let r: Response;
+  try {
+    r = await fetchImpl(API, {
+      method: "POST",
+      headers: { "x-api-key": config.key, "anthropic-version": "2023-06-01", "content-type": "application/json" },
+      body: JSON.stringify({
+        model: config.model,
+        // the answer is one short JSON object; without this Haiku 5.5 spends the budget on thinking blocks
+        max_tokens: maxTokens,
+        thinking: { type: "disabled" },
+        messages: [{ role: "user", content }],
+      }),
+      signal: AbortSignal.timeout(config.timeoutMs),
+    });
+  } catch {
+    return undefined;
+  }
+  if (!r.ok) return undefined;
+  try {
+    const body = (await r.json()) as { content?: Array<{ type?: string; text?: string }> };
+    return (body.content ?? []).filter((c) => c.type === "text").map((c) => c.text ?? "").join("\n");
+  } catch {
+    return undefined;
+  }
+}
+
 export interface VisionReader {
   /** the answer for one post's cover image; cached per post (a "nothing clear" answer too) */
   read(postId: string, coverUrl: string | null): Promise<VisionLook | null>;
@@ -115,44 +163,11 @@ export function createVisionReader(config: VisionConfig, fetchImpl: typeof fetch
   const failedAt = new Map<string, number>();
 
   async function call(url: URL): Promise<VisionLook | null | undefined> {
-    let image: Response;
-    try {
-      image = await fetchImpl(url, { redirect: "error", signal: AbortSignal.timeout(8_000) });
-    } catch {
-      return undefined;
-    }
-    if (!image.ok) return undefined;
-    const type = (image.headers.get("content-type") ?? "").split(";")[0]?.trim().toLowerCase() ?? "";
-    if (!IMAGE_TYPES.has(type)) return null;
-    if (Number(image.headers.get("content-length") ?? "0") > MAX_BYTES) return null;
-    const bytes = await readCapped(image);
-    if (bytes === undefined) return undefined;
-    if (bytes === null || bytes.length === 0) return null;
-    let r: Response;
-    try {
-      r = await fetchImpl(API, {
-        method: "POST",
-        headers: { "x-api-key": config.key, "anthropic-version": "2023-06-01", "content-type": "application/json" },
-        body: JSON.stringify({
-          model: config.model,
-          // the answer is one short JSON object; without this Haiku 5.5 spends the budget on thinking blocks
-          max_tokens: 400,
-          thinking: { type: "disabled" },
-          messages: [{ role: "user", content: [{ type: "image", source: { type: "base64", media_type: type, data: Buffer.from(bytes).toString("base64") } }, { type: "text", text: PROMPT }] }],
-        }),
-        signal: AbortSignal.timeout(config.timeoutMs),
-      });
-    } catch {
-      return undefined;
-    }
-    if (!r.ok) return undefined;
-    try {
-      const body = (await r.json()) as { content?: Array<{ type?: string; text?: string }> };
-      const text = (body.content ?? []).filter((c) => c.type === "text").map((c) => c.text ?? "").join("\n");
-      return parseVisionAnswer(text);
-    } catch {
-      return undefined;
-    }
+    const image = await fetchCover(url, fetchImpl);
+    if (image === undefined) return undefined;
+    if (image === null) return null;
+    const text = await askModel(config, [{ type: "image", source: { type: "base64", media_type: image.type, data: image.data } }, { type: "text", text: PROMPT }], fetchImpl, 400);
+    return text === undefined ? undefined : parseVisionAnswer(text);
   }
 
   return {

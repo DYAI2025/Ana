@@ -3,6 +3,7 @@ import type { Observation, SocialPost } from "@/features/social/types";
 import { buildGeo, isLand, mainlandCentroid, unwrapRing } from "./geo";
 import { CHANNELS, channelStatuses, instagramView, median, ORBIT_MAX, orbitCount, pulseEvents, shares, trends, whoView } from "./model";
 import { resolveLook } from "./looks";
+import { parseTags, whatWorks } from "./postTags";
 import type { WorldPayload } from "./types";
 import topology from "world-atlas/countries-110m.json";
 import codes from "i18n-iso-countries/codes.json";
@@ -62,6 +63,7 @@ function world(pulseLikes: number, pulseAt = "2026-10-31T20:00:00.000Z", extraPu
     places: { ana: null },
     ana_look: resolveLook(null, null),
     release: { sha: null, started_at: pulseAt },
+    post_tags: { state: "off", tags: {} },
   };
 }
 
@@ -181,5 +183,24 @@ describe("trends and whoView", () => {
     const v = whoView({ age: ok([["18-24", 1], ["35-44", 3]]), gender: ok([["F", 3], ["M", 1]]), age_gender: N });
     expect(v).toEqual({ mode: "split", ages: [{ band: "35-44", share: 0.75 }, { band: "18-24", share: 0.25 }], gender: { f: 0.75, m: 0.25, u: 0 } });
     expect(whoView({ age: N, gender: N, age_gender: N })).toBeNull();
+  });
+});
+
+describe("post categories: parseTags and whatWorks", () => {
+  const tags = (theme: string, confidence = 0.9) => ({ theme, ana: "face", shot: "selfie", hook: "none", cta: "none", mood: "calm", country: null, brand: false, confidence });
+  it("median engagement per value, highest first; low-confidence posts are not counted; format needs no model", () => {
+    const posts = [
+      { id: "a", format: "reel", er: 0.1 },
+      { id: "b", format: "reel", er: 0.3 },
+      { id: "c", format: "image", er: 0.05 },
+      { id: "d", format: "image", er: 0.2 },
+      { id: "e", format: "image", er: null },
+    ];
+    const t = { a: tags("food"), b: tags("food"), c: tags("beach"), d: tags("beach", 0.3), e: tags("beach") };
+    const parsed = Object.fromEntries(Object.entries(t).map(([k, v]) => [k, parseTags(v)!]));
+    const w = whatWorks(posts, parsed);
+    expect(w.counted).toBe(3);
+    expect(w.fields.theme).toEqual([{ value: "food", n: 2, median: 0.2 }, { value: "beach", n: 1, median: 0.05 }]);
+    expect(w.fields.format.map((r) => [r.value, r.n])).toEqual([["reel", 2], ["image", 2]]);
   });
 });

@@ -92,6 +92,18 @@ test.describe("ANA World — 3D view over real dashboard data", () => {
     await expect(page.getByTestId("world-history")).toContainText(/daily snapshot|No daily snapshots/);
   });
 
+  test("works · the panel shows engagement per kind of post; without a model key the categories say they are off", async ({ page }) => {
+    await openWorld(page);
+    const works = page.getByTestId("world-works");
+    await expect(works).toContainText("What works");
+    await expect(works).toContainText("Post categories are off");
+    // format comes from Meta, not from the model: shown even without categories
+    await expect(page.getByTestId("world-works-format")).toContainText(/n=\d+/);
+    await expect(page.getByTestId("world-works-theme")).toHaveCount(0);
+    const body = await (await page.request.get("/api/world")).json();
+    expect(body.world.post_tags).toEqual({ state: "off", tags: {} });
+  });
+
   test("AC5 · a real like increase between two pulse reads shows up in the feed", async ({ page }) => {
     await openWorld(page);
     await expect(page.getByTestId("world-pulse")).toHaveAttribute("data-state", "ok");
