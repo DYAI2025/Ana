@@ -11,6 +11,8 @@ import { resolveLook, type ImageLook, type ManualLook, type NewestPost } from "@
 import type { VisionReader } from "./vision";
 import { readAnaPlace, readRelease } from "./presence";
 import { historyEntry, type HistoryEntry } from "./audienceHistory";
+import type { PostTagger } from "./tagger";
+import type { PostTags } from "@/features/world/postTags";
 
 export const PULSE_PATH = "/internal/social-pulse";
 export const AUDIENCE_PATH = "/internal/social-audience";
@@ -47,6 +49,8 @@ export interface WorldDeps {
   visionWaitMs?: number;
   /** the stored daily audience snapshots; absent = not kept */
   history?: { read: () => Promise<HistoryEntry[]>; record: (entry: HistoryEntry) => Promise<HistoryEntry[]> } | null;
+  /** categories of the posts, read in the background; absent = off */
+  tagger?: PostTagger | null;
 }
 
 type Load<T> = { ok: true; value: T } | { ok: false; state: WorldSourceState; reason: string };
@@ -145,7 +149,7 @@ export function createWorldService(deps: WorldDeps): WorldService {
   let historyMeta: { days: number; since: string | null } | null = null;
   let recordedFetch: string | null = null;
   const summarize = (all: HistoryEntry[]) => ({ days: all.length, since: all[0]?.day ?? null });
-  async function keepHistory(audience: NormalizedAudience | null, posts: ReadonlyArray<{ id: string; format: string; published_at: string | null }>) {
+  async function keepHistory(audience: NormalizedAudience | null, posts: ReadonlyArray<{ id: string; format: string; published_at: string | null; tags: PostTags | null }>) {
     const h = deps.history;
     if (!h) return { days: 0, since: null };
     try {
@@ -194,7 +198,9 @@ export function createWorldService(deps: WorldDeps): WorldService {
         pulseOut.state = p.failure.state;
         pulseOut.reason = p.failure.reason;
       }
-      const posts = instagram.ok ? instagram.snapshot.posts.map((x) => ({ id: x.media_id, format: x.format, published_at: x.published_at })) : [];
+      if (instagram.ok && deps.tagger) deps.tagger.schedule(instagram.snapshot.posts.map((x) => ({ id: x.media_id, cover: x.thumbnail_url ?? x.image_url ?? null, caption: x.caption })));
+      const tags = deps.tagger ? deps.tagger.current() : {};
+      const posts = instagram.ok ? instagram.snapshot.posts.map((x) => ({ id: x.media_id, format: x.format, published_at: x.published_at, tags: tags[x.media_id] ?? null })) : [];
       const history = await keepHistory(a.value, posts);
       const audienceOut: WorldAudience = a.value
         ? {
@@ -236,6 +242,7 @@ export function createWorldService(deps: WorldDeps): WorldService {
         places: { ana: readAnaPlace(env) },
         ana_look: { ...resolveLook(newest, manual, image, imageReader), read_at: readAt },
         release: readRelease(),
+        post_tags: { state: deps.tagger ? "on" : "off", tags },
       };
     },
   };

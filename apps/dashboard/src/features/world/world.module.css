@@ -561,6 +561,10 @@ button.barLabel {
   background: linear-gradient(90deg, #c96b7d, #a8321c);
 }
 
+.few {
+  opacity: 0.5;
+}
+
 .barValue {
   font: 600 12px/1 var(--font);
   color: var(--text-secondary);

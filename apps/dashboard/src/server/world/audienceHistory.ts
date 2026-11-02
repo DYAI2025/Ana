@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import type { AudienceSeries } from "@/features/world/types";
+import type { PostTags } from "@/features/world/postTags";
 import os from "node:os";
 
 /**
@@ -16,7 +17,8 @@ export interface HistoryEntry {
   day: string;
   fetched_at: string;
   week: { country: Pair[]; age: Pair[]; gender: Pair[] };
-  posts: Array<{ id: string; format: string; published_at: string }>;
+  /** the categories of each post when known (no caption, see postTags.ts) */
+  posts: Array<{ id: string; format: string; published_at: string; tags?: PostTags | null }>;
 }
 type Pair = [string, number];
 
@@ -54,7 +56,7 @@ export function historyEntry(
   nowMs: number,
   fetchedAt: string,
   week: { country: AudienceSeries; age: AudienceSeries; gender: AudienceSeries },
-  posts: ReadonlyArray<{ id: string; format: string; published_at: string | null }>,
+  posts: ReadonlyArray<{ id: string; format: string; published_at: string | null; tags?: PostTags | null }>,
 ): HistoryEntry | null {
   if (week.country.state !== "ok" && week.age.state !== "ok" && week.gender.state !== "ok") return null;
   const since = nowMs - 7 * 86_400_000;
@@ -63,9 +65,9 @@ export function historyEntry(
     fetched_at: fetchedAt,
     week: { country: pairs(week.country, 20), age: pairs(week.age, 10), gender: pairs(week.gender, 3) },
     posts: posts
-      .filter((p): p is { id: string; format: string; published_at: string } => p.published_at !== null && Date.parse(p.published_at) >= since && Date.parse(p.published_at) <= nowMs)
+      .filter((p): p is typeof p & { published_at: string } => p.published_at !== null && Date.parse(p.published_at) >= since && Date.parse(p.published_at) <= nowMs)
       .slice(0, POST_MAX)
-      .map((p) => ({ id: p.id.slice(0, 40), format: p.format.slice(0, 20), published_at: p.published_at })),
+      .map((p) => ({ id: p.id.slice(0, 40), format: p.format.slice(0, 20), published_at: p.published_at, ...(p.tags ? { tags: p.tags } : {}) })),
   };
 }
 

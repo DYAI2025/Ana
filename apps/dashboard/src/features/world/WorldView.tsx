@@ -9,6 +9,7 @@ import { BEN_ACTIVITIES, berlinDay, VINCE_ACTIVITIES, type BenActivity, type Vin
 import { ANA_ACTIVITIES, ANA_OUTFITS, colorHex, currentActivity, SWATCHES, type AnaActivity, type AnaLookId, type ManualLook } from "./looks";
 import { PEOPLE, PROJECTS, type WorldPersonId } from "./people";
 import type { AudienceSeries, WorldPayload } from "./types";
+import { TAG_FIELDS, whatWorks } from "./postTags";
 import type { SceneData, SceneRef, StationStatus, ViewName, WorldScene } from "./scene/world";
 import styles from "./world.module.css";
 
@@ -354,6 +355,40 @@ export function WorldView() {
   const timeframeLabel = layer === "week" ? t("world.audience.timeframes.this_week") : t("world.audience.timeframes.this_month");
   const history = world?.audience.history ?? { days: 0, since: null };
 
+  // which kinds of post reach which engagement (categories read by the model; format from Meta)
+  const works = useMemo(() => (world && ig ? whatWorks(ig.posts, world.post_tags.tags) : null), [world, ig]);
+  const worksBlock =
+    world && ig && works ? (
+      <section className={styles.section} aria-labelledby="world-works" data-testid="world-works">
+        <h3 id="world-works">{t("world.works.title")}</h3>
+        <p className={styles.muted}>
+          {world.post_tags.state === "off" ? t("world.works.off") : t("world.works.status", { n: Object.keys(world.post_tags.tags).length, total: ig.posts.length, counted: works.counted })}
+        </p>
+        {TAG_FIELDS.map((f) => {
+          const rows = works.fields[f].slice(0, 6);
+          if (!rows.length) return null;
+          const max = Math.max(...rows.map((r) => r.median), 0.0001);
+          return (
+            <div key={f} className={styles.audienceGroup} data-testid={`world-works-${f}`}>
+              <h4>{t(`world.works.fields.${f}`)}</h4>
+              <ul className={styles.bars}>
+                {rows.map((r) => (
+                  <li key={r.value} data-few={r.n < 3 ? "true" : undefined} className={r.n < 3 ? styles.few : undefined}>
+                    <span className={styles.barLabel}>{t(`world.works.values.${f}.${r.value}` as never)}</span>
+                    <span className={styles.barTrack} aria-hidden="true">
+                      <span style={{ width: `${Math.max(3, (r.median / max) * 100)}%` }} />
+                    </span>
+                    <span className={styles.barValue}>{t("world.works.row", { er: pf.format(r.median * 100), n: r.n })}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          );
+        })}
+        <p className={styles.note}>{t("world.works.note")}</p>
+      </section>
+    ) : null;
+
   const audienceBlock = world ? (
     <section className={styles.section} aria-labelledby="world-audience">
       <h3 id="world-audience">{t("world.audience.title")}</h3>
@@ -435,6 +470,7 @@ export function WorldView() {
         )}
       </section>
       {audienceBlock}
+      {worksBlock}
       <section className={styles.section} aria-labelledby="world-channels">
         <h3 id="world-channels">{t("world.channels.title")}</h3>
         <ul className={styles.channels}>

@@ -94,6 +94,8 @@ export interface WorldRelease {
   started_at: string;
 }
 
+import type { PostTags } from "./postTags";
+
 export interface WorldPayload {
   version: 1;
   generated_at: string;
@@ -105,4 +107,6 @@ export interface WorldPayload {
   /** what Ana's avatar wears: from her newest post, or picked by the team */
   ana_look: AnaLook;
   release: WorldRelease;
+  /** categories of Ana's posts by media id (read by a model, see postTags.ts); state of the reader */
+  post_tags: { state: "on" | "off"; tags: Record<string, PostTags> };
 }
