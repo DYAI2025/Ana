@@ -31,6 +31,10 @@ RuntimeDirectoryMode=0750
 # the release links .next/cache here (release.sh); everything else of the release is read-only
 CacheDirectory=dyai/ana-dashboard
 CacheDirectoryMode=0700
+# kept data the cache must not hold: the world's daily audience history (systemd sets STATE_DIRECTORY; never wiped by
+# `systemctl clean --what=cache`)
+StateDirectory=dyai/ana-dashboard
+StateDirectoryMode=0700
 MemoryHigh=384M
 MemoryMax=512M
 MemorySwapMax=0
