@@ -616,19 +616,23 @@ async function readSocialAudience(req,env) {
   const ctx=await internalIdentity(env,AUDIENCE_SUBREQUEST_BUDGET);
   if(ctx.response)return ctx.response;
   const userId=ctx.identity.me.user_id;
-  const metrics=[];
-  for (const [name, breakdown, timeframe] of AUDIENCE_READS) {
+  const read=async ([name, breakdown, timeframe]) => {
     const base={name, breakdown, timeframe};
     try {
       const data=await ctx.b.fetch(`/${userId}/insights`,{metric:name, period:'lifetime', timeframe, metric_type:'total_value', breakdown});
       const entry=(Array.isArray(data?.data)?data.data:[]).find(x=>x?.name===name);
       const results=demographicResults(entry, breakdown);
-      metrics.push(results.length?{...base, state:'ok', results}:{...base, state:'unavailable', error_class:'empty-response', results:[]});
+      return results.length?{...base, state:'ok', results}:{...base, state:'unavailable', error_class:'empty-response', results:[]};
     } catch(e) {
       const cls=notSent(e)?e.message:errorClass(e);
-      metrics.push({...base, state:e instanceof MetaError&&e.metaCode===100?'unavailable':notSent(e)?'not_fetched':'error', error_class:cls, results:[]});
+      return {...base, state:e instanceof MetaError&&e.metaCode===100?'unavailable':notSent(e)?'not_fetched':'error', error_class:cls, results:[]};
     }
-  }
+  };
+  // The four original reads run one after another as before (a throttle stops the rest); the additive reads then run
+  // in parallel, so the whole answer stays well inside the dashboard's request timeout even when Meta is slow.
+  const metrics=[];
+  for (const r of AUDIENCE_READS.slice(0, 4)) metrics.push(await read(r));
+  metrics.push(...await Promise.all(AUDIENCE_READS.slice(4).map(read)));
   return json({audience_version:1, fetched_at:new Date().toISOString(), provider:'instagram', api_version:GRAPH_VERSION, metrics});
 }
 async function refresh(env,force=false) {
