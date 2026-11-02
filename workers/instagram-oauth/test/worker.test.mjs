@@ -1009,17 +1009,21 @@ test('social pulse: a Meta failure on the media read is a 502 with an error clas
   assert.deepEqual(await r.json(), {error: 'instagram-media-fetch-failed', reason: 'meta-4'});
 });
 
-const demo = (name, breakdown, rows) => Response.json({data: [{name, period: 'lifetime', total_value: {breakdowns: [{dimension_keys: ['timeframe', breakdown], results: rows.map(([k, v]) => ({dimension_values: ['THIS_MONTH', k], value: v}))}]}}]});
+const demo = (name, breakdown, rows) => Response.json({data: [{name, period: 'lifetime', total_value: {breakdowns: [{dimension_keys: ['timeframe', ...breakdown.split(',')], results: rows.map(([k, v]) => ({dimension_values: ['THIS_MONTH', ...k.split('|')], value: v}))}]}}]});
 
-test('social audience: four documented demographic reads, aggregated results, per-metric states', async () => {
+test('social audience: documented demographic reads, aggregated results, per-metric states', async () => {
   const env = mockEnv();
   await connect(env);
   const calls = installMeta({
     insights: u => {
       const metric = u.searchParams.get('metric'), breakdown = u.searchParams.get('breakdown');
       if (metric === 'follower_demographics' && breakdown === 'city') return metaError(100)();
-      if (metric === 'follower_demographics') return Response.json({data: []});
-      return breakdown === 'country' ? demo(metric, 'country', [['DE', 120], ['ES', 40], ['', 9], ['IT', -3]]) : demo(metric, 'city', [['Berlin, Berlin', 30]]);
+      if (metric === 'follower_demographics' && breakdown === 'country') return Response.json({data: []});
+      if (breakdown === 'country') return demo(metric, 'country', [['DE', 120], ['ES', 40], ['', 9], ['IT', -3]]);
+      if (breakdown === 'city') return demo(metric, 'city', [['Berlin, Berlin', 30]]);
+      if (breakdown === 'age') return demo(metric, 'age', [['25-34', 70], ['18-24', 20]]);
+      if (breakdown === 'gender') return demo(metric, 'gender', [['F', 60], ['M', 30], ['U', 2]]);
+      return demo(metric, breakdown, [['25-34|F', 50], ['18-24|M', 11]]);
     },
   });
   const r = await internalGet(env, '/internal/social-audience');
@@ -1033,12 +1037,23 @@ test('social audience: four documented demographic reads, aggregated results, pe
   assert.deepEqual([fc.state, fc.error_class], ['unavailable', 'empty-response']);
   assert.deepEqual([fcity.state, fcity.error_class], ['unavailable', 'meta-100']);
   const reads = calls.filter(c => c.url.pathname === `/v26.0/${IG_USER_ID}/insights`);
-  assert.equal(reads.length, 4);
+  assert.equal(reads.length, 13);
   for (const c of reads) {
     assert.equal(c.url.searchParams.get('period'), 'lifetime');
-    assert.equal(c.url.searchParams.get('timeframe'), 'this_month');
     assert.equal(c.url.searchParams.get('metric_type'), 'total_value');
   }
+  // the first four keep the this_month contract older dashboards read by name and breakdown
+  assert.deepEqual(reads.slice(0, 4).map(c => c.url.searchParams.get('timeframe')), ['this_month', 'this_month', 'this_month', 'this_month']);
+  assert.deepEqual(body.metrics.map(m => `${m.name === 'follower_demographics' ? 'f' : 'e'}:${m.breakdown}:${m.timeframe}`), [
+    'e:country:this_month', 'e:city:this_month', 'f:country:this_month', 'f:city:this_month',
+    'e:country:this_week', 'e:city:this_week', 'e:age:this_week', 'e:gender:this_week',
+    'e:age:this_month', 'e:gender:this_month', 'e:age,gender:this_month', 'f:age:this_month', 'f:gender:this_month']);
+  for (const m of body.metrics) assert.equal(reads[body.metrics.indexOf(m)].url.searchParams.get('timeframe'), m.timeframe);
+  const ageWeek = body.metrics[6], genderWeek = body.metrics[7], combo = body.metrics[10];
+  assert.deepEqual(ageWeek.results, [{key: '25-34', value: 70}, {key: '18-24', value: 20}]);
+  assert.deepEqual(genderWeek.results, [{key: 'F', value: 60}, {key: 'M', value: 30}, {key: 'U', value: 2}]);
+  assert.deepEqual(combo.results, [{key: '25-34|F', value: 50}, {key: '18-24|M', value: 11}], 'a combined breakdown joins both values');
+  assert.equal(combo.state, 'ok');
 });
 
 test('social audience: a throttle stops further reads and is reported as error / not_fetched, never as data', async () => {
@@ -1046,7 +1061,7 @@ test('social audience: a throttle stops further reads and is reported as error /
   await connect(env);
   installMeta({insights: metaError(4, 400)});
   const body = await (await internalGet(env, '/internal/social-audience')).json();
-  assert.deepEqual(body.metrics.map(m => m.state), ['error', 'not_fetched', 'not_fetched', 'not_fetched']);
+  assert.deepEqual(body.metrics.map(m => m.state), ['error', ...Array(12).fill('not_fetched')]);
   assert.ok(body.metrics.every(m => m.results.length === 0));
   assert.equal((await internalGet(env, '/internal/social-audience', null)).status, 401);
 });
