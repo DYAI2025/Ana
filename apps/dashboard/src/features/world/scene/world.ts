@@ -737,6 +737,7 @@ export function createWorldScene(
   // seemed to pivot near the top of the globe rather than where one grabbed it.
   const globeSphere = new THREE.Sphere(new THREE.Vector3(), R);
   const hitPoint = new THREE.Vector3();
+  const hitNormal = new THREE.Vector3();
   const wrap180 = (d: number) => ((((d + 180) % 360) + 360) % 360) - 180;
   function surfaceAt(clientX: number, clientY: number): { lat: number; lon: number } | null {
     const r = canvas.getBoundingClientRect();
@@ -746,9 +747,12 @@ export function createWorldScene(
     // in a close view the grabbed ground is the raised site (lift 0.45-0.62), not the bare sphere behind it
     globeSphere.radius = cam.tLook.lengthSq() > 1 ? R + 0.6 : R;
     if (!ray.ray.intersectSphere(globeSphere, hitPoint)) return null;
+    // a grazing hit near the rim, or a point near a pole, cannot be held under the pointer by lat/lon alone: no grab
+    if (Math.abs(ray.ray.direction.dot(hitNormal.copy(hitPoint).normalize())) < 0.3) return null;
     // inverse of ll(): lat from y, lon from the angle in the x/z plane
     const lat = (Math.asin(Math.max(-1, Math.min(1, hitPoint.y / globeSphere.radius))) * 180) / Math.PI;
     const lon = wrap180((Math.atan2(hitPoint.z, -hitPoint.x) * 180) / Math.PI - 180);
+    if (Math.abs(lat) > 80) return null;
     return { lat, lon };
   }
   let grab: { lat: number; lon: number } | null = null;
@@ -760,20 +764,34 @@ export function createWorldScene(
   const turnFrom = new THREE.Vector3();
   const turnTo = new THREE.Vector3();
   const yAxis = new THREE.Vector3(0, 1, 0);
-  function turn(dLat: number, dLon: number) {
+  const nextLook = new THREE.Vector3();
+  const forward = new THREE.Vector3();
+  function turn(dLat: number, dLon: number): boolean {
     const lat = Math.max(-75, Math.min(78, cam.tLat + dLat));
     qTurn.setFromUnitVectors(ll(cam.tLat, cam.tLon, 1, turnFrom), ll(lat, cam.tLon, 1, turnTo));
     qTurn.premultiply(qLon.setFromAxisAngle(yAxis, (dLon * Math.PI) / 180));
+    // in a close view the turned rig could end up looking (nearly) straight up or down, where lookAt with up = Y fails
+    nextLook.copy(cam.tLook).applyQuaternion(qTurn);
+    forward.copy(nextLook).sub(ll(lat, cam.tLon + dLon, cam.dist, turnTo)).normalize();
+    if (cam.tLook.lengthSq() > 1 && Math.abs(forward.y) > 0.8) return false;
     cam.tLat = lat;
     cam.tLon += dLon;
-    cam.tLook.applyQuaternion(qTurn);
+    cam.tLook.copy(nextLook);
     cam.look.applyQuaternion(qTurn);
+    return true;
   }
   const onDown = (e: PointerEvent) => {
     canvas.setPointerCapture(e.pointerId);
     pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
     down = { x: e.clientX, y: e.clientY, moved: 0 };
-    grab = pointers.size === 1 ? surfaceAt(e.clientX, e.clientY) : null;
+    if (pointers.size === 1) {
+      // a drag takes over from a running view transition where it stands, so nothing jumps
+      cam.tLat = cam.lat;
+      cam.tLon = cam.lon;
+      cam.tLook.copy(cam.look);
+      placeCamera();
+      grab = surfaceAt(e.clientX, e.clientY);
+    } else grab = null;
     if (pointers.size === 2) {
       const [a, b] = [...pointers.values()];
       if (a && b) {
@@ -803,20 +821,40 @@ export function createWorldScene(
       placeCamera();
     };
     snap();
+    const f = 0.22 * (cam.dist / 36);
     let at = grab ? surfaceAt(e.clientX, e.clientY) : null;
     if (grab && at) {
-      // a few correction steps, each capped: near the rim a pixel spans many degrees
-      for (let i = 0; i < 3 && grab && at; i++) {
-        const dLat = grab.lat - at.lat;
-        const dLon = wrap180(grab.lon - at.lon);
-        if (Math.abs(dLat) + Math.abs(dLon) < 0.02) break;
-        turn(Math.max(-12, Math.min(12, dLat)), Math.max(-12, Math.min(12, dLon)));
+      // a few correction steps; together they turn no further than three times the angle-per-pixel turn would, and a
+      // step that does not bring the grabbed point closer to the pointer is undone (lat/lon cannot hold every point)
+      const err = (h: { lat: number; lon: number }, g: { lat: number; lon: number }) => Math.hypot(g.lat - h.lat, wrap180(g.lon - h.lon) * Math.cos((h.lat * Math.PI) / 180));
+      let budget = Math.max(0.5, 3 * f * (Math.abs(dx) + Math.abs(dy)));
+      let e0 = err(at, grab);
+      for (let i = 0; i < 3 && e0 > 0.02 && budget > 0; i++) {
+        let dLat = grab.lat - at.lat;
+        let dLon = wrap180(grab.lon - at.lon);
+        const size = Math.hypot(dLat, dLon * Math.cos((at.lat * Math.PI) / 180));
+        if (size > budget) {
+          dLat *= budget / size;
+          dLon *= budget / size;
+        }
+        const before = { lat: cam.tLat, lon: cam.tLon, look: cam.tLook.clone() };
+        if (!turn(dLat, dLon)) break;
         snap();
-        at = surfaceAt(e.clientX, e.clientY);
+        const next = surfaceAt(e.clientX, e.clientY);
+        const e1 = next ? err(next, grab) : Infinity;
+        if (!next || e1 >= e0) {
+          cam.tLat = before.lat;
+          cam.tLon = before.lon;
+          cam.tLook.copy(before.look);
+          snap();
+          break;
+        }
+        budget -= Math.min(budget, size);
+        at = next;
+        e0 = e1;
       }
     } else {
-      // off the globe: turn by angle, and grab again once the pointer is back over the surface
-      const f = 0.22 * (cam.dist / 36);
+      // off the globe, at the rim or near a pole: turn by angle, and grab again once the pointer is over solid ground
       turn(dy * f, -dx * f);
       snap();
       grab = surfaceAt(e.clientX, e.clientY);
