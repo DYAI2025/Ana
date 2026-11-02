@@ -6,10 +6,11 @@ import { fetchWorkerJson, type WorkerResponse } from "@/server/social/client";
 import type { SocialConfig } from "@/server/social/config";
 import { InvalidWorkerResponse } from "@/server/social/normalize";
 import { NOT_CONFIGURED, workerFailure, type SnapshotService } from "@/server/social/service";
-import { MISSING_SERIES, normalizeAudience, normalizePulse, type NormalizedAudience, type NormalizedPulse } from "./normalize";
+import { MISSING_SERIES, MISSING_WHO, normalizeAudience, normalizePulse, type NormalizedAudience, type NormalizedPulse } from "./normalize";
 import { resolveLook, type ImageLook, type ManualLook, type NewestPost } from "@/features/world/looks";
 import type { VisionReader } from "./vision";
 import { readAnaPlace, readRelease } from "./presence";
+import { historyEntry, type HistoryEntry } from "./audienceHistory";
 
 export const PULSE_PATH = "/internal/social-pulse";
 export const AUDIENCE_PATH = "/internal/social-audience";
@@ -44,6 +45,8 @@ export interface WorldDeps {
   vision?: VisionReader | null;
   /** how long one read waits for the vision answer before answering without it (the next read has it) */
   visionWaitMs?: number;
+  /** the stored daily audience snapshots; absent = not kept */
+  history?: { read: () => Promise<HistoryEntry[]>; record: (entry: HistoryEntry) => Promise<HistoryEntry[]> } | null;
 }
 
 type Load<T> = { ok: true; value: T } | { ok: false; state: WorldSourceState; reason: string };
@@ -138,6 +141,27 @@ export function createWorldService(deps: WorldDeps): WorldService {
     now,
   );
 
+  // days of stored audience snapshots; the entry of an audience read is stored once
+  let historyMeta: { days: number; since: string | null } | null = null;
+  let recordedFetch: string | null = null;
+  const summarize = (all: HistoryEntry[]) => ({ days: all.length, since: all[0]?.day ?? null });
+  async function keepHistory(audience: NormalizedAudience | null, posts: ReadonlyArray<{ id: string; format: string; published_at: string | null }>) {
+    const h = deps.history;
+    if (!h) return { days: 0, since: null };
+    try {
+      if (historyMeta === null) historyMeta = summarize(await h.read());
+      if (audience && audience.fetched_at !== recordedFetch) {
+        const week = { country: audience.engaged_country_week, age: audience.who.engaged_week.age, gender: audience.who.engaged_week.gender };
+        const entry = historyEntry(now(), audience.fetched_at, week, posts);
+        recordedFetch = audience.fetched_at;
+        if (entry) historyMeta = summarize(await h.record(entry));
+      }
+    } catch {
+      // the history is a convenience: a full disk never breaks the world
+    }
+    return historyMeta ?? { days: 0, since: null };
+  }
+
   return {
     async read() {
       const readAt = new Date(now()).toISOString();
@@ -170,9 +194,37 @@ export function createWorldService(deps: WorldDeps): WorldService {
         pulseOut.state = p.failure.state;
         pulseOut.reason = p.failure.reason;
       }
+      const posts = instagram.ok ? instagram.snapshot.posts.map((x) => ({ id: x.media_id, format: x.format, published_at: x.published_at })) : [];
+      const history = await keepHistory(a.value, posts);
       const audienceOut: WorldAudience = a.value
-        ? { state: a.failure ? a.failure.state : "ok", reason: a.failure?.reason ?? null, fetched_at: a.value.fetched_at, timeframe: a.value.timeframe, engaged_country: a.value.engaged_country, engaged_city: a.value.engaged_city, follower_country: a.value.follower_country, follower_city: a.value.follower_city }
-        : { state: a.failure?.state ?? "unavailable", reason: a.failure?.reason ?? null, fetched_at: null, timeframe: null, engaged_country: MISSING_SERIES, engaged_city: MISSING_SERIES, follower_country: MISSING_SERIES, follower_city: MISSING_SERIES };
+        ? {
+            state: a.failure ? a.failure.state : "ok",
+            reason: a.failure?.reason ?? null,
+            fetched_at: a.value.fetched_at,
+            timeframe: a.value.timeframe,
+            engaged_country: a.value.engaged_country,
+            engaged_city: a.value.engaged_city,
+            follower_country: a.value.follower_country,
+            follower_city: a.value.follower_city,
+            engaged_country_week: a.value.engaged_country_week,
+            engaged_city_week: a.value.engaged_city_week,
+            who: a.value.who,
+            history,
+          }
+        : {
+            state: a.failure?.state ?? "unavailable",
+            reason: a.failure?.reason ?? null,
+            fetched_at: null,
+            timeframe: null,
+            engaged_country: MISSING_SERIES,
+            engaged_city: MISSING_SERIES,
+            follower_country: MISSING_SERIES,
+            follower_city: MISSING_SERIES,
+            engaged_country_week: MISSING_SERIES,
+            engaged_city_week: MISSING_SERIES,
+            who: { engaged_week: MISSING_WHO, engaged_month: MISSING_WHO, follower: MISSING_WHO },
+            history,
+          };
       const workOut: WorldWork = { state: w.value ? (w.failure ? w.failure.state : "ok") : (w.failure?.state ?? "unavailable"), reason: w.failure?.reason ?? null, fetched_at: iso(w.at), issues: w.value ?? [] };
       return {
         version: 1,

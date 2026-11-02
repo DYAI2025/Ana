@@ -5,7 +5,7 @@
  */
 import * as THREE from "three";
 import type { Geo } from "../geo";
-import { ORBIT_MAX, type ChannelDef, type ChannelStatus, type PulseEvent, type ShareEntry, type WorldPost } from "../model";
+import { ORBIT_MAX, TREND_POINTS, type ChannelDef, type ChannelStatus, type PulseEvent, type ShareEntry, type WorldPost } from "../model";
 import { berlinDay, type BenActivity, type VinceActivity } from "../berlinDay";
 import type { AnaActivity, AnaLookId, OutfitColors } from "../looks";
 import { BERLIN, PEOPLE, type AvatarSpec, type ProjectShape, type WorldPersonId } from "../people";
@@ -28,6 +28,10 @@ export interface SceneProject {
 
 export interface SceneCountry extends ShareEntry {
   label: string;
+  /** the label's second line, e.g. "24 % · ▲ 6 pts" */
+  sub: string;
+  /** last 7 days against the 30 days in percentage points; null = not compared */
+  trend: number | null;
 }
 
 export interface SceneLabels {
@@ -601,6 +605,7 @@ export function createWorldScene(
     ripples.length = 0;
     const target = next.anaPlace ? ll(next.anaPlace.lat, next.anaPlace.lon, R + 0.5) : null;
     let drawn = 0;
+    let rising = 0;
     for (const c of next.countries.slice(0, 20)) {
       const cen = geo.centroids.get(c.key);
       if (!cen) continue;
@@ -608,12 +613,17 @@ export function createWorldScene(
       const base = ll(cen.lat, cen.lon, R + 0.12);
       // a flat disc on the ground: size = share; never a pillar that could cut through the dioramas
       const radius = 0.22 + Math.sqrt(c.share) * 1.1;
-      const disc = new THREE.Mesh(new THREE.CylinderGeometry(radius, radius, 0.04, 32), new THREE.MeshBasicMaterial({ color: 0xd8566f, transparent: true, opacity: 0.42, depthWrite: false }));
+      // last 7 days against the 30 days: gold = more of the engagement than usual, slate = less, rose = as usual
+      const tone = c.trend === null || Math.abs(c.trend) < TREND_POINTS ? "even" : c.trend > 0 ? "up" : "down";
+      if (tone === "up") rising++;
+      const fill = tone === "up" ? 0xf0a02c : tone === "down" ? 0x7f93a8 : 0xd8566f;
+      const edge = tone === "up" ? 0xb8640a : tone === "down" ? 0x52657a : 0xa8321c;
+      const disc = new THREE.Mesh(new THREE.CylinderGeometry(radius, radius, 0.04, 32), new THREE.MeshBasicMaterial({ color: fill, transparent: true, opacity: tone === "down" ? 0.36 : 0.42, depthWrite: false }));
       disc.position.copy(ll(cen.lat, cen.lon, R + 0.23));
       disc.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), base.clone().normalize());
       arcs.add(disc);
       pick(disc, { type: "country", key: c.key });
-      const ripple = new THREE.Mesh(new THREE.TorusGeometry(radius, 0.025, 6, 40), new THREE.MeshBasicMaterial({ color: 0xa8321c, transparent: true, opacity: 0.8 }));
+      const ripple = new THREE.Mesh(new THREE.TorusGeometry(radius, tone === "up" ? 0.04 : 0.025, 6, 40), new THREE.MeshBasicMaterial({ color: edge, transparent: true, opacity: 0.8 }));
       ripple.rotation.x = Math.PI / 2;
       disc.add(ripple);
       ripples.push(ripple);
@@ -621,7 +631,7 @@ export function createWorldScene(
         const mid = base.clone().add(target).multiplyScalar(0.5);
         mid.setLength(R + 1.2 + base.distanceTo(target) * 0.32);
         const curve = new THREE.QuadraticBezierCurve3(base, mid, target);
-        const tube = new THREE.Mesh(new THREE.TubeGeometry(curve, 48, 0.025 + Math.sqrt(c.share) * 0.09, 6), new THREE.MeshBasicMaterial({ color: 0xd8566f, transparent: true, opacity: 0.5 }));
+        const tube = new THREE.Mesh(new THREE.TubeGeometry(curve, 48, 0.025 + Math.sqrt(c.share) * 0.09, 6), new THREE.MeshBasicMaterial({ color: fill, transparent: true, opacity: tone === "down" ? 0.38 : 0.5 }));
         arcs.add(tube);
         pick(tube, { type: "country", key: c.key });
         const n = reduced ? 0 : Math.max(1, Math.round(c.share * 8));
@@ -634,6 +644,7 @@ export function createWorldScene(
       }
     }
     canvas.dataset.arcs = String(drawn);
+    canvas.dataset.rising = String(rising);
     // data labels
     clearDataLabels();
     for (const p of next.projects) {
@@ -649,7 +660,7 @@ export function createWorldScene(
       const a = new THREE.Object3D();
       a.position.copy(ll(cen.lat, cen.lon, R + 0.6));
       arcs.add(a);
-      dataLabels.push(label(c.label, `${Math.round(c.share * 100)} %`, a, { type: "country", key: c.key }, { minDist: 22, maxDist: 60, cls: "country", priority: 2 }));
+      dataLabels.push(label(c.label, c.sub, a, { type: "country", key: c.key }, { minDist: 22, maxDist: 60, cls: c.trend !== null && c.trend >= TREND_POINTS ? "country country-up" : "country", priority: 2 }));
     }
     next.channels
       .filter((c) => c.def.id !== "instagram")

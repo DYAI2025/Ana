@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { Observation, SocialPost } from "@/features/social/types";
 import { buildGeo, isLand, mainlandCentroid, unwrapRing } from "./geo";
-import { CHANNELS, channelStatuses, instagramView, median, ORBIT_MAX, orbitCount, pulseEvents, shares } from "./model";
+import { CHANNELS, channelStatuses, instagramView, median, ORBIT_MAX, orbitCount, pulseEvents, shares, trends, whoView } from "./model";
 import { resolveLook } from "./looks";
 import type { WorldPayload } from "./types";
 import topology from "world-atlas/countries-110m.json";
@@ -57,13 +57,16 @@ function world(pulseLikes: number, pulseAt = "2026-10-31T20:00:00.000Z", extraPu
       },
     },
     pulse: { state: "ok", reason: null, fetched_at: pulseAt, followers: 1010, media_count: 3, items: [{ id: "a", published_at: "2026-10-30T10:00:00.000Z", like_count: pulseLikes, comments_count: 4 }, ...extraPulse] },
-    audience: { state: "ok", reason: null, fetched_at: pulseAt, timeframe: "this_month", engaged_country: { state: "ok", reason: null, results: [{ key: "DE", value: 30 }, { key: "ES", value: 10 }] }, engaged_city: { state: "unavailable", reason: "meta-100", results: [] }, follower_country: { state: "unavailable", reason: null, results: [] }, follower_city: { state: "unavailable", reason: null, results: [] } },
+    audience: { state: "ok", reason: null, fetched_at: pulseAt, timeframe: "this_month", engaged_country: { state: "ok", reason: null, results: [{ key: "DE", value: 30 }, { key: "ES", value: 10 }] }, engaged_city: { state: "unavailable", reason: "meta-100", results: [] }, follower_country: { state: "unavailable", reason: null, results: [] }, follower_city: { state: "unavailable", reason: null, results: [] }, engaged_country_week: N, engaged_city_week: N, who: { engaged_week: W, engaged_month: W, follower: W }, history: { days: 0, since: null } },
     work: { state: "not-configured", reason: "not-configured", fetched_at: null, issues: [] },
     places: { ana: null },
     ana_look: resolveLook(null, null),
     release: { sha: null, started_at: pulseAt },
   };
 }
+
+const N = { state: "not_fetched" as const, reason: null, results: [] };
+const W = { age: N, gender: N, age_gender: N };
 
 describe("instagramView", () => {
   it("merges the pulse counters over the snapshot and computes ER only from measured values", () => {
@@ -154,5 +157,29 @@ describe("orbitCount", () => {
     expect(orbitCount(new Array(50).fill(0))).toBe(30);
     expect(orbitCount(new Array(28).fill(0))).toBe(28);
     expect(orbitCount([])).toBe(0);
+  });
+});
+
+describe("trends and whoView", () => {
+  const ok = (rows: Array<[string, number]>) => ({ state: "ok" as const, reason: null, results: rows.map(([key, value]) => ({ key, value })) });
+  it("trend = week share minus month share in points, only where both are known", () => {
+    const t = trends(ok([["ES", 60], ["DE", 40], ["BR", 0]]), ok([["DE", 70], ["ES", 30]]));
+    expect(t.get("ES")).toBe(30);
+    expect(t.get("DE")).toBe(-30);
+    expect(t.has("BR")).toBe(false);
+    expect(trends(N, ok([["DE", 1]])).size).toBe(0);
+  });
+  it("a combined age×gender answer becomes a pyramid, oldest band on top", () => {
+    const v = whoView({ age: N, gender: N, age_gender: ok([["25-34|F", 50], ["25-34|M", 20], ["18-24|F", 20], ["18-24|U", 10]]) });
+    expect(v?.mode).toBe("pyramid");
+    if (v?.mode !== "pyramid") return;
+    expect(v.rows.map((r) => r.band)).toEqual(["25-34", "18-24"]);
+    expect(v.rows[0]).toEqual({ band: "25-34", f: 0.5, m: 0.2, u: 0 });
+    expect(v.max).toBe(0.5);
+  });
+  it("without the combined answer: age bands and a gender split; nothing at all = null", () => {
+    const v = whoView({ age: ok([["18-24", 1], ["35-44", 3]]), gender: ok([["F", 3], ["M", 1]]), age_gender: N });
+    expect(v).toEqual({ mode: "split", ages: [{ band: "35-44", share: 0.75 }, { band: "18-24", share: 0.25 }], gender: { f: 0.75, m: 0.25, u: 0 } });
+    expect(whoView({ age: N, gender: N, age_gender: N })).toBeNull();
   });
 });

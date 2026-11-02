@@ -188,6 +188,124 @@
   font-size: 11px;
 }
 
+.labels :global(.world-label.country-up) {
+  border-left: 4px solid #f0a02c;
+}
+
+/* who engages (age × gender), floating on the stage; the panel shows the same block on narrow screens */
+.who {
+  position: absolute;
+  left: 14px;
+  bottom: 14px;
+  width: 232px;
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  background: var(--glass-fill);
+  border: 1px solid var(--glass-edge);
+  box-shadow: var(--glass-shadow);
+  backdrop-filter: var(--glass-blur);
+  font: 500 11.5px/1.3 var(--font);
+  color: var(--text-secondary);
+  /* nothing in the card is interactive: the globe under it stays draggable */
+  pointer-events: none;
+  z-index: 2;
+}
+
+.who h4 {
+  margin: 0 0 6px;
+  font: 700 12px/1.2 var(--font);
+  color: var(--text);
+}
+
+.whoRow {
+  display: grid;
+  grid-template-columns: 30px 1fr 42px 1fr 30px;
+  align-items: center;
+  gap: 4px;
+  margin: 2px 0;
+}
+
+.whoPct {
+  font-variant-numeric: tabular-nums;
+  font-size: 10.5px;
+}
+
+.whoRow > .whoPct:last-child {
+  text-align: right;
+}
+
+.whoRow > span:nth-child(3) {
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.whoBar {
+  height: 9px;
+  border-radius: 3px;
+}
+
+.whoF {
+  justify-self: end;
+  background: #d8566f;
+}
+
+.whoM {
+  justify-self: start;
+  background: #4f78b8;
+}
+
+.whoAge {
+  display: grid;
+  grid-template-columns: 42px 1fr 34px;
+  align-items: center;
+  gap: 6px;
+  margin: 2px 0;
+}
+
+.whoAge > span:last-child {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.whoAge .whoBar {
+  background: #b88aa6;
+}
+
+.whoSplit {
+  display: flex;
+  height: 10px;
+  margin: 6px 0 2px;
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.whoLegend {
+  display: flex;
+  justify-content: space-between;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.whoNote {
+  margin: 6px 0 0;
+  font-size: 10.5px;
+  color: var(--text-muted);
+}
+
+/* the panel copy: same look, in the flow */
+.who.whoInline {
+  position: static;
+  width: auto;
+  margin: 10px 0 4px;
+  box-shadow: none;
+}
+
+@media (max-width: 760px) {
+  .who:not(.whoInline) {
+    display: none;
+  }
+}
+
 .labels :global(.world-label.channel-off) {
   opacity: 0.8;
   cursor: default;
@@ -624,4 +742,10 @@ button.barLabel {
 .swatches button[aria-disabled="true"] {
   opacity: 0.6;
   cursor: progress;
+}
+
+@media (min-width: 761px) {
+  .who.whoInline {
+    display: none;
+  }
 }

@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { useI18n } from "@/components/providers/I18nProvider";
 import { useReducedMotion } from "@/lib/hooks/useReducedMotion";
-import { channelStatuses, instagramView, orbitCount, pulseEvents, shares, type ChannelView, type PulseEvent, type ShareEntry } from "./model";
+import { channelStatuses, instagramView, orbitCount, pulseEvents, shares, trends, TREND_POINTS, whoView, type ChannelView, type PulseEvent, type ShareEntry, type WhoView } from "./model";
 import { BEN_ACTIVITIES, berlinDay, VINCE_ACTIVITIES, type BenActivity, type VinceActivity } from "./berlinDay";
 import { ANA_ACTIVITIES, ANA_OUTFITS, colorHex, currentActivity, SWATCHES, type AnaActivity, type AnaLookId, type ManualLook } from "./looks";
 import { PEOPLE, PROJECTS, type WorldPersonId } from "./people";
@@ -13,7 +13,7 @@ import type { SceneData, SceneRef, StationStatus, ViewName, WorldScene } from ".
 import styles from "./world.module.css";
 
 type Tab = "now" | "selection" | "sources";
-type Layer = "engaged" | "followers";
+type Layer = "week" | "engaged" | "followers";
 const POLL_MS = 60_000;
 
 function useWorld(sinkRef: { current: (e: PulseEvent[]) => void }) {
@@ -101,7 +101,72 @@ function supportsWebGL(): boolean {
 
 function seriesOf(world: WorldPayload, layer: Layer, kind: "country" | "city"): AudienceSeries {
   const a = world.audience;
+  if (layer === "week") return kind === "country" ? a.engaged_country_week : a.engaged_city_week;
   return layer === "engaged" ? (kind === "country" ? a.engaged_country : a.engaged_city) : kind === "country" ? a.follower_country : a.follower_city;
+}
+
+function whoOf(world: WorldPayload, layer: Layer) {
+  const w = world.audience.who;
+  return layer === "week" ? w.engaged_week : layer === "engaged" ? w.engaged_month : w.follower;
+}
+
+type T = ReturnType<typeof useI18n>["t"];
+const pct = (v: number) => `${Math.round(v * 100)} %`;
+
+/** Age × gender of the whole account (Meta does not cross it with countries). */
+function WhoBlock({ view, title, t, className, testId }: { view: WhoView; title: string; t: T; className: string; testId: string }) {
+  return (
+    <div className={className} data-testid={testId} data-mode={view?.mode ?? "none"}>
+      <h4>{title}</h4>
+      {view === null ? (
+        <p className={styles.whoNote}>{t("world.who.none")}</p>
+      ) : view.mode === "pyramid" ? (
+        <>
+          <div className={styles.whoRow} aria-hidden="true">
+            <span />
+            <span style={{ justifySelf: "end" }}>{t("world.who.women")}</span>
+            <span />
+            <span>{t("world.who.men")}</span>
+            <span />
+          </div>
+          {view.rows.map((r) => (
+            <div key={r.band} className={styles.whoRow} title={t("world.who.rowTitle", { band: r.band, f: pct(r.f), m: pct(r.m) })}>
+              <span className={styles.whoPct}>{pct(r.f)}</span>
+              <span className={`${styles.whoBar} ${styles.whoF}`} style={{ width: `${Math.max(2, (r.f / view.max) * 100)}%` }} />
+              <span>{r.band}</span>
+              <span className={`${styles.whoBar} ${styles.whoM}`} style={{ width: `${Math.max(2, (r.m / view.max) * 100)}%` }} />
+              <span className={styles.whoPct}>{pct(r.m)}</span>
+            </div>
+          ))}
+        </>
+      ) : (
+        <>
+          {view.gender ? (
+            <>
+              <div className={styles.whoSplit} role="img" aria-label={t("world.who.split", { f: pct(view.gender.f), m: pct(view.gender.m), u: pct(view.gender.u) })}>
+                <span style={{ width: `${view.gender.f * 100}%`, background: "#d8566f" }} />
+                <span style={{ width: `${view.gender.m * 100}%`, background: "#4f78b8" }} />
+                <span style={{ width: `${view.gender.u * 100}%`, background: "#b9b3bd" }} />
+              </div>
+              <div className={styles.whoLegend}>
+                <span>{t("world.who.women")} {pct(view.gender.f)}</span>
+                <span>{t("world.who.men")} {pct(view.gender.m)}</span>
+                {view.gender.u > 0 ? <span>{t("world.who.unknown")} {pct(view.gender.u)}</span> : null}
+              </div>
+            </>
+          ) : null}
+          {view.ages.map((r) => (
+            <div key={r.band} className={styles.whoAge}>
+              <span>{r.band}</span>
+              <span className={styles.whoBar} style={{ width: `${Math.max(2, r.share * 100)}%` }} />
+              <span>{pct(r.share)}</span>
+            </div>
+          ))}
+        </>
+      )}
+      <p className={styles.whoNote}>{t("world.who.note")}</p>
+    </div>
+  );
 }
 
 export function WorldView() {
@@ -117,7 +182,9 @@ export function WorldView() {
   const labelsRef = useRef<HTMLDivElement>(null);
   const [gl, setGl] = useState<"loading" | "ok" | "unsupported">("loading");
   const [view, setView] = useState<ViewName>("world");
-  const [layer, setLayer] = useState<Layer>("engaged");
+  // the last 7 days lead once Meta answers them; the 30 days otherwise
+  const [layerPick, setLayer] = useState<Layer | null>(null);
+  const layer: Layer = layerPick ?? (world?.audience.engaged_country_week.state === "ok" ? "week" : "engaged");
   const [tab, setTab] = useState<Tab>("now");
   const [selected, setSelected] = useState<SceneRef | null>(null);
   const [now, setNow] = useState(() => Date.now());
@@ -164,7 +231,18 @@ export function WorldView() {
     [world, workState],
   );
 
-  const countries: Array<ShareEntry & { label: string }> = useMemo(() => (world ? shares(seriesOf(world, layer, "country")).map((c) => ({ ...c, label: country(c.key) })) : []), [world, layer, country]);
+  const countries: Array<ShareEntry & { label: string; sub: string; trend: number | null }> = useMemo(() => {
+    if (!world) return [];
+    const trend = layer === "week" ? trends(world.audience.engaged_country_week, world.audience.engaged_country) : new Map<string, number>();
+    return shares(seriesOf(world, layer, "country")).map((c) => {
+      const d = trend.get(c.key) ?? null;
+      const share = `${Math.round(c.share * 100)} %`;
+      const sub = d === null || Math.abs(d) < TREND_POINTS ? share : t(d > 0 ? "world.audience.up" : "world.audience.down", { share, n: Math.round(Math.abs(d)) });
+      return { ...c, label: country(c.key), sub, trend: d };
+    });
+  }, [world, layer, country, t]);
+  const who = useMemo(() => (world ? whoView(whoOf(world, layer)) : null), [world, layer]);
+  const whoTitle = t(layer === "week" ? "world.who.week" : layer === "engaged" ? "world.who.month" : "world.who.followers");
   const anaPlaceLabel = world?.places.ana?.label ?? null;
 
   // the look as the panel last saved it (until a world read from after the save arrives)
@@ -273,8 +351,8 @@ export function WorldView() {
   };
 
   const pulseLine = !world ? t("world.pulse.waiting") : world.pulse.state === "ok" ? t("world.pulse.live", { time: ago(world.pulse.fetched_at) }) : world.pulse.fetched_at ? t("world.pulse.failed", { reason: world.pulse.reason ?? world.pulse.state }) : t("world.pulse.waiting");
-  const timeframe = world?.audience.timeframe ?? "this_month";
-  const timeframeLabel = timeframe === "this_week" ? t("world.audience.timeframes.this_week") : t("world.audience.timeframes.this_month");
+  const timeframeLabel = layer === "week" ? t("world.audience.timeframes.this_week") : t("world.audience.timeframes.this_month");
+  const history = world?.audience.history ?? { days: 0, since: null };
 
   const audienceBlock = world ? (
     <section className={styles.section} aria-labelledby="world-audience">
@@ -310,6 +388,11 @@ export function WorldView() {
         );
       })}
       <p className={styles.note}>{t("world.audience.note", { timeframe: timeframeLabel })}</p>
+      {layer === "week" ? <p className={styles.note}>{t("world.audience.trendNote", { n: TREND_POINTS })}</p> : null}
+      <WhoBlock view={who} title={whoTitle} t={t} className={`${styles.who} ${styles.whoInline}`} testId="world-who-panel" />
+      <p className={styles.note} data-testid="world-history">
+        {history.days > 0 ? t("world.audience.history", { n: history.days, since: history.since ?? "—" }) : t("world.audience.historyNone")}
+      </p>
     </section>
   ) : null;
 
@@ -686,7 +769,7 @@ export function WorldView() {
               ))}
             </div>
             <div role="group" aria-label={t("world.layer.label")} className={styles.segment}>
-              {(["engaged", "followers"] as const).map((l) => (
+              {(["week", "engaged", "followers"] as const).map((l) => (
                 <button key={l} type="button" aria-pressed={layer === l} onClick={() => setLayer(l)}>
                   {t(`world.layer.${l}`)}
                 </button>
@@ -700,6 +783,7 @@ export function WorldView() {
           <div className={styles.stage}>
             <canvas ref={canvasRef} className={styles.canvas} data-testid="world-canvas" role="img" aria-label={t("world.stageLabel")} hidden={gl === "unsupported"} />
             <div ref={labelsRef} className={styles.labels} />
+            {world && gl === "ok" ? <WhoBlock view={who} title={whoTitle} t={t} className={styles.who ?? ""} testId="world-who" /> : null}
             {gl === "loading" ? <p className={styles.stageNote}>{t("world.loading")}</p> : null}
             {gl === "unsupported" ? (
               <p className={styles.stageNote} data-testid="world-no-webgl">

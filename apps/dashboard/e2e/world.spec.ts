@@ -49,9 +49,16 @@ test.describe("ANA World — 3D view over real dashboard data", () => {
     const posts = Math.min(30, body.world.instagram.snapshot.posts.length);
     await expect(page.getByTestId("world-canvas")).toHaveAttribute("data-posts", String(posts));
     await expect(page.getByTestId("world-kpi-posts")).toContainText(String(posts));
-    await expect(page.getByTestId("world-canvas")).toHaveAttribute("data-arcs", "5");
+    // the last 7 days lead: four countries, Spain's share rising against the 30 days
+    await expect(page.getByTestId("world-canvas")).toHaveAttribute("data-arcs", "4");
+    await expect(page.getByTestId("world-canvas")).toHaveAttribute("data-rising", "1");
     await expect(page.getByTestId("world-kpi-followers")).toContainText("12,400");
     const countries = page.getByTestId("world-audience-country");
+    await expect(countries).toContainText("Spain");
+    await expect(countries).toContainText("150");
+    await page.getByRole("button", { name: "Engaged · 30 days" }).click();
+    await expect(page.getByTestId("world-canvas")).toHaveAttribute("data-arcs", "5");
+    await expect(page.getByTestId("world-canvas")).toHaveAttribute("data-rising", "0");
     await expect(countries).toContainText("Germany");
     await expect(countries).toContainText("410");
     await expect(page.getByTestId("world-audience-city")).toContainText("Synthetic City A");
@@ -63,6 +70,26 @@ test.describe("ANA World — 3D view over real dashboard data", () => {
     await openWorld(page);
     await expect(page.getByTestId("world-audience-country")).toContainText("Not available: meta-100");
     await expect(page.getByTestId("world-canvas")).toHaveAttribute("data-arcs", "0");
+  });
+
+  test("who · age and gender of the whole account float on the stage, per layer, with the rising country marked", async ({ page }) => {
+    await openWorld(page);
+    const who = page.getByTestId("world-who");
+    // 7 days: no combined answer → age bands and a gender split
+    await expect(who).toHaveAttribute("data-mode", "split");
+    await expect(who).toContainText("Who engaged · 7 days");
+    await expect(who).toContainText("25-34");
+    await expect(who).toContainText("Women 64 %");
+    await expect(who).toContainText("Not stated 3 %");
+    await expect(who).toContainText("not per country");
+    await expect(page.locator(".world-label.country-up")).toContainText("▲ 22 pts");
+    // 30 days: Meta answered age×gender together → a pyramid
+    await page.getByRole("button", { name: "Engaged · 30 days" }).click();
+    await expect(who).toHaveAttribute("data-mode", "pyramid");
+    await expect(who).toContainText("Who engaged · 30 days");
+    await page.getByRole("button", { name: "Followers", exact: true }).click();
+    await expect(who).toContainText("Who follows");
+    await expect(page.getByTestId("world-history")).toContainText(/daily snapshot|No daily snapshots/);
   });
 
   test("AC5 · a real like increase between two pulse reads shows up in the feed", async ({ page }) => {

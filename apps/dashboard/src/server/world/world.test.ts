@@ -58,6 +58,35 @@ describe("normalizePulse / normalizeAudience — worker answers are checked, nev
     expect(a.follower_city.state).toBe("not_fetched");
     expect(() => normalizeAudience({ ...audienceBody, audience_version: 9 })).toThrow();
   });
+
+  it("reads the 7-day, age, gender and combined series by timeframe and drops keys of the wrong shape", () => {
+    const row = (breakdown: string, timeframe: string, results: Array<[string, number]>) => ({ name: "engaged_audience_demographics", breakdown, timeframe, state: "ok", results: results.map(([key, value]) => ({ key, value })) });
+    const a = normalizeAudience({
+      ...audienceBody,
+      metrics: [
+        ...audienceBody.metrics,
+        row("country", "this_week", [["ES", 70], ["DE", 30]]),
+        row("age", "this_week", [["25-34", 50], ["65+", 4], ["young", 9]]),
+        row("gender", "this_week", [["F", 60], ["M", 30], ["X", 5]]),
+        row("age,gender", "this_month", [["25-34|F", 40], ["18-24|M", 10], ["25-34", 3]]),
+        { name: "follower_demographics", breakdown: "age", timeframe: "this_month", state: "unavailable", error_class: "meta-100", results: [] },
+      ],
+    });
+    // the week series never shadows the month series of the same breakdown
+    expect(a.engaged_country.results[0]).toEqual({ key: "DE", value: 120 });
+    expect(a.engaged_country_week.results).toEqual([{ key: "ES", value: 70 }, { key: "DE", value: 30 }]);
+    expect(a.engaged_city_week.state).toBe("not_fetched");
+    expect(a.who.engaged_week.age.results).toEqual([{ key: "25-34", value: 50 }, { key: "65+", value: 4 }]);
+    expect(a.who.engaged_week.gender.results.map((r) => r.key)).toEqual(["F", "M"]);
+    expect(a.who.engaged_month.age_gender.results).toEqual([{ key: "25-34|F", value: 40 }, { key: "18-24|M", value: 10 }]);
+    expect(a.who.follower.age).toEqual({ state: "unavailable", reason: "meta-100", results: [] });
+    expect(a.who.engaged_week.age_gender.state).toBe("not_fetched");
+  });
+
+  it("an older worker answer without age, gender or the last 7 days leaves them not_fetched, never empty-but-ok", () => {
+    const a = normalizeAudience(audienceBody);
+    expect([a.engaged_country_week.state, a.who.engaged_week.age.state, a.who.follower.gender.state]).toEqual(["not_fetched", "not_fetched", "not_fetched"]);
+  });
 });
 
 describe("readAnaPlace / readRelease", () => {

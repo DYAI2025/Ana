@@ -51,6 +51,20 @@ export interface WorldAudience extends WorldSourceStatus {
   engaged_city: AudienceSeries;
   follower_country: AudienceSeries;
   follower_city: AudienceSeries;
+  /** the last 7 days (Meta this_week); not_fetched from a worker that does not read it */
+  engaged_country_week: AudienceSeries;
+  engaged_city_week: AudienceSeries;
+  /** who engaged or follows, for the whole account (Meta does not cross it with countries) */
+  who: { engaged_week: WhoSeries; engaged_month: WhoSeries; follower: WhoSeries };
+  /** days of stored audience snapshots, the base for later comparisons of posts and audience shifts */
+  history: { days: number; since: string | null };
+}
+
+/** age band ("25-34", "65+"), gender ("F", "M", "U" = not stated) and both ("25-34|F") */
+export interface WhoSeries {
+  age: AudienceSeries;
+  gender: AudienceSeries;
+  age_gender: AudienceSeries;
 }
 
 export interface WorldWorkIssue {
