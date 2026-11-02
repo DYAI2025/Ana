@@ -38,6 +38,9 @@ export interface PostTags {
 /** below this the categories of a post are kept but not counted */
 export const TAG_MIN_CONFIDENCE = 0.5;
 
+// user-assigned or reserved codes a model might echo as a placeholder
+const PLACEHOLDER_CODES = new Set(["XX", "ZZ", "AA", "QQ", "XY", "XZ"]);
+
 const pick = <T extends string>(list: readonly T[], v: unknown): T | null => (typeof v === "string" && (list as readonly string[]).includes(v) ? (v as T) : null);
 
 /** A model answer or a stored record, checked field by field: anything off the lists makes the whole record null. */
@@ -51,7 +54,9 @@ export function parseTags(raw: unknown): PostTags | null {
   const cta = pick(CTAS, o.cta);
   const mood = pick(MOODS, o.mood);
   const confidence = typeof o.confidence === "number" && o.confidence >= 0 && o.confidence <= 1 ? o.confidence : null;
-  const country = o.country === null || o.country === undefined || o.country === "" ? null : typeof o.country === "string" && /^[A-Z]{2}$/.test(o.country) ? o.country : undefined;
+  // a code in either case is fine; "XX"-style placeholders and anything else make the record null
+  const code = typeof o.country === "string" ? o.country.trim().toUpperCase() : null;
+  const country = o.country === null || o.country === undefined || o.country === "" ? null : code && /^[A-Z]{2}$/.test(code) && !PLACEHOLDER_CODES.has(code) ? code : undefined;
   if (!theme || !ana || !shot || !hook || !cta || !mood || confidence === null || country === undefined || typeof o.brand !== "boolean") return null;
   return { theme, ana, shot, hook, cta, mood, country, brand: o.brand, confidence };
 }
