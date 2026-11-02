@@ -143,7 +143,7 @@ function WhoBlock({ view, title, t, className, testId }: { view: WhoView; title:
         <>
           {view.gender ? (
             <>
-              <div className={styles.whoSplit} role="img" aria-label={t("world.who.split", { f: pct(view.gender.f), m: pct(view.gender.m) })}>
+              <div className={styles.whoSplit} role="img" aria-label={t("world.who.split", { f: pct(view.gender.f), m: pct(view.gender.m), u: pct(view.gender.u) })}>
                 <span style={{ width: `${view.gender.f * 100}%`, background: "#d8566f" }} />
                 <span style={{ width: `${view.gender.m * 100}%`, background: "#4f78b8" }} />
                 <span style={{ width: `${view.gender.u * 100}%`, background: "#b9b3bd" }} />
@@ -151,6 +151,7 @@ function WhoBlock({ view, title, t, className, testId }: { view: WhoView; title:
               <div className={styles.whoLegend}>
                 <span>{t("world.who.women")} {pct(view.gender.f)}</span>
                 <span>{t("world.who.men")} {pct(view.gender.m)}</span>
+                {view.gender.u > 0 ? <span>{t("world.who.unknown")} {pct(view.gender.u)}</span> : null}
               </div>
             </>
           ) : null}

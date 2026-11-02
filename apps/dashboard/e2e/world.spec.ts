@@ -80,6 +80,7 @@ test.describe("ANA World — 3D view over real dashboard data", () => {
     await expect(who).toContainText("Who engaged · 7 days");
     await expect(who).toContainText("25-34");
     await expect(who).toContainText("Women 64 %");
+    await expect(who).toContainText("Not stated 3 %");
     await expect(who).toContainText("not per country");
     await expect(page.locator(".world-label.country-up")).toContainText("▲ 22 pts");
     // 30 days: Meta answered age×gender together → a pyramid
