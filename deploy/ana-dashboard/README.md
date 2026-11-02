@@ -180,7 +180,7 @@ ssh <contabo> journalctl -u ana-release -o cat -n 50
 keys are not reachable from the host, a bundle whose checksum does not match, a bundle whose `.ana-build` does not
 name a push run of `dashboard-image` on `main` for that commit (invariant 1; `release.sh --check-bundle <sha> <dir>`
 runs only this check and touches nothing) and a bundle with symlinks that leave it.
-It unpacks the bundle read-only under `releases/<sha>` (`.next/cache` points at the unit's CacheDirectory), switches
+It unpacks the bundle read-only under `releases/<sha>` (`.next/cache` points at the unit's CacheDirectory; kept data such as the world's daily audience history lives in the unit's StateDirectory, `/var/lib/private/dyai/ana-dashboard` under DynamicUser, which `systemctl clean --what=cache` leaves alone), switches
 `current` atomically, restarts the dashboard (after `reset-failed`, so an earlier crash loop cannot block the start)
 and counts the release as verified only when the unit is active, `/api/healthz` answers 200 from the unit's own
 process **and** the access gate answers 401 to a request without an Access assertion (503 = Access settings missing

@@ -3,7 +3,7 @@ import { randomUUID } from "node:crypto";
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import type { AudienceSeries } from "@/features/world/types";
-import { stateDir } from "./lookStore";
+import os from "node:os";
 
 /**
  * One aggregated audience snapshot per Berlin day: who engaged in the last 7 days (countries, age, gender) next to the
@@ -23,8 +23,24 @@ type Pair = [string, number];
 export const HISTORY_MAX_DAYS = 400;
 const POST_MAX = 60;
 
+const FILE = "world-audience-history.json";
+const first = (v: string | undefined) => v?.split(":")[0] || undefined;
+
+/**
+ * Kept data, so on the VPS it lives in the unit's StateDirectory (systemd sets STATE_DIRECTORY), not in the
+ * CacheDirectory that `systemctl clean` may empty. WORLD_STATE_DIR overrides it (e2e); before the unit had a
+ * StateDirectory the file lived in the cache, and a missing state file is seeded from there once (legacyHistoryFile).
+ */
 export function historyFile(env: Readonly<Record<string, string | undefined>> = process.env): string {
-  return path.join(stateDir(env), "world-audience-history.json");
+  return path.join(env.WORLD_STATE_DIR || first(env.STATE_DIRECTORY) || first(env.CACHE_DIRECTORY) || os.tmpdir(), FILE);
+}
+
+/** where the history lived before the StateDirectory, if that is a different file */
+export function legacyHistoryFile(env: Readonly<Record<string, string | undefined>> = process.env): string | null {
+  const cache = first(env.CACHE_DIRECTORY);
+  if (env.WORLD_STATE_DIR || !env.STATE_DIRECTORY || !cache) return null;
+  const legacy = path.join(cache, FILE);
+  return legacy === historyFile(env) ? null : legacy;
 }
 
 export function berlinDay(ms: number): string {
@@ -59,18 +75,26 @@ function isEntry(v: unknown): v is HistoryEntry {
   return typeof o.day === "string" && /^\d{4}-\d{2}-\d{2}$/.test(o.day) && typeof o.fetched_at === "string" && typeof o.week === "object" && o.week !== null && Array.isArray(o.posts);
 }
 
-export async function readHistory(file: string = historyFile()): Promise<HistoryEntry[]> {
+async function readFile(file: string): Promise<HistoryEntry[] | null> {
   try {
     const raw: unknown = JSON.parse(await fs.readFile(file, "utf8"));
     return Array.isArray(raw) ? raw.filter(isEntry) : [];
-  } catch {
-    return [];
+  } catch (e) {
+    return (e as NodeJS.ErrnoException)?.code === "ENOENT" ? null : [];
   }
 }
 
+/** The stored days; a missing file falls back to the legacy location (read only, the next record writes the new one). */
+export async function readHistory(file: string = historyFile(), legacy: string | null = file === historyFile() ? legacyHistoryFile() : null): Promise<HistoryEntry[]> {
+  const own = await readFile(file);
+  if (own !== null) return own;
+  return legacy ? ((await readFile(legacy)) ?? []) : [];
+}
+
 /** Keeps one entry per day (the latest read of that day wins) and at most HISTORY_MAX_DAYS days. */
-export async function recordHistory(entry: HistoryEntry, file: string = historyFile()): Promise<HistoryEntry[]> {
-  const all = (await readHistory(file)).filter((e) => e.day !== entry.day);
+export async function recordHistory(entry: HistoryEntry, file: string = historyFile(), legacy: string | null = file === historyFile() ? legacyHistoryFile() : null): Promise<HistoryEntry[]> {
+  // the first write to the StateDirectory carries over what the cache held
+  const all = (await readHistory(file, legacy)).filter((e) => e.day !== entry.day);
   all.push(entry);
   all.sort((a, b) => a.day.localeCompare(b.day));
   const kept = all.slice(-HISTORY_MAX_DAYS);

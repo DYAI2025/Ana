@@ -4,7 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { AudienceSeries } from "@/features/world/types";
-import { berlinDay, historyEntry, readHistory, recordHistory, HISTORY_MAX_DAYS, type HistoryEntry } from "./audienceHistory";
+import { berlinDay, historyEntry, historyFile, legacyHistoryFile, readHistory, recordHistory, HISTORY_MAX_DAYS, type HistoryEntry } from "./audienceHistory";
 
 const ok = (rows: Array<[string, number]>): AudienceSeries => ({ state: "ok", reason: null, results: rows.map(([key, value]) => ({ key, value })) });
 const none: AudienceSeries = { state: "not_fetched", reason: "not-returned", results: [] };
@@ -56,5 +56,24 @@ describe("audience history — daily aggregated snapshots, no captions, no peopl
     await (await import("node:fs/promises")).writeFile(file, "not json");
     expect(await readHistory(file)).toEqual([]);
     expect((await readFile(file, "utf8")).length).toBeGreaterThan(0);
+  });
+
+  it("lives in the StateDirectory on the VPS, not in the cache; a missing state file is seeded from the old cache file", async () => {
+    const env = { STATE_DIRECTORY: path.join(dir, "state"), CACHE_DIRECTORY: path.join(dir, "cache") };
+    expect(historyFile(env)).toBe(path.join(dir, "state", "world-audience-history.json"));
+    expect(historyFile({ ...env, WORLD_STATE_DIR: "/e2e" })).toBe(path.join("/e2e", "world-audience-history.json"));
+    expect(historyFile({ CACHE_DIRECTORY: env.CACHE_DIRECTORY })).toBe(path.join(dir, "cache", "world-audience-history.json"));
+    const legacy = legacyHistoryFile(env);
+    expect(legacy).toBe(path.join(dir, "cache", "world-audience-history.json"));
+    expect(legacyHistoryFile({ CACHE_DIRECTORY: env.CACHE_DIRECTORY })).toBeNull();
+    const e: HistoryEntry = { day: "2026-11-02", fetched_at: "2026-11-02T10:00:00.000Z", week: { country: [["DE", 1]], age: [], gender: [] }, posts: [] };
+    await recordHistory(e, legacy as string);
+    const own = historyFile(env);
+    expect(await readHistory(own, legacy)).toEqual([e]);
+    const next = { ...e, day: "2026-11-03" };
+    // the first write to the state file carries the cached days over; from then on the state file alone counts
+    expect((await recordHistory(next, own, legacy)).map((x) => x.day)).toEqual(["2026-11-02", "2026-11-03"]);
+    await recordHistory({ ...e, day: "2026-10-30" }, legacy as string);
+    expect((await readHistory(own, legacy)).map((x) => x.day)).toEqual(["2026-11-02", "2026-11-03"]);
   });
 });
