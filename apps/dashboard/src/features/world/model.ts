@@ -4,7 +4,7 @@
  */
 import type { CanonicalMetric, PostFormat, SocialPost } from "@/features/social/types";
 import { cockpitStateOf } from "@/features/social/state";
-import type { AudienceEntry, AudienceSeries, WorldPayload } from "./types";
+import type { AudienceEntry, AudienceSeries, WhoSeries, WorldPayload } from "./types";
 
 export type ChannelId = "instagram" | "substack" | "tiktok" | "youtube" | "facebook";
 
@@ -203,4 +203,61 @@ export function shares(series: AudienceSeries): ShareEntry[] {
   const total = series.results.reduce((s, r) => s + r.value, 0);
   if (total <= 0) return [];
   return series.results.map((r) => ({ ...r, share: r.value / total }));
+}
+
+/** A country's share in the last 7 days counts as rising/falling against the 30 days from this many points on. */
+export const TREND_POINTS = 2;
+
+/** Week share minus month share in percentage points per country, only where both are known. */
+export function trends(week: AudienceSeries, month: AudienceSeries): Map<string, number> {
+  const w = shares(week);
+  const m = new Map(shares(month).map((r) => [r.key, r.share]));
+  const out = new Map<string, number>();
+  for (const r of w) {
+    const before = m.get(r.key);
+    if (before !== undefined) out.set(r.key, Math.round((r.share - before) * 1000) / 10);
+  }
+  return out;
+}
+
+export interface WhoRow {
+  band: string;
+  /** shares of the whole series (0..1) */
+  f: number;
+  m: number;
+  u: number;
+}
+export type WhoView =
+  | { mode: "pyramid"; rows: WhoRow[]; max: number }
+  | { mode: "split"; ages: Array<{ band: string; share: number }>; gender: { f: number; m: number; u: number } | null }
+  | null;
+
+const bandStart = (b: string) => Number.parseInt(b, 10);
+
+/** Age × gender as a pyramid when Meta gave both together, else age bands and a gender split side by side. */
+export function whoView(w: WhoSeries): WhoView {
+  if (w.age_gender.state === "ok") {
+    const total = w.age_gender.results.reduce((s, r) => s + r.value, 0);
+    if (total > 0) {
+      const rows = new Map<string, WhoRow>();
+      for (const r of w.age_gender.results) {
+        const [band, g] = r.key.split("|");
+        if (!band || !g) continue;
+        const row = rows.get(band) ?? { band, f: 0, m: 0, u: 0 };
+        if (g === "F") row.f += r.value / total;
+        else if (g === "M") row.m += r.value / total;
+        else row.u += r.value / total;
+        rows.set(band, row);
+      }
+      const list = [...rows.values()].sort((a, b) => bandStart(b.band) - bandStart(a.band));
+      return { mode: "pyramid", rows: list, max: Math.max(0.0001, ...list.map((r) => Math.max(r.f, r.m))) };
+    }
+  }
+  const ages = shares(w.age)
+    .map((r) => ({ band: r.key, share: r.share }))
+    .sort((a, b) => bandStart(b.band) - bandStart(a.band));
+  const g = shares(w.gender);
+  const gender = g.length ? { f: g.find((r) => r.key === "F")?.share ?? 0, m: g.find((r) => r.key === "M")?.share ?? 0, u: g.find((r) => r.key === "U")?.share ?? 0 } : null;
+  if (!ages.length && !gender) return null;
+  return { mode: "split", ages, gender };
 }

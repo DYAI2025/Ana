@@ -100,10 +100,10 @@ export function buildPulse({ likeBump = 0, fetchedAt = new Date().toISOString() 
 
 /** Synthetic audience (audience_version 1). Invented shares only. */
 export function buildAudience({ unavailable = false } = {}) {
-  const series = (name, breakdown, rows) =>
+  const series = (name, breakdown, rows, timeframe = "this_month") =>
     unavailable
-      ? { name, breakdown, timeframe: "this_month", state: "unavailable", error_class: "meta-100", results: [] }
-      : { name, breakdown, timeframe: "this_month", state: "ok", results: rows.map(([key, value]) => ({ key, value })) };
+      ? { name, breakdown, timeframe, state: "unavailable", error_class: "meta-100", results: [] }
+      : { name, breakdown, timeframe, state: "ok", results: rows.map(([key, value]) => ({ key, value })) };
   return {
     audience_version: 1,
     fetched_at: new Date().toISOString(),
@@ -114,6 +114,16 @@ export function buildAudience({ unavailable = false } = {}) {
       series("engaged_audience_demographics", "city", [["Synthetic City A", 120], ["Synthetic City B", 60]]),
       series("follower_demographics", "country", [["DE", 5200], ["US", 2100], ["ES", 900]]),
       series("follower_demographics", "city", [["Synthetic City A", 900]]),
+      // the last 7 days: Spain's share rises against the 30 days, the others fall
+      series("engaged_audience_demographics", "country", [["ES", 150], ["DE", 120], ["US", 40], ["IT", 20]], "this_week"),
+      series("engaged_audience_demographics", "city", [["Synthetic City B", 70]], "this_week"),
+      series("engaged_audience_demographics", "age", [["18-24", 90], ["25-34", 160], ["35-44", 60], ["45-54", 20]], "this_week"),
+      series("engaged_audience_demographics", "gender", [["F", 210], ["M", 110], ["U", 10]], "this_week"),
+      series("engaged_audience_demographics", "age", [["25-34", 400], ["18-24", 300]]),
+      series("engaged_audience_demographics", "gender", [["F", 500], ["M", 200]]),
+      series("engaged_audience_demographics", "age,gender", [["18-24|F", 200], ["18-24|M", 100], ["25-34|F", 300], ["25-34|M", 100]]),
+      series("follower_demographics", "age", [["25-34", 4000]]),
+      series("follower_demographics", "gender", [["F", 3000], ["M", 2000]]),
     ],
   };
 }

@@ -5,6 +5,7 @@ import { readSnapshot } from "@/server/jira/work";
 import { readSocialConfig } from "@/server/social/config";
 import { socialServiceFromEnv } from "@/server/social/service";
 import { readManual } from "./lookStore";
+import { readHistory, recordHistory } from "./audienceHistory";
 import { createWorldService, type WorldService } from "./service";
 import { createVisionReader, visionConfigFromEnv } from "./vision";
 
@@ -36,6 +37,7 @@ export function worldServiceFromEnv(): WorldService {
         timings: pulseMs === undefined ? undefined : { pulseMs, retryMs: Math.min(60_000, pulseMs) },
         readManual: () => readManual(),
         vision: vision ? createVisionReader(vision) : null,
+        history: { read: () => readHistory(), record: (e) => recordHistory(e) },
       }),
     };
   }

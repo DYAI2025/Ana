@@ -11,9 +11,12 @@ import { COLOR_RE, isAnaActivity, isAnaLook, type ManualLook } from "@/features/
  * a development server falls back to the system temp directory. Losing the file only means "automatic" again.
  * Nothing about who picked is stored.
  */
+export function stateDir(env: Readonly<Record<string, string | undefined>> = process.env): string {
+  return env.WORLD_STATE_DIR || env.CACHE_DIRECTORY?.split(":")[0] || os.tmpdir();
+}
+
 export function lookFile(env: Readonly<Record<string, string | undefined>> = process.env): string {
-  const dir = env.WORLD_STATE_DIR || env.CACHE_DIRECTORY?.split(":")[0] || os.tmpdir();
-  return path.join(dir, "world-ana-look.json");
+  return path.join(stateDir(env), "world-ana-look.json");
 }
 
 export function parseManual(raw: unknown): ManualLook | null {
