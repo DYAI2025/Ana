@@ -468,6 +468,11 @@ export function createWorldScene(
     orbit: { lat: 14, lon: 70, dist: 47, look: new THREE.Vector3(), focus: null, auto: true },
   };
   const cam = { lat: 34, lon: 20, dist: 44, tLat: 30, tLon: 55, tDist: 38, look: new THREE.Vector3(), tLook: new THREE.Vector3(), focus: null as "berlin" | "ana" | null, auto: !reduced };
+  function placeCamera() {
+    ll(cam.lat, cam.lon, cam.dist, camera.position);
+    camera.up.set(0, 1, 0);
+    camera.lookAt(cam.look);
+  }
   function focus(view: ViewName) {
     const v = VIEWS[view];
     cam.tLat = v.lat;
@@ -727,10 +732,66 @@ export function createWorldScene(
   let dist0 = 0;
   const ray = new THREE.Raycaster();
   const ndc = new THREE.Vector2();
+  // Dragging grabs the globe: the point under the pointer stays under the pointer. Turning the camera by a fixed angle
+  // per pixel instead made the globe turn about its north pole, which the camera sees from 30° above, so the turn
+  // seemed to pivot near the top of the globe rather than where one grabbed it.
+  const globeSphere = new THREE.Sphere(new THREE.Vector3(), R);
+  const hitPoint = new THREE.Vector3();
+  const hitNormal = new THREE.Vector3();
+  const wrap180 = (d: number) => ((((d + 180) % 360) + 360) % 360) - 180;
+  function surfaceAt(clientX: number, clientY: number): { lat: number; lon: number } | null {
+    const r = canvas.getBoundingClientRect();
+    ndc.set(((clientX - r.left) / r.width) * 2 - 1, -((clientY - r.top) / r.height) * 2 + 1);
+    camera.updateMatrixWorld();
+    ray.setFromCamera(ndc, camera);
+    // in a close view the grabbed ground is the raised site (lift 0.45-0.62), not the bare sphere behind it
+    globeSphere.radius = cam.tLook.lengthSq() > 1 ? R + 0.6 : R;
+    if (!ray.ray.intersectSphere(globeSphere, hitPoint)) return null;
+    // a grazing hit near the rim, or a point near a pole, cannot be held under the pointer by lat/lon alone: no grab
+    if (Math.abs(ray.ray.direction.dot(hitNormal.copy(hitPoint).normalize())) < 0.3) return null;
+    // inverse of ll(): lat from y, lon from the angle in the x/z plane
+    const lat = (Math.asin(Math.max(-1, Math.min(1, hitPoint.y / globeSphere.radius))) * 180) / Math.PI;
+    const lon = wrap180((Math.atan2(hitPoint.z, -hitPoint.x) * 180) / Math.PI - 180);
+    if (Math.abs(lat) > 80) return null;
+    return { lat, lon };
+  }
+  let grab: { lat: number; lon: number } | null = null;
+  // a drag (not a tap) takes over from a running view transition where it stands, so nothing jumps
+  let frozen = false;
+  // Turns camera and look point together as one rigid rotation about the globe's centre. In the close views the camera
+  // looks at a point on the surface, not at the centre; turning only the camera swung the view about the globe's axis,
+  // far from the middle of the screen. Turning both slides the globe under a fixed camera rig instead.
+  const qTurn = new THREE.Quaternion();
+  const qLon = new THREE.Quaternion();
+  const turnFrom = new THREE.Vector3();
+  const turnTo = new THREE.Vector3();
+  const yAxis = new THREE.Vector3(0, 1, 0);
+  const nextLook = new THREE.Vector3();
+  const forward = new THREE.Vector3();
+  function angleTurn(dx: number, dy: number, f: number) {
+    // at the close-view limit the sideways part still applies
+    if (!turn(dy * f, -dx * f)) turn(0, -dx * f);
+  }
+  function turn(dLat: number, dLon: number): boolean {
+    const lat = Math.max(-75, Math.min(78, cam.tLat + dLat));
+    qTurn.setFromUnitVectors(ll(cam.tLat, cam.tLon, 1, turnFrom), ll(lat, cam.tLon, 1, turnTo));
+    qTurn.premultiply(qLon.setFromAxisAngle(yAxis, (dLon * Math.PI) / 180));
+    // in a close view the turned rig could end up looking (nearly) straight up or down, where lookAt with up = Y fails
+    nextLook.copy(cam.tLook).applyQuaternion(qTurn);
+    forward.copy(nextLook).sub(ll(lat, cam.tLon + dLon, cam.dist, turnTo)).normalize();
+    if (cam.tLook.lengthSq() > 1 && Math.abs(forward.y) > 0.8) return false;
+    cam.tLat = lat;
+    cam.tLon += dLon;
+    cam.tLook.copy(nextLook);
+    cam.look.applyQuaternion(qTurn);
+    return true;
+  }
   const onDown = (e: PointerEvent) => {
     canvas.setPointerCapture(e.pointerId);
     pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
     down = { x: e.clientX, y: e.clientY, moved: 0 };
+    grab = pointers.size === 1 ? surfaceAt(e.clientX, e.clientY) : null;
+    frozen = false;
     if (pointers.size === 2) {
       const [a, b] = [...pointers.values()];
       if (a && b) {
@@ -752,12 +813,72 @@ export function createWorldScene(
       if (a && b && pinch0 > 0) cam.tDist = Math.min(52, Math.max(12, (dist0 * pinch0) / Math.hypot(a.x - b.x, a.y - b.y)));
       return;
     }
+    // while dragging the camera follows the pointer directly, so each hit test sees what is on screen
+    const snap = () => {
+      cam.lat = cam.tLat;
+      cam.lon = cam.tLon;
+      cam.look.copy(cam.tLook);
+      placeCamera();
+    };
+    if (!frozen) {
+      frozen = true;
+      cam.tLat = cam.lat;
+      cam.tLon = cam.lon;
+      cam.tLook.copy(cam.look);
+    }
+    snap();
     const f = 0.22 * (cam.dist / 36);
-    cam.tLon -= dx * f;
-    cam.tLat = Math.max(-75, Math.min(78, cam.tLat + dy * f));
+    let at = grab ? surfaceAt(e.clientX, e.clientY) : null;
+    if (grab && at) {
+      // a few correction steps; together they turn no further than three times the angle-per-pixel turn would, and a
+      // step that does not bring the grabbed point closer to the pointer is undone (lat/lon cannot hold every point)
+      const err = (h: { lat: number; lon: number }, g: { lat: number; lon: number }) => Math.hypot(g.lat - h.lat, wrap180(g.lon - h.lon) * Math.cos((h.lat * Math.PI) / 180));
+      let budget = Math.max(0.5, 3 * f * (Math.abs(dx) + Math.abs(dy)));
+      let e0 = err(at, grab);
+      let stalled = false;
+      for (let i = 0; i < 3 && e0 > 0.02 && budget > 0; i++) {
+        let dLat = grab.lat - at.lat;
+        let dLon = wrap180(grab.lon - at.lon);
+        const size = Math.hypot(dLat, dLon * Math.cos((at.lat * Math.PI) / 180));
+        if (size > budget) {
+          dLat *= budget / size;
+          dLon *= budget / size;
+        }
+        const before = { lat: cam.tLat, lon: cam.tLon, look: cam.tLook.clone() };
+        if (!turn(dLat, dLon)) {
+          if (i === 0) stalled = true;
+          break;
+        }
+        snap();
+        const next = surfaceAt(e.clientX, e.clientY);
+        const e1 = next ? err(next, grab) : Infinity;
+        if (!next || e1 >= e0) {
+          cam.tLat = before.lat;
+          cam.tLon = before.lon;
+          cam.tLook.copy(before.look);
+          snap();
+          if (i === 0) stalled = true;
+          break;
+        }
+        budget -= Math.min(budget, size);
+        at = next;
+        e0 = e1;
+      }
+      // the grabbed point cannot be held here (pole, clamp, view limit): turn by angle so the drag never stalls
+      if (stalled) {
+        angleTurn(dx, dy, f);
+        snap();
+      }
+    } else {
+      // off the globe, at the rim or near a pole: turn by angle, and grab again once the pointer is over solid ground
+      angleTurn(dx, dy, f);
+      snap();
+      grab = surfaceAt(e.clientX, e.clientY);
+    }
   };
   const onUp = (e: PointerEvent) => {
     pointers.delete(e.pointerId);
+    grab = null;
     if (down && down.moved < 6 && pointers.size === 0) {
       const r = canvas.getBoundingClientRect();
       ndc.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
@@ -908,9 +1029,7 @@ export function createWorldScene(
     cam.lon += (cam.tLon - cam.lon) * k;
     cam.dist += (cam.tDist - cam.dist) * k;
     cam.look.lerp(cam.tLook, k);
-    ll(cam.lat, cam.lon, cam.dist, camera.position);
-    camera.up.set(0, 1, 0);
-    camera.lookAt(cam.look);
+    placeCamera();
 
     clouds.rotation.y += dt * 0.008 * mo;
     // time of day from the real clock: Berlin exactly, Ana's place from its time zone (estimated without one)
