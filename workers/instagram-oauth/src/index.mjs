@@ -555,12 +555,21 @@ async function readSocialSnapshot(req,env,url) {
 const PULSE_DEFAULT_MAX = 12;
 const PULSE_MAX = 25;
 const PULSE_SUBREQUEST_BUDGET = 3;
-const AUDIENCE_SUBREQUEST_BUDGET = 6;
-const AUDIENCE_TIMEFRAME = 'this_month';
+// The first four reads keep their order and their this_month timeframe (dashboards before this change read the first
+// match by name and breakdown). The rest are additive: the last 7 days for recency, age and gender, and one combined
+// age,gender read whose key joins both values with '|' (e.g. '25-34|F'). Meta documents only this_week and this_month
+// for these metrics since v20.0, at most the top 45 values, nothing under 100 engagements / followers.
 const AUDIENCE_READS = [
-  ['engaged_audience_demographics', 'country'], ['engaged_audience_demographics', 'city'],
-  ['follower_demographics', 'country'], ['follower_demographics', 'city'],
+  ['engaged_audience_demographics', 'country', 'this_month'], ['engaged_audience_demographics', 'city', 'this_month'],
+  ['follower_demographics', 'country', 'this_month'], ['follower_demographics', 'city', 'this_month'],
+  ['engaged_audience_demographics', 'country', 'this_week'], ['engaged_audience_demographics', 'city', 'this_week'],
+  ['engaged_audience_demographics', 'age', 'this_week'], ['engaged_audience_demographics', 'gender', 'this_week'],
+  ['engaged_audience_demographics', 'age', 'this_month'], ['engaged_audience_demographics', 'gender', 'this_month'],
+  ['engaged_audience_demographics', 'age,gender', 'this_month'],
+  ['follower_demographics', 'age', 'this_month'], ['follower_demographics', 'gender', 'this_month'],
 ];
+// identity read(s) plus one read per entry above
+const AUDIENCE_SUBREQUEST_BUDGET = AUDIENCE_READS.length + 3;
 // The caller has already checked INTERNAL_READ_KEY.
 async function internalIdentity(env, budget) {
   const token=await usableToken(env);
@@ -591,12 +600,14 @@ async function readSocialPulse(req,env,url) {
       like_count:countOrNull(m.like_count), comments_count:countOrNull(m.comments_count)}))
   });
 }
-function demographicResults(entry) {
+function demographicResults(entry, breakdown) {
   const breakdowns=entry?.total_value?.breakdowns;
   const results=Array.isArray(breakdowns)&&Array.isArray(breakdowns[0]?.results)?breakdowns[0].results:[];
+  // the last n dimension values belong to the n requested breakdowns (a leading timeframe value is skipped)
+  const n=breakdown.split(',').length;
   return results.map(r=>{
     const dims=Array.isArray(r?.dimension_values)?r.dimension_values:[];
-    const key=dims.length?String(dims[dims.length-1]):null;
+    const key=dims.length>=n?dims.slice(-n).map(String).join('|'):null;
     return {key, value:countOrNull(r?.value)};
   }).filter(r=>r.key!==null && r.key.length>0 && r.key.length<=120 && r.value!==null);
 }
@@ -606,12 +617,12 @@ async function readSocialAudience(req,env) {
   if(ctx.response)return ctx.response;
   const userId=ctx.identity.me.user_id;
   const metrics=[];
-  for (const [name, breakdown] of AUDIENCE_READS) {
-    const base={name, breakdown, timeframe:AUDIENCE_TIMEFRAME};
+  for (const [name, breakdown, timeframe] of AUDIENCE_READS) {
+    const base={name, breakdown, timeframe};
     try {
-      const data=await ctx.b.fetch(`/${userId}/insights`,{metric:name, period:'lifetime', timeframe:AUDIENCE_TIMEFRAME, metric_type:'total_value', breakdown});
+      const data=await ctx.b.fetch(`/${userId}/insights`,{metric:name, period:'lifetime', timeframe, metric_type:'total_value', breakdown});
       const entry=(Array.isArray(data?.data)?data.data:[]).find(x=>x?.name===name);
-      const results=demographicResults(entry);
+      const results=demographicResults(entry, breakdown);
       metrics.push(results.length?{...base, state:'ok', results}:{...base, state:'unavailable', error_class:'empty-response', results:[]});
     } catch(e) {
       const cls=notSent(e)?e.message:errorClass(e);
