@@ -289,6 +289,12 @@ so its shell is no longer the current one. The requirements are kept and the ide
 ANA-48's cover-image vision call (`src/server/world/vision.ts`, off without `ANTHROPIC_API_KEY`) arrives from main; this change
 adds no external processing, and the AC6 statement is bound to the ANA-39 diff.
 
+Merge of `e95ac22` (PR #26, ANA-48 globe drag) on 2026-11-02: no conflict; it brings only `src/features/world/scene/world.ts`,
+identical to main after the merge. The screenshots stay as captured on `0ecd727` and are not regenerated (PO brief): the paths
+above and the fixture blob `e78cf4a` are unchanged against `0ecd727` (`git diff --quiet`, rc 0, canary on `themes.ts` rc 1).
+`.drs/ANA-39.json` R2G(4) still names `0ecd727` as the base of the before-images, though main has moved past it. Whether that
+binding holds is for the acceptor or PO; this commit does not change the gate.
+
 ## Integration with LIVE-01 (PR #12)
 
 PR #12 (head `c0917c8`) changes the Social API route, access gate, proxy, packaging and CI. This change touches none
