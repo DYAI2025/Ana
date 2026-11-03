@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { briefFacts, numbersBacked, parseBrief, type Fact } from "./brief";
+import { briefFacts, capStrength, numbersBacked, parseBrief, type Fact } from "./brief";
 import { tierOf, marketSplit } from "./markets";
 import { NOW, post, series, tag, world } from "./worldFixture";
 
@@ -60,7 +60,7 @@ describe("parseBrief — the model may phrase and weigh, not bring figures", () 
       patterns: [pattern({}), pattern({ title: "Erfunden", text: "Gesicht bringt 9.9 % mehr." }), pattern({ title: "Fremd", facts: ["F9"] }), pattern({ title: "Falsche Quelle", facts: ["F1"] })],
       brands: { text: "55 % des Engagements liegt in Tier 1, in den letzten 7 Tagen.", facts: ["F1"] },
       substack: { text: "Zwischen H1 und H4 ist noch nichts entschieden: 2 gegen 3 Posts.", facts: ["F3"], lean: "H9" },
-      next_test: "Je zwei H1- und H4-Posts im selben Format.",
+      next_test: "H1- und H4-Posts im selben Format vergleichen.",
       limits: ["Meta zeigt Zielgruppen nur kontoweit.", "Erfunden: 42 Wochen."],
     }, facts);
     expect(b?.patterns.map((p) => p.title)).toEqual(["Gesicht trägt"]);
@@ -75,6 +75,31 @@ describe("parseBrief — the model may phrase and weigh, not bring figures", () 
     expect(numbersBacked("H4 vor H1, Tier 1 in den letzten 7 Tagen", [])).toBe(true);
     expect(numbersBacked("Tier 1 hat 55 %", [])).toBe(false);
     expect(numbersBacked("6,1 % und 6.10 %", [{ id: "F1", kind: "content", text: "6.1 %" }])).toBe(true);
+  });
+
+  it("thousands, other scripts and number words cannot smuggle a figure in", () => {
+    const F: Fact[] = [{ id: "F1", kind: "market", text: "Tier 1 63 %, Tier 2 25 %, Tier 3 12 % (Stand 2026-08-22); Reichweite 40000." }];
+    expect(numbersBacked("über 1.000 neue Follower", F)).toBe(false);
+    expect(numbersBacked("2,000 Klicks", F)).toBe(false);
+    expect(numbersBacked("Tier 1 brachte 22.000 Interaktionen", F)).toBe(false);
+    expect(numbersBacked("Reichweite 40.000", F)).toBe(true);
+    expect(numbersBacked("Reichweite 40,000", F)).toBe(true);
+    expect(numbersBacked("９９ %", F)).toBe(false);
+    for (const w of ["Die Hälfte kommt aus Tier 1", "Gesicht verdoppelt die Rate", "zehn Prozent mehr", "twice as many", "doppelt so gut"]) expect(numbersBacked(w, F), w).toBe(false);
+    // names and windows are not figures, but only as names
+    expect(numbersBacked("Tier 1 in den letzten 30 Tagen", F)).toBe(true);
+    expect(numbersBacked("an 28 Tagen gepostet", [])).toBe(true);
+    expect(numbersBacked("7 t", [])).toBe(false);
+  });
+
+  it("the model's strength is capped by what it cites", () => {
+    const f = (id: string, text: string, kind: Fact["kind"] = "content"): Fact => ({ id, kind, text });
+    expect(capStrength("strong", [f("F1", "x (n 5)")])).toBe("weak");
+    expect(capStrength("strong", [f("F1", "x (n 6)"), f("F2", "y (n 12)")])).toBe("medium");
+    expect(capStrength("strong", [f("F1", "x (n 9)"), f("F2", "y (n 12)")])).toBe("strong");
+    expect(capStrength("strong", [f("F1", "Tier 1 40 %", "market"), f("F2", "nur kontoweit", "limit")])).toBe("weak");
+    expect(capStrength("medium", [f("F1", "x (n 3)"), f("F2", "y (n 12)")])).toBe("weak");
+    expect(capStrength("weak", [f("F1", "x (n 9)"), f("F2", "y (n 12)")])).toBe("weak");
   });
 
   it("not a brief: no headline, not an object", () => {

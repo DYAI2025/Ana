@@ -6,7 +6,7 @@ import { briefFacts, parseBrief, type BriefRecord, type Fact, type HistoryDay } 
 import { berlinDayOf } from "@/features/world/pulse";
 import type { WorldBriefState, WorldPayload } from "@/features/world/types";
 import { historyFile } from "./audienceHistory";
-import { BrainCallError, isoWeek, SOURCE_ID, TOPICS, weekNoteId, type BrainCall } from "./brainWriter";
+import { BrainCallError, isoWeek, SOURCE_ID, TOPICS, type BrainCall } from "./brainWriter";
 import { askModel, type VisionConfig } from "./vision";
 
 /**
@@ -24,7 +24,7 @@ import { askModel, type VisionConfig } from "./vision";
 export const BRIEF_PROMPT = `Du bist Analyst für Ana, eine Reise-Content-Creatorin auf Instagram. Das Team (Ana, Ben, Vince) will verstehen, was die Zahlen fürs Geschäft bedeuten: (1) ein Substack mit einer von zwei Hypothesen — H1 Opportunity Drop oder H4 Working File — und (2) Kooperationen mit Marken, die Reichweite, Community und Zielgruppe einkaufen (Länder mit hoher Kaufkraft, Tier 1, zählen dafür mehr als Tier 3).
 
 Du bekommst nummerierte Fakten (F1, F2, …). Es sind die einzigen Daten. Regeln:
-- Jede Aussage stützt sich auf Fakten und nennt deren Nummern in "facts". Zahlen nur, wenn sie wörtlich in den genannten Fakten stehen; sonst ohne Zahl formulieren. Erfinde nichts.
+- Jede Aussage stützt sich auf Fakten und nennt deren Nummern in "facts". Zahlen nur als Ziffern und nur, wenn sie wörtlich in den genannten Fakten stehen; sonst ohne Zahl formulieren. Keine Mengen in Worten (Hälfte, doppelt, zehn …). Erfinde nichts.
 - Unterscheide gemessen und gedeutet. Wenn Fakten einer Aussage widersprechen, nenne das in "counter" mit "counter_facts".
 - "strength": weak bei kleinen n (unter 8) oder nur einem Fakt, medium bei mehreren stimmigen Fakten, strong nur bei großen n und keinem Gegenbeleg.
 - Kein Zusammenhang zwischen einer Post-Art und einer Zielgruppe behaupten: Meta liefert Zielgruppen nur kontoweit; höchstens als zu prüfende Vermutung.
@@ -34,6 +34,7 @@ Antworte mit genau einem JSON-Objekt und sonst nichts:
 {"headline": "ein Satz: das Wichtigste", "patterns": [{"kind": "content"|"audience"|"brand"|"substack", "title": "kurz", "text": "1–2 Sätze", "facts": ["F1"], "counter": "Gegenbeleg oder null", "counter_facts": [], "strength": "weak"|"medium"|"strong"}], "brands": {"text": "was das für Marken-Kooperationen heißt", "facts": ["F1"]}, "substack": {"text": "was das für H1 gegen H4 heißt", "facts": ["F1"], "lean": "H1"|"H4"|null}, "next_test": "der eine nächste Test, der am meisten klärt", "limits": ["was die Daten nicht sagen"]}`;
 
 export const BRIEF_MIN_GAP_MS = 10 * 60_000;
+export const FAIL_COOLDOWN_MS = 2 * 60_000;
 const KEEP_WEEKS = 12;
 const WEEKLY_RETRY_MS = 60 * 60_000;
 
@@ -110,10 +111,12 @@ export interface BriefDeps {
   now?: () => number;
 }
 
+export type GenerateResult = { ok: true; record: BriefRecord; fresh: boolean } | { ok: false; reason: string };
+
 export interface BriefService {
   state(): WorldBriefState;
   /** the button: a brief of the current numbers (or the last one, if it is younger than 10 minutes) */
-  generate(world: WorldPayload): Promise<{ ok: true; record: BriefRecord; fresh: boolean } | { ok: false; reason: string }>;
+  generate(world: WorldPayload): Promise<GenerateResult>;
   /** the first read of an ISO week writes the weekly brief in the background; never throws, never waits */
   scheduleWeekly(world: WorldPayload): void;
   /** test hook */
@@ -129,13 +132,15 @@ export function createBriefService(deps: BriefDeps): BriefService {
   let store: StoreFile | null = null;
   let loading: Promise<StoreFile> | null = null;
   let running: Promise<unknown> = Promise.resolve();
-  let busy = false;
+  let nowPending: Promise<GenerateResult> | null = null;
+  let nowFailedAt = -Infinity;
+  let weeklyBusy = false;
   let weeklyFailedAt = -Infinity;
   let lastError: string | null = null;
 
   const load = async () => (store ??= await (loading ??= readStore(file)));
 
-  async function write(world: WorldPayload, kind: BriefRecord["kind"]): Promise<BriefRecord> {
+  async function write(world: WorldPayload, kind: BriefRecord["kind"], weekOf?: string): Promise<BriefRecord> {
     const t = now();
     const history = await deps.readHistory().catch(() => [] as HistoryDay[]);
     const facts = briefFacts(world, history, t);
@@ -144,7 +149,7 @@ export function createBriefService(deps: BriefDeps): BriefService {
     if (text === undefined) throw new Error("model-unavailable");
     const brief = parseBriefAnswer(text, facts);
     if (!brief) throw new Error("model-answer-unusable");
-    const record: BriefRecord = { at: new Date(t).toISOString(), week: isoWeek(berlinDayOf(t)), kind, model: config.model, facts, brief };
+    const record: BriefRecord = { at: new Date(t).toISOString(), week: weekOf ?? isoWeek(berlinDayOf(t)), kind, model: config.model, facts, brief };
     const s = await load();
     s.latest = record;
     if (kind === "weekly") s.weeks = [...s.weeks.filter((w) => w.week !== record.week), record].slice(-KEEP_WEEKS);
@@ -171,46 +176,56 @@ export function createBriefService(deps: BriefDeps): BriefService {
       },
       true,
     );
-    // the week's pulse note is written by brainWriter; without it the brief stands on its own
-    await call("brain_add_relation", { from: id, type: "derived_from", to: weekNoteId(berlinDayOf(Date.parse(r.at))) }).catch(() => undefined);
+    // the week's pulse note is written by brainWriter (daily); until it exists the link fails and the hourly retry
+    // tries again (the note itself counts as done: "exists")
+    await call("brain_add_relation", { from: id, type: "derived_from", to: `kn-world-pulse-${r.week}` });
   }
 
   return {
     state() {
       const s = store;
       const weekly = s?.weeks.at(-1) ?? null;
-      return { state: lastError ? "error" : "on", busy, latest: s?.latest ?? null, weekly, reason: lastError };
+      return {
+        state: lastError ? "error" : "on",
+        busy: nowPending !== null || weeklyBusy,
+        latest: s?.latest ?? null,
+        weekly,
+        in_brain: weekly ? (s?.in_brain ?? []).includes(weekly.week) : false,
+        brain: deps.brain !== null,
+        reason: lastError,
+      };
     },
-    async generate(world) {
-      const s = await load();
-      const last = s.latest;
-      if (last && now() - Date.parse(last.at) < BRIEF_MIN_GAP_MS) return { ok: true, record: last, fresh: false };
-      if (busy) {
-        await running.catch(() => undefined);
-        const again = store?.latest;
-        if (again && now() - Date.parse(again.at) < BRIEF_MIN_GAP_MS) return { ok: true, record: again, fresh: false };
-      }
-      busy = true;
-      const p = write(world, "now");
-      running = p;
-      try {
-        const record = await p;
-        lastError = null;
-        return { ok: true, record, fresh: true };
-      } catch (e) {
-        lastError = e instanceof Error ? e.message : "error";
-        return { ok: false, reason: lastError };
-      } finally {
-        busy = false;
-      }
+    generate(world) {
+      // one button brief at a time: every caller while it runs gets the same answer (no second model call)
+      nowPending ??= (async (): Promise<GenerateResult> => {
+        const s = await load();
+        const last = s.latest;
+        if (last && now() - Date.parse(last.at) < BRIEF_MIN_GAP_MS) return { ok: true, record: last, fresh: false };
+        // after a failed brief the next model call waits a little (no loop of paid calls on a broken answer)
+        if (now() - nowFailedAt < FAIL_COOLDOWN_MS) return { ok: false, reason: lastError ?? "cooldown" };
+        try {
+          const record = await write(world, "now");
+          lastError = null;
+          return { ok: true, record, fresh: true };
+        } catch (e) {
+          nowFailedAt = now();
+          lastError = e instanceof Error ? e.message : "error";
+          return { ok: false, reason: lastError };
+        }
+      })().finally(() => {
+        nowPending = null;
+      });
+      running = nowPending;
+      return nowPending;
     },
     scheduleWeekly(world) {
-      if (busy || now() - weeklyFailedAt < WEEKLY_RETRY_MS) return;
+      if (weeklyBusy || now() - weeklyFailedAt < WEEKLY_RETRY_MS) return;
+      // the week is fixed when the run starts: a run across Sunday midnight files under the week it began in
       const week = isoWeek(berlinDayOf(now()));
-      busy = true;
+      weeklyBusy = true;
       running = load()
         .then(async (s) => {
-          const record = s.weeks.find((w) => w.week === week) ?? (await write(world, "weekly"));
+          const record = s.weeks.find((w) => w.week === week) ?? (await write(world, "weekly", week));
           if (deps.brain && !(s.in_brain ?? []).includes(week)) {
             await toBrain(record);
             s.in_brain = [...(s.in_brain ?? []), week].slice(-KEEP_WEEKS);
@@ -223,7 +238,7 @@ export function createBriefService(deps: BriefDeps): BriefService {
           lastError = e instanceof BrainCallError ? e.message : e instanceof Error ? e.message : "error";
         })
         .finally(() => {
-          busy = false;
+          weeklyBusy = false;
         });
     },
     idle: () => running.then(() => undefined, () => undefined),

@@ -10,7 +10,7 @@ import type { BrainCall } from "./brainWriter";
 const config = { key: "k".repeat(30), model: "claude-haiku-5-5", timeoutMs: 1000 };
 const answer = (factIds = ["F1"]) => ({
   headline: "Tier 1 trägt die Woche",
-  patterns: [{ kind: "brand", title: "Tier 1 vorn", text: "Die Hälfte des Engagements kommt aus Tier 1.", facts: factIds, counter: null, counter_facts: [], strength: "weak" }],
+  patterns: [{ kind: "brand", title: "Tier 1 vorn", text: "Ein großer Teil des Engagements kommt aus Tier 1.", facts: factIds, counter: null, counter_facts: [], strength: "weak" }],
   brands: { text: "Für Marken zählt Tier 1.", facts: factIds },
   substack: null,
   next_test: "Zwei Posts im selben Format vergleichen.",
@@ -59,10 +59,28 @@ describe("brief service — button and weekly brief", () => {
     expect(JSON.parse(await readFile(file, "utf8")).latest.kind).toBe("now");
   });
 
-  it("an unusable answer is an error, not a brief", async () => {
-    const s = createBriefService({ config, readHistory: async () => [], brain: null, file, fetchImpl: fakeModel(() => answer(["F99"])).impl, now: () => NOW });
+  it("presses at the same time share one model call; a weekly run does not make the button wait", async () => {
+    const m = fakeModel();
+    const s = createBriefService({ config, readHistory: async () => [], brain: null, file, fetchImpl: m.impl, now: () => NOW });
+    s.scheduleWeekly(world());
+    const rs = await Promise.all([s.generate(world()), s.generate(world()), s.generate(world())]);
+    await s.idle();
+    expect(rs.every((r) => r.ok)).toBe(true);
+    // one call for the weekly brief, one for all three presses
+    expect(m.prompts).toHaveLength(2);
+  });
+
+  it("an unusable answer is an error, not a brief; the next model call waits 2 minutes", async () => {
+    let t = NOW;
+    const m = fakeModel(() => answer(["F99"]));
+    const s = createBriefService({ config, readHistory: async () => [], brain: null, file, fetchImpl: m.impl, now: () => t });
     expect(await s.generate(world())).toEqual({ ok: false, reason: "model-answer-unusable" });
     expect(s.state()).toMatchObject({ state: "error", reason: "model-answer-unusable" });
+    expect(await s.generate(world())).toMatchObject({ ok: false });
+    expect(m.prompts).toHaveLength(1);
+    t += 2 * 60_000 + 1;
+    await s.generate(world());
+    expect(m.prompts).toHaveLength(2);
     expect(parseBriefAnswer("no json", [])).toBeNull();
   });
 
@@ -92,6 +110,7 @@ describe("brief service — button and weekly brief", () => {
     expect(String(note.body)).toContain("F1: Engagement der letzten 7 Tage nach Werbemarkt");
     expect(String(note.body)).not.toContain("SECRET");
     expect(calls.at(-1)).toEqual({ name: "brain_add_relation", args: { from: "kn-world-brief-2026-w45", type: "derived_from", to: "kn-world-pulse-2026-w45" } });
+    expect(s.state()).toMatchObject({ in_brain: true, brain: true });
     expect(JSON.stringify(calls)).not.toMatch(/CONFIRMED|supersedes|"confirm"/);
     const n = calls.length;
     // same week again, also from a new process: nothing

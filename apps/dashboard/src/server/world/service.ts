@@ -254,7 +254,7 @@ export function createWorldService(deps: WorldDeps): WorldService {
         release: readRelease(),
         post_tags: { state: deps.tagger ? "on" : "off", tags },
         brain: { state: "off", last_day: null, note: null, reason: null },
-        brief: deps.brief ? deps.brief.state() : { state: "off", busy: false, latest: null, weekly: null, reason: null },
+        brief: deps.brief ? deps.brief.state() : { state: "off", busy: false, latest: null, weekly: null, in_brain: false, brain: false, reason: null },
       };
       if (deps.brain) {
         // the day's digest waits until the stored post categories are read: right after a restart they are not yet,
@@ -263,7 +263,8 @@ export function createWorldService(deps: WorldDeps): WorldService {
         payload.brain = deps.brain.status();
       }
       // the weekly brief waits for the categories and for the audience, like the daily digest
-      if (deps.brief && tagsReady && audienceOut.state !== "unavailable" && audienceOut.fetched_at) deps.brief.scheduleWeekly(payload);
+      // and for Instagram: an outage on the first read of a week must not seal an audience-only brief for that week
+      if (deps.brief && tagsReady && instagram.ok && audienceOut.state !== "unavailable" && audienceOut.fetched_at) deps.brief.scheduleWeekly(payload);
       return payload;
     },
   };

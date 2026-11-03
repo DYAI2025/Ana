@@ -165,21 +165,68 @@ export interface Brief {
 }
 
 const str = (v: unknown, max: number) => (typeof v === "string" ? v.replace(/\s+/g, " ").trim().slice(0, max) : "");
-const NUM = /\d+(?:[.,]\d+)?/g;
-const norm = (s: string) => s.replace(",", ".").replace(/^0+(?=\d)/, "");
+/** digits in any script, with grouping or a decimal mark: "6.1", "6,10", "1.000", "40 000" is two tokens */
+const NUM = /\p{Nd}+(?:[.,]\p{Nd}+)*/gu;
+/** "1.000" / "22,000" are grouped integers (German or English), never 1 or 22 */
+const GROUPED = /^\d{1,3}(?:[.,]\d{3})+$/;
+
+/** a number token as one canonical string; null when it is not plain ASCII digits */
+function canon(token: string): string | null {
+  if (!/^[0-9.,]+$/.test(token)) return null;
+  if (GROUPED.test(token)) return String(Number(token.replace(/[.,]/g, "")));
+  if (/[.,].*[.,]/.test(token)) return null;
+  const n = Number(token.replace(",", "."));
+  return Number.isFinite(n) ? String(n) : null;
+}
 
 /** names that carry a digit but are not figures: H1/H4, Tier 1–3 and the 7/28/30-day windows */
-const NAMES = /\b(?:H[1-4]|Tier ?[123])\b|\b(?:7|28|30)[ -]?(?:Tage[n]?|days?|T\.?)(?=\W|$)/giu;
+const NAMES = /(?<![\p{L}\p{N}])(?:H[1-4]|Tier ?[123])(?![\p{L}\p{N}])|(?<![\p{L}\p{N}])(?:7|28|30)[ -](?:Tage|Tagen|days)(?![\p{L}\p{N}])/gu;
 
-/** every number in `text` appears in the texts of the cited facts (7 and 7.0 count as the same) */
+/** quantities in words bring figures too: a claim with one of them is not backed by any fact */
+const NUMBER_WORDS = new RegExp(
+  `(?<![\\p{L}])(?:${[
+    "eins", "zwei", "drei", "vier", "fünf", "sechs", "sieben", "acht", "neun", "zehn", "elf", "zwölf", "zwanzig", "dreißig", "hundert", "tausend", "million(?:en)?", "milliarde(?:n)?",
+    "hälfte", "halb(?:e|en|er|so)?", "doppel(?:t|te|ten|ter)?", "verdoppel\\p{L}*", "dreifach\\p{L}*", "verdreifach\\p{L}*", "vierfach\\p{L}*", "drittel", "viertel", "zehntel",
+    "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten", "eleven", "twelve", "twenty", "thirty", "hundred", "thousand", "million", "billion",
+    "half", "twice", "double(?:d|s)?", "triple(?:d|s)?", "third", "quarter",
+  ].join("|")})(?![\\p{L}])`,
+  "iu",
+);
+
+/**
+ * Every number in `text` appears in the texts of the cited facts (6.1 = 6,10; 1.000 = 1000), and no quantity is
+ * written in words. Checks tokens, not their role: a fact's number can still be put in the wrong place, which is why
+ * every claim shows its facts.
+ */
 export function numbersBacked(text: string, cited: readonly Fact[]): boolean {
-  text = text.replace(NAMES, " ");
+  if (NUMBER_WORDS.test(text)) return false;
   const pool = new Set<string>();
   for (const f of cited) for (const m of f.text.match(NUM) ?? []) {
-    pool.add(norm(m));
-    pool.add(String(Number(norm(m))));
+    const c = canon(m);
+    if (c !== null) pool.add(c);
   }
-  return (text.match(NUM) ?? []).every((m) => pool.has(norm(m)) || pool.has(String(Number(norm(m)))));
+  return (text.replace(NAMES, " ").match(NUM) ?? []).every((m) => {
+    const c = canon(m);
+    return c !== null && pool.has(c);
+  });
+}
+
+/** smallest group size (n …) among the cited facts; null when they name none */
+function minN(cited: readonly Fact[]): number | null {
+  const ns = cited.flatMap((f) => [...f.text.matchAll(/\(n (\d+)\)|: (\d+) zugeordnete/g)].map((m) => Number(m[1] ?? m[2])));
+  return ns.length ? Math.min(...ns) : null;
+}
+
+/**
+ * The strength the model gives is capped by what it cites: "strong" needs at least two facts that are not limits and
+ * groups of 8 posts or more; groups under 5, or a single fact, are "weak" at most.
+ */
+export function capStrength(claimed: BriefPattern["strength"], cited: readonly Fact[]): BriefPattern["strength"] {
+  const real = cited.filter((f) => f.kind !== "limit");
+  const n = minN(real);
+  const ceiling: BriefPattern["strength"] = real.length < 2 || (n !== null && n < 5) ? "weak" : n !== null && n < 8 ? "medium" : "strong";
+  const rank = { weak: 0, medium: 1, strong: 2 } as const;
+  return rank[claimed] <= rank[ceiling] ? claimed : ceiling;
 }
 
 /** The model's answer, checked against the facts. Null when it is not a brief at all. */
@@ -207,7 +254,7 @@ export function parseBrief(raw: unknown, facts: readonly Fact[]): Brief | null {
       dropped++;
       continue;
     }
-    patterns.push({ kind, title, text, facts: f, counter, counter_facts: cf, strength });
+    patterns.push({ kind, title, text, facts: f, counter, counter_facts: cf, strength: capStrength(strength, cite(f)) });
   }
   const section = (v: unknown) => {
     const q = (v ?? {}) as Record<string, unknown>;

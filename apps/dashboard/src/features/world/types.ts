@@ -123,6 +123,10 @@ export interface WorldBriefState {
   latest: BriefRecord | null;
   /** the newest weekly brief */
   weekly: BriefRecord | null;
+  /** whether the newest weekly brief is in the ANA Brain */
+  in_brain: boolean;
+  /** whether a Brain is configured at all */
+  brain: boolean;
   reason: string | null;
 }
 

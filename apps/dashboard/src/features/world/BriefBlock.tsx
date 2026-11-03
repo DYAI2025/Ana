@@ -82,10 +82,25 @@ export function BriefBlock({ world, t, ago }: { world: WorldPayload; t: T; ago: 
       ) : null}
 
       <button type="button" className={styles.briefButton} onClick={() => void summarize()} disabled={b.state === "off" || req.state === "busy"} aria-busy={req.state === "busy"} data-testid="world-brief-button">
-        {req.state === "busy" ? t("world.brief.busy") : t("world.brief.button")}
+        {req.state === "busy" ? (
+          t("world.brief.busy")
+        ) : (
+          <>
+            <span aria-hidden="true">✨ </span>
+            {t("world.brief.button")}
+          </>
+        )}
       </button>
       <p className={styles.muted} role="status" data-testid="world-brief-state" data-state={b.state === "off" ? "off" : req.state}>
-        {b.state === "off" ? t("world.brief.off") : req.state === "failed" ? t("world.brief.failed", { reason: req.reason ?? "?" }) : req.state === "busy" ? t("world.brief.busyNote") : ""}
+        {b.state === "off"
+          ? t("world.brief.off")
+          : req.state === "failed"
+            ? t("world.brief.failed", { reason: req.reason ?? "?" })
+            : req.state === "busy"
+              ? t("world.brief.busyNote")
+              : b.state === "error"
+                ? t("world.brief.serverError", { reason: b.reason ?? "?" })
+                : ""}
       </p>
 
       {b.weekly && latest && b.weekly.at !== latest.at ? (
@@ -147,14 +162,15 @@ export function BriefBlock({ world, t, ago }: { world: WorldPayload; t: T; ago: 
             <div>
               <h4>{t("world.brief.limits")}</h4>
               <ul className={styles.plain}>
-                {shown.brief.limits.map((l) => (
-                  <li key={l}>{l}</li>
+                {shown.brief.limits.map((l, i) => (
+                  <li key={i}>{l}</li>
                 ))}
               </ul>
             </div>
           ) : null}
           <p className={styles.note}>
             {t(shown.kind === "weekly" ? "world.brief.metaWeekly" : "world.brief.meta", { time: ago(shown.at), model: shown.model, n: shown.facts.length, week: shown.week })}
+            {shown.kind === "weekly" ? ` ${t(b.weekly?.at === shown.at && b.in_brain ? "world.brief.inBrain" : b.brain ? "world.brief.notYetInBrain" : "world.brief.noBrain")}` : ""}
             {shown.brief.dropped ? ` ${t("world.brief.dropped", { n: shown.brief.dropped })}` : ""}
           </p>
         </div>
