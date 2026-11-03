@@ -201,21 +201,12 @@ jobs:
           expect "$(code localhost /api/healthz)" 200 "native bundle health check"
           ss -ltn | awk '$4 ~ /:3410$/ {print $4}' | grep -qx '127.0.0.1:3410'
           pkill -f '^next-server' || true # Next renames its process title
-      - name: Save image
-        shell: bash
-        run: |
-          set -euo pipefail
-          docker save "ana-dashboard:${OUT_ID}" | gzip -1 > "ana-dashboard-${OUT_ID}.tar.gz"
-          gunzip -t "ana-dashboard-${OUT_ID}.tar.gz"
-          sha256sum "ana-dashboard-${OUT_ID}.tar.gz"
-          # the image archive (~115 MB) is kept only for a push to main; a PR or test run uploads the native bundle
-          # (~25 MB) alone, which is all a review or release.sh needs (artifact storage quota, 2026-11-03)
-          if ! { [ "$GITHUB_EVENT_NAME" = push ] && [ "$GITHUB_REF" = refs/heads/main ]; }; then rm "ana-dashboard-${OUT_ID}.tar.gz"; echo "image archive not uploaded for $GITHUB_EVENT_NAME"; fi
       - uses: actions/upload-artifact@v4
         with:
           name: ana-dashboard-${{ env.OUT_ID }}
+          # only the native bundle: release.sh and fetch-release.sh install ana-dashboard-app-<sha>.tar.gz; the docker image
+          # is built and tested above but not uploaded (~115 MB per run, unused; artifact storage quota, 2026-11-03)
           path: |
-            ana-dashboard-${{ env.OUT_ID }}.tar.gz
             ana-dashboard-app-${{ env.OUT_ID }}.tar.gz
             ana-dashboard-app-${{ env.OUT_ID }}.tar.gz.sha256
           if-no-files-found: error # the v4 default only warns
