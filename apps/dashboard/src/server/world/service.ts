@@ -201,7 +201,11 @@ export function createWorldService(deps: WorldDeps): WorldService {
         pulseOut.state = p.failure.state;
         pulseOut.reason = p.failure.reason;
       }
-      if (instagram.ok && deps.tagger) deps.tagger.schedule(instagram.snapshot.posts.map((x) => ({ id: x.media_id, cover: x.thumbnail_url ?? x.image_url ?? null, caption: x.caption })));
+      // without Instagram nothing is categorised, but the stored categories are still read (so the Brain digest can start)
+      if (deps.tagger) deps.tagger.schedule(instagram.ok ? instagram.snapshot.posts.map((x) => ({ id: x.media_id, cover: x.thumbnail_url ?? x.image_url ?? null, caption: x.caption })) : []);
+      // readiness and the categories are taken at the same moment: a load that finishes during a later await must not
+      // let a digest built from the earlier, empty categories reach the Brain
+      const tagsReady = !deps.tagger || deps.tagger.ready();
       const tags = deps.tagger ? deps.tagger.current() : {};
       const posts = instagram.ok ? instagram.snapshot.posts.map((x) => ({ id: x.media_id, format: x.format, published_at: x.published_at, tags: tags[x.media_id] ?? null })) : [];
       const history = await keepHistory(a.value, posts);
@@ -251,7 +255,7 @@ export function createWorldService(deps: WorldDeps): WorldService {
       if (deps.brain) {
         // the day's digest waits until the stored post categories are read: right after a restart they are not yet,
         // and an append to the Brain cannot be taken back
-        if (!deps.tagger || deps.tagger.ready()) deps.brain.schedule(payload, now());
+        if (tagsReady) deps.brain.schedule(payload, now());
         payload.brain = deps.brain.status();
       }
       return payload;

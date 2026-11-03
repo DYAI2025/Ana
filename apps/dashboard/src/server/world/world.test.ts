@@ -6,6 +6,11 @@ import { GET } from "@/app/api/world/route";
 import { normalizeAudience, normalizePulse } from "./normalize";
 import { readAnaPlace, readRelease } from "./presence";
 import { AUDIENCE_PATH, createWorldService, PULSE_PATH } from "./service";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
+import { TAG_VERSION } from "@/features/world/postTags";
+import { createPostTagger } from "./tagger";
 
 const KEY = "unit-test-social-key-0123456789";
 const config: SocialConfig = { workerOrigin: "https://worker.example.invalid", key: KEY, timeoutMs: 50, maxPosts: 50, cacheMs: 600_000, minRefreshMs: 60_000 };
@@ -143,10 +148,33 @@ describe("createWorldService — caches, back-off and honest states", () => {
     ready = true;
     await service.read();
     expect(scheduled).toHaveLength(1);
-    // without a tagger there is nothing to wait for
+    // without a tagger there is nothing to wait for (the variant with the real tagger and file: brainGate below)
     const plain = createWorldService({ social, socialConfig: config, readWork: null, workKeys: [], fetchImpl: w.impl, brain });
     await plain.read();
     expect(scheduled).toHaveLength(2);
+  });
+
+  it("brainGate · with the real tagger and a slow history read, no digest reaches the Brain with the categories missing — also while Instagram is down", async () => {
+    const dir = await mkdtemp(path.join(os.tmpdir(), "gate-"));
+    try {
+      const file = path.join(dir, "world-post-tags.json");
+      const stored = { theme: "beach", ana: "face", shot: "selfie", hook: "place", cta: "none", mood: "calm", country: null, brand: false, confidence: 0.9, model: "m", at: "2026-11-01T00:00:00Z" };
+      await writeFile(file, JSON.stringify({ version: TAG_VERSION, tags: { p1: stored } }));
+      const tagger = createPostTagger({ key: "k".repeat(30), model: "m", timeoutMs: 100 }, file, (async () => new Response("no", { status: 500 })) as typeof fetch);
+      const handed: number[] = [];
+      const brain = { schedule: (p: { post_tags: { tags: Record<string, unknown> } }) => void handed.push(Object.keys(p.post_tags.tags).length), status: () => ({ state: "on" as const, last_day: null, note: null, reason: null }), idle: () => Promise.resolve() };
+      // the history read is a real await in the middle of read(): the tags file can finish loading during it
+      const history = { read: () => new Promise<never[]>((r) => setTimeout(() => r([]), 30)), record: async () => [] };
+      const w = fakeWorker({ [PULSE_PATH]: () => Response.json(pulseBody(10)), [AUDIENCE_PATH]: () => Response.json(audienceBody) });
+      const service = createWorldService({ social, socialConfig: config, readWork: null, workKeys: [], fetchImpl: w.impl, tagger, brain, history });
+      await service.read();
+      await service.read();
+      // Instagram is down in this fixture: the stored categories are still read, so the digest is not held back forever
+      expect(handed.length).toBeGreaterThan(0);
+      expect(handed.every((n) => n === 1)).toBe(true);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
   });
 
   it("an old worker without the new routes is 'unavailable', a refused key is an error, never data", async () => {
