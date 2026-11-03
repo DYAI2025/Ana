@@ -80,6 +80,8 @@ export interface WorldScene {
   setAnaActivity(activity: AnaActivity): void;
   burst(events: readonly PulseEvent[]): void;
   focus(view: ViewName): void;
+  /** lifts these posts' cards out of the orbit and shrinks the others; null = all as usual */
+  highlight(postIds: readonly string[] | null): void;
   resize(): void;
   dispose(): void;
 }
@@ -397,7 +399,8 @@ export function createWorldScene(
   const otherRings = new THREE.Group();
   scene.add(otherRings);
 
-  const cards = new Map<string, { group: THREE.Group; slot: THREE.Vector3; launch: number; post: WorldPost }>();
+  const cards = new Map<string, { group: THREE.Group; slot: THREE.Vector3; launch: number; post: WorldPost; size: number }>();
+  let lit: Set<string> | null = null;
   const heartGeo = heartGeometry();
   const heartMat = new THREE.MeshBasicMaterial({ color: PALETTE.heart, side: THREE.DoubleSide, transparent: true });
   const bubbleGeo = new THREE.SphereGeometry(0.1, 10, 8);
@@ -546,6 +549,7 @@ export function createWorldScene(
       if (existing) {
         existing.slot = slot;
         existing.post = p;
+        existing.size = size;
         const body = existing.group.children[0] as THREE.Mesh;
         (body.material as THREE.MeshToonMaterial).color.setHex(colour);
         existing.group.scale.setScalar(size);
@@ -576,7 +580,7 @@ export function createWorldScene(
       g.scale.setScalar(size);
       ringSpin.add(g);
       const launch = reduced ? 1 : 0;
-      cards.set(p.id, { group: g, slot, launch, post: p });
+      cards.set(p.id, { group: g, slot, launch, post: p, size });
       pick(g, { type: "post", id: p.id });
     });
     canvas.dataset.posts = String(cards.size);
@@ -1287,6 +1291,10 @@ export function createWorldScene(
         c.group.position.copy(c.slot);
         c.group.position.y = Math.sin(orbitT * 1.1 + c.slot.x) * 0.15 * mo;
       }
+      // a highlighted card stands out above the orbit, the others step back
+      const on = lit === null ? null : lit.has(c.post.id);
+      c.group.scale.setScalar(c.size * (on === null ? 1 : on ? 1.9 : 0.4));
+      if (on) c.group.position.y += 1.4;
       c.group.lookAt(camera.position);
     }
     const sa = orbitT * 0.08 * mo + 1.2;
@@ -1332,11 +1340,17 @@ export function createWorldScene(
   focus("world");
   raf = requestAnimationFrame(frame);
 
+  function highlight(ids: readonly string[] | null) {
+    lit = ids === null ? null : new Set(ids);
+    canvas.dataset.highlight = lit === null ? "none" : String([...cards.keys()].filter((id) => lit?.has(id)).length);
+  }
+
   return {
     setData,
     setAnaActivity,
     burst,
     focus,
+    highlight,
     resize,
     dispose() {
       cancelAnimationFrame(raf);

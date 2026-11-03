@@ -104,6 +104,28 @@ test.describe("ANA World — 3D view over real dashboard data", () => {
     expect(body.world.post_tags).toEqual({ state: "off", tags: {} });
   });
 
+  test("works · top posts and the posts behind a value light up in the orbit and open their numbers", async ({ page }) => {
+    await openWorld(page);
+    const canvas = page.getByTestId("world-canvas");
+    const top = page.getByTestId("world-works-top");
+    await expect(top.locator("li")).toHaveCount(5);
+    await expect(top).toContainText("Open on Instagram");
+    await top.getByRole("button", { name: "Show them in the orbit" }).click();
+    await expect(canvas).toHaveAttribute("data-highlight", "5");
+    await top.getByRole("button", { name: "Clear" }).click();
+    await expect(canvas).toHaveAttribute("data-highlight", "none");
+    // a value of a category: its posts are listed and lit
+    await page.getByTestId("world-works-format").getByRole("button", { name: "Reel" }).click();
+    const list = page.getByTestId("world-works-posts");
+    await expect(list).toContainText(/\d+ posts: Reel/);
+    const n = await list.locator("li").count();
+    expect(n).toBeGreaterThan(0);
+    await expect(canvas).not.toHaveAttribute("data-highlight", "none");
+    // a post in the list opens its numbers
+    await list.locator("li").first().locator("button").first().click();
+    await expect(page.getByTestId("world-post")).toBeVisible();
+  });
+
   test("AC5 · a real like increase between two pulse reads shows up in the feed", async ({ page }) => {
     await openWorld(page);
     await expect(page.getByTestId("world-pulse")).toHaveAttribute("data-state", "ok");

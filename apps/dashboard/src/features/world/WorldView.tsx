@@ -9,7 +9,7 @@ import { BEN_ACTIVITIES, berlinDay, VINCE_ACTIVITIES, type BenActivity, type Vin
 import { ANA_ACTIVITIES, ANA_OUTFITS, colorHex, currentActivity, SWATCHES, type AnaActivity, type AnaLookId, type ManualLook } from "./looks";
 import { PEOPLE, PROJECTS, type WorldPersonId } from "./people";
 import type { AudienceSeries, WorldPayload } from "./types";
-import { TAG_FIELDS, whatWorks } from "./postTags";
+import { postsWith, TAG_FIELDS, topPosts, whatWorks, type PostTags, type TagField } from "./postTags";
 import type { SceneData, SceneRef, StationStatus, ViewName, WorldScene } from "./scene/world";
 import styles from "./world.module.css";
 
@@ -188,6 +188,8 @@ export function WorldView() {
   const layer: Layer = layerPick ?? (world?.audience.engaged_country_week.state === "ok" ? "week" : "engaged");
   const [tab, setTab] = useState<Tab>("now");
   const [selected, setSelected] = useState<SceneRef | null>(null);
+  // a category value picked in "What works", or the top posts, lit up in the orbit
+  const [worksPick, setWorksPick] = useState<{ field: TagField; value: string } | "top" | null>(null);
   const [now, setNow] = useState(() => Date.now());
 
   useEffect(() => {
@@ -357,6 +359,43 @@ export function WorldView() {
 
   // which kinds of post reach which engagement (categories read by the model; format from Meta)
   const works = useMemo(() => (world && ig ? whatWorks(ig.posts, world.post_tags.tags) : null), [world, ig]);
+  const top = useMemo(() => (ig ? topPosts(ig.posts, 5) : []), [ig]);
+  const picked = useMemo(() => {
+    if (!world || !ig || !worksPick) return null;
+    return worksPick === "top" ? top : postsWith(ig.posts, world.post_tags.tags, worksPick.field, worksPick.value);
+  }, [world, ig, worksPick, top]);
+  useEffect(() => {
+    if (gl === "ok") sceneRef.current?.highlight(picked ? picked.map((p) => p.id) : null);
+  }, [gl, picked]);
+  const tagChips = (id: string) => {
+    const tg: PostTags | undefined = world?.post_tags.tags[id];
+    if (!tg) return null;
+    return (
+      <span className={styles.chips}>
+        {(["theme", "ana", "shot", "mood"] as const).map((f) => (
+          <span key={f} className={styles.chip}>
+            {t(`world.works.values.${f}.${tg[f]}` as never)}
+          </span>
+        ))}
+      </span>
+    );
+  };
+  const postRow = (p: { id: string; format: string; er: number | null; reach: number | null; permalink: string | null }) => (
+    <li key={p.id} className={styles.postRow}>
+      <button type="button" className={styles.postTitle} onClick={() => { setSelected({ type: "post", id: p.id }); setTab("selection"); }}>
+        {postTitle(p.id)}
+      </button>
+      <span className={styles.muted}>
+        {t("world.works.meta", { format: t(`world.works.values.format.${p.format}` as never), er: p.er === null ? "—" : `${pf.format(p.er * 100)} %`, reach: num(p.reach) })}
+      </span>
+      {tagChips(p.id)}
+      {p.permalink ? (
+        <a href={p.permalink} target="_blank" rel="noopener noreferrer">
+          {t("world.works.open")}
+        </a>
+      ) : null}
+    </li>
+  );
   const worksBlock =
     world && ig && works ? (
       <section className={styles.section} aria-labelledby="world-works" data-testid="world-works">
@@ -364,6 +403,14 @@ export function WorldView() {
         <p className={styles.muted}>
           {world.post_tags.state === "off" ? t("world.works.off") : t("world.works.status", { n: Object.keys(world.post_tags.tags).length, total: ig.posts.length, counted: works.counted })}
         </p>
+        <div className={styles.audienceGroup} data-testid="world-works-top">
+          <h4>{t("world.works.top")}</h4>
+          <ol className={styles.postList}>{top.map(postRow)}</ol>
+          <button type="button" className={styles.linkButton} aria-pressed={worksPick === "top"} onClick={() => setWorksPick(worksPick === "top" ? null : "top")}>
+            {worksPick === "top" ? t("world.works.clear") : t("world.works.showTop")}
+          </button>
+        </div>
+        <p className={styles.muted}>{t("world.works.pickHint")}</p>
         {TAG_FIELDS.map((f) => {
           const rows = works.fields[f].slice(0, 6);
           if (!rows.length) return null;
@@ -374,7 +421,14 @@ export function WorldView() {
               <ul className={styles.bars}>
                 {rows.map((r) => (
                   <li key={r.value} data-few={r.n < 3 ? "true" : undefined} className={r.n < 3 ? styles.few : undefined}>
-                    <span className={styles.barLabel}>{t(`world.works.values.${f}.${r.value}` as never)}</span>
+                    <button
+                      type="button"
+                      className={styles.barLabel}
+                      aria-pressed={typeof worksPick === "object" && worksPick?.field === f && worksPick.value === r.value}
+                      onClick={() => setWorksPick(typeof worksPick === "object" && worksPick?.field === f && worksPick.value === r.value ? null : { field: f, value: r.value })}
+                    >
+                      {t(`world.works.values.${f}.${r.value}` as never)}
+                    </button>
                     <span className={styles.barTrack} aria-hidden="true">
                       <span style={{ width: `${Math.max(3, (r.median / max) * 100)}%` }} />
                     </span>
@@ -382,6 +436,17 @@ export function WorldView() {
                   </li>
                 ))}
               </ul>
+              {typeof worksPick === "object" && worksPick?.field === f && picked ? (
+                <div data-testid="world-works-posts">
+                  <p className={styles.muted}>
+                    {t("world.works.postsFor", { n: picked.length, value: t(`world.works.values.${f}.${worksPick.value}` as never) })}{" "}
+                    <button type="button" className={styles.linkButton} onClick={() => setWorksPick(null)}>
+                      {t("world.works.clear")}
+                    </button>
+                  </p>
+                  <ol className={styles.postList}>{picked.map(postRow)}</ol>
+                </div>
+              ) : null}
             </div>
           );
         })}
@@ -669,6 +734,7 @@ export function WorldView() {
         <div className={styles.pane} data-testid="world-post">
           <h3 className={styles.selTitle}>{postTitle(p.id)}</h3>
           <p className={styles.muted}>{p.published_at ? t("world.post.published", { time: ago(p.published_at) }) : null}</p>
+          {tagChips(p.id)}
           {p.fresh ? <p className={styles.note}>{t("world.post.fresh")}</p> : null}
           <div className={styles.kpis}>
             {(["reach", "views", "likes", "comments", "saves", "shares"] as const).map((k) => (
