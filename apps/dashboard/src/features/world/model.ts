@@ -50,6 +50,11 @@ export interface WorldPost {
   counters_at: string | null;
   /** interactions ÷ reach, only when both are measured */
   er: number | null;
+  /**
+   * (saves + shares) ÷ reach, only when all three are measured: people who keep or pass a post on — a closer hint for
+   * long-form reading (Substack) than a like
+   */
+  ssr: number | null;
   /** true when the post is in the pulse but not yet in the snapshot (no insights yet) */
   fresh: boolean;
 }
@@ -127,13 +132,14 @@ export function instagramView(world: WorldPayload): ChannelView {
       comments,
       counters_at: live ? pulseAt : (snapshot?.observed_at ?? null),
       er: reach && interactions !== null ? interactions / reach : null,
+      ssr: reach && value(p, "saves") !== null && value(p, "shares") !== null ? ((value(p, "saves") as number) + (value(p, "shares") as number)) / reach : null,
       fresh: false,
     };
   });
   const known = new Set(posts.map((p) => p.id));
   for (const live of world.pulse.items) {
     if (known.has(live.id)) continue;
-    posts.push({ id: live.id, format: "unknown", caption: null, permalink: null, published_at: live.published_at, reach: null, views: null, saves: null, shares: null, interactions: null, likes: live.like_count, comments: live.comments_count, counters_at: pulseAt, er: null, fresh: true });
+    posts.push({ id: live.id, format: "unknown", caption: null, permalink: null, published_at: live.published_at, reach: null, views: null, saves: null, shares: null, interactions: null, likes: live.like_count, comments: live.comments_count, counters_at: pulseAt, er: null, ssr: null, fresh: true });
   }
   posts.sort((a, b) => Date.parse(b.published_at ?? "") - Date.parse(a.published_at ?? "") || a.id.localeCompare(b.id));
   const account = (metric: CanonicalMetric) => snapshot?.account.find((o) => o.metric_name === metric && o.availability_state === "VERIFIED")?.value ?? null;

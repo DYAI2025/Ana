@@ -9,7 +9,7 @@ import { BEN_ACTIVITIES, berlinDay, VINCE_ACTIVITIES, type BenActivity, type Vin
 import { ANA_ACTIVITIES, ANA_OUTFITS, colorHex, currentActivity, SWATCHES, type AnaActivity, type AnaLookId, type ManualLook } from "./looks";
 import { PEOPLE, PROJECTS, type WorldPersonId } from "./people";
 import type { AudienceSeries, WorldPayload } from "./types";
-import { postsWith, TAG_FIELDS, TAG_MIN_CONFIDENCE, topPosts, whatWorks, type PostTags, type TagField } from "./postTags";
+import { postsWith, TAG_FIELDS, TAG_MIN_CONFIDENCE, topPosts, whatWorks, type PostTags, type RateKind, type TagField } from "./postTags";
 import type { SceneData, SceneRef, StationStatus, ViewName, WorldScene } from "./scene/world";
 import styles from "./world.module.css";
 
@@ -190,6 +190,8 @@ export function WorldView() {
   const [selected, setSelected] = useState<SceneRef | null>(null);
   // a category value picked in "What works", or the top posts, lit up in the orbit
   const [worksPick, setWorksPick] = useState<{ field: TagField; value: string } | "top" | null>(null);
+  // what "What works" ranks by: engagement, or saves + shares (the closer hint for long reads, e.g. Substack)
+  const [rateKind, setRateKind] = useState<RateKind>("er");
   const [now, setNow] = useState(() => Date.now());
 
   useEffect(() => {
@@ -358,12 +360,12 @@ export function WorldView() {
   const history = world?.audience.history ?? { days: 0, since: null };
 
   // which kinds of post reach which engagement (categories read by the model; format from Meta)
-  const works = useMemo(() => (world && ig ? whatWorks(ig.posts, world.post_tags.tags) : null), [world, ig]);
-  const top = useMemo(() => (ig ? topPosts(ig.posts, 5) : []), [ig]);
+  const works = useMemo(() => (world && ig ? whatWorks(ig.posts, world.post_tags.tags, rateKind) : null), [world, ig, rateKind]);
+  const top = useMemo(() => (ig ? topPosts(ig.posts, 5, rateKind) : []), [ig, rateKind]);
   const pickedAll = useMemo(() => {
     if (!world || !ig || !worksPick) return null;
-    return worksPick === "top" ? top : postsWith(ig.posts, world.post_tags.tags, worksPick.field, worksPick.value);
-  }, [world, ig, worksPick, top]);
+    return worksPick === "top" ? top : postsWith(ig.posts, world.post_tags.tags, worksPick.field, worksPick.value, rateKind);
+  }, [world, ig, worksPick, top, rateKind]);
   // a pick whose posts are gone after a refresh counts as no pick (nothing stays dimmed)
   const picked = pickedAll && pickedAll.length > 0 ? pickedAll : null;
   const pick = picked ? worksPick : null;
@@ -390,13 +392,14 @@ export function WorldView() {
       </span>
     );
   };
-  const postRow = (p: { id: string; format: string; er: number | null; reach: number | null; permalink: string | null }) => (
+  const pct1 = (v: number | null) => (v === null ? "—" : `${pf.format(v * 100)} %`);
+  const postRow = (p: { id: string; format: string; er: number | null; ssr: number | null; reach: number | null; permalink: string | null }) => (
     <li key={p.id} className={styles.postRow}>
       <button type="button" className={styles.postTitle} onClick={() => { setSelected({ type: "post", id: p.id }); setTab("selection"); }}>
         {postTitle(p.id)}
       </button>
       <span className={styles.muted}>
-        {t("world.works.meta", { format: t(`world.works.values.format.${p.format}` as never), er: p.er === null ? "—" : `${pf.format(p.er * 100)} %`, reach: num(p.reach) })}
+        {t("world.works.meta", { format: t(`world.works.values.format.${p.format}` as never), er: pct1(p.er), ssr: pct1(p.ssr), reach: num(p.reach) })}
       </span>
       {tagChips(p.id)}
       {p.permalink ? (
@@ -411,10 +414,18 @@ export function WorldView() {
       <section className={styles.section} aria-labelledby="world-works" data-testid="world-works">
         <h3 id="world-works">{t("world.works.title")}</h3>
         <p className={styles.muted}>
-          {world.post_tags.state === "off" ? t("world.works.off") : t("world.works.status", { n: Object.keys(world.post_tags.tags).length, total: ig.posts.length, counted: works.counted })}
+          {world.post_tags.state === "off" ? t("world.works.off") : t(rateKind === "er" ? "world.works.status" : "world.works.statusSsr", { n: Object.keys(world.post_tags.tags).length, total: ig.posts.length, counted: works.counted })}
         </p>
+        <div role="group" aria-label={t("world.works.rateLabel")} className={styles.segment} data-testid="world-works-rate">
+          {(["er", "ssr"] as const).map((k) => (
+            <button key={k} type="button" aria-pressed={rateKind === k} onClick={() => setRateKind(k)}>
+              {t(`world.works.rates.${k}`)}
+            </button>
+          ))}
+        </div>
+        {rateKind === "ssr" ? <p className={styles.note}>{t("world.works.ssrNote")}</p> : null}
         <div className={styles.audienceGroup} data-testid="world-works-top">
-          <h4>{t("world.works.top")}</h4>
+          <h4>{t(rateKind === "er" ? "world.works.top" : "world.works.topSsr")}</h4>
           <ol className={styles.postList}>{top.map(postRow)}</ol>
           <button type="button" className={styles.linkButton} aria-pressed={pick === "top"} onClick={() => setWorksPick(pick === "top" ? null : "top")}>
             {t("world.works.showTop")}
@@ -461,7 +472,7 @@ export function WorldView() {
             </div>
           );
         })}
-        <p className={styles.note}>{t("world.works.note")}</p>
+        <p className={styles.note}>{t(rateKind === "er" ? "world.works.note" : "world.works.noteSsr")}</p>
       </section>
     ) : null;
 
@@ -756,6 +767,7 @@ export function WorldView() {
             ))}
           </div>
           <p>{p.er !== null && ig.erMedian !== null ? t("world.post.er", { value: `${pf.format(p.er * 100)} %`, median: `${pf.format(ig.erMedian * 100)} %` }) : p.er !== null ? t("world.post.er", { value: `${pf.format(p.er * 100)} %`, median: "—" }) : t("world.post.erNone")}</p>
+          {p.ssr !== null ? <p data-testid="world-post-ssr">{t("world.post.ssr", { value: pct1(p.ssr) })}</p> : null}
           <p className={styles.muted}>{t("world.post.countersAt", { time: ago(p.counters_at) })}</p>
           {p.permalink ? (
             <a href={p.permalink} target="_blank" rel="noopener noreferrer">

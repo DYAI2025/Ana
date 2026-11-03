@@ -83,6 +83,18 @@ describe("instagramView", () => {
     expect(v.erMedian).toBeNull();
   });
 
+  it("save+share rate only when saves, shares and reach are all measured", () => {
+    const w = world(77);
+    if (!w.instagram.ok) throw new Error("fixture");
+    const first = w.instagram.snapshot.posts[0] as SocialPost;
+    first.observations.push(obs("a", "saves", 30), obs("a", "shares", 20));
+    const second = w.instagram.snapshot.posts[1] as SocialPost;
+    second.observations.push(obs("b", "saves", 5));
+    const v = instagramView(w);
+    expect(v.posts[0]?.ssr).toBe(0.05);
+    expect(v.posts[1]?.ssr).toBeNull();
+  });
+
   it("shows a post the pulse knows before the snapshot does as fresh, without invented insights", () => {
     const v = instagramView(world(1, undefined, [{ id: "new", published_at: "2026-10-31T19:59:00.000Z", like_count: 2, comments_count: 0 }]));
     expect(v.posts[0]).toMatchObject({ id: "new", fresh: true, reach: null, likes: 2 });
@@ -220,5 +232,15 @@ describe("posts behind a category value and the top posts", () => {
   });
   it("top posts are the measured ones by rate", () => {
     expect(topPosts(posts, 2).map((p) => p.id)).toEqual(["c", "d"]);
+  });
+  it("ranked by save+share instead: only posts with that rate count, same grouping", () => {
+    const rated = [
+      { id: "a", format: "reel", er: 0.1, ssr: 0.02 },
+      { id: "b", format: "reel", er: 0.2, ssr: null },
+      { id: "c", format: "image", er: 0.05, ssr: 0.04 },
+    ];
+    expect(topPosts(rated, 5, "ssr").map((p) => p.id)).toEqual(["c", "a"]);
+    expect(whatWorks(rated, {}, "ssr").fields.format).toEqual([{ value: "image", n: 1, median: 0.04 }, { value: "reel", n: 1, median: 0.02 }]);
+    expect(postsWith(rated, {}, "format", "reel", "ssr").map((p) => p.id)).toEqual(["a", "b"]);
   });
 });
