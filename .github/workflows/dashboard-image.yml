@@ -2,7 +2,7 @@ name: dashboard-image
 
 # LIVE-01 / ANA-41: builds the production image of apps/dashboard on amd64, proves the access gate inside the real
 # container, extracts its /app as the native bundle for hosts without Docker, proves the same gate with that bundle
-# under Node 24, and keeps both as the workflow artifact ana-dashboard-<sha>. This is the app side of the release
+# under Node 24, and keeps the native bundle (not the image) as the workflow artifact ana-dashboard-<sha>. This is the app side of the release
 # contract in deploy/ana-dashboard/README.md; the only host is the Contabo VPS vmi3693936 (ADR-ANA-001 v3).
 # <sha> is OUT_ID below. Release only artifacts of push runs on main: a pull_request run is named pr-<PR head>, any
 # other non-release run test-<sha>; both are test evidence kept 3 days, never a release (deploy/fetch-release.sh and
