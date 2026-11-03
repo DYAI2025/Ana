@@ -8,8 +8,8 @@ import { historyFile } from "./audienceHistory";
 
 /**
  * Writes "Was läuft" into the ANA Brain once per Berlin day, as agent:lumen (a Brain agent key: CANDIDATE/DERIVED only,
- * never CONFIRMED, never superseding anything). One observation note per ISO week collects the daily digests; the two
- * topic notes say what the numbers are for: Substack (what people keep and pass on) and brand partnerships (reach,
+ * never CONFIRMED, never superseding anything). One observation note per ISO week collects the daily digests (DERIVED:
+ * measured); the two topic notes (CANDIDATE: a framing, until a person confirms it) say what the numbers are for: Substack (what people keep and pass on) and brand partnerships (reach,
  * countries, age and gender, brand posts). Only aggregated numbers and category values go to the Brain, never captions
  * or people. Background work: /api/world never waits for it, and a Brain outage never breaks the world.
  *
@@ -51,6 +51,8 @@ export function isoWeek(day: string): string {
   return `${year}-w${String(week).padStart(2, "0")}`;
 }
 export const weekNoteId = (day: string) => `kn-world-pulse-${isoWeek(day)}`;
+/** how a day's observation starts (digestText); the writer looks for it before appending */
+export const dayMarker = (day: string) => `Puls ${day} `;
 
 interface StateFile {
   version: 1;
@@ -111,7 +113,8 @@ export function createBrainWriter(config: BrainWriterConfig, file: string = brai
   let lastError: string | null = null;
   let rpcId = 0;
 
-  async function call(name: string, args: Record<string, unknown>, okIfExists = false): Promise<void> {
+  /** one tool call; returns the tool's text ("" when an existing id was refused and okIfExists) */
+  async function call(name: string, args: Record<string, unknown>, okIfExists = false): Promise<string> {
     const ctrl = new AbortController();
     const timer = setTimeout(() => ctrl.abort(), TIMEOUT_MS);
     try {
@@ -120,15 +123,18 @@ export function createBrainWriter(config: BrainWriterConfig, file: string = brai
         headers: { authorization: `Bearer ${config.key}`, "content-type": "application/json", accept: "application/json, text/event-stream" },
         body: JSON.stringify({ jsonrpc: "2.0", id: ++rpcId, method: "tools/call", params: { name, arguments: args } }),
         signal: ctrl.signal,
+        // the Brain is on loopback and never redirects; a redirect is refused rather than followed
+        redirect: "error",
       });
       if (!r.ok) throw new BrainCallError(`${name}: HTTP ${r.status}`);
       const body = (await r.json()) as { result?: { isError?: boolean; content?: Array<{ text?: string }> }; error?: { message?: string } };
       if (body.error) throw new BrainCallError(`${name}: ${body.error.message ?? "rpc error"}`.slice(0, 200));
       if (body.result?.isError) {
         const text = body.result.content?.[0]?.text ?? "";
-        if (okIfExists && text.startsWith("exists:")) return;
+        if (okIfExists && text.startsWith("exists:")) return "";
         throw new BrainCallError(`${name}: ${text}`.slice(0, 200));
       }
+      return body.result?.content?.[0]?.text ?? "";
     } finally {
       clearTimeout(timer);
     }
@@ -144,8 +150,8 @@ export function createBrainWriter(config: BrainWriterConfig, file: string = brai
       provenance_note: "dashboard brain writer (agent:lumen)",
     }, true);
     const ref = [{ source: SOURCE_ID, locator: "Was läuft (Dashboard)" }];
-    await call("brain_create_note", { id: TOPICS.substack, title: "Substack-Signale", type: "topic", status: "DERIVED", body: TOPIC_BODY.substack, source_refs: ref }, true);
-    await call("brain_create_note", { id: TOPICS.brands, title: "Marken-Kooperationen: Reichweite, Community, Zielgruppe", type: "topic", status: "DERIVED", body: TOPIC_BODY.brands, source_refs: ref }, true);
+    await call("brain_create_note", { id: TOPICS.substack, title: "Substack-Signale", type: "topic", status: "CANDIDATE", body: TOPIC_BODY.substack, source_refs: ref }, true);
+    await call("brain_create_note", { id: TOPICS.brands, title: "Marken-Kooperationen: Reichweite, Community, Zielgruppe", type: "topic", status: "CANDIDATE", body: TOPIC_BODY.brands, source_refs: ref }, true);
     s.ensured = true;
   }
 
@@ -167,9 +173,14 @@ export function createBrainWriter(config: BrainWriterConfig, file: string = brai
       }, true);
       state.note = note;
     }
-    await call("brain_append_observation", { id: note, text: digestText(digest), status: "DERIVED" });
+    // an append cannot be undone: a timed-out call that still landed, a lost answer or a state file that could not be
+    // written must not add the day twice, so the note itself is asked first
+    const current = await call("brain_get", { id: note });
+    if (!current.includes(dayMarker(digest.day))) await call("brain_append_observation", { id: note, text: digestText(digest), status: "DERIVED" });
     state.last_day = digest.day;
-    await writeState(file, state).catch(() => undefined);
+    await writeState(file, state).catch(() => {
+      throw new BrainCallError("state file not writable (the note is checked before each append)");
+    });
   }
 
   return {

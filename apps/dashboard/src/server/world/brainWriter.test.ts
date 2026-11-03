@@ -69,13 +69,15 @@ describe("Brain writer — Was läuft, once per Berlin day as agent:lumen", () =
     const w = createBrainWriter(config, file, b.impl, () => NOW);
     w.schedule(world(), NOW);
     await w.idle();
-    expect(b.calls.map((c) => c.name)).toEqual(["brain_register_source", "brain_create_note", "brain_create_note", "brain_create_note", "brain_append_observation"]);
+    expect(b.calls.map((c) => c.name)).toEqual(["brain_register_source", "brain_create_note", "brain_create_note", "brain_create_note", "brain_get", "brain_append_observation"]);
     expect(b.calls.every((c) => c.auth === `Bearer ${KEY}` && c.url === config.url)).toBe(true);
     expect(b.calls[0]?.args).toMatchObject({ id: SOURCE_ID, source: { kind: "url", data_class: "G1" } });
-    expect(b.calls[1]?.args).toMatchObject({ id: TOPICS.substack, type: "topic", status: "DERIVED" });
-    expect(b.calls[2]?.args).toMatchObject({ id: TOPICS.brands, type: "topic", status: "DERIVED" });
+    // the topics frame what the numbers are for: CANDIDATE until a person confirms them
+    expect(b.calls[1]?.args).toMatchObject({ id: TOPICS.substack, type: "topic", status: "CANDIDATE" });
+    expect(b.calls[2]?.args).toMatchObject({ id: TOPICS.brands, type: "topic", status: "CANDIDATE" });
     expect(b.calls[3]?.args).toMatchObject({ id: "kn-world-pulse-2026-w45", type: "observation", status: "DERIVED", topics: [TOPICS.substack, TOPICS.brands] });
-    const obs = b.calls[4]?.args as { id: string; text: string; status: string };
+    expect(b.calls[4]?.args).toEqual({ id: "kn-world-pulse-2026-w45" });
+    const obs = b.calls[5]?.args as { id: string; text: string; status: string };
     expect(obs).toMatchObject({ id: "kn-world-pulse-2026-w45", status: "DERIVED" });
     expect(obs.text).toContain("Steigend: TH +20.0 Pkt");
     // nothing asks for CONFIRMED, nothing supersedes
@@ -84,7 +86,7 @@ describe("Brain writer — Was läuft, once per Berlin day as agent:lumen", () =
     // the same day again: nothing; a new process reads the day from the file
     w.schedule(world(), NOW + 3_600_000);
     await w.idle();
-    expect(b.calls.length).toBe(5);
+    expect(b.calls.length).toBe(6);
     const again = fakeBrain();
     const w2 = createBrainWriter(config, file, again.impl, () => NOW);
     w2.schedule(world(), NOW);
@@ -93,13 +95,32 @@ describe("Brain writer — Was läuft, once per Berlin day as agent:lumen", () =
     // the next day: only the observation
     w2.schedule(world(), NOW + 86_400_000);
     await w2.idle();
-    expect(again.calls.map((c) => c.name)).toEqual(["brain_append_observation"]);
+    expect(again.calls.map((c) => c.name)).toEqual(["brain_get", "brain_append_observation"]);
+  });
+
+  it("a day the note already carries is not appended again (a timed-out append that landed, a lost state file)", async () => {
+    const b = fakeBrain((name) => (name === "brain_get" ? { text: JSON.stringify({ body: "## Observations\n- 2026-11-03T09:00:00Z · agent:lumen · DERIVED · Puls 2026-11-03 (Instagram …)" }) } : {}));
+    const w = createBrainWriter(config, file, b.impl, () => NOW);
+    w.schedule(world(), NOW);
+    await w.idle();
+    expect(b.calls.map((c) => c.name)).not.toContain("brain_append_observation");
+    expect(w.status()).toMatchObject({ state: "on", last_day: "2026-11-03" });
+  });
+
+  it("a state file that cannot be written is reported, and the next process still does not append twice", async () => {
+    const blocked = path.join(dir, "no-dir-here", "\0bad");
+    const b = fakeBrain();
+    const w = createBrainWriter(config, blocked, b.impl, () => NOW);
+    w.schedule(world(), NOW);
+    await w.idle();
+    expect(w.status()).toMatchObject({ state: "error", reason: expect.stringContaining("state file") });
+    expect(b.calls.filter((c) => c.name === "brain_append_observation").length).toBe(1);
   });
 
   it("notes that already exist count as done; an error waits 30 minutes and never shows the key", async () => {
     let t = NOW;
     let down = true;
-    const b = fakeBrain((name) => (name === "brain_append_observation" && down ? 500 : name !== "brain_append_observation" ? { isError: true, text: "exists: note already exists" } : {}));
+    const b = fakeBrain((name) => (name === "brain_append_observation" && down ? 500 : name !== "brain_append_observation" && name !== "brain_get" ? { isError: true, text: "exists: note already exists" } : {}));
     const w = createBrainWriter(config, file, b.impl, () => t);
     w.schedule(world(), t);
     await w.idle();

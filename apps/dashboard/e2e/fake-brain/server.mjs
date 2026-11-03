@@ -19,6 +19,8 @@ let mode = "ok";
 /** tool calls the dashboard's Brain writer made (name + arguments) */
 let mcpCalls = [];
 const madeIds = new Set();
+/** observations appended per note id, so brain_get can show them like the real Brain */
+const observations = new Map();
 
 function send(res, status, body) {
   res.writeHead(status, { "content-type": "application/json" });
@@ -42,6 +44,11 @@ const server = http.createServer(async (req, res) => {
     if ((name === "brain_create_note" || name === "brain_register_source") && madeIds.has(args?.id)) {
       return send(res, 200, { jsonrpc: "2.0", id: rpc.id, result: { isError: true, content: [{ type: "text", text: `exists: note already exists: ${args.id}` }] } });
     }
+    if (name === "brain_get") {
+      const body = (observations.get(args?.id) ?? []).map((t) => `- 2026-01-01T00:00:00Z · agent:lumen · DERIVED · ${t}`).join("\n");
+      return send(res, 200, { jsonrpc: "2.0", id: rpc.id, result: { content: [{ type: "text", text: JSON.stringify({ id: args?.id, body }) }] } });
+    }
+    if (name === "brain_append_observation") observations.set(args.id, [...(observations.get(args.id) ?? []), String(args.text)]);
     if (args?.id && name !== "brain_append_observation") madeIds.add(args.id);
     return send(res, 200, { jsonrpc: "2.0", id: rpc.id, result: { content: [{ type: "text", text: "{}" }] } });
   }

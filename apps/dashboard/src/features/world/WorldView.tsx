@@ -14,7 +14,8 @@ import type { SceneData, SceneRef, StationStatus, ViewName, WorldScene } from ".
 import { pulseDigest } from "./pulse";
 import styles from "./world.module.css";
 
-type Tab = "now" | "hot" | "selection" | "sources";
+const TABS = ["now", "hot", "selection", "sources"] as const;
+type Tab = (typeof TABS)[number];
 type Layer = "week" | "engaged" | "followers";
 const POLL_MS = 60_000;
 
@@ -542,6 +543,11 @@ export function WorldView() {
     if (b.state === "error") return t("world.hot.brain.error", { reason: b.reason ?? "?" });
     return b.last_day ? t("world.hot.brain.on", { day: b.last_day }) : t("world.hot.brain.pending");
   })();
+  const selectTab = (k: Tab) => {
+    setTab(k);
+    // movement is the last 7 days against the 30: the globe shows the week with its trend colours
+    if (k === "hot" && world?.audience.engaged_country_week.state === "ok") setLayer("week");
+  };
   const hotPane = (
     <div className={styles.pane} data-testid="world-hot">
       <section className={styles.section} aria-labelledby="world-hot-title">
@@ -1005,8 +1011,21 @@ export function WorldView() {
           </div>
         </div>
         <aside className={styles.panel} aria-label={t("world.tabs.label")}>
-          <div role="tablist" aria-label={t("world.tabs.label")} className={styles.tabs}>
-            {(["now", "hot", "selection", "sources"] as const).map((k) => (
+          <div
+            role="tablist"
+            aria-label={t("world.tabs.label")}
+            className={styles.tabs}
+            onKeyDown={(e) => {
+              // WAI-ARIA tabs: arrows, Home and End move between the tabs (only the selected one is in the Tab order)
+              const i = TABS.indexOf(tab);
+              const next = e.key === "ArrowRight" ? TABS[(i + 1) % TABS.length] : e.key === "ArrowLeft" ? TABS[(i - 1 + TABS.length) % TABS.length] : e.key === "Home" ? TABS[0] : e.key === "End" ? TABS[TABS.length - 1] : undefined;
+              if (!next) return;
+              e.preventDefault();
+              selectTab(next);
+              document.getElementById(`world-tab-${next}`)?.focus();
+            }}
+          >
+            {TABS.map((k) => (
               <button
                 key={k}
                 role="tab"
@@ -1015,11 +1034,7 @@ export function WorldView() {
                 aria-selected={tab === k}
                 aria-controls="world-tabpanel"
                 tabIndex={tab === k ? 0 : -1}
-                onClick={() => {
-                  setTab(k);
-                  // movement is the last 7 days against the 30: the globe shows the week with its trend colours
-                  if (k === "hot" && world?.audience.engaged_country_week.state === "ok") setLayer("week");
-                }}
+                onClick={() => selectTab(k)}
                 data-testid={`world-tab-${k}`}
                 data-moving={k === "hot" && digest && digest.rising.length > 0 ? "true" : undefined}
                 className={k === "hot" ? styles.hotTab : undefined}

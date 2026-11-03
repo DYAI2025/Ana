@@ -153,6 +153,13 @@ test.describe("ANA World — 3D view over real dashboard data", () => {
     await expect(tab).toHaveText("🔥 What's hot");
     // a country is rising in the synthetic week: the tab carries its live dot
     await expect(tab).toHaveAttribute("data-moving", "true");
+    // keyboard: from "Now" the arrow key reaches the tab (only the selected tab is in the Tab order)
+    await page.getByTestId("world-tab-now").focus();
+    await page.keyboard.press("ArrowRight");
+    await expect(tab).toHaveAttribute("aria-selected", "true");
+    await expect(tab).toBeFocused();
+    await page.keyboard.press("Home");
+    await expect(page.getByTestId("world-tab-now")).toHaveAttribute("aria-selected", "true");
     await page.getByRole("button", { name: "Engaged · 30 days" }).click();
     await tab.click();
     // movement is week against month: the globe switches to the week
@@ -175,7 +182,7 @@ test.describe("ANA World — 3D view over real dashboard data", () => {
       .toBe(true);
     const { calls } = (await (await page.request.get(`${FAKE_BRAIN}/__fake/mcp-calls`)).json()) as { calls: Array<{ name: string; args: Record<string, unknown> }> };
     const names = new Set(calls.map((c) => c.name));
-    expect([...names].sort()).toEqual(["brain_append_observation", "brain_create_note", "brain_register_source"]);
+    expect([...names].sort()).toEqual(["brain_append_observation", "brain_create_note", "brain_get", "brain_register_source"]);
     const obs = calls.filter((c) => c.name === "brain_append_observation");
     expect(obs.every((c) => c.args.status === "DERIVED" && /^kn-world-pulse-\d{4}-w\d{2}$/.test(String(c.args.id)))).toBe(true);
     expect(String(obs.at(-1)?.args.text)).toContain("Engagement 7 T nach Land");

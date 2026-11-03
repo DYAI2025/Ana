@@ -152,6 +152,7 @@ export function digestText(d: PulseDigest): string {
   if (d.brand.n || d.brand.otherN) lines.push(`Marken-Posts: ${d.brand.n} mit ER-Median ${pct(d.brand.er)}, übrige ${d.brand.otherN} mit ${pct(d.brand.otherEr)}.`);
   if (d.reach28 !== null || d.followers !== null) lines.push(`Reichweite 28 T ${d.reach28 ?? "—"}, Follower ${d.followers ?? "—"}.`);
   lines.push("Nur Korrelation: Meta sagt nicht, welche Person auf welchen Post reagiert hat.");
-  const text = lines.join("\n");
+  // the Brain keeps an observation on one line: the parts are separated by " ¦ "
+  const text = lines.join(" ¦ ");
   return text.length <= 2000 ? text : `${text.slice(0, 1997)}…`;
 }
