@@ -1,7 +1,7 @@
 import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import path from "node:path";
-import { HUMANS, type Human } from "../contract/schema.js";
+import { AGENT_RE, HUMANS, type Human } from "../contract/schema.js";
 
 /**
  * A key belongs to a person (ana, ben, vince) or to an agent ("agent:<name>", e.g. agent:lumen for the dashboard).
@@ -9,9 +9,8 @@ import { HUMANS, type Human } from "../contract/schema.js";
  * keys on /mcp, never in the OAuth login (oauth.ts).
  */
 export type KeyActor = Human | `agent:${string}`;
-export const AGENT_RE = /^agent:[a-z0-9][a-z0-9._-]{0,40}$/;
 export const isKeyActor = (actor: string): actor is KeyActor => (HUMANS as readonly string[]).includes(actor) || AGENT_RE.test(actor);
-const actorError = () => new Error(`actor must be one of ${HUMANS.join(", ")} or agent:<name>`);
+export const actorError = () => new Error(`actor must be one of ${HUMANS.join(", ")} or agent:<name>`);
 
 export interface KeyRecord { actor: KeyActor; sha256: string; created_at: string }
 

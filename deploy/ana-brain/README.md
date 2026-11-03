@@ -228,7 +228,8 @@ before M4, not something to accept silently.
    dashboard's `dashboard_env` credential, then run the dashboard's `release.sh` for a commit that contains the
    Brain page and `/api/brain`: this PR merged into `main`. Re-releasing production `8dd3dfa` would serve no Brain.
    Writing from the dashboard (observations, CANDIDATE notes): `brain.sh issue-key agent:lumen` gives an agent key
-   for `/mcp` only. It writes as `agent:lumen` with method `agent-derived`, can never set CONFIRMED and gets no OAuth
+   for `/mcp` only. It writes as `agent:lumen` with method `agent-derived`, can never set CONFIRMED, never supersede
+   (retire) a note, read Drive text or register a Drive source, and gets no OAuth
    login; `brain.sh revoke-key agent:lumen` ends it at the next request.
 7. G4 release gate on the evidence of section 2.
 

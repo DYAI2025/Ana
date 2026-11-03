@@ -8,7 +8,7 @@ import type { AuthInfo } from "@modelcontextprotocol/sdk/server/auth/types.js";
 import { InvalidClientMetadataError, InvalidGrantError, InvalidTokenError, TooManyRequestsError } from "@modelcontextprotocol/sdk/server/auth/errors.js";
 import type { OAuthClientInformationFull, OAuthTokens } from "@modelcontextprotocol/sdk/shared/auth.js";
 import { isHuman, type Human } from "../contract/schema.js";
-import { isKeyActor, KeyStore, sha256hex, writeJsonAtomic } from "./keys.js";
+import { actorError, isKeyActor, KeyStore, sha256hex, writeJsonAtomic } from "./keys.js";
 
 const ACCESS_TTL = 3600;
 const REFRESH_TTL = 30 * 24 * 3600;
@@ -193,7 +193,7 @@ ${error ? `<p role="alert" style="color:#b00">${esc(error)}</p>` : ""}
 
 /** `revoke-key <actor>`: every key and OAuth token of one person; effective at their next request, no restart. */
 export function revokeActor(stateDir: string, actor: string): { keys: number; tokens: number } {
-  if (!isKeyActor(actor)) throw new Error("actor must be ana, ben, vince or agent:<name>");
+  if (!isKeyActor(actor)) throw actorError();
   const ks = new KeyStore(stateDir);
   const keys = ks.revoke(actor);
   // agents never hold OAuth tokens

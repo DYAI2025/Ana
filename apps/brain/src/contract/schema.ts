@@ -17,7 +17,8 @@ const ISO_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2})$
 export const zId = z.string().regex(ID_RE, "invalid id");
 export const zIso = z.string().refine((s) => ISO_RE.test(s) && !Number.isNaN(Date.parse(s)), "invalid ISO timestamp");
 export const zIsoOrUnknown = z.union([zIso, z.literal(UNKNOWN)]);
-export const zActor = z.union([z.enum(HUMANS), z.string().regex(/^agent:[a-z0-9][a-z0-9._-]{0,40}$/), z.literal(UNKNOWN)]);
+export const AGENT_RE = /^agent:[a-z0-9][a-z0-9._-]{0,40}$/;
+export const zActor = z.union([z.enum(HUMANS), z.string().regex(AGENT_RE), z.literal(UNKNOWN)]);
 
 export const zSourceRef = z.object({ source: zId, locator: z.string().min(1).max(500) }).strict();
 export const zRelation = z.object({ type: z.enum(RELATION_TYPES), target: zId, by: zActor, at: zIsoOrUnknown }).strict();

@@ -243,6 +243,17 @@ describe("http + mcp", () => {
     const conf = await c.callTool({ name: "brain_create_note", arguments: { id: "kn-lumen-confirmed", title: "t", type: "preference", status: "CONFIRMED", body: "b" } });
     expect(conf.isError).toBe(true);
     expect(audit()).toContainEqual(expect.objectContaining({ actor: "agent:lumen", action: "create_note", target: "kn-by-lumen", result: "ok" }));
+    // agents add knowledge, they never retire it and never read Drive text
+    const sup = await c.callTool({ name: "brain_add_relation", arguments: { from: "kn-by-lumen", type: "supersedes", to: "kn-hook-first" } });
+    expect(sup.isError).toBe(true);
+    expect(text(sup)).toMatch(/people only/);
+    expect(JSON.parse(text(await c.callTool({ name: "brain_get", arguments: { id: "kn-hook-first" } }))).frontmatter.status).not.toBe("SUPERSEDED");
+    expect((await c.callTool({ name: "brain_add_relation", arguments: { from: "kn-by-lumen", type: "relates_to", to: "kn-hook-first" } })).isError).toBeFalsy();
+    expect((await c.callTool({ name: "brain_read_source", arguments: { id: "src-synthetic-report" } })).isError).toBe(true);
+    const drive = await c.callTool({ name: "brain_register_source", arguments: { id: "src-lumen-drive", title: "D", description: "x", source: { kind: "drive_doc", locator: "abc", original_title: "D", access: "internal", data_class: "G1" } } });
+    expect(drive.isError).toBe(true);
+    const url = await c.callTool({ name: "brain_register_source", arguments: { id: "src-lumen-url", title: "U", description: "x", source: { kind: "url", locator: "https://example.org/w", original_title: "U", access: "internal", data_class: "G1" } } });
+    expect(url.isError).toBeFalsy();
     await c.close();
     // the browser login is for people: an agent key gets no code
     const reg = (await (await fetch(`${base}/register`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ redirect_uris: ["http://127.0.0.1:9/callback"], client_name: "Test", token_endpoint_auth_method: "none" }) })).json()) as { client_id: string };
