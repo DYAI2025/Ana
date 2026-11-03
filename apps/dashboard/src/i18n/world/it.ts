@@ -32,6 +32,7 @@ export const worldIt: Messages["world"] = {
     untitled: "post senza testo",
   },
   works: {
+    inOrbit: "({k} di {n} nell'orbita)",
     top: "Post migliori (tasso di interazione)",
     showTop: "Mostrali nell'orbita",
     clear: "Azzera",

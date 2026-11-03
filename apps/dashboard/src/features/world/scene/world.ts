@@ -1342,6 +1342,8 @@ export function createWorldScene(
 
   function highlight(ids: readonly string[] | null) {
     lit = ids === null ? null : new Set(ids);
+    // when none of them flies in the orbit nothing is dimmed
+    if (lit && ![...cards.keys()].some((id) => lit?.has(id))) lit = null;
     canvas.dataset.highlight = lit === null ? "none" : String([...cards.keys()].filter((id) => lit?.has(id)).length);
   }
 

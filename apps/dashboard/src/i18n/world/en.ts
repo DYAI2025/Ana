@@ -31,6 +31,7 @@ export const worldEn = {
     untitled: "post without caption",
   },
   works: {
+    inOrbit: "({k} of {n} in the orbit)",
     top: "Top posts (engagement rate)",
     showTop: "Show them in the orbit",
     clear: "Clear",

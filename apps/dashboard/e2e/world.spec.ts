@@ -112,12 +112,13 @@ test.describe("ANA World — 3D view over real dashboard data", () => {
     await expect(top).toContainText("Open on Instagram");
     await top.getByRole("button", { name: "Show them in the orbit" }).click();
     await expect(canvas).toHaveAttribute("data-highlight", "5");
-    await top.getByRole("button", { name: "Clear" }).click();
+    await expect(top).toContainText("(5 of 5 in the orbit)");
+    await top.getByRole("button", { name: "Show them in the orbit" }).click();
     await expect(canvas).toHaveAttribute("data-highlight", "none");
     // a value of a category: its posts are listed and lit
     await page.getByTestId("world-works-format").getByRole("button", { name: "Reel" }).click();
     const list = page.getByTestId("world-works-posts");
-    await expect(list).toContainText(/\d+ posts: Reel/);
+    await expect(list).toContainText(/\d+ posts: Reel \(\d+ of \d+ in the orbit\)/);
     const n = await list.locator("li").count();
     expect(n).toBeGreaterThan(0);
     await expect(canvas).not.toHaveAttribute("data-highlight", "none");

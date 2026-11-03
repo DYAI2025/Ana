@@ -4,12 +4,12 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { useI18n } from "@/components/providers/I18nProvider";
 import { useReducedMotion } from "@/lib/hooks/useReducedMotion";
-import { channelStatuses, instagramView, orbitCount, pulseEvents, shares, trends, TREND_POINTS, whoView, type ChannelView, type PulseEvent, type ShareEntry, type WhoView } from "./model";
+import { channelStatuses, ORBIT_MAX, instagramView, orbitCount, pulseEvents, shares, trends, TREND_POINTS, whoView, type ChannelView, type PulseEvent, type ShareEntry, type WhoView } from "./model";
 import { BEN_ACTIVITIES, berlinDay, VINCE_ACTIVITIES, type BenActivity, type VinceActivity } from "./berlinDay";
 import { ANA_ACTIVITIES, ANA_OUTFITS, colorHex, currentActivity, SWATCHES, type AnaActivity, type AnaLookId, type ManualLook } from "./looks";
 import { PEOPLE, PROJECTS, type WorldPersonId } from "./people";
 import type { AudienceSeries, WorldPayload } from "./types";
-import { postsWith, TAG_FIELDS, topPosts, whatWorks, type PostTags, type TagField } from "./postTags";
+import { postsWith, TAG_FIELDS, TAG_MIN_CONFIDENCE, topPosts, whatWorks, type PostTags, type TagField } from "./postTags";
 import type { SceneData, SceneRef, StationStatus, ViewName, WorldScene } from "./scene/world";
 import styles from "./world.module.css";
 
@@ -360,16 +360,26 @@ export function WorldView() {
   // which kinds of post reach which engagement (categories read by the model; format from Meta)
   const works = useMemo(() => (world && ig ? whatWorks(ig.posts, world.post_tags.tags) : null), [world, ig]);
   const top = useMemo(() => (ig ? topPosts(ig.posts, 5) : []), [ig]);
-  const picked = useMemo(() => {
+  const pickedAll = useMemo(() => {
     if (!world || !ig || !worksPick) return null;
     return worksPick === "top" ? top : postsWith(ig.posts, world.post_tags.tags, worksPick.field, worksPick.value);
   }, [world, ig, worksPick, top]);
+  // a pick whose posts are gone after a refresh counts as no pick (nothing stays dimmed)
+  const picked = pickedAll && pickedAll.length > 0 ? pickedAll : null;
+  const pick = picked ? worksPick : null;
+  // only the newest posts fly in the orbit: say how many of the picked ones can light up
+  const inOrbit = useMemo(() => {
+    if (!ig || !picked) return 0;
+    const ids = new Set(ig.posts.slice(0, ORBIT_MAX).map((p) => p.id));
+    return picked.filter((p) => ids.has(p.id)).length;
+  }, [ig, picked]);
   useEffect(() => {
     if (gl === "ok") sceneRef.current?.highlight(picked ? picked.map((p) => p.id) : null);
   }, [gl, picked]);
   const tagChips = (id: string) => {
     const tg: PostTags | undefined = world?.post_tags.tags[id];
-    if (!tg) return null;
+    // a reading the statistics leave out is not shown as if it counted
+    if (!tg || tg.confidence < TAG_MIN_CONFIDENCE) return null;
     return (
       <span className={styles.chips}>
         {(["theme", "ana", "shot", "mood"] as const).map((f) => (
@@ -406,9 +416,10 @@ export function WorldView() {
         <div className={styles.audienceGroup} data-testid="world-works-top">
           <h4>{t("world.works.top")}</h4>
           <ol className={styles.postList}>{top.map(postRow)}</ol>
-          <button type="button" className={styles.linkButton} aria-pressed={worksPick === "top"} onClick={() => setWorksPick(worksPick === "top" ? null : "top")}>
-            {worksPick === "top" ? t("world.works.clear") : t("world.works.showTop")}
+          <button type="button" className={styles.linkButton} aria-pressed={pick === "top"} onClick={() => setWorksPick(pick === "top" ? null : "top")}>
+            {t("world.works.showTop")}
           </button>
+          {pick === "top" ? <p className={styles.muted}>{t("world.works.inOrbit", { k: inOrbit, n: top.length })}</p> : null}
         </div>
         <p className={styles.muted}>{t("world.works.pickHint")}</p>
         {TAG_FIELDS.map((f) => {
@@ -424,8 +435,8 @@ export function WorldView() {
                     <button
                       type="button"
                       className={styles.barLabel}
-                      aria-pressed={typeof worksPick === "object" && worksPick?.field === f && worksPick.value === r.value}
-                      onClick={() => setWorksPick(typeof worksPick === "object" && worksPick?.field === f && worksPick.value === r.value ? null : { field: f, value: r.value })}
+                      aria-pressed={typeof pick === "object" && pick?.field === f && pick.value === r.value}
+                      onClick={() => setWorksPick(typeof pick === "object" && pick?.field === f && pick.value === r.value ? null : { field: f, value: r.value })}
                     >
                       {t(`world.works.values.${f}.${r.value}` as never)}
                     </button>
@@ -436,10 +447,10 @@ export function WorldView() {
                   </li>
                 ))}
               </ul>
-              {typeof worksPick === "object" && worksPick?.field === f && picked ? (
+              {typeof pick === "object" && pick?.field === f && picked ? (
                 <div data-testid="world-works-posts">
                   <p className={styles.muted}>
-                    {t("world.works.postsFor", { n: picked.length, value: t(`world.works.values.${f}.${worksPick.value}` as never) })}{" "}
+                    {t("world.works.postsFor", { n: picked.length, value: t(`world.works.values.${f}.${pick.value}` as never) })} {t("world.works.inOrbit", { k: inOrbit, n: picked.length })}{" "}
                     <button type="button" className={styles.linkButton} onClick={() => setWorksPick(null)}>
                       {t("world.works.clear")}
                     </button>
