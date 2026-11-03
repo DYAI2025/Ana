@@ -137,4 +137,17 @@ export interface WorldBrainSync {
   /** the week note it went into */
   note: string | null;
   reason: string | null;
+  /** the Instagram insights written in the same daily run; absent while the writer is off */
+  insights?: WorldInsightSync;
+}
+
+export interface WorldInsightSync {
+  state: "on" | "skipped" | "error";
+  /** the Berlin day of the last complete run */
+  last_day: string | null;
+  notes: number;
+  /** eligible insights left out of that run by the per-run cap */
+  dropped: number;
+  /** why nothing was written; never a key */
+  reason: string | null;
 }

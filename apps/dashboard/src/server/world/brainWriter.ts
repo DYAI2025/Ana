@@ -4,14 +4,18 @@ import { promises as fs } from "node:fs";
 import path from "node:path";
 import { digestHasSignal, digestText, pulseDigest } from "@/features/world/pulse";
 import type { WorldBrainSync, WorldPayload } from "@/features/world/types";
+import { createInsightStep } from "@/server/brain/insightWriter";
+import { createBrainMcp } from "@/server/brain/mcpClient";
 import { historyFile } from "./audienceHistory";
 
 /**
  * Writes "Was läuft" into the ANA Brain once per Berlin day, as agent:lumen (a Brain agent key: CANDIDATE/DERIVED only,
  * never CONFIRMED, never superseding anything). One observation note per ISO week collects the daily digests (DERIVED:
  * measured); the two topic notes (CANDIDATE: a framing, until a person confirms it) say what the numbers are for: Substack (what people keep and pass on) and brand partnerships (reach,
- * countries, age and gender, brand posts). Only aggregated numbers and category values go to the Brain, never captions
- * or people. Background work: /api/world never waits for it, and a Brain outage never breaks the world.
+ * countries, age and gender, brand posts). The digest holds only aggregated numbers and category values. The same daily
+ * run also writes the Instagram insights (server/brain/insightWriter.ts): those name post ids with their measured saves,
+ * shares and reach. Never captions or people. Background work: /api/world never waits for it, and a Brain outage never
+ * breaks the world.
  *
  * ANA_BRAIN_MCP_URL must be a loopback URL (the Brain listens on 127.0.0.1); ANA_BRAIN_WRITE_KEY is the agent key.
  */
@@ -138,7 +142,7 @@ Grenzen: Instagram-Verhalten ist kein Beweis für Lese- oder Zahlungsbereitschaf
 Grenzen: Metas Zielgruppen-Daten sind kontoweit, verzögert (bis 48 h) und erst ab 100 Interaktionen; kein Wert sagt, welche Person auf welchen Post reagiert hat.`,
 };
 
-export function createBrainWriter(config: BrainWriterConfig, file: string = brainSyncFile(), fetchImpl: typeof fetch = fetch, nowFn: () => number = Date.now): BrainWriter {
+export function createBrainWriter(config: BrainWriterConfig, file: string = brainSyncFile(), fetchImpl: typeof fetch = fetch, nowFn: () => number = Date.now, options: { derivationVersion?: number } = {}): BrainWriter {
   let state: StateFile | null = null;
   let running: Promise<void> = Promise.resolve();
   let busy = false;
@@ -146,6 +150,7 @@ export function createBrainWriter(config: BrainWriterConfig, file: string = brai
   let lastError: string | null = null;
 
   const call = brainCaller(config, fetchImpl);
+  const insights = createInsightStep(createBrainMcp(config, fetchImpl), options);
 
   async function ensure(s: StateFile) {
     if (s.ensured) return;
@@ -190,20 +195,32 @@ export function createBrainWriter(config: BrainWriterConfig, file: string = brai
     });
   }
 
+  /** The digest and the insights of one read, one after the other: neither failure stops the other, and either backs off both. */
+  async function runDay(world: WorldPayload, nowMs: number) {
+    let failed = false;
+    try {
+      await write(world, nowMs);
+      lastError = null;
+    } catch (e) {
+      failed = true;
+      // never the key: messages come from our own call() or the network layer
+      lastError = e instanceof BrainCallError ? e.message : "unreachable";
+    }
+    try {
+      await insights.run(world.instagram, world.post_tags.tags, nowMs);
+    } catch {
+      // its own status says what failed
+      failed = true;
+    }
+    if (failed) failedAt = nowFn();
+  }
+
   return {
-    status: () => ({ state: lastError ? "error" : "on", last_day: state?.last_day ?? null, note: state?.note ?? null, reason: lastError }),
+    status: () => ({ state: lastError ? "error" : "on", last_day: state?.last_day ?? null, note: state?.note ?? null, reason: lastError, insights: insights.status() }),
     schedule(world, nowMs) {
       if (busy || nowFn() - failedAt < RETRY_MS) return;
       busy = true;
-      running = write(world, nowMs)
-        .then(() => {
-          lastError = null;
-        })
-        .catch((e: unknown) => {
-          failedAt = nowFn();
-          // never the key: messages come from our own call() or the network layer
-          lastError = e instanceof BrainCallError ? e.message : "unreachable";
-        })
+      running = runDay(world, nowMs)
         .finally(() => {
           busy = false;
         });
