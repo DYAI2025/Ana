@@ -27,7 +27,7 @@ export const worldEn = {
     latest: "Newest",
     weekly: "Weekly brief {week}",
     kinds: { content: "Content", audience: "Audience", brand: "Brands", substack: "Substack" },
-    strength: { weak: "Rating: weak evidence", medium: "Rating: medium evidence", strong: "Rating: strong evidence" },
+    strength: { weak: "Claude's rating: weak evidence", medium: "Claude's rating: medium evidence", strong: "Claude's rating: strong evidence" },
     evidence: "Evidence ({n})",
     counterEvidence: "Counter-evidence ({n})",
     counter: "Against:",

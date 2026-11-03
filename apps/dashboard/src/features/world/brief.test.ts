@@ -85,7 +85,12 @@ describe("parseBrief — the model may phrase and weigh, not bring figures", () 
     expect(numbersBacked("Reichweite 40.000", F)).toBe(true);
     expect(numbersBacked("Reichweite 40,000", F)).toBe(true);
     expect(numbersBacked("９９ %", F)).toBe(false);
-    for (const w of ["Die Hälfte kommt aus Tier 1", "Gesicht verdoppelt die Rate", "zehn Prozent mehr", "twice as many", "doppelt so gut"]) expect(numbersBacked(w, F), w).toBe(false);
+    for (const w of ["Die Hälfte kommt aus Tier 1", "Gesicht verdoppelt die Rate", "zehn Prozent mehr", "twice as many", "doppelt so gut", "zweimal so hoch", "dreimal mehr", "fünfzig Prozent", "vierzig Prozent", "dreizehn Länder", "ein Fünftel", "verzehnfacht", "threefold", "fifteen posts"])
+      expect(numbersBacked(w, F), w).toBe(false);
+    // ordinary words that only look like numbers stay allowed
+    for (const w of ["einfach und klar", "beachten", "Achtung", "einmal testen", "Elfenbein"]) expect(numbersBacked(w, F), w).toBe(true);
+    expect(numbersBacked("Reichweite 40 000", F)).toBe(true);
+    expect(numbersBacked("25 000 Views", [{ id: "F2", kind: "content", text: "Tier 3 0 % und 25 %" }])).toBe(false);
     // names and windows are not figures, but only as names
     expect(numbersBacked("Tier 1 in den letzten 30 Tagen", F)).toBe(true);
     expect(numbersBacked("an 28 Tagen gepostet", [])).toBe(true);
@@ -100,6 +105,13 @@ describe("parseBrief — the model may phrase and weigh, not bring figures", () 
     expect(capStrength("strong", [f("F1", "Tier 1 40 %", "market"), f("F2", "nur kontoweit", "limit")])).toBe("weak");
     expect(capStrength("medium", [f("F1", "x (n 3)"), f("F2", "y (n 12)")])).toBe("weak");
     expect(capStrength("weak", [f("F1", "x (n 9)"), f("F2", "y (n 12)")])).toBe("weak");
+    // a fact about posts without a readable n cannot carry "strong"
+    expect(capStrength("strong", [f("F1", "Reichweite 28 Tage: 40000", "brand"), f("F2", "y (n 12)")])).toBe("medium");
+    // the brief's own facts carry their n
+    const facts = briefFacts(world(), [], NOW);
+    const brand = facts.find((x) => x.kind === "brand" && x.text.startsWith("Posts mit sichtbarer Marke"))!;
+    const fresh = facts.find((x) => x.text.startsWith("Posts der letzten 7 Tage"))!;
+    expect(capStrength("strong", [brand, fresh])).toBe("weak");
   });
 
   it("not a brief: no headline, not an object", () => {

@@ -114,9 +114,9 @@ export function briefFacts(world: WorldPayload, history: readonly HistoryDay[], 
   }
   if (d.fresh.length) {
     const best = d.fresh[0]!;
-    add("content", `Posts der letzten 7 Tage: ${d.fresh.length}; der stärkste hat ${pct(best.er)} Interaktionsrate${best.vsMedian !== null ? ` (${best.vsMedian.toFixed(1)}× Median)` : ""}${best.tags ? `, Kategorien ${best.tags.theme}/${valueDe("ana", best.tags.ana)}/${best.tags.shot}` : ""}.`);
+    add("content", `Posts der letzten 7 Tage (n ${d.fresh.length}): der stärkste hat ${pct(best.er)} Interaktionsrate${best.vsMedian !== null ? ` (${best.vsMedian.toFixed(1)}× Median)` : ""}${best.tags ? `, Kategorien ${best.tags.theme}/${valueDe("ana", best.tags.ana)}/${best.tags.shot}` : ""}.`);
   }
-  if (d.brand.n) add("brand", `Posts mit sichtbarer Marke: ${d.brand.n}, Interaktionsrate im Median ${pct(d.brand.er)}; ohne Marke: ${d.brand.otherN}, ${pct(d.brand.otherEr)}.`);
+  if (d.brand.n) add("brand", `Posts mit sichtbarer Marke: Interaktionsrate im Median ${pct(d.brand.er)} (n ${d.brand.n}); ohne Marke: ${pct(d.brand.otherEr)} (n ${d.brand.otherN}).`);
   if (week || month) add("brand", `Reichweite 28 Tage: ${ig.reach28 ?? "—"}; Follower: ${ig.followers ?? "—"}.`);
 
   // Substack hypotheses of the Instagram cockpit (keyword families of the captions, read here, never sent)
@@ -182,16 +182,20 @@ function canon(token: string): string | null {
 /** names that carry a digit but are not figures: H1/H4, Tier 1–3 and the 7/28/30-day windows */
 const NAMES = /(?<![\p{L}\p{N}])(?:H[1-4]|Tier ?[123])(?![\p{L}\p{N}])|(?<![\p{L}\p{N}])(?:7|28|30)[ -](?:Tage|Tagen|days)(?![\p{L}\p{N}])/gu;
 
-/** quantities in words bring figures too: a claim with one of them is not backed by any fact */
+/** quantities in words bring figures too: a claim with one of them is not backed by any fact ("einfach" is not one) */
 const NUMBER_WORDS = new RegExp(
   `(?<![\\p{L}])(?:${[
-    "eins", "zwei", "drei", "vier", "fünf", "sechs", "sieben", "acht", "neun", "zehn", "elf", "zwölf", "zwanzig", "dreißig", "hundert", "tausend", "million(?:en)?", "milliarde(?:n)?",
-    "hälfte", "halb(?:e|en|er|so)?", "doppel(?:t|te|ten|ter)?", "verdoppel\\p{L}*", "dreifach\\p{L}*", "verdreifach\\p{L}*", "vierfach\\p{L}*", "drittel", "viertel", "zehntel",
-    "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten", "eleven", "twelve", "twenty", "thirty", "hundred", "thousand", "million", "billion",
-    "half", "twice", "double(?:d|s)?", "triple(?:d|s)?", "third", "quarter",
+    "(?:zwei|drei|vier|fünf|sechs|sieben|acht|neun|zehn|elf|zwölf)(?:mal|fach\\p{L}*|zehn\\p{L}*|zig\\p{L}*|tel\\p{L}*|stellig\\p{L}*)?",
+    "eins", "dreißig\\p{L}*", "hundert\\p{L}*", "tausend\\p{L}*", "million(?:en)?", "milliarde(?:n)?", "ver\\p{L}*fach\\p{L}*",
+    "hälfte", "halb(?:e|en|er|so)?", "doppel(?:t|te|ten|ter)?", "verdoppel\\p{L}*", "drittel", "viertel",
+    "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten", "eleven", "twelve", "\\p{L}*teen", "twenty", "thirty", "forty", "fifty", "sixty", "seventy", "eighty", "ninety",
+    "hundred\\p{L}*", "thousand\\p{L}*", "million", "billion", "half", "once", "twice", "thrice", "double(?:d|s)?", "triple(?:d|s)?", "\\p{L}+fold", "third", "quarter",
   ].join("|")})(?![\\p{L}])`,
   "iu",
 );
+
+/** "40 000" (space or narrow space as a thousands separator) is one number */
+const joinSpaced = (s: string) => s.replace(/(\p{Nd})[   ](?=\p{Nd}{3}(?!\p{Nd}))/gu, "$1");
 
 /**
  * Every number in `text` appears in the texts of the cited facts (6.1 = 6,10; 1.000 = 1000), and no quantity is
@@ -201,11 +205,11 @@ const NUMBER_WORDS = new RegExp(
 export function numbersBacked(text: string, cited: readonly Fact[]): boolean {
   if (NUMBER_WORDS.test(text)) return false;
   const pool = new Set<string>();
-  for (const f of cited) for (const m of f.text.match(NUM) ?? []) {
+  for (const f of cited) for (const m of joinSpaced(f.text).match(NUM) ?? []) {
     const c = canon(m);
     if (c !== null) pool.add(c);
   }
-  return (text.replace(NAMES, " ").match(NUM) ?? []).every((m) => {
+  return (joinSpaced(text.replace(NAMES, " ")).match(NUM) ?? []).every((m) => {
     const c = canon(m);
     return c !== null && pool.has(c);
   });
@@ -223,8 +227,12 @@ function minN(cited: readonly Fact[]): number | null {
  */
 export function capStrength(claimed: BriefPattern["strength"], cited: readonly Fact[]): BriefPattern["strength"] {
   const real = cited.filter((f) => f.kind !== "limit");
+  // facts about posts must say how many posts they rest on; without a readable n they cannot carry "strong"
+  const counted = real.filter((f) => f.kind === "content" || f.kind === "brand" || f.kind === "substack");
+  const unknownN = counted.some((f) => minN([f]) === null);
   const n = minN(real);
-  const ceiling: BriefPattern["strength"] = real.length < 2 || (n !== null && n < 5) ? "weak" : n !== null && n < 8 ? "medium" : "strong";
+  let ceiling: BriefPattern["strength"] = real.length < 2 || (n !== null && n < 5) ? "weak" : n !== null && n < 8 ? "medium" : "strong";
+  if (ceiling === "strong" && unknownN) ceiling = "medium";
   const rank = { weak: 0, medium: 1, strong: 2 } as const;
   return rank[claimed] <= rank[ceiling] ? claimed : ceiling;
 }

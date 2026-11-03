@@ -28,7 +28,7 @@ export const worldIt: Messages["world"] = {
     latest: "Più recente",
     weekly: "Brief settimanale {week}",
     kinds: { content: "Contenuto", audience: "Pubblico", brand: "Brand", substack: "Substack" },
-    strength: { weak: "Valutazione: prove deboli", medium: "Valutazione: prove medie", strong: "Valutazione: prove forti" },
+    strength: { weak: "Valutazione di Claude: prove deboli", medium: "Valutazione di Claude: prove medie", strong: "Valutazione di Claude: prove forti" },
     evidence: "Prove ({n})",
     counterEvidence: "Controprove ({n})",
     counter: "Contro:",
