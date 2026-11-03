@@ -37,8 +37,9 @@ env:
   # "Output name matches the event" asserts this at run time; deploy/test-release-provenance.sh pins this line.
   # release.sh takes a bare 40-hex commit AND checks the bundle's .ana-build (event push, ref main, that commit).
   OUT_ID: ${{ (github.event_name == 'push' && github.ref == 'refs/heads/main') && github.sha || format('{0}-{1}', github.event_name == 'pull_request' && 'pr' || 'test', github.event.pull_request.head.sha || github.sha) }}
-  # artifact retention: 30 days for release candidates (push to main), 3 days for test output (quota, 2026-10-31)
-  RETENTION_DAYS: ${{ (github.event_name == 'push' && github.ref == 'refs/heads/main') && 30 || 3 }}
+  # artifact retention: 14 days for release candidates (push to main), 3 days for test output (quota, 2026-10-31;
+  # 30 → 14 on 2026-11-03 after the storage quota stopped every upload; the host keeps its own releases for rollback)
+  RETENTION_DAYS: ${{ (github.event_name == 'push' && github.ref == 'refs/heads/main') && 14 || 3 }}
 
 jobs:
   check:
@@ -176,7 +177,7 @@ jobs:
           # canary for release-shaped names: only a push to main may name its outputs with a bare 40-hex commit
           if [ "$GITHUB_EVENT_NAME" = push ] && [ "$GITHUB_REF" = refs/heads/main ]; then
             [ "$OUT_ID" = "$SOURCE_SHA" ] && [[ "$OUT_ID" =~ ^[0-9a-f]{40}$ ]] || { echo "FAIL: push to main, OUT_ID '$OUT_ID'"; exit 1; }
-            [ "$RETENTION_DAYS" = 30 ] || { echo "FAIL: release retention $RETENTION_DAYS"; exit 1; }
+            [ "$RETENTION_DAYS" = 14 ] || { echo "FAIL: release retention $RETENTION_DAYS"; exit 1; }
           else
             if [[ "$OUT_ID" =~ ^[0-9a-f]{40}$ ]]; then echo "FAIL: $GITHUB_EVENT_NAME on $GITHUB_REF has the release-shaped name $OUT_ID"; exit 1; fi
             [[ "$OUT_ID" =~ ^(pr|test)-[0-9a-f]{40}$ && "$OUT_ID" == *"-$SOURCE_SHA" ]] || { echo "FAIL: OUT_ID '$OUT_ID'"; exit 1; }
