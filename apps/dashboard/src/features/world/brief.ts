@@ -4,8 +4,10 @@
  *
  * 1. briefFacts() turns the measured, aggregated numbers into numbered facts (F1, F2, …) with the numbers written out.
  * 2. A model reads only these facts and writes patterns that cite fact ids (prompt in server/world/briefService.ts).
- * 3. parseBrief() keeps a pattern only when every id it cites exists and every number in its words appears in the facts
- *    it cites — so the brief can phrase and weigh, but cannot bring a figure of its own.
+ * 3. parseBrief() keeps a pattern only when every id it cites exists, every number written in digits appears in the
+ *    facts it cites, and no quantity is written in words (a list of German and English number words — a list is never
+ *    complete, so every claim is shown next to the facts it cites). The strength the model gives is capped by what it
+ *    cites (capStrength). So the brief can phrase and weigh, but not bring a figure of its own in digits.
  *
  * Nothing about people: countries, age and gender bands are Meta's account-wide aggregates; posts are counted by
  * categories, never quoted. Meta does not say which person reacted to which post, so a link between a kind of post and
@@ -185,9 +187,10 @@ const NAMES = /(?<![\p{L}\p{N}])(?:H[1-4]|Tier ?[123])(?![\p{L}\p{N}])|(?<![\p{L
 /** quantities in words bring figures too: a claim with one of them is not backed by any fact ("einfach" is not one) */
 const NUMBER_WORDS = new RegExp(
   `(?<![\\p{L}])(?:${[
-    "(?:zwei|drei|vier|fünf|sechs|sieben|acht|neun|zehn|elf|zwölf)(?:mal|fach\\p{L}*|zehn\\p{L}*|zig\\p{L}*|tel\\p{L}*|stellig\\p{L}*)?",
-    "eins", "dreißig\\p{L}*", "hundert\\p{L}*", "tausend\\p{L}*", "million(?:en)?", "milliarde(?:n)?", "ver\\p{L}*fach\\p{L}*",
-    "hälfte", "halb(?:e|en|er|so)?", "doppel(?:t|te|ten|ter)?", "verdoppel\\p{L}*", "drittel", "viertel",
+    "(?:zwei|drei|vier|fünf|sechs|sieben|acht|neun|zehn|elf|zwölf)(?:mal|fach\\p{L}*|zehn\\p{L}*|zig\\p{L}*|tel\\p{L}*|stellig\\p{L}*|hundert\\p{L}*|tausend\\p{L}*|einhalb|viertel)?",
+    "eins", "zwanzig\\p{L}*", "dreißig\\p{L}*", "sechzig\\p{L}*", "siebzig\\p{L}*", "sechzehn\\p{L}*", "siebzehn\\p{L}*", "hundert\\p{L}*", "tausend\\p{L}*", "dutzend\\p{L}*",
+    "million(?:en)?", "milliarde(?:n)?", "ver(?:doppel|drei|vier|fünf|sechs|zehn|hundert|tausend|viel)fach\\p{L}*",
+    "hälfte", "halb(?:e|en|er|so)?", "halbier\\p{L}*", "doppel(?:t|te|ten|ter)?", "verdoppel\\p{L}*", "drittel", "viertel",
     "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten", "eleven", "twelve", "\\p{L}*teen", "twenty", "thirty", "forty", "fifty", "sixty", "seventy", "eighty", "ninety",
     "hundred\\p{L}*", "thousand\\p{L}*", "million", "billion", "half", "once", "twice", "thrice", "double(?:d|s)?", "triple(?:d|s)?", "\\p{L}+fold", "third", "quarter",
   ].join("|")})(?![\\p{L}])`,

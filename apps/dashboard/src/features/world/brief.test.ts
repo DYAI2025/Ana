@@ -77,6 +77,7 @@ describe("parseBrief — the model may phrase and weigh, not bring figures", () 
     expect(numbersBacked("6,1 % und 6.10 %", [{ id: "F1", kind: "content", text: "6.1 %" }])).toBe(true);
   });
 
+  // a word list cannot be complete: what slips through is still shown next to the facts it cites
   it("thousands, other scripts and number words cannot smuggle a figure in", () => {
     const F: Fact[] = [{ id: "F1", kind: "market", text: "Tier 1 63 %, Tier 2 25 %, Tier 3 12 % (Stand 2026-08-22); Reichweite 40000." }];
     expect(numbersBacked("über 1.000 neue Follower", F)).toBe(false);
@@ -85,10 +86,10 @@ describe("parseBrief — the model may phrase and weigh, not bring figures", () 
     expect(numbersBacked("Reichweite 40.000", F)).toBe(true);
     expect(numbersBacked("Reichweite 40,000", F)).toBe(true);
     expect(numbersBacked("９９ %", F)).toBe(false);
-    for (const w of ["Die Hälfte kommt aus Tier 1", "Gesicht verdoppelt die Rate", "zehn Prozent mehr", "twice as many", "doppelt so gut", "zweimal so hoch", "dreimal mehr", "fünfzig Prozent", "vierzig Prozent", "dreizehn Länder", "ein Fünftel", "verzehnfacht", "threefold", "fifteen posts"])
+    for (const w of ["Die Hälfte kommt aus Tier 1", "Gesicht verdoppelt die Rate", "zehn Prozent mehr", "twice as many", "doppelt so gut", "zweimal so hoch", "dreimal mehr", "fünfzig Prozent", "vierzig Prozent", "dreizehn Länder", "ein Fünftel", "verzehnfacht", "threefold", "fifteen posts", "zwanzig Prozent", "sechzig Prozent", "siebzig Prozent", "sechzehn", "siebzehn", "zweihundert", "dreitausend", "zehntausend", "halbiert", "zweieinhalb", "dreiviertel", "ein Dutzend", "vervielfacht"])
       expect(numbersBacked(w, F), w).toBe(false);
     // ordinary words that only look like numbers stay allowed
-    for (const w of ["einfach und klar", "beachten", "Achtung", "einmal testen", "Elfenbein"]) expect(numbersBacked(w, F), w).toBe(true);
+    for (const w of ["einfach und klar", "vereinfacht gesagt", "beachten", "Achtung", "einmal testen", "Elfenbein", "Zweifel", "Untertitel", "Fachleute"]) expect(numbersBacked(w, F), w).toBe(true);
     expect(numbersBacked("Reichweite 40 000", F)).toBe(true);
     expect(numbersBacked("25 000 Views", [{ id: "F2", kind: "content", text: "Tier 3 0 % und 25 %" }])).toBe(false);
     // names and windows are not figures, but only as names
