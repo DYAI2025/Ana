@@ -10,8 +10,8 @@ const headers = { "Cache-Control": "no-store" };
 
 /**
  * GET /api/brain/context?q=...&limit=... — what the Brain knows about a question: semantic hits with their sources,
- * status and correction history. Same access gate as every data route; only the dashboard's own pages may ask. The key
- * stays on the server. No model is called here.
+ * status and correction history, limited to what the dashboard itself wrote (retrieval.ts). Same access gate as every data
+ * route; only the dashboard's own pages may ask. The key stays on the server. No model is called here.
  */
 export async function GET(request: Request) {
   const refused = await refuseUnauthorized(request);

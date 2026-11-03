@@ -42,11 +42,29 @@ describe("GET /api/brain/context", () => {
     expect(f).not.toHaveBeenCalled();
   });
 
-  it("a fractional limit is floored before it reaches the Brain", async () => {
+  it("a fractional limit is floored before it is scaled for the Brain (2 asked, 10 searched: withheld hits must not crowd out)", async () => {
     const f = vi.fn<(u: string, init: RequestInit) => Promise<Response>>(async () => new Response(JSON.stringify({ jsonrpc: "2.0", id: 1, result: { content: [{ type: "text", text: JSON.stringify({ results: [] }) }] } }), { status: 200 }));
     vi.stubGlobal("fetch", f);
     await GET(new Request(`${URL_OK}&limit=2.5`));
-    expect(JSON.parse(String(f.mock.calls[0]?.[1].body)).params.arguments.limit).toBe(2);
+    expect(JSON.parse(String(f.mock.calls[0]?.[1].body)).params.arguments.limit).toBe(10);
+  });
+
+  it("a locked note stays out of the route's answer, in id, title, body and sources", async () => {
+    const CANARY = "PRIVATE-CANARY-7f3a";
+    const tool = (text: string) => new Response(JSON.stringify({ jsonrpc: "2.0", id: 1, result: { content: [{ type: "text", text }] } }), { status: 200 });
+    const asked: string[] = [];
+    vi.stubGlobal("fetch", vi.fn(async (_u: string, init: RequestInit) => {
+      const { params } = JSON.parse(String(init.body)) as { params: { name: string; arguments: { id?: string } } };
+      asked.push(`${params.name}:${params.arguments.id ?? ""}`);
+      if (params.name === "brain_search") return tool(JSON.stringify({ results: [{ id: "kn-privat-canary", title: `Titel ${CANARY}`, type: "concept", score: 0.99, summary: CANARY }] }));
+      if (params.arguments.id === "kn-privat-canary") return tool(JSON.stringify({ frontmatter: { type: "concept", status: "CANDIDATE", created_by: "agent:lumen", source_refs: [{ source: "src-privat-canary", locator: `drive ${CANARY}` }] }, body: `Vertraulich ${CANARY}` }));
+      return tool(JSON.stringify({ frontmatter: { type: "source", status: "SOURCE", created_by: "ben", source: { access: "restricted", data_class: "G3" } }, body: CANARY }));
+    }));
+    const text = await (await GET(new Request(URL_OK))).text();
+    expect(asked).toContain("brain_get:kn-privat-canary");
+    expect(text).toBe(JSON.stringify({ ok: true, results: [], withheld: 1 }));
+    expect(text).not.toContain(CANARY);
+    expect(text).not.toContain("kn-privat-canary");
   });
 
   it("says when the server has no Brain connection", async () => {
@@ -59,7 +77,7 @@ describe("GET /api/brain/context", () => {
     const r = await GET(new Request(URL_OK));
     expect(r.headers.get("cache-control")).toBe("no-store");
     const text = await r.text();
-    expect(text).toBe(JSON.stringify({ ok: true, results: [] }));
+    expect(text).toBe(JSON.stringify({ ok: true, results: [], withheld: 0 }));
     expect(text).not.toContain("anab_");
   });
 });

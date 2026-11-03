@@ -156,6 +156,15 @@ describe.skipIf(!DIR)("Instagram -> Brain -> Qdrant/BGE-M3 -> retrieval on real 
     expect(text).toContain("created_by: agent:lumen");
     expect(text).toMatch(/IG-INSIGHT tag=\d{4}-\d{2}-\d{2} v=1 status=(DERIVED|UNKNOWN)/);
     expect(text).toContain("src-instagram-insights");
+    // the payload as written: post ids with their measured values (the open PO decision in docs/ana-knowledge)
+    expect(text).toMatch(/instagram:media\/\S+ saves=\d+ count shares=\d+ count reach=\d+ accounts/);
+    expect(text).toMatch(/instagram:media\/\S+ rate=\d+\.\d+ %/);
+    evidence.payload = {
+      post_refs_with_values: (text.match(/instagram:media\/\S+ saves=/g) ?? []).length,
+      post_refs_with_rate: (text.match(/instagram:media\/\S+ rate=/g) ?? []).length,
+      digest_post_ids: (readFileSync(path.join(vault, "knowledge", `${digest.note}.md`), "utf8").match(/instagram:media\//g) ?? []).length,
+      block: /^- .*IG-INSIGHT.*$/m.exec(text)?.[0],
+    };
     cli("validate"); // throws on a non-zero exit
     const captions = payload.instagram.ok ? payload.instagram.snapshot.posts.flatMap((p) => p.caption ?? []) : [];
     expect(captions.length).toBeGreaterThan(0);
@@ -183,14 +192,42 @@ describe.skipIf(!DIR)("Instagram -> Brain -> Qdrant/BGE-M3 -> retrieval on real 
     expect(["DERIVED", "UNKNOWN"]).toContain(top?.epistemic);
     expect(top?.sources[0]).toEqual({ source: "src-instagram-insights", locator: "instagram:media-insights?format=reel&theme=beach" });
     expect(top?.current?.text).toContain("BEOBACHTUNG (SOURCE)");
+    // the search itself does find foreign knowledge; the boundary keeps it out
+    const raw = JSON.parse(await mcp.call("brain_search", { query: "Wie setze ich Untertitel beim Videoschnitt?", limit: 5 })) as { results: Array<{ id: string }> };
+    expect(raw.results[0]?.id).toBe("kn-test-capcut");
     const other = await retrieveContext(mcp, "Wie setze ich Untertitel beim Videoschnitt?", 5);
     if (!other.ok) throw new Error(other.reason);
-    expect(other.results[0]?.id).toBe("kn-test-capcut");
+    expect(other.results.map((x) => x.id)).not.toContain("kn-test-capcut");
+    expect(other.withheld).toBeGreaterThan(0);
     const collection = (await (await fetch(`http://127.0.0.1:${PORTS.qdrant}/collections/ana_brain_v1`, { headers: { "api-key": QDRANT_KEY } })).json()) as { result: { points_count: number; config: { params: { vectors: { size: number } } } } };
     expect(collection.result.config.params.vectors.size).toBe(1024);
     const indexState = JSON.parse(readFileSync(path.join(vault, ".ana", "index-state.json"), "utf8")) as Record<string, unknown>;
     evidence.index = { points: collection.result.points_count, size: 1024, state_keys: Object.keys(indexState).slice(0, 6), model: indexState.embed_model ?? indexState.model, digest: indexState.embed_digest ?? indexState.digest };
   }, 60_000);
+
+  it("locked notes are found by the Brain and stay out of the context retrieval", async () => {
+    const CANARY = "PRIVATE-CANARY-7f3a";
+    const ana = createBrainMcp({ url: mcpUrl, key: cli("issue-key", "ana").trim() });
+    const question = `Vertraulich ${CANARY}: Welche Strandvideos werden besonders oft gespeichert und weitergeschickt?`;
+    // the same key as the dashboard's, so the key alone cannot be what keeps them out
+    await mcp.call("brain_register_source", { id: "src-test-privat", title: "Privat", description: "synthetisch", source: { kind: "url", locator: "https://example.invalid/privat", original_title: "privat", access: "restricted", data_class: "G3" } });
+    await mcp.call("brain_create_note", { id: "kn-test-privat", title: `Strandvideos ${CANARY}`, type: "concept", status: "CANDIDATE", body: question, source_refs: [{ source: "src-test-privat", locator: "privat" }] });
+    // a person's note citing the dashboard's own source
+    await ana.call("brain_create_note", { id: "kn-test-person", title: `Strandvideos von Ana ${CANARY}`, type: "concept", status: "CANDIDATE", body: question, source_refs: [{ source: "src-instagram-insights", locator: "ana" }] });
+    // a person's line appended to a note the dashboard wrote
+    await ana.call("brain_append_observation", { id: "kn-ig-resonanz-reel-city", text: `Stadtvideos ${CANARY}`, status: "CANDIDATE" });
+    index();
+    const raw = JSON.parse(await mcp.call("brain_search", { query: question, limit: 25 })) as { results: Array<{ id: string }> };
+    for (const id of ["kn-test-privat", "kn-test-person", "kn-ig-resonanz-reel-city"]) expect(raw.results.map((x) => x.id)).toContain(id);
+    const r = await retrieveContext(mcp, question, 10);
+    if (!r.ok) throw new Error(r.reason);
+    const out = JSON.stringify(r);
+    expect(out).not.toContain(CANARY);
+    for (const id of ["kn-test-privat", "kn-test-person", "kn-ig-resonanz-reel-city", "kn-test-capcut"]) expect(out).not.toContain(id);
+    expect(r.results[0]?.id).toBe(NOTE);
+    expect(r.withheld).toBeGreaterThanOrEqual(3);
+    evidence.boundary = { released: r.results.map((x) => x.id), withheld: r.withheld };
+  }, 120_000);
 
   it("reprocessing adds nothing: same writer, a new writer, the same day", async () => {
     const before = { sha: sha(noteFile()), commits: commits() };
