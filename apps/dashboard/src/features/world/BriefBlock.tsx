@@ -69,7 +69,8 @@ export function BriefBlock({ world, posts, t, ago, onPost }: { world: WorldPaylo
         ))}
       </span>
       <span>
-        <b>{what(s)}</b> {t(kind === "good" ? (s.ratio >= 1.5 ? "world.simple.muchMore" : "world.simple.more") : s.ratio <= 0.67 ? "world.simple.muchLess" : "world.simple.less")}
+        <b>{what(s)}</b> {/* "deutlich" only with 5 posts or more: 3 posts can make a big ratio by chance */}
+        {t(kind === "good" ? (s.ratio >= 1.5 && s.n >= 5 ? "world.simple.muchMore" : "world.simple.more") : s.ratio <= 0.67 && s.n >= 5 ? "world.simple.muchLess" : "world.simple.less")}
       </span>
       <details className={styles.why}>
         <summary>{t("world.simple.why")}</summary>
@@ -191,6 +192,7 @@ export function BriefBlock({ world, posts, t, ago, onPost }: { world: WorldPaylo
                 <li key={`${i}-${p.title}`} data-kind={p.kind} data-strength={p.strength}>
                   <span>
                     <span aria-hidden="true">{p.kind === "brand" ? "🤝 " : p.kind === "substack" ? "✉️ " : p.kind === "audience" ? "🌍 " : "📸 "}</span>
+                    {p.strength === "weak" ? <span className={styles.muted}>{t("world.simple.tentative")} </span> : null}
                     <b>{p.title}</b> {p.text}
                   </span>
                   {why(

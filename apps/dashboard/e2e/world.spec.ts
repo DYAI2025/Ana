@@ -170,7 +170,7 @@ test.describe("ANA World — 3D view over real dashboard data", () => {
     // "What matters for the business": the market split is computed without a model; the brief needs the model key
     // plain words first: one sentence, a legend that says what each market is; the source behind "Why?"
     const markets = page.getByTestId("world-brief-markets");
-    await expect(markets).toContainText(/\d+ % of this week's reactions come from top markets/);
+    await expect(markets).toContainText(/\d+ % of the people who reacted this week are in top markets/);
     await expect(page.getByTestId("world-brief-legend")).toContainText("Top markets");
     await expect(page.getByTestId("world-brief-legend")).toContainText("Countries brands pay the most for");
     await expect(page.getByTestId("world-brief-legend")).toContainText("Low-cost markets");
@@ -178,8 +178,8 @@ test.describe("ANA World — 3D view over real dashboard data", () => {
     await markets.locator("summary").click();
     await expect(markets.getByText("ASO.dev", { exact: false })).toBeVisible();
     // what runs well / what holds back: always both headings, plain sentences
-    await expect(page.getByTestId("world-signals-good")).toContainText("Working well now");
-    await expect(page.getByTestId("world-signals-slow")).toContainText("Holding back now");
+    await expect(page.getByTestId("world-signals-good")).toContainText("Working well");
+    await expect(page.getByTestId("world-signals-slow")).toContainText("Holding back");
     await expect(page.getByTestId("world-brief-button")).toBeDisabled();
     await expect(page.getByTestId("world-brief-state")).toHaveAttribute("data-state", "off");
     const off = await page.request.post("/api/world/brief", { data: {}, headers: { "content-type": "application/json" } });
