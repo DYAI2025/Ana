@@ -88,6 +88,8 @@ export interface PostTagger {
   schedule(posts: readonly TaggedPost[]): void;
   /** test hook: resolves when the running batch is done */
   idle(): Promise<void>;
+  /** whether the stored categories have been read (right after a restart they have not) */
+  ready(): boolean;
 }
 
 export const BATCH = 4;
@@ -97,6 +99,7 @@ const RETRY_MS = 30 * 60_000;
 export function createPostTagger(config: VisionConfig, file: string = tagsFile(), fetchImpl: typeof fetch = fetch, now: () => number = Date.now): PostTagger {
   let tags: Record<string, PostTags & { model: string; at: string }> = {};
   let loaded: Promise<void> | null = null;
+  let isLoaded = false;
   let running: Promise<void> = Promise.resolve();
   let busy = false;
   // posts the model could not read are asked again at the earliest 30 minutes later
@@ -105,6 +108,7 @@ export function createPostTagger(config: VisionConfig, file: string = tagsFile()
   const load = () =>
     (loaded ??= readTags(file).then((t) => {
       tags = Object.fromEntries(Object.entries(t).map(([id, v]) => [id, { ...v, model: "", at: "" }]));
+      isLoaded = true;
     }));
 
   async function tagOne(p: TaggedPost): Promise<PostTags | null | undefined> {
@@ -155,5 +159,6 @@ export function createPostTagger(config: VisionConfig, file: string = tagsFile()
         });
     },
     idle: () => running,
+    ready: () => isLoaded,
   };
 }
