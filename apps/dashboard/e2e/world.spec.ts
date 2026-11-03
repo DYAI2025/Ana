@@ -149,7 +149,7 @@ test.describe("ANA World — 3D view over real dashboard data", () => {
     await expect(page.getByTestId("world-post-ssr")).toContainText("Saves + shares:");
   });
 
-  test("hot · the tab shows where the community moves, posts of the week light up, and the day goes into the Brain", async ({ page }) => {
+  test("hot · the tab shows where the community moves, in plain words first", async ({ page }) => {
     await openWorld(page);
     const tab = page.getByTestId("world-tab-hot");
     await expect(tab).toHaveText("🔥 What's hot");
@@ -198,6 +198,11 @@ test.describe("ANA World — 3D view over real dashboard data", () => {
     // a rising country opens its numbers
     await page.getByTestId("world-hot-rising").locator("li").first().getByRole("button").click();
     await expect(page.getByTestId("world-tab-selection")).toHaveAttribute("aria-selected", "true");
+  });
+
+  // its own test: the UI test above is long enough for a CI runner's 30 s budget (run 41634570211)
+  test("hot · the day goes into the Brain as agent:lumen, DERIVED, without captions, and the panel says so", async ({ page }) => {
+    await openWorld(page);
     // the writer ran on the first read: once a Berlin day, DERIVED, never CONFIRMED, never a caption
     await expect
       .poll(async () => ((await (await page.request.get(`${FAKE_BRAIN}/__fake/mcp-calls`)).json()) as { calls: Array<{ name: string }> }).calls.some((c) => c.name === "brain_append_observation"), { timeout: 15_000 })
