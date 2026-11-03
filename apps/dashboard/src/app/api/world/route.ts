@@ -1,6 +1,7 @@
 import { refuseUnauthorized } from "@/server/http";
 import { writeManual } from "@/server/world/lookStore";
 import { resetWorldService, worldServiceFromEnv } from "@/server/world/shared";
+import { resetBrainSync } from "@/server/world/brainWriter";
 
 // always answered by the server process: never a build-time copy
 export const dynamic = "force-dynamic";
@@ -28,6 +29,7 @@ export async function GET(request: Request) {
   if (process.env.SOCIAL_IG_E2E_CONTROLS === "1" && new URL(request.url).searchParams.has("__reset")) {
     resetWorldService();
     await writeManual(null);
+    await resetBrainSync();
     return new Response(null, { status: 204 });
   }
   const world = await worldServiceFromEnv().read();

@@ -71,6 +71,9 @@ export default defineConfig({
             BRAIN_API_URL: `http://127.0.0.1:${FAKE_BRAIN_PORT}`,
             BRAIN_API_TOKEN: "e2e-fake-brain-token",
             BRAIN_TIMEOUT_MS: "1500",
+            // the "Was läuft" writer talks MCP to the same fake Brain with a synthetic agent key
+            ANA_BRAIN_MCP_URL: `http://127.0.0.1:${FAKE_BRAIN_PORT}/mcp`,
+            ANA_BRAIN_WRITE_KEY: "anab_e2e-fake-agent-key-000000",
           },
           reuseExistingServer: false,
           timeout: 240_000,

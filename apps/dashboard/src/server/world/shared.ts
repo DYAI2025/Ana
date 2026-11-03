@@ -9,6 +9,7 @@ import { readHistory, recordHistory } from "./audienceHistory";
 import { createWorldService, type WorldService } from "./service";
 import { createVisionReader, visionConfigFromEnv } from "./vision";
 import { createPostTagger } from "./tagger";
+import { brainWriterConfigFromEnv, createBrainWriter } from "./brainWriter";
 
 let shared: { key: string; service: WorldService } | null = null;
 
@@ -19,7 +20,8 @@ export function worldServiceFromEnv(): WorldService {
   const pulseRaw = Number(process.env.WORLD_PULSE_MS);
   const pulseMs = process.env.WORLD_PULSE_MS !== undefined && Number.isFinite(pulseRaw) && pulseRaw >= 0 ? pulseRaw : undefined;
   const vision = visionConfigFromEnv();
-  const key = `${config?.workerOrigin ?? "-"}|${config?.key.length ?? 0}|${jiraConfigured}|${pulseMs ?? "d"}|${vision?.model ?? "-"}`;
+  const brain = brainWriterConfigFromEnv();
+  const key = `${config?.workerOrigin ?? "-"}|${config?.key.length ?? 0}|${jiraConfigured}|${pulseMs ?? "d"}|${vision?.model ?? "-"}|${brain ? "brain" : "-"}`;
   if (!shared || shared.key !== key) {
     shared = {
       key,
@@ -41,6 +43,8 @@ export function worldServiceFromEnv(): WorldService {
         history: { read: () => readHistory(), record: (e) => recordHistory(e) },
         // same key and model as the look reader; Ana agreed to the categories on 2026-11-02
         tagger: vision ? createPostTagger(vision) : null,
+        // agent:lumen, Ben's approval of 2026-11-03: aggregated numbers only, never CONFIRMED
+        brain: brain ? createBrainWriter(brain) : null,
       }),
     };
   }

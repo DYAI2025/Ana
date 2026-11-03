@@ -11,9 +11,11 @@ import { PEOPLE, PROJECTS, type WorldPersonId } from "./people";
 import type { AudienceSeries, WorldPayload } from "./types";
 import { postsWith, TAG_FIELDS, TAG_MIN_CONFIDENCE, topPosts, whatWorks, type PostTags, type RateKind, type TagField } from "./postTags";
 import type { SceneData, SceneRef, StationStatus, ViewName, WorldScene } from "./scene/world";
+import { pulseDigest } from "./pulse";
 import styles from "./world.module.css";
 
-type Tab = "now" | "selection" | "sources";
+const TABS = ["now", "hot", "selection", "sources"] as const;
+type Tab = (typeof TABS)[number];
 type Layer = "week" | "engaged" | "followers";
 const POLL_MS = 60_000;
 
@@ -189,7 +191,7 @@ export function WorldView() {
   const [tab, setTab] = useState<Tab>("now");
   const [selected, setSelected] = useState<SceneRef | null>(null);
   // a category value picked in "What works", or the top posts, lit up in the orbit
-  const [worksPick, setWorksPick] = useState<{ field: TagField; value: string } | "top" | null>(null);
+  const [worksPick, setWorksPick] = useState<{ field: TagField; value: string } | "top" | "fresh" | null>(null);
   // what "What works" ranks by: engagement, or saves + shares (the closer hint for long reads, e.g. Substack)
   const [rateKind, setRateKind] = useState<RateKind>("er");
   const [now, setNow] = useState(() => Date.now());
@@ -362,10 +364,13 @@ export function WorldView() {
   // which kinds of post reach which engagement (categories read by the model; format from Meta)
   const works = useMemo(() => (world && ig ? whatWorks(ig.posts, world.post_tags.tags, rateKind) : null), [world, ig, rateKind]);
   const top = useMemo(() => (ig ? topPosts(ig.posts, 5, rateKind) : []), [ig, rateKind]);
+  // "Was läuft": the same digest the Brain gets once a day
+  const digest = useMemo(() => (world ? pulseDigest(world, Date.parse(world.generated_at)) : null), [world]);
+  const freshPosts = useMemo(() => (ig && digest ? digest.fresh.flatMap((f) => ig.posts.filter((p) => p.id === f.id)) : []), [ig, digest]);
   const pickedAll = useMemo(() => {
     if (!world || !ig || !worksPick) return null;
-    return worksPick === "top" ? top : postsWith(ig.posts, world.post_tags.tags, worksPick.field, worksPick.value, rateKind);
-  }, [world, ig, worksPick, top, rateKind]);
+    return worksPick === "top" ? top : worksPick === "fresh" ? freshPosts : postsWith(ig.posts, world.post_tags.tags, worksPick.field, worksPick.value, rateKind);
+  }, [world, ig, worksPick, top, freshPosts, rateKind]);
   // a pick whose posts are gone after a refresh counts as no pick (nothing stays dimmed)
   const picked = pickedAll && pickedAll.length > 0 ? pickedAll : null;
   const pick = picked ? worksPick : null;
@@ -393,7 +398,7 @@ export function WorldView() {
     );
   };
   const pct1 = (v: number | null) => (v === null ? "—" : `${pf.format(v * 100)} %`);
-  const postRow = (p: { id: string; format: string; er: number | null; ssr: number | null; reach: number | null; permalink: string | null }) => (
+  const postRow = (p: { id: string; format: string; er: number | null; ssr: number | null; reach: number | null; permalink: string | null }, extra?: string | null) => (
     <li key={p.id} className={styles.postRow}>
       <button type="button" className={styles.postTitle} onClick={() => { setSelected({ type: "post", id: p.id }); setTab("selection"); }}>
         {postTitle(p.id)}
@@ -401,6 +406,7 @@ export function WorldView() {
       <span className={styles.muted}>
         {t("world.works.meta", { format: t(`world.works.values.format.${p.format}` as never), er: pct1(p.er), ssr: pct1(p.ssr), reach: num(p.reach) })}
       </span>
+      {extra ? <span className={styles.hotBadge}>{extra}</span> : null}
       {tagChips(p.id)}
       {p.permalink ? (
         <a href={p.permalink} target="_blank" rel="noopener noreferrer">
@@ -426,7 +432,7 @@ export function WorldView() {
         {rateKind === "ssr" ? <p className={styles.note}>{t("world.works.ssrNote")}</p> : null}
         <div className={styles.audienceGroup} data-testid="world-works-top">
           <h4>{t(rateKind === "er" ? "world.works.top" : "world.works.topSsr")}</h4>
-          <ol className={styles.postList}>{top.map(postRow)}</ol>
+          <ol className={styles.postList}>{top.map((p) => postRow(p))}</ol>
           <button type="button" className={styles.linkButton} aria-pressed={pick === "top"} onClick={() => setWorksPick(pick === "top" ? null : "top")}>
             {t("world.works.showTop")}
           </button>
@@ -466,7 +472,7 @@ export function WorldView() {
                       {t("world.works.clear")}
                     </button>
                   </p>
-                  <ol className={styles.postList}>{picked.map(postRow)}</ol>
+                  <ol className={styles.postList}>{picked.map((p) => postRow(p))}</ol>
                 </div>
               ) : null}
             </div>
@@ -518,6 +524,94 @@ export function WorldView() {
     </section>
   ) : null;
 
+  const moveRow = (c: { key: string; share: number; delta: number }) => (
+    <li key={c.key}>
+      <button type="button" className={styles.barLabel} onClick={() => { setSelected({ type: "country", key: c.key }); setTab("selection"); }}>
+        {country(c.key)}
+      </button>
+      <span className={styles.barTrack} aria-hidden="true">
+        <span style={{ width: `${Math.max(3, c.share * 100)}%` }} />
+      </span>
+      <span className={styles.barValue} data-dir={c.delta > 0 ? "up" : "down"}>
+        {t("world.hot.move", { share: `${Math.round(c.share * 100)} %`, delta: `${c.delta > 0 ? "+" : "−"}${pf.format(Math.abs(c.delta))}` })}
+      </span>
+    </li>
+  );
+  const brainLine = (() => {
+    const b = world?.brain;
+    if (!b || b.state === "off") return t("world.hot.brain.off");
+    if (b.state === "error") return t("world.hot.brain.error", { reason: b.reason ?? "?" });
+    return b.last_day ? t("world.hot.brain.on", { day: b.last_day }) : t("world.hot.brain.pending");
+  })();
+  const selectTab = (k: Tab) => {
+    setTab(k);
+    // movement is the last 7 days against the 30: the globe shows the week with its trend colours
+    if (k === "hot" && world?.audience.engaged_country_week.state === "ok") setLayer("week");
+  };
+  const hotPane = (
+    <div className={styles.pane} data-testid="world-hot">
+      <section className={styles.section} aria-labelledby="world-hot-title">
+        <h3 id="world-hot-title">{t("world.hot.title")}</h3>
+        <p className={styles.muted}>{t("world.hot.lead")}</p>
+        {!digest ? (
+          <p className={styles.muted}>{t("world.pulse.waiting")}</p>
+        ) : (
+          <>
+            <div className={styles.audienceGroup} data-testid="world-hot-rising">
+              <h4>{t("world.hot.rising")}</h4>
+              {digest.rising.length ? <ul className={styles.bars}>{digest.rising.map(moveRow)}</ul> : <p className={styles.muted}>{digest.leading.length ? t("world.hot.none", { n: TREND_POINTS }) : t("world.hot.noWeek")}</p>}
+            </div>
+            {digest.falling.length ? (
+              <div className={styles.audienceGroup} data-testid="world-hot-falling">
+                <h4>{t("world.hot.falling")}</h4>
+                <ul className={styles.bars}>{digest.falling.map(moveRow)}</ul>
+              </div>
+            ) : null}
+            {digest.topAge || digest.gender ? (
+              <p data-testid="world-hot-who">
+                <b>{t("world.hot.who")}</b>{" "}
+                {[digest.topAge ? t("world.hot.whoAge", { band: digest.topAge.band, share: `${Math.round(digest.topAge.share * 100)} %` }) : null, digest.gender ? t("world.hot.whoGender", { f: `${Math.round(digest.gender.f * 100)} %`, m: `${Math.round(digest.gender.m * 100)} %` }) : null].filter(Boolean).join(" · ")}
+              </p>
+            ) : null}
+            <div className={styles.audienceGroup} data-testid="world-hot-fresh">
+              <h4>{t("world.hot.fresh")}</h4>
+              {freshPosts.length ? (
+                <>
+                  <ol className={styles.postList}>
+                    {freshPosts.map((p) => {
+                      const f = digest.fresh.find((x) => x.id === p.id);
+                      return postRow(p, f?.vsMedian != null ? t("world.hot.vsMedian", { x: pf.format(f.vsMedian) }) : null);
+                    })}
+                  </ol>
+                  <button type="button" className={styles.linkButton} aria-pressed={pick === "fresh"} onClick={() => setWorksPick(pick === "fresh" ? null : "fresh")}>
+                    {t("world.works.showTop")}
+                  </button>
+                  {pick === "fresh" ? <p className={styles.muted}>{t("world.works.inOrbit", { k: inOrbit, n: freshPosts.length })}</p> : null}
+                </>
+              ) : (
+                <p className={styles.muted}>{t("world.hot.freshNone")}</p>
+              )}
+            </div>
+            {digest.brand.n > 0 ? (
+              <p data-testid="world-hot-brand">
+                <b>{t("world.hot.brand")}</b> {t("world.hot.brandLine", { n: digest.brand.n, er: pct1(digest.brand.er), other: digest.brand.otherN, otherEr: pct1(digest.brand.otherEr) })}
+              </p>
+            ) : null}
+          </>
+        )}
+        <p className={styles.note}>{t("world.hot.note")}</p>
+      </section>
+      {worksBlock}
+      <section className={styles.section} aria-labelledby="world-hot-brain">
+        <h4 id="world-hot-brain">{t("world.hot.brain.title")}</h4>
+        <p className={styles.muted} data-testid="world-hot-brain" data-state={world?.brain.state ?? "off"}>
+          {brainLine}
+        </p>
+        <p className={styles.note}>{t("world.hot.brain.note")}</p>
+      </section>
+    </div>
+  );
+
   const sourceState = (s: string) => (s === "ok" ? t("world.sources.stateOk") : s === "not-configured" ? t("world.sources.stateMissing") : s === "permission-required" ? t("world.sources.statePermission") : s === "unavailable" ? t("world.sources.stateUnavailable") : t("world.sources.stateError"));
 
   const nowPane = (
@@ -557,7 +651,6 @@ export function WorldView() {
         )}
       </section>
       {audienceBlock}
-      {worksBlock}
       <section className={styles.section} aria-labelledby="world-channels">
         <h3 id="world-channels">{t("world.channels.title")}</h3>
         <ul className={styles.channels}>
@@ -918,15 +1011,40 @@ export function WorldView() {
           </div>
         </div>
         <aside className={styles.panel} aria-label={t("world.tabs.label")}>
-          <div role="tablist" aria-label={t("world.tabs.label")} className={styles.tabs}>
-            {(["now", "selection", "sources"] as const).map((k) => (
-              <button key={k} role="tab" type="button" id={`world-tab-${k}`} aria-selected={tab === k} aria-controls="world-tabpanel" tabIndex={tab === k ? 0 : -1} onClick={() => setTab(k)} data-testid={`world-tab-${k}`}>
+          <div
+            role="tablist"
+            aria-label={t("world.tabs.label")}
+            className={styles.tabs}
+            onKeyDown={(e) => {
+              // WAI-ARIA tabs: arrows, Home and End move between the tabs (only the selected one is in the Tab order)
+              const i = TABS.indexOf(tab);
+              const next = e.key === "ArrowRight" ? TABS[(i + 1) % TABS.length] : e.key === "ArrowLeft" ? TABS[(i - 1 + TABS.length) % TABS.length] : e.key === "Home" ? TABS[0] : e.key === "End" ? TABS[TABS.length - 1] : undefined;
+              if (!next) return;
+              e.preventDefault();
+              selectTab(next);
+              document.getElementById(`world-tab-${next}`)?.focus();
+            }}
+          >
+            {TABS.map((k) => (
+              <button
+                key={k}
+                role="tab"
+                type="button"
+                id={`world-tab-${k}`}
+                aria-selected={tab === k}
+                aria-controls="world-tabpanel"
+                tabIndex={tab === k ? 0 : -1}
+                onClick={() => selectTab(k)}
+                data-testid={`world-tab-${k}`}
+                data-moving={k === "hot" && digest && digest.rising.length > 0 ? "true" : undefined}
+                className={k === "hot" ? styles.hotTab : undefined}
+              >
                 {t(`world.tabs.${k}`)}
               </button>
             ))}
           </div>
           <div role="tabpanel" id="world-tabpanel" aria-labelledby={`world-tab-${tab}`} className={styles.tabpanel}>
-            {tab === "now" ? nowPane : tab === "selection" ? selectionPane : sourcesPane}
+            {tab === "now" ? nowPane : tab === "hot" ? hotPane : tab === "selection" ? selectionPane : sourcesPane}
           </div>
         </aside>
       </div>

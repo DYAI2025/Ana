@@ -12,6 +12,7 @@ import type { VisionReader } from "./vision";
 import { readAnaPlace, readRelease } from "./presence";
 import { historyEntry, type HistoryEntry } from "./audienceHistory";
 import type { PostTagger } from "./tagger";
+import type { BrainWriter } from "./brainWriter";
 import type { PostTags } from "@/features/world/postTags";
 
 export const PULSE_PATH = "/internal/social-pulse";
@@ -51,6 +52,8 @@ export interface WorldDeps {
   history?: { read: () => Promise<HistoryEntry[]>; record: (entry: HistoryEntry) => Promise<HistoryEntry[]> } | null;
   /** categories of the posts, read in the background; absent = off */
   tagger?: PostTagger | null;
+  /** writes the daily "Was läuft" digest into the Brain; null when no Brain key is configured */
+  brain?: BrainWriter | null;
 }
 
 type Load<T> = { ok: true; value: T } | { ok: false; state: WorldSourceState; reason: string };
@@ -232,7 +235,7 @@ export function createWorldService(deps: WorldDeps): WorldService {
             history,
           };
       const workOut: WorldWork = { state: w.value ? (w.failure ? w.failure.state : "ok") : (w.failure?.state ?? "unavailable"), reason: w.failure?.reason ?? null, fetched_at: iso(w.at), issues: w.value ?? [] };
-      return {
+      const payload: WorldPayload = {
         version: 1,
         generated_at: new Date(now()).toISOString(),
         instagram,
@@ -243,7 +246,13 @@ export function createWorldService(deps: WorldDeps): WorldService {
         ana_look: { ...resolveLook(newest, manual, image, imageReader), read_at: readAt },
         release: readRelease(),
         post_tags: { state: deps.tagger ? "on" : "off", tags },
+        brain: { state: "off", last_day: null, note: null, reason: null },
       };
+      if (deps.brain) {
+        deps.brain.schedule(payload, now());
+        payload.brain = deps.brain.status();
+      }
+      return payload;
     },
   };
 }

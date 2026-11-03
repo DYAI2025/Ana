@@ -109,4 +109,15 @@ export interface WorldPayload {
   release: WorldRelease;
   /** categories of Ana's posts by media id (read by a model, see postTags.ts); state of the reader */
   post_tags: { state: "on" | "off"; tags: Record<string, PostTags> };
+  /** whether "Was läuft" is written into the ANA Brain (once per Berlin day, see brainWriter.ts) */
+  brain: WorldBrainSync;
+}
+
+export interface WorldBrainSync {
+  state: "off" | "on" | "error";
+  /** Berlin day of the last digest written */
+  last_day: string | null;
+  /** the week note it went into */
+  note: string | null;
+  reason: string | null;
 }

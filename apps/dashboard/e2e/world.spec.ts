@@ -4,7 +4,7 @@
  */
 import type { Page } from "@playwright/test";
 import { PNG } from "pngjs";
-import { expect, FAKE_SOCIAL, test } from "./fixtures";
+import { expect, FAKE_BRAIN, FAKE_SOCIAL, test } from "./fixtures";
 
 async function resetWorld(page: Page, world: Record<string, unknown> = {}) {
   expect((await page.request.post(`${FAKE_SOCIAL}/__fake/world`, { data: world })).ok()).toBe(true);
@@ -14,6 +14,12 @@ async function resetWorld(page: Page, world: Record<string, unknown> = {}) {
 async function openWorld(page: Page) {
   await page.goto("/world");
   await page.locator('[data-testid="world-canvas"][data-ready="true"]').waitFor({ timeout: 20_000 });
+}
+
+/** "What works" lives in the "What's hot" tab */
+async function openHot(page: Page) {
+  await openWorld(page);
+  await page.getByTestId("world-tab-hot").click();
 }
 
 test.describe("ANA World — 3D view over real dashboard data", () => {
@@ -93,7 +99,7 @@ test.describe("ANA World — 3D view over real dashboard data", () => {
   });
 
   test("works · the panel shows engagement per kind of post; without a model key the categories say they are off", async ({ page }) => {
-    await openWorld(page);
+    await openHot(page);
     const works = page.getByTestId("world-works");
     await expect(works).toContainText("What works");
     await expect(works).toContainText("Post categories are off");
@@ -105,7 +111,7 @@ test.describe("ANA World — 3D view over real dashboard data", () => {
   });
 
   test("works · top posts and the posts behind a value light up in the orbit and open their numbers", async ({ page }) => {
-    await openWorld(page);
+    await openHot(page);
     const canvas = page.getByTestId("world-canvas");
     const top = page.getByTestId("world-works-top");
     await expect(top.locator("li")).toHaveCount(5);
@@ -128,7 +134,7 @@ test.describe("ANA World — 3D view over real dashboard data", () => {
   });
 
   test("works · ranking by saves + shares (the Substack hint) relabels the top posts, the counts and the note", async ({ page }) => {
-    await openWorld(page);
+    await openHot(page);
     const top = page.getByTestId("world-works-top");
     await expect(top).toContainText("Top posts (engagement rate)");
     await page.getByTestId("world-works-rate").getByRole("button", { name: "Saves + shares" }).click();
@@ -139,6 +145,58 @@ test.describe("ANA World — 3D view over real dashboard data", () => {
     await expect(top.locator("li").first()).toContainText(/saves\+shares \d/);
     await top.locator("li").first().locator("button").first().click();
     await expect(page.getByTestId("world-post-ssr")).toContainText("Saves + shares:");
+  });
+
+  test("hot · the tab shows where the community moves, posts of the week light up, and the day goes into the Brain", async ({ page }) => {
+    await openWorld(page);
+    const tab = page.getByTestId("world-tab-hot");
+    await expect(tab).toHaveText("🔥 What's hot");
+    // a country is rising in the synthetic week: the tab carries its live dot
+    await expect(tab).toHaveAttribute("data-moving", "true");
+    // keyboard: from "Now" the arrow key reaches the tab (only the selected tab is in the Tab order)
+    await page.getByTestId("world-tab-now").focus();
+    await page.keyboard.press("ArrowRight");
+    await expect(tab).toHaveAttribute("aria-selected", "true");
+    await expect(tab).toBeFocused();
+    await page.keyboard.press("Home");
+    await expect(page.getByTestId("world-tab-now")).toHaveAttribute("aria-selected", "true");
+    await page.getByRole("button", { name: "Engaged · 30 days" }).click();
+    await tab.click();
+    // movement is week against month: the globe switches to the week
+    await expect(page.getByRole("button", { name: "Engaged · 7 days" })).toHaveAttribute("aria-pressed", "true");
+    const hot = page.getByTestId("world-hot");
+    await expect(page.getByTestId("world-hot-rising").locator("li").first()).toContainText(/\+\d+(\.\d)? pts/);
+    await expect(page.getByTestId("world-hot-who")).toContainText(/largest group \d/);
+    await expect(hot).toContainText("Correlation only");
+    await expect(page.getByTestId("world-works")).toBeVisible();
+    // the "Now" tab no longer carries "What works"
+    await page.getByTestId("world-tab-now").click();
+    await expect(page.getByTestId("world-works")).toHaveCount(0);
+    await page.getByTestId("world-tab-hot").click();
+    // a rising country opens its numbers
+    await page.getByTestId("world-hot-rising").locator("li").first().getByRole("button").click();
+    await expect(page.getByTestId("world-tab-selection")).toHaveAttribute("aria-selected", "true");
+    // the writer ran on the first read: once a Berlin day, DERIVED, never CONFIRMED, never a caption
+    await expect
+      .poll(async () => ((await (await page.request.get(`${FAKE_BRAIN}/__fake/mcp-calls`)).json()) as { calls: Array<{ name: string }> }).calls.some((c) => c.name === "brain_append_observation"), { timeout: 15_000 })
+      .toBe(true);
+    const { calls } = (await (await page.request.get(`${FAKE_BRAIN}/__fake/mcp-calls`)).json()) as { calls: Array<{ name: string; args: Record<string, unknown> }> };
+    const names = new Set(calls.map((c) => c.name));
+    expect([...names].sort()).toEqual(["brain_append_observation", "brain_create_note", "brain_get", "brain_register_source"]);
+    const obs = calls.filter((c) => c.name === "brain_append_observation");
+    expect(obs.every((c) => c.args.status === "DERIVED" && /^kn-world-pulse-\d{4}-w\d{2}$/.test(String(c.args.id)))).toBe(true);
+    expect(String(obs.at(-1)?.args.text)).toContain("Engagement 7 T nach Land");
+    const all = JSON.stringify(calls);
+    expect(all).not.toMatch(/CONFIRMED|supersedes|"confirm"/);
+    // captions of the synthetic posts never leave the dashboard
+    const posts = ((await (await page.request.get("/api/world")).json()) as { world: { instagram: { snapshot?: { posts: Array<{ caption: string | null }> } } } }).world.instagram.snapshot?.posts ?? [];
+    for (const p of posts) if (p.caption && p.caption.length > 12) expect(all).not.toContain(p.caption);
+    // the panel says so
+    await page.reload();
+    await page.locator('[data-testid="world-canvas"][data-ready="true"]').waitFor({ timeout: 20_000 });
+    await page.getByTestId("world-tab-hot").click();
+    await expect(page.getByTestId("world-hot-brain")).toHaveAttribute("data-state", "on");
+    await expect(page.getByTestId("world-hot-brain")).toContainText(/Last written: \d{4}-\d{2}-\d{2}/);
   });
 
   test("AC5 · a real like increase between two pulse reads shows up in the feed", async ({ page }) => {
