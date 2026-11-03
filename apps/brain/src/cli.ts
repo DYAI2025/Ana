@@ -13,7 +13,7 @@ import { QdrantStore } from "./index/qdrant.js";
 import { vaultStats } from "./stats.js";
 
 const USAGE = [
-  "usage: ana-brain <serve | index [--full] | validate | issue-key <ana|ben|vince> | revoke-key <ana|ben|vince> | issue-dashboard-token | stats",
+  "usage: ana-brain <serve | index [--full] | validate | issue-key <ana|ben|vince|agent:name> | revoke-key <ana|ben|vince|agent:name> | issue-dashboard-token | stats",
   "  | drive-list [folderId]",
   "  | drive-register <fileId> --id <src-id> --title <title> --actor <ana|ben|vince> [--data-class G0..G3|UNKNOWN] [--access restricted|internal|public] [--topics a,b] [--workshops a,b]>",
 ].join("\n");
@@ -55,7 +55,7 @@ async function main(argv: string[]): Promise<number> {
   }
   if (cmd === "issue-key") {
     const actor = rest[0];
-    if (!actor) throw new Error("issue-key requires an actor (ana|ben|vince)");
+    if (!actor) throw new Error("issue-key requires an actor (ana|ben|vince|agent:<name>)");
     process.stdout.write(`${new KeyStore(cfg.stateDir).issue(actor)}\n`);
     console.error(`Issued key for ${actor}. It is shown once; only its hash is stored.`);
     return 0;

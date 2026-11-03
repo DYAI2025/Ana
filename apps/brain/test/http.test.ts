@@ -223,7 +223,46 @@ describe("http + mcp", () => {
     expect(readFileSync(path.join(stateDir, "oauth.json"), "utf8")).not.toMatch(/"actor": "ana"/);
     expect(await mcpStatus(other.access_token)).toBe(200);
     expect(revokeActor(stateDir, "ana")).toEqual({ keys: 0, tokens: 0 });
-    expect(() => revokeActor(stateDir, "agent:x")).toThrow(/ana, ben, vince/);
+    expect(revokeActor(stateDir, "agent:x")).toEqual({ keys: 0, tokens: 0 });
+    expect(() => revokeActor(stateDir, "mallory")).toThrow(/ana, ben, vince/);
+    expect(() => revokeActor(stateDir, "agent:")).toThrow(/agent:<name>/);
+  });
+
+  it("an agent key writes as that agent (agent-derived, never CONFIRMED), cannot log in via OAuth and is revocable", async () => {
+    const ks = new KeyStore(stateDir);
+    expect(() => ks.issue("agent:Bad Name")).toThrow(/agent:<name>/);
+    expect(() => ks.issue("lumen")).toThrow();
+    const agentKey = ks.issue("agent:lumen");
+    expect(ks.verify(agentKey)).toBe("agent:lumen");
+    const c = await connect(agentKey);
+    const made = await c.callTool({ name: "brain_create_note", arguments: { id: "kn-by-lumen", title: "Lumen", type: "concept", status: "CANDIDATE", body: "Synthetic.", source_refs: [{ source: "src-synthetic-report", locator: "UNKNOWN" }], created_by: "ben" } });
+    expect(made.isError).toBeFalsy();
+    const got = JSON.parse(text(await c.callTool({ name: "brain_get", arguments: { id: "kn-by-lumen" } })));
+    expect(got.frontmatter.created_by).toBe("agent:lumen");
+    expect(got.frontmatter.provenance).toMatchObject({ actor: "agent:lumen", method: "agent-derived" });
+    const conf = await c.callTool({ name: "brain_create_note", arguments: { id: "kn-lumen-confirmed", title: "t", type: "preference", status: "CONFIRMED", body: "b" } });
+    expect(conf.isError).toBe(true);
+    expect(audit()).toContainEqual(expect.objectContaining({ actor: "agent:lumen", action: "create_note", target: "kn-by-lumen", result: "ok" }));
+    // agents add knowledge, they never retire it and never read Drive text
+    const sup = await c.callTool({ name: "brain_add_relation", arguments: { from: "kn-by-lumen", type: "supersedes", to: "kn-hook-first" } });
+    expect(sup.isError).toBe(true);
+    expect(text(sup)).toMatch(/people only/);
+    expect(JSON.parse(text(await c.callTool({ name: "brain_get", arguments: { id: "kn-hook-first" } }))).frontmatter.status).not.toBe("SUPERSEDED");
+    expect((await c.callTool({ name: "brain_add_relation", arguments: { from: "kn-by-lumen", type: "relates_to", to: "kn-hook-first" } })).isError).toBeFalsy();
+    expect((await c.callTool({ name: "brain_read_source", arguments: { id: "src-synthetic-report" } })).isError).toBe(true);
+    const drive = await c.callTool({ name: "brain_register_source", arguments: { id: "src-lumen-drive", title: "D", description: "x", source: { kind: "drive_doc", locator: "abc", original_title: "D", access: "internal", data_class: "G1" } } });
+    expect(drive.isError).toBe(true);
+    const url = await c.callTool({ name: "brain_register_source", arguments: { id: "src-lumen-url", title: "U", description: "x", source: { kind: "url", locator: "https://example.org/w", original_title: "U", access: "internal", data_class: "G1" } } });
+    expect(url.isError).toBeFalsy();
+    await c.close();
+    // the browser login is for people: an agent key gets no code
+    const reg = (await (await fetch(`${base}/register`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ redirect_uris: ["http://127.0.0.1:9/callback"], client_name: "Test", token_endpoint_auth_method: "none" }) })).json()) as { client_id: string };
+    const q = { client_id: reg.client_id, redirect_uri: "http://127.0.0.1:9/callback", response_type: "code", code_challenge: "x".repeat(43), code_challenge_method: "S256" };
+    const login = await fetch(`${base}/authorize`, { method: "POST", redirect: "manual", body: new URLSearchParams({ ...q, access_key: agentKey }) });
+    expect(login.status).toBe(401);
+    expect(revokeActor(stateDir, "agent:lumen")).toEqual({ keys: 1, tokens: 0 });
+    expect(await mcpStatus(agentKey)).toBe(401);
+    expect(await mcpStatus(keys.ben)).toBe(200);
   });
 
   it("refuses a stored token that is not bound to a key", async () => {

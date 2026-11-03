@@ -1,7 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import { z } from "zod";
-import { NOTE_TYPES, RELATION_TYPES, STATUSES, zId, zSourceBlock, zSourceRef } from "../contract/schema.js";
+import { isHuman, NOTE_TYPES, RELATION_TYPES, STATUSES, zId, zSourceBlock, zSourceRef } from "../contract/schema.js";
 import { search } from "../index/indexer.js";
 import type { Embedder } from "../index/ollama.js";
 import type { VectorStore } from "../index/qdrant.js";
@@ -32,6 +32,15 @@ const actorOf = (extra: Extra): string => {
   const a = extra.authInfo?.extra?.actor;
   if (typeof a !== "string") throw new VaultError("unauthenticated", "forbidden");
   return a;
+};
+
+/**
+ * People (ana, ben, vince) may use every tool. Agents ("agent:<name>", e.g. the dashboard) add knowledge only: they
+ * cannot retire anything (no `supersedes`, which would mark a note, even a CONFIRMED one, SUPERSEDED), cannot read
+ * Drive text and cannot register Drive sources. CONFIRMED is out of their reach in the vault itself.
+ */
+const agentForbidden = (actor: string, what: string) => {
+  if (!isHuman(actor)) throw new VaultError(`${what} is for people only (ana, ben, vince), not for ${actor}`, "forbidden");
 };
 
 const STATUS_RANK: Record<string, number> = { CONFIRMED: 0, DERIVED: 1, SOURCE: 2, CANDIDATE: 3, SUPERSEDED: 4 };
@@ -130,6 +139,7 @@ export function createMcpServer({ vault, embedder, store, drive }: BrainDeps): M
       topics: z.array(zId).max(50).optional(), workshops: z.array(zId).max(50).optional(), provenance_note: z.string().max(1000).optional(),
     },
   }, wrap(async (a: Parameters<Vault["registerSource"]>[1], actor) => {
+    if (a.source.kind.startsWith("drive_")) agentForbidden(actor, "a Drive source");
     const source: SourceBlock = drive && a.source.kind.startsWith("drive_") ? await fillDriveSource(drive, a.source) : a.source;
     return { created: await vault.registerSource(actor, { ...a, source }) };
   }));
@@ -138,7 +148,8 @@ export function createMcpServer({ vault, embedder, store, drive }: BrainDeps): M
     description: "Read a bounded slice of the text of a Drive-backed source (Google Doc or text/transcript file under the ANA Evidence Root). Read-only; the text is returned to the caller only and never stored. Recordings and binaries are refused.",
     inputSchema: { id: zId, offset: z.number().int().min(0).optional(), max_chars: z.number().int().min(1).max(READ_SOURCE_MAX_CHARS).optional() },
     annotations: { readOnlyHint: true },
-  }, wrap(async (a: { id: string; offset?: number; max_chars?: number }) => {
+  }, wrap(async (a: { id: string; offset?: number; max_chars?: number }, actor) => {
+    agentForbidden(actor, "brain_read_source");
     const n = vault.require(a.id);
     const src = n.fm.source;
     if (n.fm.type !== "source" || !src || !src.kind.startsWith("drive_")) throw new VaultError(`${a.id} is not a Drive source record`, "forbidden");
@@ -153,7 +164,10 @@ export function createMcpServer({ vault, embedder, store, drive }: BrainDeps): M
   server.registerTool("brain_add_relation", {
     description: "Append a typed relation from one existing note to another. 'supersedes' marks the target SUPERSEDED (kept, not deleted). Idempotent.",
     inputSchema: { from: zId, type: z.enum(RELATION_TYPES), to: zId },
-  }, wrap(async (a: { from: string; type: (typeof RELATION_TYPES)[number]; to: string }, actor) => vault.addRelation(actor, a.from, a.type, a.to)));
+  }, wrap(async (a: { from: string; type: (typeof RELATION_TYPES)[number]; to: string }, actor) => {
+    if (a.type === "supersedes") agentForbidden(actor, "supersedes");
+    return vault.addRelation(actor, a.from, a.type, a.to);
+  }));
 
   server.registerTool("brain_append_observation", {
     description: "Append a timestamped observation (or, with corrects=<block id>, a correction) to a note. Append-only.",

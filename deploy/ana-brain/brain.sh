@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # The ANA Brain CLI on the Contabo VPS vmi3693936, run exactly as dyai-ana-brain.service runs the server: as the user
 # ana-brain, from the current release, with the unit's pinned environment and its credential files. Run as root:
-#   /srv/dyai/runtime/ana-brain/brain.sh validate | stats | index [--full] | issue-key <ana|ben|vince>
-#   /srv/dyai/runtime/ana-brain/brain.sh revoke-key <ana|ben|vince> | issue-dashboard-token | drive-list
+#   /srv/dyai/runtime/ana-brain/brain.sh validate | stats | index [--full] | issue-key <ana|ben|vince|agent:name>
+#   /srv/dyai/runtime/ana-brain/brain.sh revoke-key <ana|ben|vince|agent:name> | issue-dashboard-token | drive-list
 # A key or token is printed once on stdout; only its hash is stored. Never paste it into a ticket, log or chat.
 #
 # The credential files are root:root 600, so the CLI gets them the way the unit does: through systemd

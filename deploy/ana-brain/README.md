@@ -227,6 +227,10 @@ before M4, not something to accept silently.
 6. Dashboard: `brain.sh issue-dashboard-token`; put `BRAIN_API_URL=http://127.0.0.1:8790` and the token into the
    dashboard's `dashboard_env` credential, then run the dashboard's `release.sh` for a commit that contains the
    Brain page and `/api/brain`: this PR merged into `main`. Re-releasing production `8dd3dfa` would serve no Brain.
+   Writing from the dashboard (observations, CANDIDATE notes): `brain.sh issue-key agent:lumen` gives an agent key
+   for `/mcp` only. It writes as `agent:lumen` with method `agent-derived`, can never set CONFIRMED, never supersede
+   (retire) a note, read Drive text or register a Drive source, and gets no OAuth
+   login; `brain.sh revoke-key agent:lumen` ends it at the next request.
 7. G4 release gate on the evidence of section 2.
 
 **Rollback** returns to the state recorded in M4.0, never to an assumed one. On `srv1308064`, enable and start

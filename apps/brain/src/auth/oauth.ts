@@ -7,8 +7,8 @@ import type { AuthorizationParams, OAuthServerProvider } from "@modelcontextprot
 import type { AuthInfo } from "@modelcontextprotocol/sdk/server/auth/types.js";
 import { InvalidClientMetadataError, InvalidGrantError, InvalidTokenError, TooManyRequestsError } from "@modelcontextprotocol/sdk/server/auth/errors.js";
 import type { OAuthClientInformationFull, OAuthTokens } from "@modelcontextprotocol/sdk/shared/auth.js";
-import { HUMANS, type Human } from "../contract/schema.js";
-import { KeyStore, sha256hex, writeJsonAtomic } from "./keys.js";
+import { isHuman, type Human } from "../contract/schema.js";
+import { actorError, isKeyActor, KeyStore, sha256hex, writeJsonAtomic } from "./keys.js";
 
 const ACCESS_TTL = 3600;
 const REFRESH_TTL = 30 * 24 * 3600;
@@ -103,7 +103,9 @@ export class BrainOAuthProvider implements OAuthServerProvider {
     let error = "";
     if (typeof body.access_key === "string") {
       const key = body.access_key.trim();
-      const actor = this.keys.verify(key);
+      const keyActor = this.keys.verify(key);
+      // the browser login hands out tokens for people only; an agent key is a bearer key on /mcp and nothing else
+      const actor = keyActor && isHuman(keyActor) ? keyActor : undefined;
       if (actor) {
         const code = randomBytes(32).toString("base64url");
         this.codes.set(sha256hex(code), {
@@ -191,8 +193,9 @@ ${error ? `<p role="alert" style="color:#b00">${esc(error)}</p>` : ""}
 
 /** `revoke-key <actor>`: every key and OAuth token of one person; effective at their next request, no restart. */
 export function revokeActor(stateDir: string, actor: string): { keys: number; tokens: number } {
-  if (!(HUMANS as readonly string[]).includes(actor)) throw new Error(`actor must be one of ${HUMANS.join(", ")}`);
+  if (!isKeyActor(actor)) throw actorError();
   const ks = new KeyStore(stateDir);
   const keys = ks.revoke(actor);
-  return { keys, tokens: new BrainOAuthProvider(stateDir, ks).revokeTokensOf(actor as Human) };
+  // agents never hold OAuth tokens
+  return { keys, tokens: isHuman(actor) ? new BrainOAuthProvider(stateDir, ks).revokeTokensOf(actor) : 0 };
 }
