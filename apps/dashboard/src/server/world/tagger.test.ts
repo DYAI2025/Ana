@@ -69,9 +69,11 @@ describe("post tagger — categories only, read in the background", () => {
     expect(api.calls.length).toBe(BATCH + 2);
     // a new process starts from the file
     const again = createPostTagger(config, file, fakeApi(() => answer).impl);
+    expect(again.ready()).toBe(false);
     again.schedule(posts);
     await again.idle();
     expect(Object.keys(again.current()).length).toBe(BATCH + 2);
+    expect(again.ready()).toBe(true);
   });
 
   it("a failed or malformed answer is retried only after a pause; a caption cannot close the tag", async () => {

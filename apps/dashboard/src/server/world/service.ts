@@ -249,7 +249,9 @@ export function createWorldService(deps: WorldDeps): WorldService {
         brain: { state: "off", last_day: null, note: null, reason: null },
       };
       if (deps.brain) {
-        deps.brain.schedule(payload, now());
+        // the day's digest waits until the stored post categories are read: right after a restart they are not yet,
+        // and an append to the Brain cannot be taken back
+        if (!deps.tagger || deps.tagger.ready()) deps.brain.schedule(payload, now());
         payload.brain = deps.brain.status();
       }
       return payload;

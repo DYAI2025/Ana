@@ -131,6 +131,24 @@ describe("createWorldService — caches, back-off and honest states", () => {
     expect(w.calls.filter((c) => c === AUDIENCE_PATH)).toHaveLength(1);
   });
 
+  it("the Brain digest waits until the stored post categories are read (an append cannot be taken back)", async () => {
+    const w = fakeWorker({ [PULSE_PATH]: () => Response.json(pulseBody(10)), [AUDIENCE_PATH]: () => Response.json(audienceBody) });
+    let ready = false;
+    const scheduled: string[] = [];
+    const tagger = { current: () => ({}), schedule: () => undefined, idle: () => Promise.resolve(), ready: () => ready };
+    const brain = { schedule: (p: { generated_at: string }) => void scheduled.push(p.generated_at), status: () => ({ state: "on" as const, last_day: null, note: null, reason: null }), idle: () => Promise.resolve() };
+    const service = createWorldService({ social, socialConfig: config, readWork: null, workKeys: [], fetchImpl: w.impl, tagger, brain });
+    expect((await service.read()).brain.state).toBe("on");
+    expect(scheduled).toHaveLength(0);
+    ready = true;
+    await service.read();
+    expect(scheduled).toHaveLength(1);
+    // without a tagger there is nothing to wait for
+    const plain = createWorldService({ social, socialConfig: config, readWork: null, workKeys: [], fetchImpl: w.impl, brain });
+    await plain.read();
+    expect(scheduled).toHaveLength(2);
+  });
+
   it("an old worker without the new routes is 'unavailable', a refused key is an error, never data", async () => {
     const missing = createWorldService({ social, socialConfig: config, readWork: null, workKeys: [], fetchImpl: fakeWorker({}).impl });
     const r = await missing.read();
