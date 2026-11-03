@@ -414,7 +414,7 @@ export function WorldView() {
       <section className={styles.section} aria-labelledby="world-works" data-testid="world-works">
         <h3 id="world-works">{t("world.works.title")}</h3>
         <p className={styles.muted}>
-          {world.post_tags.state === "off" ? t("world.works.off") : t("world.works.status", { n: Object.keys(world.post_tags.tags).length, total: ig.posts.length, counted: works.counted })}
+          {world.post_tags.state === "off" ? t("world.works.off") : t(rateKind === "er" ? "world.works.status" : "world.works.statusSsr", { n: Object.keys(world.post_tags.tags).length, total: ig.posts.length, counted: works.counted })}
         </p>
         <div role="group" aria-label={t("world.works.rateLabel")} className={styles.segment} data-testid="world-works-rate">
           {(["er", "ssr"] as const).map((k) => (
@@ -472,7 +472,7 @@ export function WorldView() {
             </div>
           );
         })}
-        <p className={styles.note}>{t("world.works.note")}</p>
+        <p className={styles.note}>{t(rateKind === "er" ? "world.works.note" : "world.works.noteSsr")}</p>
       </section>
     ) : null;
 

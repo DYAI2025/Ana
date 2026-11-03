@@ -83,7 +83,8 @@ const median = (xs: number[]) => {
 };
 
 /**
- * Median engagement rate per category value, over the posts that have a measured rate and confident categories.
+ * Median of the chosen rate (engagement or save+share) per category value, over the posts that have that rate measured
+ * and confident categories.
  * Format comes from Meta, not from the model. Rows are sorted by median, highest first.
  */
 export function whatWorks(posts: readonly Rated[], tags: Readonly<Record<string, PostTags>>, kind: RateKind = "er"): { counted: number; fields: Record<TagField, WorksRow[]> } {

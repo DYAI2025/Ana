@@ -32,6 +32,8 @@ export const worldDe: Messages["world"] = {
     untitled: "Post ohne Text",
   },
   works: {
+    statusSsr: "Kategorien gelesen: {n} von {total} Posts ({counted} mit gemessener Save+Share-Rate und sicherer Lesung).",
+    noteSsr: "Median der Save+Share-Rate ((Saves + Shares) ÷ Reichweite) je Art von Post. Die Kategorien liest Claude Haiku aus Cover und Caption (mit Anas Zustimmung; Captions werden nicht gespeichert). Ausgegraut: weniger als 3 Posts. Ein Zusammenhang in Anas eigenen Posts, keine Ursache.",
     rateLabel: "Sortieren nach",
     rates: { er: "Engagement", ssr: "Saves + Shares" },
     topSsr: "Top-Posts (Saves + Shares)",

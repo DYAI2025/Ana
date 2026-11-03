@@ -31,6 +31,8 @@ export const worldEn = {
     untitled: "post without caption",
   },
   works: {
+    statusSsr: "Categories read: {n} of {total} posts ({counted} with a measured save+share rate and a confident reading).",
+    noteSsr: "Median save+share rate ((saves + shares) ÷ reach) per kind of post. Categories are read by Claude Haiku from cover and caption (with Ana's consent; captions are not stored). Greyed: fewer than 3 posts. A correlation with Ana's own posts, not a cause.",
     rateLabel: "Rank by",
     rates: { er: "Engagement", ssr: "Saves + shares" },
     topSsr: "Top posts (saves + shares)",

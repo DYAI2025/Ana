@@ -32,6 +32,8 @@ export const worldIt: Messages["world"] = {
     untitled: "post senza testo",
   },
   works: {
+    statusSsr: "Categorie lette: {n} di {total} post ({counted} con tasso salvataggi+condivisioni misurato e lettura sicura).",
+    noteSsr: "Mediana del tasso salvataggi+condivisioni ((salvataggi + condivisioni) ÷ copertura) per tipo di post. Le categorie le legge Claude Haiku da copertina e didascalia (con il consenso di Ana; le didascalie non vengono salvate). In grigio: meno di 3 post. Una correlazione nei post di Ana, non una causa.",
     rateLabel: "Ordina per",
     rates: { er: "Interazioni", ssr: "Salvataggi + condivisioni" },
     topSsr: "Post migliori (salvataggi + condivisioni)",
