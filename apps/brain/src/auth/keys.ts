@@ -3,7 +3,17 @@ import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "
 import path from "node:path";
 import { HUMANS, type Human } from "../contract/schema.js";
 
-export interface KeyRecord { actor: Human; sha256: string; created_at: string }
+/**
+ * A key belongs to a person (ana, ben, vince) or to an agent ("agent:<name>", e.g. agent:lumen for the dashboard).
+ * Agent writes are recorded as agent-derived and can never set CONFIRMED (vault rule); agent keys work only as bearer
+ * keys on /mcp, never in the OAuth login (oauth.ts).
+ */
+export type KeyActor = Human | `agent:${string}`;
+export const AGENT_RE = /^agent:[a-z0-9][a-z0-9._-]{0,40}$/;
+export const isKeyActor = (actor: string): actor is KeyActor => (HUMANS as readonly string[]).includes(actor) || AGENT_RE.test(actor);
+const actorError = () => new Error(`actor must be one of ${HUMANS.join(", ")} or agent:<name>`);
+
+export interface KeyRecord { actor: KeyActor; sha256: string; created_at: string }
 
 export const sha256hex = (s: string) => createHash("sha256").update(s, "utf8").digest("hex");
 
@@ -30,11 +40,11 @@ export class KeyStore {
     return existsSync(this.file) ? (JSON.parse(readFileSync(this.file, "utf8")) as KeyRecord[]) : [];
   }
 
-  /** Generate a new key for a person; returns the raw key (shown once), stores only its hash. */
+  /** Generate a new key for a person or an agent; returns the raw key (shown once), stores only its hash. */
   issue(actor: string): string {
-    if (!(HUMANS as readonly string[]).includes(actor)) throw new Error(`actor must be one of ${HUMANS.join(", ")}`);
+    if (!isKeyActor(actor)) throw actorError();
     const key = `anab_${randomBytes(32).toString("base64url")}`;
-    const rec: KeyRecord = { actor: actor as Human, sha256: sha256hex(key), created_at: new Date().toISOString() };
+    const rec: KeyRecord = { actor, sha256: sha256hex(key), created_at: new Date().toISOString() };
     writeJsonAtomic(this.file, [...this.list(), rec]);
     return key;
   }
@@ -44,19 +54,19 @@ export class KeyStore {
     return this.list().some((r) => hashEquals(sha256, r.sha256));
   }
 
-  /** Remove every key of a person; returns how many were removed. */
+  /** Remove every key of a person or an agent; returns how many were removed. */
   revoke(actor: string): number {
-    if (!(HUMANS as readonly string[]).includes(actor)) throw new Error(`actor must be one of ${HUMANS.join(", ")}`);
+    if (!isKeyActor(actor)) throw actorError();
     const all = this.list();
     const kept = all.filter((r) => r.actor !== actor);
     if (kept.length !== all.length) writeJsonAtomic(this.file, kept);
     return all.length - kept.length;
   }
 
-  verify(key: string): Human | undefined {
+  verify(key: string): KeyActor | undefined {
     if (typeof key !== "string" || key.length < 16 || key.length > 200) return undefined;
     const h = sha256hex(key);
-    let found: Human | undefined;
+    let found: KeyActor | undefined;
     for (const r of this.list()) if (hashEquals(h, r.sha256) && !found) found = r.actor;
     return found;
   }
