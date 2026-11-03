@@ -210,7 +210,7 @@ jobs:
           sha256sum "ana-dashboard-${OUT_ID}.tar.gz"
           # the image archive (~115 MB) is kept only for a push to main; a PR or test run uploads the native bundle
           # (~25 MB) alone, which is all a review or release.sh needs (artifact storage quota, 2026-11-03)
-          if [ "$RETENTION_DAYS" != 14 ]; then rm "ana-dashboard-${OUT_ID}.tar.gz"; echo "image archive not uploaded for $GITHUB_EVENT_NAME"; fi
+          if ! { [ "$GITHUB_EVENT_NAME" = push ] && [ "$GITHUB_REF" = refs/heads/main ]; }; then rm "ana-dashboard-${OUT_ID}.tar.gz"; echo "image archive not uploaded for $GITHUB_EVENT_NAME"; fi
       - uses: actions/upload-artifact@v4
         with:
           name: ana-dashboard-${{ env.OUT_ID }}

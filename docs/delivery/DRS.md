@@ -68,7 +68,7 @@ These are kept as stricter repository-specific rules under canonical §9.
   (`pull_request.head.sha`) on a pull request, `github.sha` on a push — and assert `git rev-parse HEAD` equals it.
   A pull request run therefore tests the PR head itself, not GitHub's test merge with the base. Bundles, image tags
   and artifacts are named `<sha>` only on a push to `main`, `pr-<sha>` on a pull request and `test-<sha>` on any other
-  run; non-release artifacts are kept 3 days, release candidates 30. PR outputs are test evidence for that head. Only
+  run; non-release artifacts are kept 3 days, release candidates 14. PR outputs are test evidence for that head. Only
   artifacts of a successful push run on `main` are released, and that is checked on the run, not on the name:
   `deploy/fetch-release.sh` reads the run from the GitHub API and `release.sh` checks the bundle's `.ana-build`
   (`deploy/test-release-provenance.sh`, run by the brain and dashboard-image workflows).
