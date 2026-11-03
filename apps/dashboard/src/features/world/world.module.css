@@ -819,3 +819,32 @@ button.barLabel {
   font-weight: 700;
   text-decoration-color: var(--accent);
 }
+
+/* "Was läuft": the tab carries a small live dot while a country is rising */
+.hotTab {
+  position: relative;
+}
+
+.hotTab[data-moving="true"]::after {
+  content: "";
+  position: absolute;
+  top: 6px;
+  right: 8px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--ink-coral);
+}
+
+.hotBadge {
+  align-self: flex-start;
+  padding: 1px 7px;
+  border-radius: 999px;
+  border: 1px solid var(--ink-coral);
+  font: 600 11px/1.5 var(--font);
+  color: var(--ink-coral);
+}
+
+.barValue[data-dir="up"] {
+  color: var(--ink-coral);
+}

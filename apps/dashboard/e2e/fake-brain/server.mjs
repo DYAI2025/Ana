@@ -3,7 +3,8 @@
  *
  *   node e2e/fake-brain/server.mjs            (port FAKE_BRAIN_PORT, default 3197; token FAKE_BRAIN_TOKEN)
  *
- * GET /projection (Bearer token) · control: POST /__fake/reset · POST /__fake/mode {mode} · GET /__fake/health
+ * GET /projection (Bearer token) · POST /mcp (agent key, JSON-RPC tools/call, recorded) · control: POST /__fake/reset
+ * · POST /__fake/mode {mode} · GET /__fake/health · GET /__fake/mcp-calls
  * Modes: ok · mirrored (positions changed) · empty · unindexed (2 notes not placed yet) · pending (nothing placed, 5 waiting)
  *   · down (socket destroyed) · unauthorized · invalid · slow
  */
@@ -13,7 +14,11 @@ import { baseProjection, mirrored } from "./data.mjs";
 const port = Number(process.env.FAKE_BRAIN_PORT ?? 3197);
 const token = process.env.FAKE_BRAIN_TOKEN ?? "e2e-fake-brain-token";
 const MODES = new Set(["ok", "mirrored", "empty", "unindexed", "pending", "down", "unauthorized", "invalid", "slow"]);
+const agentKey = process.env.FAKE_BRAIN_AGENT_KEY ?? "anab_e2e-fake-agent-key-000000";
 let mode = "ok";
+/** tool calls the dashboard's Brain writer made (name + arguments) */
+let mcpCalls = [];
+const madeIds = new Set();
 
 function send(res, status, body) {
   res.writeHead(status, { "content-type": "application/json" });
@@ -27,6 +32,19 @@ const server = http.createServer(async (req, res) => {
   const path = new URL(req.url ?? "/", "http://x").pathname;
 
   if (path === "/__fake/health") return send(res, 200, { ok: true });
+  if (path === "/__fake/mcp-calls") return send(res, 200, { calls: mcpCalls });
+  if (path === "/mcp" && req.method === "POST") {
+    if (req.headers.authorization !== `Bearer ${agentKey}`) return send(res, 401, { error: "unauthorized" });
+    const rpc = JSON.parse(raw);
+    const { name, arguments: args } = rpc.params ?? {};
+    mcpCalls.push({ name, args });
+    // like the real Brain: an id that exists is refused with "exists:"
+    if ((name === "brain_create_note" || name === "brain_register_source") && madeIds.has(args?.id)) {
+      return send(res, 200, { jsonrpc: "2.0", id: rpc.id, result: { isError: true, content: [{ type: "text", text: `exists: note already exists: ${args.id}` }] } });
+    }
+    if (args?.id && name !== "brain_append_observation") madeIds.add(args.id);
+    return send(res, 200, { jsonrpc: "2.0", id: rpc.id, result: { content: [{ type: "text", text: "{}" }] } });
+  }
   if (path === "/__fake/reset" && req.method === "POST") {
     mode = "ok";
     return send(res, 200, { ok: true });
