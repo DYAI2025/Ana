@@ -1,8 +1,5 @@
 /** Regressions for the Enterprise Code Review findings on PR #2 (Jira ANA-19, ANA-20, ANA-21). */
-import type { Page } from "@playwright/test";
 import { expect, test } from "./fixtures";
-
-const focusInDialog = (page: Page) => page.evaluate(() => !!document.activeElement?.closest('[role="dialog"]'));
 
 test.describe("ANA-19 · context lens keeps modal focus for its whole mounted lifetime", () => {
   test("motion on: Tab / Shift+Tab cannot leave the lens during the exit animation; focus returns to the opener after removal", async ({ page }) => {
@@ -18,8 +15,11 @@ test.describe("ANA-19 · context lens keeps modal focus for its whole mounted li
     await expect(page.locator('[data-state="closing"] [role="dialog"][aria-modal="true"]')).toHaveCount(1);
     for (const key of ["Tab", "Tab", "Shift+Tab", "Shift+Tab", "Shift+Tab"]) {
       await page.keyboard.press(key);
-      if ((await page.locator('[role="dialog"]').count()) === 0) break; // animation finished between presses
-      expect(await focusInDialog(page), `focus stays in the mounted dialog after ${key}`).toBe(true);
+      // one read for both: counting the dialog and then reading focus in two steps lets the exit animation end in
+      // between (CI, main 0f1a24e), and focus then rightly sits on the opener of a dialog that is gone
+      const where = await page.evaluate(() => (document.querySelector('[role="dialog"]') ? (document.activeElement?.closest('[role="dialog"]') ? "in" : "out") : "gone"));
+      if (where === "gone") break; // animation finished between presses
+      expect(where, `focus stays in the mounted dialog after ${key}`).toBe("in");
     }
 
     await expect(page.locator('[role="dialog"]')).toHaveCount(0);

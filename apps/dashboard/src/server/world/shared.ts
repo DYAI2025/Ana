@@ -9,9 +9,10 @@ import { readHistory, recordHistory } from "./audienceHistory";
 import { createWorldService, type WorldService } from "./service";
 import { createVisionReader, visionConfigFromEnv } from "./vision";
 import { createPostTagger } from "./tagger";
-import { brainWriterConfigFromEnv, createBrainWriter } from "./brainWriter";
+import { brainCaller, brainWriterConfigFromEnv, createBrainWriter } from "./brainWriter";
+import { createBriefService, type BriefService } from "./briefService";
 
-let shared: { key: string; service: WorldService } | null = null;
+let shared: { key: string; service: WorldService; brief: BriefService | null } | null = null;
 
 /** The process-wide world service; it shares the Instagram snapshot cache with the Social cockpit. */
 export function worldServiceFromEnv(): WorldService {
@@ -23,8 +24,11 @@ export function worldServiceFromEnv(): WorldService {
   const brain = brainWriterConfigFromEnv();
   const key = `${config?.workerOrigin ?? "-"}|${config?.key.length ?? 0}|${jiraConfigured}|${pulseMs ?? "d"}|${vision?.model ?? "-"}|${brain ? "brain" : "-"}`;
   if (!shared || shared.key !== key) {
+    // the brief: same model key; the weekly one goes into the Brain with the agent key
+    const brief = vision ? createBriefService({ config: vision, readHistory: () => readHistory(), brain: brain ? brainCaller(brain) : null }) : null;
     shared = {
       key,
+      brief,
       service: createWorldService({
         social: socialServiceFromEnv(),
         socialConfig: config,
@@ -45,10 +49,17 @@ export function worldServiceFromEnv(): WorldService {
         tagger: vision ? createPostTagger(vision) : null,
         // agent:lumen, Ben's approval of 2026-11-03: aggregated numbers only, never CONFIRMED
         brain: brain ? createBrainWriter(brain) : null,
+        brief,
       }),
     };
   }
   return shared.service;
+}
+
+/** The brief of the process-wide world service (null without a model key). */
+export function worldBriefFromEnv(): BriefService | null {
+  worldServiceFromEnv();
+  return shared?.brief ?? null;
 }
 
 /** e2e only: forget cached world reads (the route enables it only under SOCIAL_IG_E2E_CONTROLS=1). */

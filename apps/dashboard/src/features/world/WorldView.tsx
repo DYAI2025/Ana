@@ -12,6 +12,7 @@ import type { AudienceSeries, WorldPayload } from "./types";
 import { postsWith, TAG_FIELDS, TAG_MIN_CONFIDENCE, topPosts, whatWorks, type PostTags, type RateKind, type TagField } from "./postTags";
 import type { SceneData, SceneRef, StationStatus, ViewName, WorldScene } from "./scene/world";
 import { pulseDigest } from "./pulse";
+import { BriefBlock } from "./BriefBlock";
 import styles from "./world.module.css";
 
 const TABS = ["now", "hot", "selection", "sources"] as const;
@@ -550,6 +551,7 @@ export function WorldView() {
   };
   const hotPane = (
     <div className={styles.pane} data-testid="world-hot">
+      {world ? <BriefBlock world={world} t={t} ago={ago} /> : null}
       <section className={styles.section} aria-labelledby="world-hot-title">
         <h3 id="world-hot-title">{t("world.hot.title")}</h3>
         <p className={styles.muted}>{t("world.hot.lead")}</p>

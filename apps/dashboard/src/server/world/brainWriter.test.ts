@@ -31,6 +31,7 @@ function world(): WorldPayload {
     release: { sha: null, started_at: new Date(NOW).toISOString() },
     post_tags: { state: "off", tags: {} },
     brain: { state: "off", last_day: null, note: null, reason: null },
+    brief: { state: "off", busy: false, latest: null, weekly: null, in_brain: false, brain: false, reason: null },
   } as WorldPayload;
 }
 

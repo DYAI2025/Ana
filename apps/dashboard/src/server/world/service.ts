@@ -13,6 +13,7 @@ import { readAnaPlace, readRelease } from "./presence";
 import { historyEntry, type HistoryEntry } from "./audienceHistory";
 import type { PostTagger } from "./tagger";
 import type { BrainWriter } from "./brainWriter";
+import type { BriefService } from "./briefService";
 import type { PostTags } from "@/features/world/postTags";
 
 export const PULSE_PATH = "/internal/social-pulse";
@@ -54,6 +55,8 @@ export interface WorldDeps {
   tagger?: PostTagger | null;
   /** writes the daily "Was läuft" digest into the Brain; null when no Brain key is configured */
   brain?: BrainWriter | null;
+  /** the brief (button and weekly); null without a model key */
+  brief?: BriefService | null;
 }
 
 type Load<T> = { ok: true; value: T } | { ok: false; state: WorldSourceState; reason: string };
@@ -251,6 +254,7 @@ export function createWorldService(deps: WorldDeps): WorldService {
         release: readRelease(),
         post_tags: { state: deps.tagger ? "on" : "off", tags },
         brain: { state: "off", last_day: null, note: null, reason: null },
+        brief: deps.brief ? deps.brief.state() : { state: "off", busy: false, latest: null, weekly: null, in_brain: false, brain: false, reason: null },
       };
       if (deps.brain) {
         // the day's digest waits until the stored post categories are read: right after a restart they are not yet,
@@ -258,6 +262,9 @@ export function createWorldService(deps: WorldDeps): WorldService {
         if (tagsReady) deps.brain.schedule(payload, now());
         payload.brain = deps.brain.status();
       }
+      // the weekly brief waits for the categories and for the audience, like the daily digest
+      // and for Instagram: an outage on the first read of a week must not seal an audience-only brief for that week
+      if (deps.brief && tagsReady && instagram.ok && audienceOut.state !== "unavailable" && audienceOut.fetched_at) deps.brief.scheduleWeekly(payload);
       return payload;
     },
   };
