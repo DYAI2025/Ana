@@ -551,7 +551,18 @@ export function WorldView() {
   };
   const hotPane = (
     <div className={styles.pane} data-testid="world-hot">
-      {world ? <BriefBlock world={world} t={t} ago={ago} /> : null}
+      {world ? (
+        <BriefBlock
+          world={world}
+          posts={ig?.posts ?? []}
+          t={t}
+          ago={ago}
+          onPost={(id) => {
+            setSelected({ type: "post", id });
+            setTab("selection");
+          }}
+        />
+      ) : null}
       <section className={styles.section} aria-labelledby="world-hot-title">
         <h3 id="world-hot-title">{t("world.hot.title")}</h3>
         <p className={styles.muted}>{t("world.hot.lead")}</p>
@@ -603,7 +614,12 @@ export function WorldView() {
         )}
         <p className={styles.note}>{t("world.hot.note")}</p>
       </section>
-      {worksBlock}
+      {worksBlock ? (
+        <details className={styles.more} data-testid="world-works-more">
+          <summary>{t("world.simple.allDetails")}</summary>
+          {worksBlock}
+        </details>
+      ) : null}
       <section className={styles.section} aria-labelledby="world-hot-brain">
         <h4 id="world-hot-brain">{t("world.hot.brain.title")}</h4>
         <p className={styles.muted} data-testid="world-hot-brain" data-state={world?.brain.state ?? "off"}>

@@ -946,3 +946,151 @@ button.barLabel {
   font-size: 12px;
   color: var(--text-secondary);
 }
+
+/* "Auf einen Blick": plain words first, numbers behind "Warum?" */
+.signals {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+}
+
+.signals h4 {
+  margin: 0 0 6px;
+}
+
+.signalList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.signal {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px;
+  border-radius: 12px;
+  border: 1px solid var(--hairline);
+  border-left: 4px solid var(--silver);
+}
+
+.signal[data-kind="good"] {
+  border-left-color: #2f7d4f;
+}
+
+.signal[data-kind="slow"] {
+  border-left-color: var(--ink-coral);
+}
+
+.signalCovers {
+  display: flex;
+  gap: 6px;
+}
+
+.cover {
+  width: 52px;
+  height: 66px;
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--canvas-deep);
+  color: var(--text-muted);
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+}
+
+.cover img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.cover:focus-visible,
+.why summary:focus-visible,
+.more summary:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.why summary {
+  cursor: pointer;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.why p,
+.why ul {
+  margin: 4px 0 0;
+  font-size: 12px;
+}
+
+.why ul {
+  padding-left: 16px;
+  color: var(--text-secondary);
+}
+
+.markets h4,
+.claude h4 {
+  margin: 0;
+}
+
+.markets,
+.claude {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.bigLine {
+  margin: 0;
+  font: 650 15px/1.35 var(--font);
+  color: var(--text);
+}
+
+.legend {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 13px;
+}
+
+.legend li {
+  display: grid;
+  grid-template-columns: 12px 1fr;
+  gap: 8px;
+  align-items: start;
+}
+
+.swatchDot {
+  width: 12px;
+  height: 12px;
+  margin-top: 3px;
+  border-radius: 50%;
+}
+
+.swatchDot[data-tier="1"] {
+  background: var(--ink-coral);
+}
+
+.swatchDot[data-tier="2"] {
+  background: var(--ink-warm);
+}
+
+.swatchDot[data-tier="3"] {
+  background: var(--silver);
+}
+
+.more summary {
+  cursor: pointer;
+  font: 600 13px/1.4 var(--font);
+  color: var(--text-secondary);
+}

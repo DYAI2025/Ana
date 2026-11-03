@@ -20,6 +20,8 @@ async function openWorld(page: Page) {
 async function openHot(page: Page) {
   await openWorld(page);
   await page.getByTestId("world-tab-hot").click();
+  // "What works" in full sits behind "All categories in detail"
+  await page.getByTestId("world-works-more").locator("summary").click();
 }
 
 test.describe("ANA World — 3D view over real dashboard data", () => {
@@ -166,8 +168,18 @@ test.describe("ANA World — 3D view over real dashboard data", () => {
     await expect(page.getByRole("button", { name: "Engaged · 7 days" })).toHaveAttribute("aria-pressed", "true");
     const hot = page.getByTestId("world-hot");
     // "What matters for the business": the market split is computed without a model; the brief needs the model key
-    await expect(page.getByTestId("world-brief-markets")).toContainText(/Tier 1 \d+ % · Tier 2 \d+ % · Tier 3 \d+ %/);
-    await expect(page.getByTestId("world-brief-markets")).toContainText("ASO.dev");
+    // plain words first: one sentence, a legend that says what each market is; the source behind "Why?"
+    const markets = page.getByTestId("world-brief-markets");
+    await expect(markets).toContainText(/\d+ % of this week's reactions come from top markets/);
+    await expect(page.getByTestId("world-brief-legend")).toContainText("Top markets");
+    await expect(page.getByTestId("world-brief-legend")).toContainText("Countries brands pay the most for");
+    await expect(page.getByTestId("world-brief-legend")).toContainText("Low-cost markets");
+    await expect(markets.getByText("ASO.dev", { exact: false })).toBeHidden();
+    await markets.locator("summary").click();
+    await expect(markets.getByText("ASO.dev", { exact: false })).toBeVisible();
+    // what runs well / what holds back: always both headings, plain sentences
+    await expect(page.getByTestId("world-signals-good")).toContainText("Working well now");
+    await expect(page.getByTestId("world-signals-slow")).toContainText("Holding back now");
     await expect(page.getByTestId("world-brief-button")).toBeDisabled();
     await expect(page.getByTestId("world-brief-state")).toHaveAttribute("data-state", "off");
     const off = await page.request.post("/api/world/brief", { data: {}, headers: { "content-type": "application/json" } });
@@ -176,6 +188,8 @@ test.describe("ANA World — 3D view over real dashboard data", () => {
     await expect(page.getByTestId("world-hot-rising").locator("li").first()).toContainText(/\+\d+(\.\d)? pts/);
     await expect(page.getByTestId("world-hot-who")).toContainText(/largest group \d/);
     await expect(hot).toContainText("Correlation only");
+    await expect(page.getByTestId("world-works")).toBeHidden();
+    await page.getByTestId("world-works-more").locator("summary").click();
     await expect(page.getByTestId("world-works")).toBeVisible();
     // the "Now" tab no longer carries "What works"
     await page.getByTestId("world-tab-now").click();

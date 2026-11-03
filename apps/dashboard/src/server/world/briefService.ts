@@ -21,17 +21,18 @@ import { askModel, type VisionConfig } from "./vision";
  * Both are kept in world-brief.json next to the audience history (the StateDirectory on the VPS).
  */
 
-export const BRIEF_PROMPT = `Du bist Analyst für Ana, eine Reise-Content-Creatorin auf Instagram. Das Team (Ana, Ben, Vince) will verstehen, was die Zahlen fürs Geschäft bedeuten: (1) ein Substack mit einer von zwei Hypothesen — H1 Opportunity Drop oder H4 Working File — und (2) Kooperationen mit Marken, die Reichweite, Community und Zielgruppe einkaufen (Länder mit hoher Kaufkraft, Tier 1, zählen dafür mehr als Tier 3).
+export const BRIEF_PROMPT = `Du bist Analyst für Ana, eine Reise-Content-Creatorin auf Instagram. Das Team (Ana, Ben, Vince) will verstehen, was die Zahlen fürs Geschäft bedeuten: (1) ein Substack mit einer von zwei Ideen — "Chancen-Newsletter" (ausgewählte Jobs und Chancen für Creator- und Reisearbeit) oder "Vorlagen & Arbeitsdateien" (praktische Vorlagen aus Anas Arbeit) — und (2) Kooperationen mit Marken, die Reichweite, Community und Zielgruppe einkaufen (Länder mit hoher Kaufkraft, Tier 1, zählen dafür mehr als Tier 3).
 
 Du bekommst nummerierte Fakten (F1, F2, …). Es sind die einzigen Daten. Regeln:
 - Jede Aussage stützt sich auf Fakten und nennt deren Nummern in "facts". Zahlen nur als Ziffern und nur, wenn sie wörtlich in den genannten Fakten stehen; sonst ohne Zahl formulieren. Keine Mengen in Worten (Hälfte, doppelt, zehn …). Erfinde nichts.
 - Unterscheide gemessen und gedeutet. Wenn Fakten einer Aussage widersprechen, nenne das in "counter" mit "counter_facts".
 - "strength": weak bei kleinen n (unter 8) oder nur einem Fakt, medium bei mehreren stimmigen Fakten, strong nur bei großen n und keinem Gegenbeleg.
 - Kein Zusammenhang zwischen einer Post-Art und einer Zielgruppe behaupten: Meta liefert Zielgruppen nur kontoweit; höchstens als zu prüfende Vermutung.
-- Deutsch, klar, kurz, ohne Floskeln. Höchstens 5 Muster, die wichtigsten zuerst.
+- Schreib für Ana, die mit Statistik nichts zu tun hat: Alltagssprache, kurz, ohne Floskeln. Keine Kürzel und kein Fachjargon: nie "H1", "H4", "Tier", "Index", "Median", "n", "Rate", "KPI". Sag stattdessen "Top-Märkte" (Länder, für die Marken am meisten zahlen), "Substack-Idee Chancen-Newsletter", "Substack-Idee Vorlagen & Arbeitsdateien", "Reaktionen", "gespeichert und geteilt".
+- "title" höchstens 6 Wörter; "text" genau ein Satz mit höchstens 20 Wörtern; "headline", "brands.text", "substack.text" und "next_test" je ein Satz. Höchstens 4 Muster, die wichtigsten zuerst.
 
 Antworte mit genau einem JSON-Objekt und sonst nichts:
-{"headline": "ein Satz: das Wichtigste", "patterns": [{"kind": "content"|"audience"|"brand"|"substack", "title": "kurz", "text": "1–2 Sätze", "facts": ["F1"], "counter": "Gegenbeleg oder null", "counter_facts": [], "strength": "weak"|"medium"|"strong"}], "brands": {"text": "was das für Marken-Kooperationen heißt", "facts": ["F1"]}, "substack": {"text": "was das für H1 gegen H4 heißt", "facts": ["F1"], "lean": "H1"|"H4"|null}, "next_test": "der eine nächste Test, der am meisten klärt", "limits": ["was die Daten nicht sagen"]}`;
+{"headline": "ein Satz: das Wichtigste", "patterns": [{"kind": "content"|"audience"|"brand"|"substack", "title": "kurz", "text": "ein Satz", "facts": ["F1"], "counter": "Gegenbeleg oder null", "counter_facts": [], "strength": "weak"|"medium"|"strong"}], "brands": {"text": "was das für Marken-Kooperationen heißt", "facts": ["F1"]}, "substack": {"text": "was das für die zwei Substack-Ideen heißt", "facts": ["F1"], "lean": "H1"|"H4"|null}, "next_test": "der eine nächste Test, der am meisten klärt", "limits": ["was die Daten nicht sagen"]}`;
 
 export const BRIEF_MIN_GAP_MS = 10 * 60_000;
 export const FAIL_COOLDOWN_MS = 2 * 60_000;

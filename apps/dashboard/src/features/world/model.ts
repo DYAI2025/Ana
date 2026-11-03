@@ -57,6 +57,8 @@ export interface WorldPost {
   ssr: number | null;
   /** true when the post is in the pulse but not yet in the snapshot (no insights yet) */
   fresh: boolean;
+  /** cover picture on Meta's CDN (video thumbnail or photo), null when unknown */
+  cover?: string | null;
 }
 
 export interface ChannelView {
@@ -134,6 +136,7 @@ export function instagramView(world: WorldPayload): ChannelView {
       er: reach && interactions !== null ? interactions / reach : null,
       ssr: reach && value(p, "saves") !== null && value(p, "shares") !== null ? ((value(p, "saves") as number) + (value(p, "shares") as number)) / reach : null,
       fresh: false,
+      cover: p.thumbnail_url ?? p.image_url ?? null,
     };
   });
   const known = new Set(posts.map((p) => p.id));

@@ -125,16 +125,22 @@ export function briefFacts(world: WorldPayload, history: readonly HistoryDay[], 
   if (world.instagram.ok) {
     const signals = hypothesisSignals(analyze(world.instagram.snapshot), (post) => deriveThemes(post.caption).families);
     for (const s of signals) {
-      const name = s.hypothesis.id === "H1" ? "H1 Opportunity Drop (kuratierte Chancen für Creator-, UGC-, Remote- und Reisearbeit)" : "H4 Working File (praktische Creator- und Business-Dateien aus Anas Arbeit)";
+      const name = s.hypothesis.id === "H1" ? "Substack-Idee „Chancen-Newsletter“ (H1 Opportunity Drop: ausgewählte Jobs und Chancen für Creator-, UGC-, Remote- und Reisearbeit)" : "Substack-Idee „Vorlagen & Arbeitsdateien“ (H4 Working File: praktische Vorlagen und Dateien aus Anas Arbeit)";
       add(
         "substack",
         s.state === "SIGNAL"
-          ? `${name}: ${s.mapped.length} zugeordnete Posts, High-Intent-Index im Median ${s.medianHighIntentIndex?.toFixed(2) ?? "—"}× (1,00× = typisch fürs Format); ${s.supporting.length} stützend, ${s.contradicting.length} widersprechend.`
+          ? `${name}: ${s.mapped.length} zugeordnete Posts; sie werden im Median ${s.medianHighIntentIndex?.toFixed(2) ?? "—"}× so oft gespeichert und geteilt wie übliche Posts desselben Formats (1.00× = üblich); ${s.supporting.length} darüber, ${s.contradicting.length} darunter.`
           : `${name}: ${s.mapped.length} zugeordnete Posts, zu wenige für ein Signal.`,
       );
     }
     const t = nextTest(signals);
-    add("substack", t.lean ? `Tendenz zwischen H1 und H4: ${t.lean} (ohne Überschneidung verglichen: ${t.nH1} H1-Posts, ${t.nH4} H4-Posts). Keine Entscheidung.` : `Keine Tendenz zwischen H1 und H4 (ohne Überschneidung: ${t.nH1} H1-Posts, ${t.nH4} H4-Posts).`);
+    const label = (id: "H1" | "H4") => (id === "H1" ? "„Chancen-Newsletter“ (H1)" : "„Vorlagen & Arbeitsdateien“ (H4)");
+    add(
+      "substack",
+      t.lean
+        ? `Zwischen den Substack-Ideen liegt ${label(t.lean)} vorn (verglichen ohne Überschneidung: ${t.nH1} Posts zu H1, ${t.nH4} Posts zu H4). Keine Entscheidung.`
+        : `Zwischen den Substack-Ideen „Chancen-Newsletter“ (H1) und „Vorlagen & Arbeitsdateien“ (H4) gibt es noch keine Tendenz (${t.nH1} gegen ${t.nH4} Posts).`,
+    );
   }
 
   // limits, stated as facts so the brief can name them
