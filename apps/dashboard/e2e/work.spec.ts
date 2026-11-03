@@ -108,7 +108,7 @@ test.describe("Board — projection of Jira Board 734 / filter 10733", () => {
     expect(stores).toEqual({ local: ["ana.locale"].filter((k) => stores.local.includes(k)), session: [], indexedDb: [] });
   });
 
-  test("AC8 · reconnect: when the network returns the board is read from Jira again; while Jira is unreadable nothing is shown as current", async ({ page, jira, context }) => {
+  test("AC8 · reconnect: when the network returns the board is read from Jira again; while Jira is unreadable nothing is shown as current", async ({ page, jira, context, consoleErrors }) => {
     await openBoard(page);
     await page.getByTestId("nav-now").click(); // in-app navigation keeps the current Jira read
     await page.locator('html[data-work="ready"]').waitFor({ state: "attached" });
@@ -129,6 +129,10 @@ test.describe("Board — projection of Jira Board 734 / filter 10733", () => {
     await page.getByTestId("nav-board").click();
     await workSettled(page);
     await expect(column(page, "In Arbeit").locator('[data-ticket-id="ANA-901"]')).toBeVisible();
+    // this test cuts the network itself: a request that happens to be in flight at that moment (a background poll) logs
+    // exactly this browser message, which is the test's doing, not the app's. Every other console error still fails it.
+    const offline = "console: Failed to load resource: net::ERR_INTERNET_DISCONNECTED";
+    for (let i = consoleErrors.length - 1; i >= 0; i--) if (consoleErrors[i] === offline) consoleErrors.splice(i, 1);
   });
 
   test("AC7 · an unsupported transition is BLOCKED, the issue stays where Jira has it", async ({ page, jira }) => {
