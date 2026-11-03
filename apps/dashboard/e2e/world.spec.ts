@@ -127,6 +127,20 @@ test.describe("ANA World — 3D view over real dashboard data", () => {
     await expect(page.getByTestId("world-post")).toBeVisible();
   });
 
+  test("works · ranking by saves + shares (the Substack hint) changes the top posts and explains itself", async ({ page }) => {
+    await openWorld(page);
+    const top = page.getByTestId("world-works-top");
+    await expect(top).toContainText("Top posts (engagement rate)");
+    const before = await top.locator("li").first().locator("button").first().innerText();
+    await page.getByTestId("world-works-rate").getByRole("button", { name: "Saves + shares" }).click();
+    await expect(top).toContainText("Top posts (saves + shares)");
+    await expect(page.getByTestId("world-works")).toContainText("Substack");
+    await expect(top.locator("li").first()).toContainText(/saves\+shares \d/);
+    await top.locator("li").first().locator("button").first().click();
+    await expect(page.getByTestId("world-post-ssr")).toContainText("Saves + shares:");
+    expect(before.length).toBeGreaterThan(0);
+  });
+
   test("AC5 · a real like increase between two pulse reads shows up in the feed", async ({ page }) => {
     await openWorld(page);
     await expect(page.getByTestId("world-pulse")).toHaveAttribute("data-state", "ok");

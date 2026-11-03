@@ -31,6 +31,11 @@ export const worldEn = {
     untitled: "post without caption",
   },
   works: {
+    rateLabel: "Rank by",
+    rates: { er: "Engagement", ssr: "Saves + shares" },
+    topSsr: "Top posts (saves + shares)",
+    ssrNote: "Saves + shares ÷ reach: people who keep a post or pass it on. A closer hint than a like for content people would read at length — e.g. on Substack. Still only a hint: whether it works there shows only a test there.",
+    meta: "{format} · engagement {er} · saves+shares {ssr} · reach {reach}",
     inOrbit: "({k} of {n} in the orbit)",
     top: "Top posts (engagement rate)",
     showTop: "Show them in the orbit",
@@ -38,7 +43,6 @@ export const worldEn = {
     pickHint: "Click a value to see the posts behind it; they light up in the orbit.",
     postsFor: "{n} posts: {value}",
     open: "Open on Instagram ↗",
-    meta: "{format} · {er} · reach {reach}",
     title: "What works",
     off: "Post categories are off (no model key on the server).",
     status: "Categories read: {n} of {total} posts ({counted} with a measured engagement rate and a confident reading).",
@@ -163,6 +167,7 @@ export const worldEn = {
   vps: { name: "Contabo VPS", sub: "release {sha}", subLocal: "local build", body: "The dashboard server reads Instagram through the worker and Jira; your browser only talks to it." },
   ring: { name: "Instagram orbit", sub: "{n} posts", body: "Each card is a post. Size = reach, colour = interactions per reach above (coral) or below (teal) the median, bar = interaction rate. Grey = no insights yet." },
   post: {
+    ssr: "Saves + shares: {value} of reach",
     open: "Open on Instagram",
     published: "Published {time}",
     reach: "Reach",

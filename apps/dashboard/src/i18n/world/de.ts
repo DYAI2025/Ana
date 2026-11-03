@@ -32,6 +32,11 @@ export const worldDe: Messages["world"] = {
     untitled: "Post ohne Text",
   },
   works: {
+    rateLabel: "Sortieren nach",
+    rates: { er: "Engagement", ssr: "Saves + Shares" },
+    topSsr: "Top-Posts (Saves + Shares)",
+    ssrNote: "Saves + Shares ÷ Reichweite: Leute, die einen Post aufheben oder weitergeben. Ein näherer Hinweis als ein Like auf Inhalte, die man ausführlich lesen würde – etwa auf Substack. Trotzdem nur ein Hinweis: Ob es dort funktioniert, zeigt erst ein Test dort.",
+    meta: "{format} · Engagement {er} · Saves+Shares {ssr} · Reichweite {reach}",
     inOrbit: "({k} von {n} im Orbit)",
     top: "Top-Posts (Engagement-Rate)",
     showTop: "Im Orbit zeigen",
@@ -39,7 +44,6 @@ export const worldDe: Messages["world"] = {
     pickHint: "Klick auf einen Wert zeigt die Posts dahinter; sie leuchten im Orbit auf.",
     postsFor: "{n} Posts: {value}",
     open: "Auf Instagram öffnen ↗",
-    meta: "{format} · {er} · Reichweite {reach}",
     title: "Was funktioniert",
     off: "Post-Kategorien sind aus (kein Modell-Schlüssel auf dem Server).",
     status: "Kategorien gelesen: {n} von {total} Posts ({counted} mit gemessener Engagement-Rate und sicherer Lesung).",
@@ -164,6 +168,7 @@ export const worldDe: Messages["world"] = {
   vps: { name: "Contabo VPS", sub: "Release {sha}", subLocal: "lokaler Build", body: "Der Dashboard-Server liest Instagram über den Worker und Jira; dein Browser spricht nur mit ihm." },
   ring: { name: "Instagram-Orbit", sub: "{n} Posts", body: "Jede Karte ist ein Post. Größe = Reichweite, Farbe = Interaktionen pro Reichweite über (Koralle) oder unter (Petrol) dem Median, Balken = Interaktionsrate. Grau = noch keine Insights." },
   post: {
+    ssr: "Saves + Shares: {value} der Reichweite",
     open: "Auf Instagram öffnen",
     published: "Veröffentlicht {time}",
     reach: "Reichweite",

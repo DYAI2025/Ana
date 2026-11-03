@@ -67,9 +67,14 @@ export type TagField = (typeof TAG_FIELDS)[number];
 export interface WorksRow {
   value: string;
   n: number;
-  /** median engagement rate (interactions ÷ reach) of the posts with this value */
+  /** median of the chosen rate (engagement or save+share) of the posts with this value */
   median: number;
 }
+
+/** which rate "What works" ranks by: engagement (interactions ÷ reach) or save+share ((saves + shares) ÷ reach) */
+export type RateKind = "er" | "ssr";
+type Rated = { id: string; format: string; er: number | null; ssr?: number | null };
+const rateOf = (p: Rated, kind: RateKind): number | null => (kind === "er" ? p.er : (p.ssr ?? null));
 
 const median = (xs: number[]) => {
   const s = [...xs].sort((a, b) => a - b);
@@ -81,15 +86,15 @@ const median = (xs: number[]) => {
  * Median engagement rate per category value, over the posts that have a measured rate and confident categories.
  * Format comes from Meta, not from the model. Rows are sorted by median, highest first.
  */
-export function whatWorks(posts: ReadonlyArray<{ id: string; format: string; er: number | null }>, tags: Readonly<Record<string, PostTags>>): { counted: number; fields: Record<TagField, WorksRow[]> } {
-  const measured = posts.filter((p) => p.er !== null && Number.isFinite(p.er));
+export function whatWorks(posts: readonly Rated[], tags: Readonly<Record<string, PostTags>>, kind: RateKind = "er"): { counted: number; fields: Record<TagField, WorksRow[]> } {
+  const measured = posts.filter((p) => { const r = rateOf(p, kind); return r !== null && Number.isFinite(r); });
   const counted = measured.filter((p) => (tags[p.id]?.confidence ?? 0) >= TAG_MIN_CONFIDENCE);
   const fields = Object.fromEntries(TAG_FIELDS.map((f) => [f, [] as WorksRow[]])) as Record<TagField, WorksRow[]>;
   for (const f of TAG_FIELDS) {
     const groups = new Map<string, number[]>();
     for (const p of f === "format" ? measured : counted) {
       const v = f === "format" ? p.format : String((tags[p.id] as PostTags)[f]);
-      groups.set(v, [...(groups.get(v) ?? []), p.er as number]);
+      groups.set(v, [...(groups.get(v) ?? []), rateOf(p, kind) as number]);
     }
     fields[f] = [...groups.entries()].map(([value, ers]) => ({ value, n: ers.length, median: median(ers) })).sort((a, b) => b.median - a.median);
   }
@@ -97,17 +102,20 @@ export function whatWorks(posts: ReadonlyArray<{ id: string; format: string; er:
 }
 
 /** Posts with one category value (format from Meta, the rest only from confident readings), best rate first. */
-export function postsWith<P extends { id: string; format: string; er: number | null }>(posts: readonly P[], tags: Readonly<Record<string, PostTags>>, field: TagField, value: string): P[] {
+export function postsWith<P extends Rated>(posts: readonly P[], tags: Readonly<Record<string, PostTags>>, field: TagField, value: string, kind: RateKind = "er"): P[] {
   return posts
     .filter((p) => {
       if (field === "format") return p.format === value;
       const t = tags[p.id];
       return t !== undefined && t.confidence >= TAG_MIN_CONFIDENCE && String(t[field]) === value;
     })
-    .sort((a, b) => (b.er ?? -1) - (a.er ?? -1));
+    .sort((a, b) => (rateOf(b, kind) ?? -1) - (rateOf(a, kind) ?? -1));
 }
 
-/** The best posts by measured engagement rate. */
-export function topPosts<P extends { er: number | null }>(posts: readonly P[], n: number): P[] {
-  return posts.filter((p) => p.er !== null && Number.isFinite(p.er)).sort((a, b) => (b.er as number) - (a.er as number)).slice(0, n);
+/** The best posts by a measured rate. */
+export function topPosts<P extends Rated>(posts: readonly P[], n: number, kind: RateKind = "er"): P[] {
+  return posts
+    .filter((p) => { const r = rateOf(p, kind); return r !== null && Number.isFinite(r); })
+    .sort((a, b) => (rateOf(b, kind) as number) - (rateOf(a, kind) as number))
+    .slice(0, n);
 }
