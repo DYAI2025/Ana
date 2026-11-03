@@ -165,6 +165,14 @@ test.describe("ANA World — 3D view over real dashboard data", () => {
     // movement is week against month: the globe switches to the week
     await expect(page.getByRole("button", { name: "Engaged · 7 days" })).toHaveAttribute("aria-pressed", "true");
     const hot = page.getByTestId("world-hot");
+    // "What matters for the business": the market split is computed without a model; the brief needs the model key
+    await expect(page.getByTestId("world-brief-markets")).toContainText(/Tier 1 \d+ % · Tier 2 \d+ % · Tier 3 \d+ %/);
+    await expect(page.getByTestId("world-brief-markets")).toContainText("ASO.dev");
+    await expect(page.getByTestId("world-brief-button")).toBeDisabled();
+    await expect(page.getByTestId("world-brief-state")).toHaveAttribute("data-state", "off");
+    const off = await page.request.post("/api/world/brief", { data: {}, headers: { "content-type": "application/json" } });
+    expect(off.status()).toBe(409);
+    expect((await page.request.post("/api/world/brief", { data: "x", headers: { "content-type": "text/plain" } })).status()).toBe(415);
     await expect(page.getByTestId("world-hot-rising").locator("li").first()).toContainText(/\+\d+(\.\d)? pts/);
     await expect(page.getByTestId("world-hot-who")).toContainText(/largest group \d/);
     await expect(hot).toContainText("Correlation only");

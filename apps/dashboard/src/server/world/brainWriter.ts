@@ -87,34 +87,14 @@ async function writeState(file: string, s: StateFile): Promise<void> {
   await fs.rename(tmp, file);
 }
 
-class BrainCallError extends Error {}
+export class BrainCallError extends Error {}
 
-export interface BrainWriter {
-  status(): WorldBrainSync;
-  /** writes today's digest in the background, once per Berlin day; never throws, never waits */
-  schedule(world: WorldPayload, nowMs: number): void;
-  /** test hook */
-  idle(): Promise<void>;
-}
+/** One Brain MCP tool call over JSON-RPC; returns the tool's text ("" when an existing id was refused and okIfExists). */
+export type BrainCall = (name: string, args: Record<string, unknown>, okIfExists?: boolean) => Promise<string>;
 
-const TOPIC_BODY = {
-  substack: `Wofür: Signale, ob und womit ein Substack (lange Texte, Newsletter) bei Anas Community tragen könnte.
-Gemessen wird, was Menschen behalten und weitergeben (Save+Share-Rate = (Saves + Shares) ÷ Reichweite), je Thema, Format und Aufmacher, und aus welchen Ländern und Altersgruppen das Engagement kommt.
-Grenzen: Instagram-Verhalten ist kein Beweis für Lese- oder Zahlungsbereitschaft; das prüft erst ein Substack-Test. Hypothesen dazu bleiben CANDIDATE, bis Ana, Ben oder Vince sie bestätigen.`,
-  brands: `Wofür: Grundlage für Marken-Kooperationen. Marken kaufen Reichweite, Community und Zielgruppe: welche Länder, welches Alter und Geschlecht, welche Themen Resonanz haben, und wie Posts mit sichtbarer Marke im Vergleich zu den übrigen laufen.
-Grenzen: Metas Zielgruppen-Daten sind kontoweit, verzögert (bis 48 h) und erst ab 100 Interaktionen; kein Wert sagt, welche Person auf welchen Post reagiert hat.`,
-};
-
-export function createBrainWriter(config: BrainWriterConfig, file: string = brainSyncFile(), fetchImpl: typeof fetch = fetch, nowFn: () => number = Date.now): BrainWriter {
-  let state: StateFile | null = null;
-  let running: Promise<void> = Promise.resolve();
-  let busy = false;
-  let failedAt = -Infinity;
-  let lastError: string | null = null;
+export function brainCaller(config: BrainWriterConfig, fetchImpl: typeof fetch = fetch): BrainCall {
   let rpcId = 0;
-
-  /** one tool call; returns the tool's text ("" when an existing id was refused and okIfExists) */
-  async function call(name: string, args: Record<string, unknown>, okIfExists = false): Promise<string> {
+  return async (name, args, okIfExists = false) => {
     const ctrl = new AbortController();
     const timer = setTimeout(() => ctrl.abort(), TIMEOUT_MS);
     try {
@@ -138,7 +118,34 @@ export function createBrainWriter(config: BrainWriterConfig, file: string = brai
     } finally {
       clearTimeout(timer);
     }
-  }
+  };
+}
+
+
+export interface BrainWriter {
+  status(): WorldBrainSync;
+  /** writes today's digest in the background, once per Berlin day; never throws, never waits */
+  schedule(world: WorldPayload, nowMs: number): void;
+  /** test hook */
+  idle(): Promise<void>;
+}
+
+const TOPIC_BODY = {
+  substack: `Wofür: Signale, ob und womit ein Substack (lange Texte, Newsletter) bei Anas Community tragen könnte.
+Gemessen wird, was Menschen behalten und weitergeben (Save+Share-Rate = (Saves + Shares) ÷ Reichweite), je Thema, Format und Aufmacher, und aus welchen Ländern und Altersgruppen das Engagement kommt.
+Grenzen: Instagram-Verhalten ist kein Beweis für Lese- oder Zahlungsbereitschaft; das prüft erst ein Substack-Test. Hypothesen dazu bleiben CANDIDATE, bis Ana, Ben oder Vince sie bestätigen.`,
+  brands: `Wofür: Grundlage für Marken-Kooperationen. Marken kaufen Reichweite, Community und Zielgruppe: welche Länder, welches Alter und Geschlecht, welche Themen Resonanz haben, und wie Posts mit sichtbarer Marke im Vergleich zu den übrigen laufen.
+Grenzen: Metas Zielgruppen-Daten sind kontoweit, verzögert (bis 48 h) und erst ab 100 Interaktionen; kein Wert sagt, welche Person auf welchen Post reagiert hat.`,
+};
+
+export function createBrainWriter(config: BrainWriterConfig, file: string = brainSyncFile(), fetchImpl: typeof fetch = fetch, nowFn: () => number = Date.now): BrainWriter {
+  let state: StateFile | null = null;
+  let running: Promise<void> = Promise.resolve();
+  let busy = false;
+  let failedAt = -Infinity;
+  let lastError: string | null = null;
+
+  const call = brainCaller(config, fetchImpl);
 
   async function ensure(s: StateFile) {
     if (s.ensured) return;

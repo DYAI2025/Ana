@@ -95,6 +95,7 @@ export interface WorldRelease {
 }
 
 import type { PostTags } from "./postTags";
+import type { BriefRecord } from "./brief";
 
 export interface WorldPayload {
   version: 1;
@@ -111,6 +112,18 @@ export interface WorldPayload {
   post_tags: { state: "on" | "off"; tags: Record<string, PostTags> };
   /** whether "Was läuft" is written into the ANA Brain (once per Berlin day, see brainWriter.ts) */
   brain: WorldBrainSync;
+  /** the brief "Das Wichtigste fürs Geschäft" (features/world/brief.ts); "off" without a model key */
+  brief: WorldBriefState;
+}
+
+export interface WorldBriefState {
+  state: "off" | "on" | "error";
+  busy: boolean;
+  /** the newest brief (button or weekly) */
+  latest: BriefRecord | null;
+  /** the newest weekly brief */
+  weekly: BriefRecord | null;
+  reason: string | null;
 }
 
 export interface WorldBrainSync {
