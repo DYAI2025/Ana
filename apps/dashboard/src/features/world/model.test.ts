@@ -3,7 +3,7 @@ import type { Observation, SocialPost } from "@/features/social/types";
 import { buildGeo, isLand, mainlandCentroid, unwrapRing } from "./geo";
 import { CHANNELS, channelStatuses, instagramView, median, ORBIT_MAX, orbitCount, pulseEvents, shares, trends, whoView } from "./model";
 import { resolveLook } from "./looks";
-import { parseTags, whatWorks } from "./postTags";
+import { parseTags, postsWith, topPosts, whatWorks } from "./postTags";
 import type { WorldPayload } from "./types";
 import topology from "world-atlas/countries-110m.json";
 import codes from "i18n-iso-countries/codes.json";
@@ -202,5 +202,23 @@ describe("post categories: parseTags and whatWorks", () => {
     expect(w.counted).toBe(3);
     expect(w.fields.theme).toEqual([{ value: "food", n: 2, median: 0.2 }, { value: "beach", n: 1, median: 0.05 }]);
     expect(w.fields.format.map((r) => [r.value, r.n])).toEqual([["reel", 2], ["image", 2]]);
+  });
+});
+
+describe("posts behind a category value and the top posts", () => {
+  const tg = (theme: string, confidence = 0.9) => parseTags({ theme, ana: "face", shot: "selfie", hook: "none", cta: "none", mood: "calm", country: null, brand: false, confidence })!;
+  const posts = [
+    { id: "a", format: "reel", er: 0.1 },
+    { id: "b", format: "reel", er: null },
+    { id: "c", format: "image", er: 0.3 },
+    { id: "d", format: "reel", er: 0.2 },
+  ];
+  it("by format from Meta, by category only from confident readings, best rate first, unmeasured last", () => {
+    expect(postsWith(posts, {}, "format", "reel").map((p) => p.id)).toEqual(["d", "a", "b"]);
+    const tags = { a: tg("food"), b: tg("food"), c: tg("food", 0.2), d: tg("beach") };
+    expect(postsWith(posts, tags, "theme", "food").map((p) => p.id)).toEqual(["a", "b"]);
+  });
+  it("top posts are the measured ones by rate", () => {
+    expect(topPosts(posts, 2).map((p) => p.id)).toEqual(["c", "d"]);
   });
 });

@@ -281,8 +281,10 @@
 
 .whoLegend {
   display: flex;
+  flex-wrap: wrap;
   justify-content: space-between;
-  gap: 6px;
+  gap: 2px 8px;
+  white-space: nowrap;
   margin-top: 4px;
 }
 
@@ -752,4 +754,68 @@ button.barLabel {
   .who.whoInline {
     display: none;
   }
+}
+
+/* "What works": posts behind a category value, the top posts */
+.postList {
+  list-style: none;
+  margin: 6px 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.postRow {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px 8px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-solid);
+  font: 500 12px/1.35 var(--font);
+}
+
+.postTitle {
+  text-align: left;
+  background: none;
+  border: 0;
+  padding: 0;
+  font: 600 12.5px/1.3 var(--font);
+  color: var(--text);
+  cursor: pointer;
+  text-decoration: underline;
+  text-decoration-color: var(--hairline-strong);
+  text-underline-offset: 3px;
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin: 2px 0;
+}
+
+.chip {
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: var(--canvas-deep);
+  font: 500 11px/1.5 var(--font);
+  color: var(--text-secondary);
+}
+
+.linkButton {
+  background: none;
+  border: 0;
+  padding: 0;
+  font: 600 12px/1.3 var(--font);
+  color: var(--accent);
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.bars button.barLabel[aria-pressed="true"] {
+  font-weight: 700;
+  text-decoration-color: var(--accent);
 }

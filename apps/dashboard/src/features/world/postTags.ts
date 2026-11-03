@@ -95,3 +95,19 @@ export function whatWorks(posts: ReadonlyArray<{ id: string; format: string; er:
   }
   return { counted: counted.length, fields };
 }
+
+/** Posts with one category value (format from Meta, the rest only from confident readings), best rate first. */
+export function postsWith<P extends { id: string; format: string; er: number | null }>(posts: readonly P[], tags: Readonly<Record<string, PostTags>>, field: TagField, value: string): P[] {
+  return posts
+    .filter((p) => {
+      if (field === "format") return p.format === value;
+      const t = tags[p.id];
+      return t !== undefined && t.confidence >= TAG_MIN_CONFIDENCE && String(t[field]) === value;
+    })
+    .sort((a, b) => (b.er ?? -1) - (a.er ?? -1));
+}
+
+/** The best posts by measured engagement rate. */
+export function topPosts<P extends { er: number | null }>(posts: readonly P[], n: number): P[] {
+  return posts.filter((p) => p.er !== null && Number.isFinite(p.er)).sort((a, b) => (b.er as number) - (a.er as number)).slice(0, n);
+}
