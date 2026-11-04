@@ -21,6 +21,8 @@ import { MARKET_SOURCE, marketSplit, tierOf } from "./markets";
 import { MIN_N, pulseDigest } from "./pulse";
 import { TAG_MIN_CONFIDENCE, whatWorks, type TagField } from "./postTags";
 import type { WorldPayload } from "./types";
+import { FACT_WORDS } from "./briefText";
+import type { Locale } from "@/lib/locale";
 
 export type FactKind = "market" | "audience" | "content" | "substack" | "brand" | "limit";
 export interface Fact {
@@ -36,18 +38,20 @@ export interface HistoryDay {
 }
 
 const pct = (x: number | null, d = 1) => (x === null ? "—" : `${(x * 100).toFixed(d)} %`);
-const pts = (x: number) => `${x > 0 ? "+" : ""}${x.toFixed(1)} Pkt`;
-
-const FIELD_DE: Record<TagField, string> = { theme: "Thema", ana: "Ana im Bild", shot: "Bildart", hook: "Aufmacher", mood: "Stimmung", cta: "Aufforderung", format: "Format" };
-const ANA_DE: Record<string, string> = { face: "Gesicht sichtbar", figure: "nur Figur / von weitem", none: "nicht im Bild" };
-const valueDe = (f: TagField, v: string) => (f === "ana" ? (ANA_DE[v] ?? v) : v);
 
 const pairShares = (rows: Array<[string, number]>) => {
   const total = rows.reduce((s, [, v]) => s + v, 0);
   return total > 0 ? new Map(rows.map(([k, v]) => [k, v / total])) : new Map<string, number>();
 };
 
-export function briefFacts(world: WorldPayload, history: readonly HistoryDay[], nowMs: number): Fact[] {
+/**
+ * The facts in the dashboard language `locale` (wording in briefText.ts). The same data gives the same facts with the
+ * same ids and the same numbers in every language; only the words differ.
+ */
+export function briefFacts(world: WorldPayload, history: readonly HistoryDay[], nowMs: number, locale: Locale = "de"): Fact[] {
+  const L = FACT_WORDS[locale];
+  const pts = (x: number) => `${x > 0 ? "+" : ""}${x.toFixed(1)} ${L.pts}`;
+  const value = (f: TagField, v: string) => (f === "ana" ? (L.ana[v] ?? v) : v);
   const out: Fact[] = [];
   const add = (kind: FactKind, text: string) => out.push({ id: `F${out.length + 1}`, kind, text });
   const a = world.audience;
@@ -59,18 +63,18 @@ export function briefFacts(world: WorldPayload, history: readonly HistoryDay[], 
   const week = marketSplit(a.engaged_country_week);
   const month = marketSplit(a.engaged_country);
   if (week) {
-    add("market", `Engagement der letzten 7 Tage nach Werbemarkt (Annahme: ${MARKET_SOURCE}): Tier 1 ${pct(week.t1, 0)}, Tier 2 ${pct(week.t2, 0)}, Tier 3 ${pct(week.t3, 0)}.`);
-    if (month) add("market", `Tier-1-Anteil 7 Tage ${pct(week.t1, 0)} gegenüber 30 Tage ${pct(month.t1, 0)} (${pts((week.t1 - month.t1) * 100)}).`);
-    if (week.top1.length) add("market", `Größte Tier-1-Länder (7 Tage): ${week.top1.map((c) => `${c.key} ${pct(c.share, 0)}`).join(", ")}.`);
-    add("market", "Größenordnung laut veröffentlichten Meta-CPM-Schätzungen 2026 (adamigo.ai): USA etwa 23 $, UK und Deutschland etwa 10 $, Indien etwa 2,60 $ pro 1000 Impressionen.");
+    add("market", L.split(7, MARKET_SOURCE, pct(week.t1, 0), pct(week.t2, 0), pct(week.t3, 0)));
+    if (month) add("market", L.t1VsMonth(pct(week.t1, 0), pct(month.t1, 0), pts((week.t1 - month.t1) * 100)));
+    if (week.top1.length) add("market", L.top1(week.top1.map((c) => `${c.key} ${pct(c.share, 0)}`).join(", ")));
+    add("market", L.cpm);
   } else if (month) {
-    add("market", `Engagement der letzten 30 Tage nach Werbemarkt (Annahme: ${MARKET_SOURCE}): Tier 1 ${pct(month.t1, 0)}, Tier 2 ${pct(month.t2, 0)}, Tier 3 ${pct(month.t3, 0)}.`);
+    add("market", L.split(30, MARKET_SOURCE, pct(month.t1, 0), pct(month.t2, 0), pct(month.t3, 0)));
   }
   const moves = trends(a.engaged_country_week, a.engaged_country);
   const rising = [...moves].filter(([, v]) => v >= TREND_POINTS).sort((x, y) => y[1] - x[1]).slice(0, 3);
   const falling = [...moves].filter(([, v]) => v <= -TREND_POINTS).sort((x, y) => x[1] - y[1]).slice(0, 3);
-  if (rising.length) add("audience", `Steigend (7 gegen 30 Tage): ${rising.map(([k, v]) => `${k} (Tier ${tierOf(k)}) ${pts(v)}`).join(", ")}.`);
-  if (falling.length) add("audience", `Fallend (7 gegen 30 Tage): ${falling.map(([k, v]) => `${k} (Tier ${tierOf(k)}) ${pts(v)}`).join(", ")}.`);
+  if (rising.length) add("audience", L.rising(rising.map(([k, v]) => L.move(k, tierOf(k), pts(v))).join(", ")));
+  if (falling.length) add("audience", L.falling(falling.map(([k, v]) => L.move(k, tierOf(k), pts(v))).join(", ")));
 
   // who: the week against the month
   const whoLine = (label: string, w: ReturnType<typeof whoView>) => {
@@ -79,10 +83,10 @@ export function briefFacts(world: WorldPayload, history: readonly HistoryDay[], 
     const top = [...ages].sort((x, y) => y.share - x.share).slice(0, 2);
     const g = w.mode === "pyramid" ? { f: w.rows.reduce((s, r) => s + r.f, 0), m: w.rows.reduce((s, r) => s + r.m, 0) } : w.gender;
     if (!top.length && !g) return;
-    add("audience", `${label}: ${top.length ? `Altersgruppen ${top.map((t) => `${t.band} ${pct(t.share, 0)}`).join(", ")}` : ""}${top.length && g ? "; " : ""}${g ? `weiblich ${pct(g.f, 0)}, männlich ${pct(g.m, 0)}` : ""}.`);
+    add("audience", `${label}: ${top.length ? L.ages(top.map((t) => `${t.band} ${pct(t.share, 0)}`).join(", ")) : ""}${top.length && g ? "; " : ""}${g ? L.gender(pct(g.f, 0), pct(g.m, 0)) : ""}.`);
   };
-  whoLine("Wer in den letzten 7 Tagen reagiert hat", whoView(a.who.engaged_week));
-  whoLine("Wer in den letzten 30 Tagen reagiert hat", whoView(a.who.engaged_month));
+  whoLine(L.whoWeek, whoView(a.who.engaged_week));
+  whoLine(L.whoMonth, whoView(a.who.engaged_month));
 
   // the stored daily snapshots: how the 7-day audience moved over the days we have
   const days = [...history].sort((x, y) => x.day.localeCompare(y.day));
@@ -91,14 +95,14 @@ export function briefFacts(world: WorldPayload, history: readonly HistoryDay[], 
   const span = first && last ? Math.round((Date.parse(`${last.day}T00:00:00Z`) - Date.parse(`${first.day}T00:00:00Z`)) / 86_400_000) : 0;
   if (first && last && span >= 3) {
     const t1 = (rows: Array<[string, number]>) => [...pairShares(rows)].filter(([k]) => tierOf(k) === 1).reduce((s, [, v]) => s + v, 0);
-    add("audience", `Tier-1-Anteil im 7-Tage-Fenster am ${first.day}: ${pct(t1(first.week.country), 0)}, am ${last.day}: ${pct(t1(last.week.country), 0)} (${span} Tage auseinander).`);
+    add("audience", L.history(first.day, pct(t1(first.week.country), 0), last.day, pct(t1(last.week.country), 0), span));
   }
 
   // content: which kind of post reaches which rate (post-level, measured)
   const allEr = median(ig.posts.map((p) => p.er).filter((x): x is number => x !== null));
   const allSsr = median(ig.posts.map((p) => p.ssr).filter((x): x is number => x !== null));
   const nEr = ig.posts.filter((p) => p.er !== null).length;
-  if (allEr !== null) add("content", `Alle Posts mit Insights: Interaktionsrate im Median ${pct(allEr)} (n ${nEr}), Save+Share-Rate im Median ${pct(allSsr, 2)}.`);
+  if (allEr !== null) add("content", L.allPosts(pct(allEr), nEr, pct(allSsr, 2)));
   const byEr = whatWorks(ig.posts, tags, "er").fields;
   const bySsr = whatWorks(ig.posts, tags, "ssr").fields;
   for (const f of ["ana", "theme", "shot", "hook", "mood", "format"] as const) {
@@ -106,48 +110,37 @@ export function briefFacts(world: WorldPayload, history: readonly HistoryDay[], 
     if (rows.length >= 2) {
       const best = rows[0]!;
       const worst = rows[rows.length - 1]!;
-      add("content", `${FIELD_DE[f]}: höchste Interaktionsrate „${valueDe(f, best.value)}“ ${pct(best.median)} (n ${best.n}), niedrigste „${valueDe(f, worst.value)}“ ${pct(worst.median)} (n ${worst.n}).`);
+      add("content", L.bestWorst(L.field[f], value(f, best.value), pct(best.median), best.n, value(f, worst.value), pct(worst.median), worst.n));
     }
     const srows = bySsr[f].filter((r) => r.n >= MIN_N);
     if (srows.length >= 2) {
       const best = srows[0]!;
-      add("substack", `${FIELD_DE[f]} nach Save+Share-Rate (behalten und weitergeben, Substack-Hinweis): am höchsten „${valueDe(f, best.value)}“ ${pct(best.median, 2)} (n ${best.n}).`);
+      add("substack", L.ssrBest(L.field[f], value(f, best.value), pct(best.median, 2), best.n));
     }
   }
   if (d.fresh.length) {
     const best = d.fresh[0]!;
-    add("content", `Posts der letzten 7 Tage (n ${d.fresh.length}): der stärkste hat ${pct(best.er)} Interaktionsrate${best.vsMedian !== null ? ` (${best.vsMedian.toFixed(1)}× Median)` : ""}${best.tags ? `, Kategorien ${best.tags.theme}/${valueDe("ana", best.tags.ana)}/${best.tags.shot}` : ""}.`);
+    add("content", L.fresh(d.fresh.length, pct(best.er), best.vsMedian !== null ? best.vsMedian.toFixed(1) : null, best.tags ? `${best.tags.theme}/${value("ana", best.tags.ana)}/${best.tags.shot}` : null));
   }
-  if (d.brand.n) add("brand", `Posts mit sichtbarer Marke: Interaktionsrate im Median ${pct(d.brand.er)} (n ${d.brand.n}); ohne Marke: ${pct(d.brand.otherEr)} (n ${d.brand.otherN}).`);
-  if (week || month) add("brand", `Reichweite 28 Tage: ${ig.reach28 ?? "—"}; Follower: ${ig.followers ?? "—"}.`);
+  if (d.brand.n) add("brand", L.brand(pct(d.brand.er), d.brand.n, pct(d.brand.otherEr), d.brand.otherN));
+  if (week || month) add("brand", L.reach(String(ig.reach28 ?? "—"), String(ig.followers ?? "—")));
 
   // Substack hypotheses of the Instagram cockpit (keyword families of the captions, read here, never sent)
   if (world.instagram.ok) {
     const signals = hypothesisSignals(analyze(world.instagram.snapshot), (post) => deriveThemes(post.caption).families);
     for (const s of signals) {
-      const name = s.hypothesis.id === "H1" ? "Substack-Idee „Chancen-Newsletter“ (H1 Opportunity Drop: ausgewählte Jobs und Chancen für Creator-, UGC-, Remote- und Reisearbeit)" : "Substack-Idee „Vorlagen & Arbeitsdateien“ (H4 Working File: praktische Vorlagen und Dateien aus Anas Arbeit)";
-      add(
-        "substack",
-        s.state === "SIGNAL"
-          ? `${name}: ${s.mapped.length} zugeordnete Posts; sie werden im Median ${s.medianHighIntentIndex?.toFixed(2) ?? "—"}× so oft gespeichert und geteilt wie übliche Posts desselben Formats (1.00× = üblich); ${s.supporting.length} darüber, ${s.contradicting.length} darunter.`
-          : `${name}: ${s.mapped.length} zugeordnete Posts, zu wenige für ein Signal.`,
-      );
+      const name = L.hypName(s.hypothesis.id === "H1" ? "H1" : "H4");
+      add("substack", s.state === "SIGNAL" ? L.hypSignal(name, s.mapped.length, s.medianHighIntentIndex?.toFixed(2) ?? "—", s.supporting.length, s.contradicting.length) : L.hypThin(name, s.mapped.length));
     }
     const t = nextTest(signals);
-    const label = (id: "H1" | "H4") => (id === "H1" ? "„Chancen-Newsletter“ (H1)" : "„Vorlagen & Arbeitsdateien“ (H4)");
-    add(
-      "substack",
-      t.lean
-        ? `Zwischen den Substack-Ideen liegt ${label(t.lean)} vorn (verglichen ohne Überschneidung: ${t.nH1} Posts zu H1, ${t.nH4} Posts zu H4). Keine Entscheidung.`
-        : `Zwischen den Substack-Ideen „Chancen-Newsletter“ (H1) und „Vorlagen & Arbeitsdateien“ (H4) gibt es noch keine Tendenz (${t.nH1} gegen ${t.nH4} Posts).`,
-    );
+    add("substack", t.lean ? L.lean(L.hypLabel(t.lean), t.nH1, t.nH4) : L.noLean(t.nH1, t.nH4));
   }
 
   // limits, stated as facts so the brief can name them
   const tagged = ig.posts.filter((p) => (tags[p.id]?.confidence ?? 0) >= TAG_MIN_CONFIDENCE).length;
-  add("limit", `Gespeicherte Tagesstände der Zielgruppe: ${days.length} (seit ${first?.day ?? "—"}). Post-Kategorien gelesen für ${tagged} von ${ig.posts.length} Posts.`);
-  add("limit", "Meta liefert Länder, Alter und Geschlecht nur für das ganze Konto (bis 48 h verzögert, erst ab 100 Interaktionen), nicht pro Post: ein Zusammenhang zwischen einer Post-Art und einer Zielgruppe lässt sich nur über viele Wochen als Korrelation zeigen.");
-  add("limit", "Substack, Link-Klicks und Verkäufe sind nicht verbunden: Nachfrage lässt sich hier nicht messen, nur Vorzeichen auf Instagram.");
+  add("limit", L.limitHistory(days.length, first?.day ?? "—", tagged, ig.posts.length));
+  add("limit", L.limitMeta);
+  add("limit", L.limitSubstack);
   return out;
 }
 
@@ -187,10 +180,10 @@ function canon(token: string): string | null {
   return Number.isFinite(n) ? String(n) : null;
 }
 
-/** names that carry a digit but are not figures: H1/H4, Tier 1–3 and the 7/28/30-day windows */
-const NAMES = /(?<![\p{L}\p{N}])(?:H[1-4]|Tier ?[123])(?![\p{L}\p{N}])|(?<![\p{L}\p{N}])(?:7|28|30)[ -](?:Tage|Tagen|days)(?![\p{L}\p{N}])/gu;
+/** names that carry a digit but are not figures: H1/H4, Tier 1–3 and the 7/28/30-day windows (German, English, Italian) */
+const NAMES = /(?<![\p{L}\p{N}])(?:H[1-4]|Tier ?[123])(?![\p{L}\p{N}])|(?<![\p{L}\p{N}])(?:7|28|30)[ -](?:Tage|Tagen|days?|giorni)(?![\p{L}\p{N}])/gu;
 
-/** quantities in words bring figures too: a claim with one of them is not backed by any fact ("einfach" is not one) */
+/** quantities in words bring figures too (German, English, Italian): a claim with one of them is not backed by any fact ("einfach" is not one) */
 const NUMBER_WORDS = new RegExp(
   `(?<![\\p{L}])(?:${[
     "(?:zwei|drei|vier|fünf|sechs|sieben|acht|neun|zehn|elf|zwölf)(?:mal|fach\\p{L}*|zehn\\p{L}*|zig\\p{L}*|tel\\p{L}*|stellig\\p{L}*|hundert\\p{L}*|tausend\\p{L}*|einhalb|viertel)?",
@@ -199,6 +192,9 @@ const NUMBER_WORDS = new RegExp(
     "hälfte", "halb(?:e|en|er|so)?", "halbier\\p{L}*", "doppel(?:t|te|ten|ter)?", "verdoppel\\p{L}*", "drittel", "viertel",
     "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten", "eleven", "twelve", "\\p{L}*teen", "twenty", "thirty", "forty", "fifty", "sixty", "seventy", "eighty", "ninety",
     "hundred\\p{L}*", "thousand\\p{L}*", "million", "billion", "half", "once", "twice", "thrice", "double(?:d|s)?", "triple(?:d|s)?", "\\p{L}+fold", "third", "quarter",
+    // Italian ("un", "uno", "una" are articles too, like "ein"/"eine" — left out)
+    "due", "tre", "quattro", "cinque", "sei", "sette", "otto", "nove", "dieci", "undici", "dodici", "tredici", "quattordici", "quindici", "sedici", "venti\\p{L}*", "trenta\\p{L}*", "quaranta\\p{L}*", "cinquanta\\p{L}*",
+    "cento\\p{L}*", "mille", "(?:due|tre|quattro|cinque|sei|sette|otto|nove|dieci)mila", "milion[ei]", "miliard[oi]", "metà", "dimezza\\p{L}*", "doppi[oa]?", "raddoppi\\p{L}*", "tripl[oa]", "triplica\\p{L}*", "terz[oi]", "quart[oi]", "decin[ae]", "dozzin[ae]",
   ].join("|")})(?![\\p{L}])`,
   "iu",
 );
@@ -226,7 +222,7 @@ export function numbersBacked(text: string, cited: readonly Fact[]): boolean {
 
 /** smallest group size (n …) among the cited facts; null when they name none */
 function minN(cited: readonly Fact[]): number | null {
-  const ns = cited.flatMap((f) => [...f.text.matchAll(/\(n (\d+)\)|: (\d+) zugeordnete/g)].map((m) => Number(m[1] ?? m[2])));
+  const ns = cited.flatMap((f) => [...f.text.matchAll(/\(n (\d+)\)|: (\d+) (?:zugeordnete|assigned|post associati)/g)].map((m) => Number(m[1] ?? m[2])));
   return ns.length ? Math.min(...ns) : null;
 }
 
@@ -295,6 +291,8 @@ export function parseBrief(raw: unknown, facts: readonly Fact[]): Brief | null {
 }
 
 export interface BriefRecord {
+  /** the language the facts and the brief are written in; records from before 2026-11-05 have none and are German */
+  locale?: Locale;
   /** when the brief was written, ISO */
   at: string;
   /** ISO week of the Berlin day, e.g. 2026-w45 */
