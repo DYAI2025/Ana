@@ -5,7 +5,7 @@ import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { NewsletterFeed } from "@/features/world/newsletters";
 import { OFFICE_TOPICS, OFFICE_VERSION } from "@/features/world/office";
-import { batchText, createNewsletterReader, feedLink, fetchFeed, FEED_CAP, FEED_EVERY_MS, OUTAGE_MS, MATCH_BATCH, MATCH_CALLS, MATCH_RETRY_MS, MATCH_TRIES, newsletterPrompt, parseBatchAnswer, parseFeed, windowStart } from "./newsletterReader";
+import { batchText, createNewsletterReader, cut, feedLink, fetchFeed, FEED_CAP, FEED_EVERY_MS, OUTAGE_MS, MATCH_BATCH, MATCH_CALLS, MATCH_RETRY_MS, MATCH_TRIES, newsletterPrompt, parseBatchAnswer, parseFeed, windowStart } from "./newsletterReader";
 
 const config = { key: "k".repeat(30), model: "claude-haiku-5-5", timeoutMs: 1000 };
 const known = new Set(OFFICE_TOPICS.map((t) => t.id));
@@ -56,6 +56,16 @@ describe("newsletter feeds — parsing", () => {
   it("links: only https on the newsletter's own host, no port, no user", () => {
     for (const bad of [`http://${A.host}/p/x`, `https://${A.host}:8443/p/x`, `https://u:p@${A.host}/p/x`, "https://substack.com/p/x", "javascript:alert(1)", "not a url"]) expect(feedLink(bad, A)).toBeNull();
     expect(feedLink(` https://${A.host}/p/x?ref=1#top `, A)).toBe(`https://${A.host}/p/x`);
+  });
+
+  it("cuts text without leaving half of an emoji (the API refuses lone surrogates)", () => {
+    expect(cut("ab😀cd", 3)).toBe("ab");
+    expect(cut("ab😀cd", 4)).toBe("ab😀");
+    expect(cut("abc", 10)).toBe("abc");
+    const xml = bare([item(A.host, "e", NOW - DAY, "x", `${"a".repeat(599)}😀 more`)]);
+    const text = parseFeed(xml, A, NOW).items[0]?.text ?? "";
+    expect(text).toBe("a".repeat(599));
+    expect(() => encodeURIComponent(text)).not.toThrow();
   });
 
   it("an HTML page instead of a feed has no items (counted as a failed read)", () => {
@@ -119,6 +129,7 @@ describe("newsletter reader — daily feeds, a few model calls, honest counts", 
         modelCalls.push(prompt);
         const r = opts.reply ? opts.reply(prompt, modelCalls.length) : null;
         if (r === null) return new Response("down", { status: 500 });
+        if (typeof r === "number") return new Response("refused", { status: r });
         return new Response(JSON.stringify({ content: [{ type: "text", text: typeof r === "string" ? r : JSON.stringify(r) }] }));
       }
       feedCalls.push(new URL(url).hostname);
@@ -332,6 +343,45 @@ describe("newsletter reader — daily feeds, a few model calls, honest counts", 
     now = NOW + 16 * HOUR;
     await tick();
     expect(r.current()).toMatchObject({ checked: 2, unreadable: 0, complete: true });
+  });
+
+  it("a refused request (400) counts against its posts and does not stop the other newsletters' calls", async () => {
+    const net = fakeNet({ feeds: { [A.host]: rss([item(A.host, "g1", NOW - HOUR, "gig")]), [C.host]: rss([item(C.host, "c1", NOW - DAY, "home")]) }, reply: (p) => (titles(p).includes("gig") ? 400 : byTitle(p)) });
+    const r = createNewsletterReader(config, file, net.impl, () => now, [A, C]);
+    r.schedule();
+    await r.idle();
+    expect(net.modelCalls).toHaveLength(2);
+    expect(r.current()).toMatchObject({ posts: 2, checked: 1, failing: 1 });
+    expect(r.current().topics.homesick?.feeds).toEqual(["nomad"]);
+    for (let n = 1; n < MATCH_TRIES; n += 1) {
+      now += MATCH_RETRY_MS;
+      r.schedule();
+      await r.idle();
+    }
+    expect(r.current()).toMatchObject({ checked: 1, failing: 0, unreadable: 1 });
+  });
+
+  it("a short feed that went missing posts since the last read is no longer covered since forever", async () => {
+    const net = fakeNet({ feeds: { [A.host]: bare([item(A.host, "g1", NOW - HOUR, "gig"), item(A.host, "g0", NOW - 20 * DAY, "old gig")]) }, reply: byTitle });
+    const r = createNewsletterReader(config, file, net.impl, () => now, [A]);
+    r.schedule();
+    await r.idle();
+    expect(r.current().since).toBeNull();
+    // five days later the feed is short again but starts after the last read: posts in between may be lost
+    now = NOW + 5 * DAY;
+    const later = fakeNet({ feeds: { [A.host]: bare([item(A.host, "g5", now - HOUR, "gig five"), item(A.host, "g4", NOW + 2 * DAY, "gig four")]) }, reply: byTitle });
+    const r2 = createNewsletterReader(config, file, later.impl, () => now, [A]);
+    r2.schedule();
+    await r2.idle();
+    expect(r2.current().since).toBe("2026-11-07");
+  });
+
+  it("a feed whose items carry no readable date is a failed read, not an empty covered feed", async () => {
+    const net = fakeNet({ feeds: { [A.host]: bare([item(A.host, "g1", NOW - HOUR, "gig").replace(/<pubDate>.*<\/pubDate>/, "<pubDate>someday</pubDate>")]) }, reply: byTitle });
+    const r = createNewsletterReader(config, file, net.impl, () => now, [A]);
+    r.schedule();
+    await r.idle();
+    expect(r.current()).toMatchObject({ feeds_read: 0, feeds_failing: 1, complete: false });
   });
 
   it("an answer that leaves posts out is retried after 30 minutes, then post by post, and given up after a few tries (kept across restarts)", async () => {

@@ -34,6 +34,11 @@ const TITLE_MAX = 200;
 const DAY_MS = 86_400_000;
 
 const day = (ms: number) => new Date(ms).toISOString().slice(0, 10);
+/** cut to n UTF-16 units without leaving half of a surrogate pair (the API refuses lone surrogates) */
+export function cut(s: string, n: number): string {
+  const out = s.slice(0, n);
+  return /[\uD800-\uDBFF]$/.test(out) ? out.slice(0, -1) : out;
+}
 /** the first day of the window that ends today */
 export const windowStart = (nowMs: number, days: number = NEWSLETTER_DAYS) => day(nowMs - (days - 1) * DAY_MS);
 
@@ -100,7 +105,7 @@ export function parseFeed(xml: string, feed: NewsletterFeed, nowMs: number, days
     const item = m[1] ?? "";
     const at = Date.parse(plain(tag(item, "pubDate")));
     if (Number.isFinite(at) && at <= nowMs + DAY_MS) oldest = oldest === null ? at : Math.min(oldest, at);
-    const title = plain(tag(item, "title")).slice(0, TITLE_MAX);
+    const title = cut(plain(tag(item, "title")), TITLE_MAX);
     const url = feedLink(plain(tag(item, "link")), feed);
     if (!title || !url || !Number.isFinite(at)) continue;
     // a post dated more than a day ahead is a broken date, not news
@@ -111,7 +116,8 @@ export function parseFeed(xml: string, feed: NewsletterFeed, nowMs: number, days
     seen.add(key);
     const subtitle = plain(tag(item, "description"));
     const body = plain(tag(item, "content:encoded"));
-    const text = [subtitle, body.startsWith(subtitle) ? body.slice(subtitle.length).trim() : body].filter(Boolean).join(" — ").trim().slice(0, TEXT_MAX);
+    const joined = [subtitle, body.startsWith(subtitle) ? body.slice(subtitle.length).trim() : body].filter(Boolean).join(" — ").trim();
+    const text = cut(joined, TEXT_MAX);
     items.push({ key, title, url, date: day(at), text });
   }
   return { items, oldest, raw };
@@ -230,7 +236,7 @@ export async function readNewsletterStore(file: string, version: string, feeds: 
     if (!feed || !out.feeds[feed.id] || !KEY_RE.test(key) || !key.startsWith(`${feed.id}:`)) continue;
     const url = typeof v.url === "string" ? feedLink(v.url, feed) : null;
     if (!url || typeof v.title !== "string" || !v.title || typeof v.date !== "string" || !DAY_RE.test(v.date)) continue;
-    const item: StoredItem = { feed: feed.id, title: v.title.slice(0, TITLE_MAX), url, date: v.date, text: typeof v.text === "string" ? v.text.slice(0, TEXT_MAX) : "" };
+    const item: StoredItem = { feed: feed.id, title: cut(v.title, TITLE_MAX), url, date: v.date, text: typeof v.text === "string" ? cut(v.text, TEXT_MAX) : "" };
     const reading = sameCatalog && Array.isArray(v.topics) ? parseTopicAnswer(JSON.stringify({ topics: v.topics, confidence: v.confidence }), known) : null;
     if (sameCatalog && v.gave_up === true) item.gave_up = true;
     else if (reading) Object.assign(item, { ...reading, model: typeof v.model === "string" ? v.model : "", at: typeof v.at === "string" ? v.at : "" });
@@ -362,7 +368,8 @@ export function createNewsletterReader(
       if (t - (feedFailedAt.get(feed.id) ?? -Infinity) < FEED_RETRY_MS) continue;
       const xml = await fetchFeed(feed, fetchImpl);
       const parsed = xml === null ? null : parseFeed(xml, feed, now());
-      if (parsed === null || parsed.raw === 0) {
+      // no items, or items without a single readable date (a changed format): a failed read, not an empty feed
+      if (parsed === null || parsed.raw === 0 || parsed.oldest === null) {
         feedFailedAt.set(feed.id, now());
         if (!last || last.ok) changed = true;
         store.feeds[feed.id] = { ok: false, last_ok: last?.last_ok ?? null, since: last?.since ?? null };
@@ -376,10 +383,13 @@ export function createNewsletterReader(
         else if (!had.text) had.text = it.text;
       }
       // the feed reaches back to its oldest post; if that is newer than the last good read, posts in between are lost
-      // a feed below its cap holds its whole history: nothing older is missing. A full feed may have dropped earlier
-      // posts of its oldest post's day, so it is covered from the next day on (never later than today).
-      const oldest = parsed.oldest === null || parsed.raw < FEED_CAP ? EVER : minDay(day(parsed.oldest + DAY_MS), day(now()));
-      const gap = !last?.last_ok || (parsed.oldest !== null && parsed.oldest > Date.parse(last.last_ok));
+      const gap = !last?.last_ok || parsed.oldest > Date.parse(last.last_ok);
+      // a feed below its cap holds its whole history: nothing older is missing, unless posts went missing since the last
+      // read (a short feed cannot have a gap of its own). A full feed may have dropped earlier posts of its oldest post's
+      // day, so it is covered from the next day on; a full feed whose oldest post is today counts from today (a day that
+      // may be partly missing, accepted rather than showing nothing).
+      const short = parsed.raw < FEED_CAP && !(last?.last_ok && gap);
+      const oldest = short ? EVER : minDay(day(parsed.oldest + DAY_MS), day(now()));
       store.feeds[feed.id] = { ok: true, last_ok: new Date(now()).toISOString(), since: gap ? oldest : (last?.since ?? oldest) };
       changed = true;
     }
@@ -419,8 +429,17 @@ export function createNewsletterReader(
   async function match(): Promise<boolean> {
     let changed = false;
     for (const batch of batches()) {
-      const answer = await askModel(config, [{ type: "text", text: `${prompt}\n${batchText(batch.map(([, v]) => ({ title: v.title, text: v.text ?? "" })))}` }], fetchImpl, 120 + 60 * batch.length).catch((): undefined => undefined);
-      if (answer === undefined) {
+      let status = 0;
+      const tracked = (async (input: RequestInfo | URL, init?: RequestInit) => {
+        const r = await fetchImpl(input, init);
+        status = r.status;
+        return r;
+      }) as typeof fetch;
+      const answer = await askModel(config, [{ type: "text", text: `${prompt}\n${batchText(batch.map(([, v]) => ({ title: v.title, text: v.text ?? "" })))}` }], tracked, 120 + 60 * batch.length).catch((): undefined => undefined);
+      // no answer: the network, a timeout, a rate limit or the server (try later, not the posts' fault) — or a refused
+      // request (another 4xx: the same batch would be refused every time, so it counts against its posts)
+      const outage = answer === undefined && (status === 0 || status === 408 || status === 429 || status >= 500);
+      if (outage) {
         // the model or the network is down: no more calls this run, a growing pause for the reader, and it does not
         // count against the posts
         outageStep = outageStep ? Math.min(outageStep * 2, OUTAGE_MAX_MS) : OUTAGE_MS;
@@ -429,7 +448,7 @@ export function createNewsletterReader(
       }
       outageStep = 0;
       outageUntil = 0;
-      const readings = parseBatchAnswer(answer, batch.length, known);
+      const readings = answer === undefined ? new Map<number, TopicReading>() : parseBatchAnswer(answer, batch.length, known);
       batch.forEach(([key, v], n) => {
         const r = readings.get(n);
         changed = true;
