@@ -573,6 +573,7 @@ export function WorldView() {
           world={world}
           posts={ig?.posts ?? []}
           t={t}
+          locale={locale}
           ago={ago}
           onPost={(id) => {
             setSelected({ type: "post", id });

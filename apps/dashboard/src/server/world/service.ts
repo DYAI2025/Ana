@@ -266,7 +266,7 @@ export function createWorldService(deps: WorldDeps): WorldService {
         post_topics: { state: deps.topicTagger ? "on" : "off", version: OFFICE_VERSION, topics: deps.topicTagger ? deps.topicTagger.current() : {}, failing: deps.topicTagger ? deps.topicTagger.failing() : 0 },
         newsletters: deps.newsletters ? deps.newsletters.current() : NEWSLETTERS_OFF,
         brain: { state: "off", last_day: null, note: null, reason: null },
-        brief: deps.brief ? deps.brief.state() : { state: "off", busy: false, latest: null, weekly: null, in_brain: false, brain: false, reason: null },
+        brief: deps.brief ? deps.brief.state() : { state: "off", busy: false, latest: {}, weekly: {}, in_brain: false, brain: false, reason: null },
       };
       if (deps.brain) {
         // the day's digest waits until the stored post categories are read: right after a restart they are not yet,

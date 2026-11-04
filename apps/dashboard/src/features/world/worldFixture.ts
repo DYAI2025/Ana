@@ -64,7 +64,7 @@ export function world(): WorldPayload {
       store_error: false,
     },
     brain: { state: "off", last_day: null, note: null, reason: null },
-    brief: { state: "off", busy: false, latest: null, weekly: null, in_brain: false, brain: false, reason: null },
+    brief: { state: "off", busy: false, latest: {}, weekly: {}, in_brain: false, brain: false, reason: null },
   };
 }
 

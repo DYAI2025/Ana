@@ -60,6 +60,7 @@ export const worldDe: Messages["world"] = {
     off: "Zusammenfassen braucht den Claude-Schlüssel auf dem Server (nicht gesetzt).",
     failed: "Zusammenfassen hat nicht geklappt ({reason}).",
     none: "Noch kein Brief. Der Knopf schreibt einen aus den aktuellen Zahlen; zu Wochenbeginn entsteht der Wochenbrief von selbst.",
+    noneInLocale: "Noch kein Brief auf Deutsch — die vorhandenen sind in einer anderen Sprache geschrieben. Der Button schreibt einen auf Deutsch aus den aktuellen Zahlen.",
     which: "Welcher Brief",
     latest: "Neuester",
     weekly: "Wochenbrief {week}",

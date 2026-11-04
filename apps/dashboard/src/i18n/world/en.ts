@@ -59,6 +59,7 @@ export const worldEn = {
     off: "Summarize needs the Claude key on the server (not set).",
     failed: "Summarize did not work ({reason}).",
     none: "No brief yet. The button writes one from the current numbers; the weekly brief appears by itself at the start of each week.",
+    noneInLocale: "No brief in English yet — the others were written in another language. The button writes one in English from the current numbers.",
     which: "Which brief",
     latest: "Newest",
     weekly: "Weekly brief {week}",
