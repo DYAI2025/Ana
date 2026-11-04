@@ -365,7 +365,7 @@ export const worldEn = {
     },
     quadrantHint: {
       starter: "Discussed outside and confirmed by Ana's audience.",
-      test: "Discussed outside, not yet confirmed by Ana's audience: a post on it is the next test.",
+      test: "Discussed outside, not confirmed by Ana's audience: either not tested yet (a post on it is the next test) or tested without a clear result.",
       niche: "Ana's audience keeps these, outside it is quieter.",
       skip: "Little talk outside and not confirmed by Ana's audience.",
     },
@@ -373,6 +373,8 @@ export const worldEn = {
     outside: "Outside: {reactions} reactions in {threads} threads ({forums}).",
     anaNone: "Ana's audience: no post on this topic yet.",
     anaFew: "Ana's audience: {n} post(s) on it, too few to say (at least {min}).",
+    anaNoBase: "Ana's audience: {n} posts on it, but her usual save & share rate is not known yet.",
+    anaWeak: "Tested: her audience keeps these posts no more than usual. Try another angle (for example a guide instead of a story) before writing about it.",
     anaIndex: "Ana's audience: {n} posts on it, saved & shared {index}× as often as her usual posts.",
     why: "Why?",
     evidence: "What people say",
@@ -380,8 +382,8 @@ export const worldEn = {
     viewsShort: "{views} views",
     posts: "Ana's posts on this topic",
     hypothesis: "These are hypotheses, not results. A topic becomes a Substack starter when people discuss it outside and Ana's audience keeps her posts on it. Whether it earns money only a real post or newsletter test shows.",
-    method: "Outside = upvotes or likes plus comments over the threads found; the line is the median topic. Big forums count more than small ones (UGC forums are small). Ana's audience = median (saves + shares) ÷ reach of her posts on the topic against all her posts; confirmed from 1.15× with at least 3 posts. Claude Haiku reads which topics a post speaks to from cover and caption (with Ana's consent; captions are not stored).",
-    next: "Next: the search runs on its own every few days and finds new forums by itself.",
+    method: "Outside = upvotes or likes plus comments over the threads found; the line is the median topic. Big forums bring more reactions than small ones, so small niches (such as the UGC forums) sit further left. Ana's audience = median (saves + shares) ÷ reach of her posts on the topic against all her posts; confirmed from 1.15× with at least 3 posts. Claude Haiku reads which topics a post speaks to from cover and caption (with Ana's consent; captions are not stored).",
+    next: "Planned next: the search runs on its own every few days and finds new forums by itself.",
     topics: {
       "work-anywhere-jobs": "Jobs that really work from anywhere",
       "entry-level-remote": "Remote jobs for beginners",

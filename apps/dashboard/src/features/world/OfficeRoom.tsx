@@ -90,17 +90,20 @@ export function OfficeRoom({ world, posts, t, locale, onClose, onPost }: { world
   const asOf = useMemo(() => new Intl.DateTimeFormat(locale, { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" }).format(new Date(`${OFFICE_AS_OF}T12:00:00Z`)), [locale]);
   const byId = useMemo(() => new Map(posts.map((p) => [p.id, p])), [posts]);
 
-  // focus moves into the room and back to where it came from; Escape closes
+  // focus moves into the room and back to where it came from (or to the office button when that is gone);
+  // Escape closes, but not while another overlay outside the room has focus
   useEffect(() => {
     const before = document.activeElement as HTMLElement | null;
     closeRef.current?.focus();
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
+      const at = document.activeElement;
+      if (e.key === "Escape" && (!at || at === document.body || dialogRef.current?.contains(at))) onClose();
     };
     document.addEventListener("keydown", onKey);
     return () => {
       document.removeEventListener("keydown", onKey);
-      before?.focus?.();
+      const target = before && before !== document.body && before.isConnected ? before : document.querySelector<HTMLElement>('[data-testid="office-open"]');
+      target?.focus?.();
     };
   }, [onClose]);
 
@@ -111,10 +114,14 @@ export function OfficeRoom({ world, posts, t, locale, onClose, onPost }: { world
     const first = items[0];
     const last = items[items.length - 1];
     if (!first || !last) return;
-    if (e.shiftKey && document.activeElement === first) {
+    const at = document.activeElement;
+    if (!at || !dialogRef.current.contains(at)) {
+      e.preventDefault();
+      first.focus();
+    } else if (e.shiftKey && at === first) {
       e.preventDefault();
       last.focus();
-    } else if (!e.shiftKey && document.activeElement === last) {
+    } else if (!e.shiftKey && at === last) {
       e.preventDefault();
       first.focus();
     }
@@ -130,7 +137,11 @@ export function OfficeRoom({ world, posts, t, locale, onClose, onPost }: { world
       ? t("world.office.anaIndex", { n: p.ana.n, index: nf1.format(p.ana.index) })
       : p.ana.n === 0
         ? t("world.office.anaNone")
-        : t("world.office.anaFew", { n: p.ana.n, min: OFFICE_MIN_N });
+        : p.ana.n >= OFFICE_MIN_N
+          ? t("world.office.anaNoBase", { n: p.ana.n })
+          : t("world.office.anaFew", { n: p.ana.n, min: OFFICE_MIN_N });
+  // the posts actually in the Instagram snapshot (the live pulse adds a few without numbers, never read for topics)
+  const total = world.instagram.ok ? world.instagram.snapshot.posts.length : posts.length;
 
   const room = (
     <div className={styles.officeBackdrop} onMouseDown={(e) => e.target === e.currentTarget && onClose()} data-testid="office-backdrop">
@@ -149,7 +160,7 @@ export function OfficeRoom({ world, posts, t, locale, onClose, onPost }: { world
         </header>
         <p className={styles.officeLead}>{t("world.office.lead")}</p>
         <p className={styles.muted} data-testid="office-asof">
-          {reader ? t("world.office.asOf", { source: OFFICE_SOURCE, date: asOf, read: view.read, total: posts.length }) : t("world.office.readerOff")}
+          {reader ? t("world.office.asOf", { source: OFFICE_SOURCE, date: asOf, read: Math.min(view.read, total), total }) : t("world.office.readerOff")}
         </p>
         <div className={styles.officeBody}>
           <figure className={styles.officeMatrix}>
@@ -219,6 +230,7 @@ export function OfficeRoom({ world, posts, t, locale, onClose, onPost }: { world
                             <b>{t(`world.office.topics.${p.id}` as never)}</b> <span className={styles.chip}>{t(`world.office.lane.${p.lane}`)}</span>
                             <p>{t("world.office.outside", { reactions: nf.format(p.outside.reactions), threads: p.outside.threads, forums: p.outside.forums.join(", ") })}</p>
                             <p>{anaLine(p)}</p>
+                            {p.ana.state === "weak" ? <p className={styles.muted} data-testid={`office-weak-${p.id}`}>{t("world.office.anaWeak")}</p> : null}
                             <details className={styles.briefFacts} open={picked === p.id ? true : undefined}>
                               <summary>{t("world.office.why")}</summary>
                               <h5>{t("world.office.evidence")}</h5>

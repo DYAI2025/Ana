@@ -57,26 +57,28 @@ export function topicsFile(env: Readonly<Record<string, string | undefined>> = p
 
 const ID_RE = /^[\w-]{1,40}$/;
 
-export async function readTopicStore(file: string, version: string, known: ReadonlySet<string>): Promise<Record<string, TopicReading>> {
+type Stored = TopicReading & { model: string; at: string };
+
+export async function readTopicStore(file: string, version: string, known: ReadonlySet<string>): Promise<Record<string, Stored>> {
+  const out: Record<string, Stored> = Object.create(null);
   try {
     const raw = JSON.parse(await fs.readFile(file, "utf8")) as StoreFile;
     // another catalog is read again from scratch
-    if (!raw || raw.version !== version || typeof raw.readings !== "object" || raw.readings === null) return {};
-    const out: Record<string, TopicReading> = {};
+    if (!raw || raw.version !== version || typeof raw.readings !== "object" || raw.readings === null) return out;
     for (const [id, v] of Object.entries(raw.readings)) {
       const r = parseTopicAnswer(JSON.stringify(v ?? null), known);
-      if (r && ID_RE.test(id)) out[id] = r;
+      if (r && ID_RE.test(id)) out[id] = { ...r, model: typeof v?.model === "string" ? v.model : "", at: typeof v?.at === "string" ? v.at : "" };
     }
     return out;
   } catch {
-    return {};
+    return out;
   }
 }
 
 export interface TopicTagger {
   /** topic ids per post the model has read (confident readings only; [] = read, no topic) */
   current(): Record<string, string[]>;
-  /** reads a few unread posts in the background; never throws, never waits for the model */
+  /** reads a few unread posts in the background (an empty list only loads the store); never throws, never waits */
   schedule(posts: readonly TaggedPost[]): void;
   /** test hook */
   idle(): Promise<void>;
@@ -96,7 +98,7 @@ export function createTopicTagger(
 ): TopicTagger {
   const known = new Set(topics.map((t) => t.id));
   const prompt = topicPrompt(topics);
-  let readings: Record<string, TopicReading & { model: string; at: string }> = {};
+  let readings: Record<string, Stored> = Object.create(null);
   let loaded: Promise<void> | null = null;
   let running: Promise<void> = Promise.resolve();
   let busy = false;
@@ -104,7 +106,7 @@ export function createTopicTagger(
 
   const load = () =>
     (loaded ??= readTopicStore(file, version, known).then((r) => {
-      readings = Object.fromEntries(Object.entries(r).map(([id, v]) => [id, { ...v, model: "", at: "" }]));
+      readings = r;
     }));
 
   async function readOne(p: TaggedPost): Promise<TopicReading | null | undefined> {
@@ -125,7 +127,7 @@ export function createTopicTagger(
   async function batch(posts: readonly TaggedPost[]) {
     await load();
     const t = now();
-    const todo = posts.filter((p) => !readings[p.id] && t - (failedAt.get(p.id) ?? -Infinity) >= RETRY_MS).slice(0, TOPIC_BATCH);
+    const todo = posts.filter((p) => !Object.hasOwn(readings, p.id) && t - (failedAt.get(p.id) ?? -Infinity) >= RETRY_MS).slice(0, TOPIC_BATCH);
     let changed = false;
     for (const p of todo) {
       const r = await readOne(p).catch((): undefined => undefined);

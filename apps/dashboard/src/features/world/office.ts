@@ -165,6 +165,8 @@ export interface OfficePoint {
     high: boolean;
   };
   ana: {
+    /** untested: fewer than OFFICE_MIN_N rated posts (or no usual rate); weak: tested, below OFFICE_CONFIRMED */
+    state: "untested" | "weak" | "confirmed";
     /** Ana's posts on this topic with a measured save+share rate */
     n: number;
     /** median save+share rate of those posts ÷ her usual rate; null below OFFICE_MIN_N posts */
@@ -180,7 +182,7 @@ export interface OfficeView {
   threshold: number;
   /** Ana's usual save+share rate (median over her posts), null when unknown */
   baseline: number | null;
-  /** posts the model has read for topics (with or without a match) */
+  /** posts of the given list the model has read for topics (with or without a match) */
   read: number;
 }
 
@@ -207,7 +209,7 @@ export function officeView(topics: readonly OfficeTopic[], posts: ReadonlyArray<
   const baseline = medianOf(rated.map((p) => p.ssr as number));
   const rows = topics.map((t) => {
     const reactions = reactionsOf(t);
-    const mine = postTopics ? rated.filter((p) => postTopics[p.id]?.includes(t.id)).sort((a, b) => (b.ssr as number) - (a.ssr as number)) : [];
+    const mine = postTopics ? rated.filter((p) => Object.hasOwn(postTopics, p.id) && postTopics[p.id]?.includes(t.id)).sort((a, b) => (b.ssr as number) - (a.ssr as number)) : [];
     const med = medianOf(mine.map((p) => p.ssr as number));
     const index = mine.length >= OFFICE_MIN_N && med !== null && baseline ? med / baseline : null;
     const high = reactions >= threshold;
@@ -218,7 +220,7 @@ export function officeView(topics: readonly OfficeTopic[], posts: ReadonlyArray<
       lane: t.lane,
       quadrant,
       outside: { reactions, threads: t.evidence.length, forums: [...new Set(t.evidence.map((e) => e.where))], high },
-      ana: { n: mine.length, index, posts: mine.map((p) => p.id) },
+      ana: { state: confirmed ? ("confirmed" as const) : index === null ? ("untested" as const) : ("weak" as const), n: mine.length, index, posts: mine.map((p) => p.id) },
     };
   });
   rows.sort((a, b) => ORDER[a.quadrant] - ORDER[b.quadrant] || b.outside.reactions - a.outside.reactions);
@@ -226,6 +228,7 @@ export function officeView(topics: readonly OfficeTopic[], posts: ReadonlyArray<
     points: rows.map((r, i) => ({ n: i + 1, ...r })),
     threshold,
     baseline,
-    read: postTopics ? Object.keys(postTopics).length : 0,
+    // only the posts in view: the store also keeps readings of older posts
+    read: postTopics ? posts.filter((p) => Object.hasOwn(postTopics, p.id)).length : 0,
   };
 }

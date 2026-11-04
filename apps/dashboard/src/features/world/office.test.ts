@@ -1,11 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { OFFICE_CONFIRMED, OFFICE_MIN_N, OFFICE_TOPICS, officeView, reactionsOf, type OfficeTopic } from "./office";
+import { dictionaries } from "@/i18n/translate";
+import { OFFICE_CONFIRMED, OFFICE_MIN_N, OFFICE_TOPICS, OFFICE_VERSION, officeView, reactionsOf, type OfficeTopic } from "./office";
 
 const topic = (id: string, reactions: number): OfficeTopic => ({ id, lane: "stories", about: id, evidence: [{ source: "reddit", where: `r/${id}`, title: id, url: `https://www.reddit.com/r/${id}/comments/a/`, date: "2026-11-01", up: reactions, comments: 0 }] });
 
+const PINNED = "2026-11-04.1:eeed3faa";
+
 describe("Ana's office — topics in the matrix", () => {
   const topics = [topic("loud-liked", 500), topic("loud-new", 400), topic("quiet-liked", 50), topic("quiet", 10)];
-  // usual save+share rate 0.02; "liked" topics are saved clearly more often
+  // usual save+share rate 0.03 (median); "liked" topics are saved clearly more often
   const posts = [
     { id: "a", ssr: 0.04 }, { id: "b", ssr: 0.05 }, { id: "c", ssr: 0.03 },
     { id: "d", ssr: 0.04 }, { id: "e", ssr: 0.05 }, { id: "f", ssr: 0.03 },
@@ -26,7 +29,10 @@ describe("Ana's office — topics in the matrix", () => {
     expect(by.quiet?.quadrant).toBe("skip");
     // starters first, then tests, niches, the rest; numbered in that order
     expect(v.points.map((p) => p.n + p.id)).toEqual(["1loud-liked", "2loud-new", "3quiet-liked", "4quiet"]);
-    expect(v.read).toBe(Object.keys(postTopics).length);
+    // "l" was read but has no rate: it still counts as read; a reading of a post no longer in view does not
+    expect(officeView(topics, posts, { ...postTopics, gone: ["quiet"] }).read).toBe(Object.keys(postTopics).length);
+    expect(by["loud-liked"]?.ana.state).toBe("confirmed");
+    expect(by["loud-new"]?.ana.state).toBe("untested");
   });
 
   it("without the model nothing counts as tested; a weak audience result stays a test, never a starter", () => {
@@ -36,6 +42,29 @@ describe("Ana's office — topics in the matrix", () => {
     expect(p?.ana.n).toBe(OFFICE_MIN_N);
     expect((p?.ana.index ?? 9) < OFFICE_CONFIRMED).toBe(true);
     expect(p?.quadrant).toBe("test");
+    // tested and weak is told apart from untested
+    expect(p?.ana.state).toBe("weak");
+  });
+
+  it("no usual rate (all zero) leaves every topic untested instead of dividing by zero", () => {
+    const zero = posts.map((p) => ({ ...p, ssr: p.ssr === null ? null : 0 }));
+    const v = officeView(topics, zero, postTopics);
+    expect(v.baseline).toBe(0);
+    expect(v.points.every((p) => p.ana.index === null && p.ana.state === "untested")).toBe(true);
+  });
+
+  it("every topic has a title in English, German and Italian", () => {
+    for (const loc of ["en", "de", "it"] as const) {
+      const titles = (dictionaries[loc].world.office.topics as Record<string, string>);
+      for (const t of OFFICE_TOPICS) expect(titles[t.id], `${loc}:${t.id}`).toBeTruthy();
+      expect(Object.keys(titles).sort()).toEqual(OFFICE_TOPICS.map((t) => t.id).sort());
+    }
+  });
+
+  it("the catalog the model reads is pinned to its version: change a topic → bump OFFICE_VERSION and this fingerprint", () => {
+    let h = 5381;
+    for (const ch of OFFICE_TOPICS.map((t) => `${t.id}=${t.about}`).join("\n")) h = ((h * 33) ^ ch.charCodeAt(0)) >>> 0;
+    expect(`${OFFICE_VERSION}:${h.toString(16)}`).toBe(PINNED);
   });
 
   it("the shipped catalog: real links, unique ids, numbers from the test run", () => {

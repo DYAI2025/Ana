@@ -210,7 +210,7 @@ export function createWorldService(deps: WorldDeps): WorldService {
       }
       // without Instagram nothing is categorised, but the stored categories are still read (so the Brain digest can start)
       if (deps.tagger) deps.tagger.schedule(instagram.ok ? instagram.snapshot.posts.map((x) => ({ id: x.media_id, cover: x.thumbnail_url ?? x.image_url ?? null, caption: x.caption })) : []);
-      if (deps.topicTagger && instagram.ok) deps.topicTagger.schedule(instagram.snapshot.posts.map((x) => ({ id: x.media_id, cover: x.thumbnail_url ?? x.image_url ?? null, caption: x.caption })));
+      if (deps.topicTagger) deps.topicTagger.schedule(instagram.ok ? instagram.snapshot.posts.map((x) => ({ id: x.media_id, cover: x.thumbnail_url ?? x.image_url ?? null, caption: x.caption })) : []);
       // readiness and the categories are taken at the same moment: a load that finishes during a later await must not
       // let a digest built from the earlier, empty categories reach the Brain
       const tagsReady = !deps.tagger || deps.tagger.ready();

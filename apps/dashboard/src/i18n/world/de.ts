@@ -366,7 +366,7 @@ export const worldDe: Messages["world"] = {
     },
     quadrantHint: {
       starter: "Draußen gefragt und von Anas Publikum bestätigt.",
-      test: "Draußen gefragt, von Anas Publikum noch nicht bestätigt: Ein Post dazu ist der nächste Test.",
+      test: "Draußen gefragt, von Anas Publikum nicht bestätigt: entweder noch nicht getestet (ein Post dazu ist der nächste Test) oder getestet ohne klares Ergebnis.",
       niche: "Anas Publikum behält diese Posts, draußen ist es ruhiger.",
       skip: "Draußen wenig gefragt und von Anas Publikum nicht bestätigt.",
     },
@@ -374,6 +374,8 @@ export const worldDe: Messages["world"] = {
     outside: "Draußen: {reactions} Reaktionen in {threads} Diskussionen ({forums}).",
     anaNone: "Anas Publikum: noch kein Post zu diesem Thema.",
     anaFew: "Anas Publikum: {n} Post(s) dazu, zu wenig für eine Aussage (mindestens {min}).",
+    anaNoBase: "Anas Publikum: {n} Posts dazu, aber ihre übliche Save-&-Share-Rate ist noch nicht bekannt.",
+    anaWeak: "Getestet: Ihr Publikum behält diese Posts nicht öfter als sonst. Besser einen anderen Ansatz probieren (zum Beispiel eine Anleitung statt einer Geschichte), bevor darüber geschrieben wird.",
     anaIndex: "Anas Publikum: {n} Posts dazu, {index}× so oft gespeichert & geteilt wie ihre üblichen Posts.",
     why: "Warum?",
     evidence: "Was die Leute sagen",
@@ -381,8 +383,8 @@ export const worldDe: Messages["world"] = {
     viewsShort: "{views} Aufrufe",
     posts: "Anas Posts zu diesem Thema",
     hypothesis: "Das sind Hypothesen, keine Ergebnisse. Ein Thema wird zum Substack-Starter, wenn draußen darüber gesprochen wird und Anas Publikum ihre Posts dazu behält. Ob es Geld bringt, zeigt erst ein echter Post oder ein Newsletter-Test.",
-    method: "Draußen = Upvotes oder Likes plus Kommentare der gefundenen Diskussionen; die Linie ist das mittlere Thema. Große Foren zählen mehr als kleine (UGC-Foren sind klein). Anas Publikum = Median von (Saves + Shares) ÷ Reichweite ihrer Posts zum Thema gegen alle ihre Posts; bestätigt ab 1,15× und mindestens 3 Posts. Claude Haiku liest aus Cover und Caption, welche Themen ein Post anspricht (mit Anas Zustimmung; Captions werden nicht gespeichert).",
-    next: "Als Nächstes: Die Suche läuft alle paar Tage von selbst und findet neue Foren selbstständig.",
+    method: "Draußen = Upvotes oder Likes plus Kommentare der gefundenen Diskussionen; die Linie ist das mittlere Thema. Große Foren bringen mehr Reaktionen als kleine, daher stehen kleine Nischen (etwa die UGC-Foren) weiter links. Anas Publikum = Median von (Saves + Shares) ÷ Reichweite ihrer Posts zum Thema gegen alle ihre Posts; bestätigt ab 1,15× und mindestens 3 Posts. Claude Haiku liest aus Cover und Caption, welche Themen ein Post anspricht (mit Anas Zustimmung; Captions werden nicht gespeichert).",
+    next: "Geplant als Nächstes: Die Suche läuft alle paar Tage von selbst und findet neue Foren selbstständig.",
     topics: {
       "work-anywhere-jobs": "Jobs, die wirklich von überall gehen",
       "entry-level-remote": "Remote-Jobs für Einsteiger",

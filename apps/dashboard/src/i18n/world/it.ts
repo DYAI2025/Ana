@@ -366,7 +366,7 @@ export const worldIt: Messages["world"] = {
     },
     quadrantHint: {
       starter: "Se ne parla fuori e il pubblico di Ana lo conferma.",
-      test: "Se ne parla fuori, il pubblico di Ana non l'ha ancora confermato: un post sul tema è il prossimo test.",
+      test: "Se ne parla fuori, il pubblico di Ana non l'ha confermato: o non ancora testato (un post sul tema è il prossimo test) o testato senza un risultato chiaro.",
       niche: "Il pubblico di Ana tiene questi post, fuori se ne parla meno.",
       skip: "Se ne parla poco fuori e il pubblico di Ana non l'ha confermato.",
     },
@@ -374,6 +374,8 @@ export const worldIt: Messages["world"] = {
     outside: "Fuori: {reactions} reazioni in {threads} discussioni ({forums}).",
     anaNone: "Pubblico di Ana: ancora nessun post su questo tema.",
     anaFew: "Pubblico di Ana: {n} post sul tema, troppo pochi per dirlo (almeno {min}).",
+    anaNoBase: "Pubblico di Ana: {n} post sul tema, ma il suo tasso abituale di salvataggi e condivisioni non è ancora noto.",
+    anaWeak: "Testato: il suo pubblico non tiene questi post più del solito. Meglio provare un altro taglio (per esempio una guida invece di una storia) prima di scriverne.",
     anaIndex: "Pubblico di Ana: {n} post sul tema, salvati e condivisi {index}× rispetto ai suoi post abituali.",
     why: "Perché?",
     evidence: "Cosa dice la gente",
@@ -381,8 +383,8 @@ export const worldIt: Messages["world"] = {
     viewsShort: "{views} visualizzazioni",
     posts: "I post di Ana su questo tema",
     hypothesis: "Sono ipotesi, non risultati. Un tema diventa pronto per Substack quando se ne parla fuori e il pubblico di Ana tiene i suoi post sul tema. Se porta guadagni lo mostra solo un post vero o un test di newsletter.",
-    method: "Fuori = upvote o like più commenti delle discussioni trovate; la linea è il tema mediano. I forum grandi contano più di quelli piccoli (i forum UGC sono piccoli). Pubblico di Ana = mediana di (salvataggi + condivisioni) ÷ copertura dei suoi post sul tema rispetto a tutti i suoi post; confermato da 1,15× con almeno 3 post. Claude Haiku legge da copertina e didascalia di quali temi parla un post (con il consenso di Ana; le didascalie non vengono salvate).",
-    next: "Prossimo passo: la ricerca parte da sola ogni pochi giorni e trova da sola nuovi forum.",
+    method: "Fuori = upvote o like più commenti delle discussioni trovate; la linea è il tema mediano. I forum grandi portano più reazioni di quelli piccoli, quindi le nicchie piccole (come i forum UGC) stanno più a sinistra. Pubblico di Ana = mediana di (salvataggi + condivisioni) ÷ copertura dei suoi post sul tema rispetto a tutti i suoi post; confermato da 1,15× con almeno 3 post. Claude Haiku legge da copertina e didascalia di quali temi parla un post (con il consenso di Ana; le didascalie non vengono salvate).",
+    next: "Prossimo passo previsto: la ricerca parte da sola ogni pochi giorni e trova da sola nuovi forum.",
     topics: {
       "work-anywhere-jobs": "Lavori che si fanno davvero da ovunque",
       "entry-level-remote": "Lavori da remoto per principianti",

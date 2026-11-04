@@ -46,7 +46,7 @@ describe("office topics of Ana's posts — ids only, read in the background", ()
     for (const t of OFFICE_TOPICS) expect(p).toContain(`- ${t.id}: ${t.about}`);
   });
 
-  it("reads a few posts per call, sends cover and caption, stores only the ids; unsure readings count as 'no topic'", async () => {
+  it("reads a few posts per run (one model call each), sends cover and caption, stores only the ids; unsure readings count as 'no topic'", async () => {
     const api = fakeApi((n) => (n === 2 ? { topics: ["solo-lessons"], confidence: 0.3 } : { topics: ["solo-lessons", "homesick"], confidence: 0.9 }));
     const t = createTopicTagger(config, file, api.impl);
     const posts = Array.from({ length: TOPIC_BATCH + 1 }, (_, i) => post(`p${i}`));
