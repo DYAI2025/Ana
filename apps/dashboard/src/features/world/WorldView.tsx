@@ -192,7 +192,7 @@ export function WorldView() {
   const layer: Layer = layerPick ?? (world?.audience.engaged_country_week.state === "ok" ? "week" : "engaged");
   const [tab, setTab] = useState<Tab>("now");
   const [selected, setSelected] = useState<SceneRef | null>(null);
-  // Ana's office: opens over the world when Ana is picked (in the scene or with the button)
+  // Ana's office: a 3D room entered through the hut at her place (or the button in her panel)
   const [office, setOffice] = useState(false);
   const closeOffice = useCallback(() => setOffice(false), []);
   // a category value picked in "What works", or the top posts, lit up in the orbit
@@ -287,6 +287,7 @@ export function WorldView() {
         },
         berlin: t("world.places.berlin"),
         anaPlace: anaPlaceLabel ? t("world.places.anaSet", { place: anaPlaceLabel }) : t("world.places.anaUnknown"),
+        office: t("world.office.house"),
         vps: t("world.vps.name"),
         vpsSub: world.release.sha ? t("world.vps.sub", { sha: world.release.sha.slice(0, 7) }) : t("world.vps.subLocal"),
         ring: t("world.ring.name"),
@@ -320,9 +321,13 @@ export function WorldView() {
         sceneRef.current = mod.createWorldScene(canvas, host, geo, {
           reducedMotion: reduced,
           onSelect: (ref) => {
+            // the hut at Ana's place is the door to her office
+            if (ref.type === "office") {
+              setOffice(true);
+              return;
+            }
             setSelected(ref);
             setTab("selection");
-            if (ref.type === "person" && ref.id === "ana") setOffice(true);
           },
         });
         ro = new ResizeObserver(() => sceneRef.current?.resize());
@@ -939,6 +944,8 @@ export function WorldView() {
         </div>
       );
     }
+    // the office is never a selection (it opens as a room)
+    if (s.type === "office") return <div className={styles.pane}><p className={styles.muted}>{t("world.selectHint")}</p></div>;
     return (
       <div className={styles.pane}>
         <h3 className={styles.selTitle}>{s.id === "berlin" ? t("world.places.berlin") : anaPlaceLabel ?? t("world.places.anaUnknown")}</h3>
