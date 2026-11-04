@@ -115,7 +115,8 @@ describe("retrieveBrainContext: the release rule", () => {
     ["a note of another status", world({ frontmatter: noteFm({ status: "CONFIRMED" }) })],
     ["a note of another author", world({ frontmatter: noteFm({ created_by: "ana" }) })],
     ["a note without sources", world({ frontmatter: noteFm({ source_refs: [] }) })],
-    ["a note citing a source not on the list", world({ frontmatter: noteFm({ source_refs: [{ source: SOURCE }, { source: "src-other" }] }) })],
+    // the other source is fully released in itself: only the provider's list keeps this note back
+    ["a note citing a source not on the list", { ...world({ frontmatter: noteFm({ source_refs: [{ source: SOURCE }, { source: "src-other" }] }) }), "src-other": { frontmatter: sourceFm(), body: "" } }],
     ["a foreign block in the note", world({ body: body(line(REAL_DIGEST), line("Median aller Posts: ER 1.0 %, Save+Share 1.00 %.", "vince", "obs-foreign", "2026-03-06T06:00:00Z")) })],
     ["a block with no allowed segment", world({ body: body(line("Reichweite 28 T 44444, Follower 987654.")) })],
     ["a note without blocks", world({ body: "Tägliche Messwerte\n" })],
@@ -187,6 +188,24 @@ describe("retrieveBrainContext: the release rule", () => {
       expect(c.withheld).toBe(5);
       for (const item of c.items) expect(item.text.length).toBeLessThanOrEqual(MAX_NOTE_CHARS);
       expect(c.items.reduce((s, i) => s + i.text.length, 0)).toBeLessThanOrEqual(MAX_TOTAL_CHARS);
+    });
+
+    it("the total limit holds even when three notes each fit their own", async () => {
+      const notes: Record<string, { frontmatter: NoteFrontmatter; body: string }> = { [SOURCE]: { frontmatter: sourceFm(), body: "" } };
+      const hits = [];
+      // about 550 characters each: three would be over the total, two are not
+      const row = `Themen nach ER (n ≥ 3): ${Array.from({ length: 26 }, () => "beach 5.2 % (n 5)").join(", ")}.`;
+      expect(row.length).toBeGreaterThan(500);
+      expect(row.length * 3).toBeGreaterThan(MAX_TOTAL_CHARS);
+      for (let i = 1; i <= 3; i++) {
+        notes[week(i)] = { frontmatter: noteFm(), body: body(line(row)) };
+        hits.push({ id: week(i), score: 0.9 });
+      }
+      const c = await retrieveBrainContext("frage", deps(fakeReader(notes, hits)));
+      expect(c.items).toHaveLength(2);
+      expect(c.withheld).toBe(1);
+      expect(c.items.reduce((s, i) => s + i.text.length, 0)).toBeLessThanOrEqual(MAX_TOTAL_CHARS);
+      for (const item of c.items) expect(item.text.length).toBeGreaterThan(500);
     });
   });
 });
