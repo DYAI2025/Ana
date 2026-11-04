@@ -12,11 +12,12 @@ import { askModel, type VisionConfig } from "./vision";
 /**
  * Reads the public RSS feeds of the newsletters in features/world/newsletters.ts once a day and lets the same Claude
  * model match each new post (title, subtitle and the start of the text: public content) to the office topics, one
- * newsletter per model call. Only title, link, day and topic ids are kept, in a small JSON file next to the other world
- * state. Nothing of Ana's goes out.
+ * newsletter per model call. Only title, link, day, the first 600 characters (kept so a new topic catalog can match the
+ * post again) and topic ids are kept, in a small JSON file next to the other world state. Nothing of Ana's goes out.
  *
- * A Substack feed holds only its newest 20 posts (a few days for a busy newsletter), so each feed remembers from which
- * day on it is covered without a gap; the counts say "since <day>" until the whole window is covered.
+ * A feed holds only its newest posts (20 for each of these on 2026-11-04: a few days for a busy newsletter), so each
+ * feed remembers from which day on it is covered without a gap; the counts use only posts from that day on and say
+ * "since <day>" until the whole window is covered.
  */
 
 export interface FeedItem {
@@ -161,7 +162,7 @@ interface StoredItem {
   title: string;
   url: string;
   date: string;
-  /** kept until the post is matched */
+  /** the first characters (subtitle and text), for matching again under a new topic catalog */
   text?: string;
   topics?: string[];
   confidence?: number;
@@ -218,20 +219,21 @@ export async function readNewsletterStore(file: string, version: string, feeds: 
     if (!byId.has(id) || !isObject(v) || typeof v.ok !== "boolean") continue;
     const lastOk = typeof v.last_ok === "string" && Number.isFinite(Date.parse(v.last_ok)) ? v.last_ok : null;
     const since = typeof v.since === "string" && DAY_RE.test(v.since) ? v.since : null;
-    out.feeds[id] = { ok: v.ok && lastOk !== null, last_ok: lastOk, since: lastOk ? since : null };
+    // a read without a covered day is taken as covered only from the day of that read
+    if (lastOk) out.feeds[id] = { ok: v.ok, last_ok: lastOk, since: since ?? lastOk.slice(0, 10) };
   }
   for (const [key, v] of Object.entries(raw.items)) {
     if (!isObject(v)) continue;
     const feed = typeof v.feed === "string" ? byId.get(v.feed) : undefined;
-    if (!feed || !KEY_RE.test(key) || !key.startsWith(`${feed.id}:`)) continue;
+    // a post only counts for a feed that was read (so no topic can name more newsletters than were read)
+    if (!feed || !out.feeds[feed.id] || !KEY_RE.test(key) || !key.startsWith(`${feed.id}:`)) continue;
     const url = typeof v.url === "string" ? feedLink(v.url, feed) : null;
     if (!url || typeof v.title !== "string" || !v.title || typeof v.date !== "string" || !DAY_RE.test(v.date)) continue;
-    const item: StoredItem = { feed: feed.id, title: v.title.slice(0, TITLE_MAX), url, date: v.date };
+    const item: StoredItem = { feed: feed.id, title: v.title.slice(0, TITLE_MAX), url, date: v.date, text: typeof v.text === "string" ? v.text.slice(0, TEXT_MAX) : "" };
     const reading = sameCatalog && Array.isArray(v.topics) ? parseTopicAnswer(JSON.stringify({ topics: v.topics, confidence: v.confidence }), known) : null;
     if (sameCatalog && v.gave_up === true) item.gave_up = true;
     else if (reading) Object.assign(item, { ...reading, model: typeof v.model === "string" ? v.model : "", at: typeof v.at === "string" ? v.at : "" });
     else {
-      item.text = typeof v.text === "string" ? v.text.slice(0, TEXT_MAX) : "";
       if (sameCatalog && typeof v.fails === "number" && Number.isInteger(v.fails) && v.fails > 0) item.fails = v.fails;
     }
     out.items[key] = item;
@@ -351,10 +353,11 @@ export function createNewsletterReader(
         const had = store.items[it.key];
         if (!had) store.items[it.key] = { feed: feed.id, title: it.title, url: it.url, date: it.date, text: it.text };
         // a post matched again after a catalog change gets its text back
-        else if (had.topics === undefined && !had.gave_up && !had.text) had.text = it.text;
+        else if (!had.text) had.text = it.text;
       }
       // the feed reaches back to its oldest post; if that is newer than the last good read, posts in between are lost
-      const oldest = parsed.oldest === null ? day(now()) : day(parsed.oldest);
+      // the oldest post's day may be only partly in the feed: covered from the next day on
+      const oldest = parsed.oldest === null ? day(now()) : day(parsed.oldest + DAY_MS);
       const gap = !last?.last_ok || (parsed.oldest !== null && parsed.oldest > Date.parse(last.last_ok));
       store.feeds[feed.id] = { ok: true, last_ok: new Date(now()).toISOString(), since: gap ? oldest : (last?.since ?? oldest) };
       changed = true;
@@ -399,11 +402,13 @@ export function createNewsletterReader(
         changed = true;
         if (!r) {
           matchFailedAt.set(key, now());
+          // the model or the network was down: try again later, it does not count against the post
+          if (answer === undefined) return;
           const fails = (v.fails ?? 0) + 1;
-          store.items[key] = fails >= MATCH_TRIES ? { feed: v.feed, title: v.title, url: v.url, date: v.date, gave_up: true } : { ...v, fails };
+          store.items[key] = fails >= MATCH_TRIES ? { feed: v.feed, title: v.title, url: v.url, date: v.date, text: v.text, gave_up: true } : { ...v, fails };
           return;
         }
-        store.items[key] = { feed: v.feed, title: v.title, url: v.url, date: v.date, ...r, model: config.model, at: new Date(now()).toISOString() };
+        store.items[key] = { feed: v.feed, title: v.title, url: v.url, date: v.date, text: v.text, ...r, model: config.model, at: new Date(now()).toISOString() };
         matchFailedAt.delete(key);
       });
     }
@@ -447,14 +452,17 @@ export function createNewsletterReader(
       const from = windowStart(now());
       const core = feeds.filter((f) => f.role === "core");
       const read = core.filter((f) => store.feeds[f.id]?.last_ok);
+      // the counts cover the window only from the day the last-covered core feed reaches back to
+      const since = read.map((f) => store.feeds[f.id]?.since ?? from).reduce((a, b) => (b > a ? b : a), from);
       const topicsOut: Record<string, NewsletterTopic> = Object.create(null);
-      const check = { core: { checked: 0, matched: 0 }, control: { checked: 0, matched: 0 } };
+      const readBy = (r: "core" | "control") => feeds.filter((f) => f.role === r && store.feeds[f.id]?.last_ok).length;
+      const check = { core: { feeds: readBy("core"), checked: 0, matched: 0 }, control: { feeds: readBy("control"), checked: 0, matched: 0 } };
       let posts = 0;
       let checked = 0;
       let failing = 0;
       let unreadable = 0;
       const items = Object.values(store.items)
-        .filter((v) => inWindow(v.date))
+        .filter((v) => inWindow(v.date) && v.date >= since)
         .sort((x, y) => (x.date < y.date ? 1 : x.date > y.date ? -1 : 0));
       for (const v of items) {
         posts += 1;
@@ -479,15 +487,13 @@ export function createNewsletterReader(
           if (t.hits.length < HITS_PER_TOPIC) t.hits.push({ feed: v.feed, title: v.title, url: v.url, date: v.date } satisfies NewsletterHit);
         }
       }
-      const okAts = Object.values(store.feeds).map((f) => f.last_ok).filter((x): x is string => x !== null).sort();
-      // the counts cover the window only from the day the last-covered core feed reaches back to
-      const since = read.map((f) => store.feeds[f.id]?.since ?? from).reduce((a, b) => (b > a ? b : a), from);
+      const okAts = read.map((f) => store.feeds[f.id]?.last_ok).filter((x): x is string => typeof x === "string").sort();
       return {
         state: "on",
         read_at: okAts.length ? (okAts[okAts.length - 1] ?? null) : null,
         feeds: core.length,
         feeds_read: read.length,
-        feeds_failing: feeds.filter((f) => store.feeds[f.id] && !store.feeds[f.id]?.ok).length,
+        feeds_failing: core.filter((f) => store.feeds[f.id] && !store.feeds[f.id]?.ok).length,
         since: since > from ? since : null,
         posts,
         checked,

@@ -54,6 +54,15 @@ export interface NewsletterTopic {
   hits: NewsletterHit[];
 }
 
+export interface NewsletterCheck {
+  feeds: number;
+  checked: number;
+  matched: number;
+}
+
+/** the check line needs at least this many checked posts on each side */
+export const NEWSLETTER_CHECK_MIN = 10;
+
 export interface WorldNewsletters {
   state: "on" | "off";
   /** the last successful read of any feed (ISO) */
@@ -61,7 +70,7 @@ export interface WorldNewsletters {
   /** core newsletters in the list, and those read at least once (the denominator of every topic count) */
   feeds: number;
   feeds_read: number;
-  /** feeds (core or control) whose latest read failed */
+  /** core feeds whose latest read failed */
   feeds_failing: number;
   /** the counts cover the posts from this day on (YYYY-MM-DD); null = the whole window */
   since: string | null;
@@ -72,8 +81,8 @@ export interface WorldNewsletters {
   unreadable: number;
   /** every post in the window is checked and no core feed is failing: only then may a topic say "none wrote about it" */
   complete: boolean;
-  /** the check: checked posts and those with at least one topic, core against control */
-  check: { core: { checked: number; matched: number }; control: { checked: number; matched: number } };
+  /** the check: feeds read, checked posts and those with at least one topic, core against control */
+  check: { core: NewsletterCheck; control: NewsletterCheck };
   /** per office topic (core newsletters only) */
   topics: Record<string, NewsletterTopic>;
   /** the stored readings could not be loaded: nothing is read until that is fixed */
@@ -92,7 +101,7 @@ export const NEWSLETTERS_OFF: WorldNewsletters = {
   failing: 0,
   unreadable: 0,
   complete: false,
-  check: { core: { checked: 0, matched: 0 }, control: { checked: 0, matched: 0 } },
+  check: { core: { feeds: 0, checked: 0, matched: 0 }, control: { feeds: 0, checked: 0, matched: 0 } },
   topics: {},
   store_error: false,
 };

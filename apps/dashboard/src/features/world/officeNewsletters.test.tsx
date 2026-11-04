@@ -26,7 +26,7 @@ const withNl = (patch: Partial<WorldNewsletters>): WorldPayload => {
 describe("the office board — what paid newsletters write about each topic", () => {
   it("names the newsletters, counts all their posts, says since when it is covered, and links the newest under 'Why?'", () => {
     show(world());
-    expect(screen.getByTestId("office-newsletters-asof").textContent).toBe("Newsletters: 6 of 6 feeds read, last on Nov 3; 40 of 40 posts checked against the topics.");
+    expect(screen.getByTestId("office-newsletters-asof").textContent).toBe("Newsletters: 6 of 6 feeds read, last on Nov 4; 40 of 40 posts checked against the topics.");
     expect(screen.getByTestId("office-newsletters-ugc-gigs").textContent).toBe("Paid newsletters: 2 of 6 on these themes wrote about it since Oct 30 (Travel Creator Gigs, Life Unscripted; 12 post(s)).");
     expect(screen.getByTestId("office-newsletters-homesick").textContent).toBe("Paid newsletters: none of the 6 on these themes wrote about it since Oct 30.");
     expect(screen.getByTestId("office-newsletters-check").textContent).toBe(
@@ -38,6 +38,16 @@ describe("the office board — what paid newsletters write about each topic", ()
     expect(link.getAttribute("rel")).toContain("noopener");
     expect(within(topic).getByText("What paid newsletters write")).toBeTruthy();
     expect(screen.getByText(/Newsletters do not move the dots\./)).toBeTruthy();
+  });
+
+  it("the check line needs enough checked posts on both sides and names the newsletters actually read", () => {
+    const w = world();
+    const few = show({ ...w, newsletters: { ...w.newsletters, check: { core: w.newsletters.check.core, control: { feeds: 1, checked: 9, matched: 0 } } } });
+    expect(screen.queryByTestId("office-newsletters-check")).toBeNull();
+    few.unmount();
+    show({ ...w, newsletters: { ...w.newsletters, check: { core: { feeds: 5, checked: 10, matched: 5 }, control: { feeds: 1, checked: 10, matched: 1 } } } });
+    expect(screen.getByTestId("office-newsletters-check").textContent).toContain("the 5 newsletters on these themes touch one of the topics in 50%");
+    expect(screen.getByTestId("office-newsletters-check").textContent).toContain("the 1 broad travel ones in 10%");
   });
 
   it("a fully covered window says 'in the last 30 days'", () => {
@@ -55,7 +65,7 @@ describe("the office board — what paid newsletters write about each topic", ()
   it("failing feeds and unreadable posts are named in the status", () => {
     show(withNl({ feeds_failing: 1, unreadable: 3, complete: false }));
     expect(screen.getByTestId("office-newsletters-asof").textContent).toBe(
-      "Newsletters: 6 of 6 feeds read, last on Nov 3; 40 of 40 posts checked against the topics. 1 feed(s) could not be read at the last try. 3 post(s) could not be checked.",
+      "Newsletters: 6 of 6 feeds read, last on Nov 4; 40 of 40 posts checked against the topics. 1 feed(s) could not be read at the last try. 3 post(s) could not be checked.",
     );
     expect(screen.getByTestId("office-newsletters-homesick").textContent).toBe("Paid newsletters: none so far (40 of 40 posts checked).");
   });
@@ -69,7 +79,7 @@ describe("the office board — what paid newsletters write about each topic", ()
   });
 
   it("before anything is checked, or when no feed could ever be read, or the store is broken, the topics stay silent", () => {
-    const quiet = { read_at: null, feeds_read: 0, checked: 0, posts: 0, complete: false, topics: {}, check: { core: { checked: 0, matched: 0 }, control: { checked: 0, matched: 0 } } };
+    const quiet = { read_at: null, feeds_read: 0, checked: 0, posts: 0, complete: false, topics: {}, check: { core: { feeds: 0, checked: 0, matched: 0 }, control: { feeds: 0, checked: 0, matched: 0 } } };
     const first = show(withNl({ ...quiet, feeds_failing: 8 }));
     expect(screen.getByTestId("office-newsletters-asof").textContent).toBe("Newsletters: no feed could be read so far (8 tried).");
     expect(screen.queryByTestId("office-newsletters-ugc-gigs")).toBeNull();

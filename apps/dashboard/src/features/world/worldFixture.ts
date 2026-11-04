@@ -48,9 +48,9 @@ export function world(): WorldPayload {
     post_tags: { state: "on", tags: { p1: tag("beach"), p2: tag("beach", true), p3: tag("beach"), p4: tag("food", true), p5: tag("food", false, 0.2) } },
     post_topics: { state: "on", version: "t", topics: { p1: ["solo-lessons"], p2: ["solo-lessons"], p3: [] }, failing: 0 },
     newsletters: {
-      state: "on", read_at: "2026-11-03T08:00:00.000Z", feeds: 6, feeds_read: 6, feeds_failing: 0, since: "2026-10-30",
+      state: "on", read_at: "2026-11-03T23:30:00.000Z", feeds: 6, feeds_read: 6, feeds_failing: 0, since: "2026-10-30",
       posts: 40, checked: 40, failing: 0, unreadable: 0, complete: true,
-      check: { core: { checked: 34, matched: 17 }, control: { checked: 6, matched: 1 } },
+      check: { core: { feeds: 6, checked: 28, matched: 14 }, control: { feeds: 2, checked: 12, matched: 2 } },
       topics: {
         "ugc-gigs": {
           posts: 12,

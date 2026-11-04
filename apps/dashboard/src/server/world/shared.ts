@@ -16,7 +16,13 @@ import { createBriefService, type BriefService } from "./briefService";
 
 let shared: { key: string; service: WorldService; brief: BriefService | null } | null = null;
 // the newsletter feeds are read on a clock too, not only when someone opens the world: a busy feed holds a few days
-let newsletterTimer: ReturnType<typeof setInterval> | null = null;
+// kept on globalThis: a reloaded module (dev, a second instance) must still stop the clock it started before
+const TIMER = Symbol.for("ana.world.newsletterTimer");
+const timers = globalThis as typeof globalThis & { [TIMER]?: ReturnType<typeof setInterval> | null };
+function setNewsletterTimer(next: ReturnType<typeof setInterval> | null) {
+  if (timers[TIMER]) clearInterval(timers[TIMER]);
+  timers[TIMER] = next;
+}
 const NEWSLETTER_TICK_MS = 3_600_000;
 
 /** The process-wide world service; it shares the Instagram snapshot cache with the Social cockpit. */
@@ -31,11 +37,11 @@ export function worldServiceFromEnv(): WorldService {
   if (!shared || shared.key !== key) {
     // popular Substack newsletters, RSS feeds only (Ben 2026-11-04: Substack's terms forbid crawling the site)
     const newsletters: NewsletterReader | null = vision ? createNewsletterReader(vision) : null;
-    if (newsletterTimer) clearInterval(newsletterTimer);
-    newsletterTimer = null;
+    setNewsletterTimer(null);
     if (newsletters) {
-      newsletterTimer = setInterval(() => newsletters.schedule(), NEWSLETTER_TICK_MS);
-      newsletterTimer.unref?.();
+      const timer = setInterval(() => newsletters.schedule(), NEWSLETTER_TICK_MS);
+      timer.unref?.();
+      setNewsletterTimer(timer);
     }
     // the brief: same model key; the weekly one goes into the Brain with the agent key
     const brief = vision ? createBriefService({ config: vision, readHistory: () => readHistory(), brain: brain ? brainCaller(brain) : null }) : null;
@@ -80,7 +86,6 @@ export function worldBriefFromEnv(): BriefService | null {
 
 /** e2e only: forget cached world reads (the route enables it only under SOCIAL_IG_E2E_CONTROLS=1). */
 export function resetWorldService(): void {
-  if (newsletterTimer) clearInterval(newsletterTimer);
-  newsletterTimer = null;
+  setNewsletterTimer(null);
   shared = null;
 }

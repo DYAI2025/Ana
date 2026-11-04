@@ -6,7 +6,7 @@ import type { useI18n } from "@/components/providers/I18nProvider";
 import { useReducedMotion } from "@/lib/hooks/useReducedMotion";
 import type { WorldPost } from "./model";
 import { OFFICE_AS_OF, OFFICE_CONFIRMED, OFFICE_MIN_N, OFFICE_SOURCE, OFFICE_TOPICS, officeView, ROOM_SPOTS, type BoardDot, type OfficePoint, type OfficeQuadrant, type RoomSpot } from "./office";
-import { NEWSLETTER_FEEDS, NEWSLETTERS_PICKED, feedName } from "./newsletters";
+import { NEWSLETTER_CHECK_MIN, NEWSLETTER_FEEDS, NEWSLETTERS_PICKED, feedName } from "./newsletters";
 import { PEOPLE } from "./people";
 import type { RoomScene } from "./scene/officeRoom";
 import type { WorldPayload } from "./types";
@@ -375,8 +375,8 @@ export function OfficeBoard({ world, posts, t, locale, onPost }: { world: WorldP
   })();
   const pct = (x: { checked: number; matched: number }) => Math.round((100 * x.matched) / x.checked);
   const nlCheck =
-    nl.state === "on" && nl.check.core.checked > 0 && nl.check.control.checked > 0
-      ? t("world.office.newsletterCheck", { core: NEWSLETTER_FEEDS.filter((f) => f.role === "core").length, control: NEWSLETTER_FEEDS.filter((f) => f.role === "control").length, a: pct(nl.check.core), b: pct(nl.check.control) })
+    nl.state === "on" && nl.check.core.checked >= NEWSLETTER_CHECK_MIN && nl.check.control.checked >= NEWSLETTER_CHECK_MIN
+      ? t("world.office.newsletterCheck", { core: nl.check.core.feeds, control: nl.check.control.feeds, a: pct(nl.check.core), b: pct(nl.check.control) })
       : null;
 
   return (
