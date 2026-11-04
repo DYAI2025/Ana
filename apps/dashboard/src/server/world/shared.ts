@@ -10,6 +10,7 @@ import { createWorldService, type WorldService } from "./service";
 import { createVisionReader, visionConfigFromEnv } from "./vision";
 import { createPostTagger } from "./tagger";
 import { createTopicTagger } from "./topicTagger";
+import { createNewsletterReader } from "./newsletterReader";
 import { brainCaller, brainWriterConfigFromEnv, createBrainWriter } from "./brainWriter";
 import { createBriefService, type BriefService } from "./briefService";
 
@@ -50,6 +51,8 @@ export function worldServiceFromEnv(): WorldService {
         tagger: vision ? createPostTagger(vision) : null,
         // the office topics: same model, same agreement (cover + caption in, only topic ids kept)
         topicTagger: vision ? createTopicTagger(vision) : null,
+        // popular Substack newsletters, RSS feeds only (Ben 2026-11-04: Substack's terms forbid crawling the site)
+        newsletters: vision ? createNewsletterReader(vision) : null,
         // agent:lumen, Ben's approval of 2026-11-03: aggregated numbers only, never CONFIRMED
         brain: brain ? createBrainWriter(brain) : null,
         brief,

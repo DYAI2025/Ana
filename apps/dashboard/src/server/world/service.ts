@@ -13,6 +13,8 @@ import { readAnaPlace, readRelease } from "./presence";
 import { historyEntry, type HistoryEntry } from "./audienceHistory";
 import type { PostTagger } from "./tagger";
 import type { TopicTagger } from "./topicTagger";
+import type { NewsletterReader } from "./newsletterReader";
+import { NEWSLETTERS_OFF } from "@/features/world/newsletters";
 import { OFFICE_VERSION } from "@/features/world/office";
 import type { BrainWriter } from "./brainWriter";
 import type { BriefService } from "./briefService";
@@ -57,6 +59,8 @@ export interface WorldDeps {
   tagger?: PostTagger | null;
   /** office topics of the posts, read in the background; absent = off */
   topicTagger?: TopicTagger | null;
+  /** popular newsletters' RSS feeds matched to the office topics, read in the background; absent = off */
+  newsletters?: NewsletterReader | null;
   /** writes the daily "Was läuft" digest into the Brain; null when no Brain key is configured */
   brain?: BrainWriter | null;
   /** the brief (button and weekly); null without a model key */
@@ -211,6 +215,7 @@ export function createWorldService(deps: WorldDeps): WorldService {
       // without Instagram nothing is categorised, but the stored categories are still read (so the Brain digest can start)
       if (deps.tagger) deps.tagger.schedule(instagram.ok ? instagram.snapshot.posts.map((x) => ({ id: x.media_id, cover: x.thumbnail_url ?? x.image_url ?? null, caption: x.caption })) : []);
       if (deps.topicTagger) deps.topicTagger.schedule(instagram.ok ? instagram.snapshot.posts.map((x) => ({ id: x.media_id, cover: x.thumbnail_url ?? x.image_url ?? null, caption: x.caption })) : []);
+      if (deps.newsletters) deps.newsletters.schedule();
       // readiness and the categories are taken at the same moment: a load that finishes during a later await must not
       // let a digest built from the earlier, empty categories reach the Brain
       const tagsReady = !deps.tagger || deps.tagger.ready();
@@ -259,6 +264,7 @@ export function createWorldService(deps: WorldDeps): WorldService {
         release: readRelease(),
         post_tags: { state: deps.tagger ? "on" : "off", tags },
         post_topics: { state: deps.topicTagger ? "on" : "off", version: OFFICE_VERSION, topics: deps.topicTagger ? deps.topicTagger.current() : {}, failing: deps.topicTagger ? deps.topicTagger.failing() : 0 },
+        newsletters: deps.newsletters ? deps.newsletters.current() : NEWSLETTERS_OFF,
         brain: { state: "off", last_day: null, note: null, reason: null },
         brief: deps.brief ? deps.brief.state() : { state: "off", busy: false, latest: null, weekly: null, in_brain: false, brain: false, reason: null },
       };

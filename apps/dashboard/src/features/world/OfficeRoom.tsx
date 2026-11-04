@@ -6,6 +6,7 @@ import type { useI18n } from "@/components/providers/I18nProvider";
 import { useReducedMotion } from "@/lib/hooks/useReducedMotion";
 import type { WorldPost } from "./model";
 import { OFFICE_AS_OF, OFFICE_CONFIRMED, OFFICE_MIN_N, OFFICE_SOURCE, OFFICE_TOPICS, officeView, ROOM_SPOTS, type BoardDot, type OfficePoint, type OfficeQuadrant, type RoomSpot } from "./office";
+import { NEWSLETTERS_PICKED, feedName, newsletterSummary } from "./newsletters";
 import { PEOPLE } from "./people";
 import type { RoomScene } from "./scene/officeRoom";
 import type { WorldPayload } from "./types";
@@ -333,6 +334,7 @@ export function OfficeBoard({ world, posts, t, locale, onPost }: { world: WorldP
   const nf1 = useMemo(() => new Intl.NumberFormat(locale, { minimumFractionDigits: 1, maximumFractionDigits: 1 }), [locale]);
   const asOf = useMemo(() => new Intl.DateTimeFormat(locale, { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" }).format(new Date(`${OFFICE_AS_OF}T12:00:00Z`)), [locale]);
   const byId = useMemo(() => new Map(posts.map((p) => [p.id, p])), [posts]);
+  const asOfPicked = useMemo(() => new Intl.DateTimeFormat(locale, { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" }).format(new Date(`${NEWSLETTERS_PICKED}T12:00:00Z`)), [locale]);
 
   const pick = (id: string) => {
     setPicked(id);
@@ -351,6 +353,15 @@ export function OfficeBoard({ world, posts, t, locale, onPost }: { world: WorldP
   const snapshot = world.instagram.ok ? world.instagram.snapshot.posts.map((x) => x.media_id) : null;
   const total = snapshot ? snapshot.length : posts.length;
   const read = snapshot ? snapshot.filter((id) => Object.hasOwn(world.post_topics.topics, id)).length : view.read;
+  const nl = world.newsletters;
+  const nlOn = nl.state === "on" && nl.read > 0;
+  const day = (d: string) => new Intl.DateTimeFormat(locale, { day: "numeric", month: "short", timeZone: "UTC" }).format(new Date(`${d}T12:00:00Z`));
+  const nlAsOf =
+    nl.state !== "on"
+      ? t("world.office.newslettersOff")
+      : nl.read_at === null
+        ? t("world.office.newslettersWaiting")
+        : t("world.office.newslettersAsOf", { ok: nl.feeds_ok, feeds: nl.feeds, date: day(nl.read_at.slice(0, 10)), read: nl.read, posts: nl.posts });
 
   return (
     <div className={styles.officeBoard} data-testid="office-board">
@@ -359,6 +370,7 @@ export function OfficeBoard({ world, posts, t, locale, onPost }: { world: WorldP
           {reader ? t("world.office.asOf", { source: OFFICE_SOURCE, date: asOf, read, total }) : t("world.office.readerOff")}
           {reader && world.post_topics.failing > 0 ? ` ${t("world.office.failing", { n: world.post_topics.failing })}` : ""}
         </p>
+        <p className={styles.muted} data-testid="office-newsletters-asof">{nlAsOf}</p>
         <div className={styles.officeBody}>
           <figure className={styles.officeMatrix}>
             <svg viewBox={`0 0 ${W} ${H}`} role="group" aria-label={t("world.office.matrixLabel")} data-testid="office-matrix">
@@ -420,12 +432,19 @@ export function OfficeBoard({ world, posts, t, locale, onPost }: { world: WorldP
                     {items.map((p) => {
                       const topic = OFFICE_TOPICS.find((x) => x.id === p.id);
                       const mine = p.ana.posts.map((id) => byId.get(id)).filter((x): x is WorldPost => x !== undefined);
+                      const hits = nlOn ? (nl.topics[p.id] ?? []) : [];
+                      const sum = newsletterSummary(hits);
                       return (
                         <li key={p.id} id={`office-topic-${p.id}`} data-picked={picked === p.id} data-testid={`office-topic-${p.id}`}>
                           <span className={styles.officeNum} data-quadrant={p.quadrant} aria-hidden="true">{p.n}</span>
                           <div>
                             <b>{t(`world.office.topics.${p.id}` as never)}</b> <span className={styles.chip}>{t(`world.office.lane.${p.lane}`)}</span>
                             <p>{t("world.office.outside", { reactions: nf.format(p.outside.reactions), threads: p.outside.threads, forums: p.outside.forums.join(", ") })}</p>
+                            {nlOn ? (
+                              <p data-testid={`office-newsletters-${p.id}`}>
+                                {sum.posts > 0 ? t("world.office.newsletters", { k: sum.names.length, feeds: nl.feeds_ok, posts: sum.posts, names: sum.names.join(", ") }) : t("world.office.newslettersNone", { feeds: nl.feeds_ok })}
+                              </p>
+                            ) : null}
                             <p>{anaLine(p)}</p>
                             {p.ana.state === "weak" ? <p className={styles.muted} data-testid={`office-weak-${p.id}`}>{t("world.office.anaWeak")}</p> : null}
                             <details className={styles.briefFacts} open={picked === p.id ? true : undefined}>
@@ -444,6 +463,22 @@ export function OfficeBoard({ world, posts, t, locale, onPost }: { world: WorldP
                                   </li>
                                 ))}
                               </ul>
+                              {hits.length ? (
+                                <>
+                                  <h5>{t("world.office.newsletterEvidence")}</h5>
+                                  <ul>
+                                    {hits.slice(0, 5).map((h) => (
+                                      <li key={h.url}>
+                                        <a href={h.url} target="_blank" rel="noreferrer noopener">{h.title}</a>
+                                        <br />
+                                        <span className={styles.muted}>
+                                          {feedName(h.feed)} · {day(h.date)}
+                                        </span>
+                                      </li>
+                                    ))}
+                                  </ul>
+                                </>
+                              ) : null}
                               {mine.length ? (
                                 <>
                                   <h5>{t("world.office.posts")}</h5>
@@ -468,6 +503,7 @@ export function OfficeBoard({ world, posts, t, locale, onPost }: { world: WorldP
         <footer className={styles.officeFoot}>
           <p>{t("world.office.hypothesis")}</p>
           <p className={styles.note}>{t("world.office.method")}</p>
+          <p className={styles.note}>{t("world.office.newsletterMethod", { feeds: nl.feeds, date: asOfPicked })}</p>
           <p className={styles.note}>{t("world.office.next")}</p>
         </footer>
     </div>
