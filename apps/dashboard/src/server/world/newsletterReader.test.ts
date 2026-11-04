@@ -5,7 +5,7 @@ import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { NewsletterFeed } from "@/features/world/newsletters";
 import { OFFICE_TOPICS, OFFICE_VERSION } from "@/features/world/office";
-import { batchText, createNewsletterReader, feedLink, fetchFeed, FEED_EVERY_MS, MATCH_BATCH, MATCH_CALLS, MATCH_RETRY_MS, MATCH_TRIES, newsletterPrompt, parseBatchAnswer, parseFeed, windowStart } from "./newsletterReader";
+import { batchText, createNewsletterReader, feedLink, fetchFeed, FEED_CAP, FEED_EVERY_MS, OUTAGE_MS, MATCH_BATCH, MATCH_CALLS, MATCH_RETRY_MS, MATCH_TRIES, newsletterPrompt, parseBatchAnswer, parseFeed, windowStart } from "./newsletterReader";
 
 const config = { key: "k".repeat(30), model: "claude-haiku-5-5", timeoutMs: 1000 };
 const known = new Set(OFFICE_TOPICS.map((t) => t.id));
@@ -24,6 +24,8 @@ function item(host: string, slug: string, ms: number, title = `Post ${slug}`, de
 const bare = (items: string[]) => `<?xml version="1.0"?><rss><channel><title>x</title>${items.join("")}</channel></rss>`;
 // most feeds here reach back far: an old post (on another host, so never counted) marks the feed as covering the window
 const rss = (items: string[]) => bare([...items, item("anchor.invalid", "a", NOW - 60 * DAY, "anchor")]);
+// a feed at its cap (FEED_CAP posts): filler posts on another host, dated `at`, fill it up without being counted
+const full = (items: string[], at: number) => bare([...Array.from({ length: Math.max(0, FEED_CAP - items.length) }, (_, i) => item("filler.invalid", `f${i}`, at, "filler")), ...items]);
 
 describe("newsletter feeds — parsing", () => {
   it("keeps title, own link, day, subtitle and first lines of the window; drops foreign links, bad and future dates, doubles", () => {
@@ -218,36 +220,58 @@ describe("newsletter reader — daily feeds, a few model calls, honest counts", 
     r2.schedule();
     await r2.idle();
     expect(down.feedCalls).toHaveLength(4);
-    expect(JSON.parse(await readFile(file, "utf8")).feeds.gigs).toEqual({ ok: false, last_ok: new Date(NOW).toISOString(), since: new Date(NOW - 59 * DAY).toISOString().slice(0, 10) });
+    expect(JSON.parse(await readFile(file, "utf8")).feeds.gigs).toEqual({ ok: false, last_ok: new Date(NOW).toISOString(), since: "1970-01-01" });
   });
 
-  it("a feed that reaches back only a few days: the counts use and say 'since' (the day after its oldest post); a gap after an outage moves it on", async () => {
-    const net = fakeNet({ feeds: { [A.host]: bare([item(A.host, "g1", NOW - HOUR, "gig"), item(A.host, "g2", NOW - 4 * DAY, "gig two")]) }, reply: byTitle });
+  it("a full feed that reaches back only a few days: the counts use and say 'since' (the day after its oldest post); a gap after an outage moves it on", async () => {
+    const net = fakeNet({ feeds: { [A.host]: full([item(A.host, "g1", NOW - HOUR, "gig"), item(A.host, "g2", NOW - 4 * DAY, "gig two")], NOW - HOUR) }, reply: byTitle });
     const r = createNewsletterReader(config, file, net.impl, () => now, [A]);
     r.schedule();
     await r.idle();
     // the oldest post (Oct 31) may have had earlier posts the same day: covered from Nov 1, and only those posts count
     expect(r.current()).toMatchObject({ since: "2026-11-01", posts: 1, checked: 1 });
     expect(r.current().topics["ugc-gigs"]?.hits.map((h) => h.title)).toEqual(["gig"]);
+    // the post before the covered day was not even sent to the model
+    expect(net.modelCalls.map(titles)).toEqual([["gig"]]);
     // read again the next day, the feed still reaches back past the last read: no gap
     now = NOW + FEED_EVERY_MS;
-    const next = fakeNet({ feeds: { [A.host]: bare([item(A.host, "g3", now - HOUR, "gig three"), item(A.host, "g1", NOW - HOUR, "gig")]) }, reply: byTitle });
+    const next = fakeNet({ feeds: { [A.host]: full([item(A.host, "g3", now - HOUR, "gig three"), item(A.host, "g1", NOW - HOUR, "gig")], NOW - HOUR) }, reply: byTitle });
     const r2 = createNewsletterReader(config, file, next.impl, () => now, [A]);
     r2.schedule();
     await r2.idle();
     expect(r2.current()).toMatchObject({ since: "2026-11-01", posts: 2 });
     // ten days of silence, then the feed starts after the last read: what came in between is lost
     now = NOW + 11 * DAY;
-    const gap = fakeNet({ feeds: { [A.host]: bare([item(A.host, "g9", now - HOUR, "gig nine"), item(A.host, "g8", now - 2 * DAY, "gig eight")]) }, reply: byTitle });
+    const gap = fakeNet({ feeds: { [A.host]: full([item(A.host, "g9", now - HOUR, "gig nine"), item(A.host, "g8", now - 2 * DAY, "gig eight")], now - HOUR) }, reply: byTitle });
     const r3 = createNewsletterReader(config, file, gap.impl, () => now, [A]);
     r3.schedule();
     await r3.idle();
     expect(r3.current()).toMatchObject({ since: "2026-11-14", posts: 1 });
   });
 
-  it("with two newsletters of different reach, the counts start where both are covered", async () => {
+  it("a feed below its cap holds its whole history: it does not shorten the window", async () => {
+    const net = fakeNet({ feeds: { [A.host]: bare([item(A.host, "g1", NOW - HOUR, "gig"), item(A.host, "g2", NOW - 2 * DAY, "gig two")]), [C.host]: rss([item(C.host, "c1", NOW - 10 * DAY, "an older gig")]) }, reply: byTitle });
+    const r = createNewsletterReader(config, file, net.impl, () => now, [A, C]);
+    r.schedule();
+    await r.idle();
+    expect(r.current()).toMatchObject({ since: null, posts: 3 });
+    expect(r.current().topics["ugc-gigs"]?.feeds).toEqual(["gigs", "nomad"]);
+  });
+
+  it("a full feed whose oldest post is today: covered from today, never from a day in the future", async () => {
+    const net = fakeNet({ feeds: { [A.host]: full([item(A.host, "g1", NOW - HOUR, "gig")], NOW - HOUR) }, reply: byTitle });
+    const r = createNewsletterReader(config, file, net.impl, () => now, [A]);
+    r.schedule();
+    await r.idle();
+    expect(r.current()).toMatchObject({ since: "2026-11-04", posts: 1, checked: 1 });
+  });
+
+  it("with two full newsletters of different reach, the counts start where both are covered", async () => {
     const net = fakeNet({
-      feeds: { [A.host]: rss([item(A.host, "g-old", Date.parse("2026-10-25T10:00:00Z"), "an older gig"), item(A.host, "x", NOW - HOUR, "Lisbon")]), [C.host]: bare([item(C.host, "c1", Date.parse("2026-11-02T12:00:00Z"), "Rome"), item(C.host, "c2", NOW - HOUR, "Rome again")]) },
+      feeds: {
+        [A.host]: rss([item(A.host, "g-old", Date.parse("2026-10-25T10:00:00Z"), "an older gig"), item(A.host, "x", NOW - HOUR, "Lisbon")]),
+        [C.host]: full([item(C.host, "c2", NOW - HOUR, "Rome again"), item(C.host, "c1", Date.parse("2026-11-02T12:00:00Z"), "Rome")], NOW - HOUR),
+      },
       reply: byTitle,
     });
     const r = createNewsletterReader(config, file, net.impl, () => now, [A, C]);
@@ -287,22 +311,26 @@ describe("newsletter reader — daily feeds, a few model calls, honest counts", 
     expect(sent[0]).toEqual(expect.arrayContaining(["n0", "n1", "n2", "n3"]));
   });
 
-  it("a model or network outage keeps the posts waiting without counting against them", async () => {
+  it("a model or network outage: one call per run, a growing pause, and nothing counts against the posts", async () => {
     let up = false;
-    const net = fakeNet({ feeds: { [A.host]: rss([item(A.host, "g1", NOW - DAY, "gig"), item(A.host, "g2", NOW - DAY, "gig two")]) }, reply: (p) => (up ? byTitle(p) : null) });
-    const r = createNewsletterReader(config, file, net.impl, () => now, [A]);
-    for (let n = 0; n < MATCH_TRIES + 2; n += 1) {
+    const net = fakeNet({ feeds: { [A.host]: rss([item(A.host, "g1", NOW - DAY, "gig")]), [C.host]: rss([item(C.host, "c1", NOW - DAY, "home")]) }, reply: (p) => (up ? byTitle(p) : null) });
+    const r = createNewsletterReader(config, file, net.impl, () => now, [A, C]);
+    const at: number[] = [];
+    const tick = async () => {
+      const before = net.modelCalls.length;
       r.schedule();
       await r.idle();
-      now += MATCH_RETRY_MS;
-    }
-    expect(net.modelCalls).toHaveLength(MATCH_TRIES + 2);
-    // still one call for both: an outage is not the posts' fault
-    expect(net.modelCalls.map(titles).every((t) => t.length === 2)).toBe(true);
-    expect(r.current()).toMatchObject({ posts: 2, checked: 0, unreadable: 0, complete: false });
+      if (net.modelCalls.length > before) at.push((now - NOW) / 60_000);
+    };
+    // every 10 minutes for 8 hours
+    for (; now <= NOW + 8 * HOUR; now += 10 * 60_000) await tick();
+    // the first failure stops the run (two batches waiting, one call); then pauses of 30, 60, 120, 240 minutes
+    expect(at).toEqual([0, 30, 90, 210, 450]);
+    expect(OUTAGE_MS).toBe(30 * 60_000);
+    expect(r.current()).toMatchObject({ posts: 2, checked: 0, failing: 0, unreadable: 0, complete: false });
     up = true;
-    r.schedule();
-    await r.idle();
+    now = NOW + 16 * HOUR;
+    await tick();
     expect(r.current()).toMatchObject({ checked: 2, unreadable: 0, complete: true });
   });
 
@@ -327,14 +355,12 @@ describe("newsletter reader — daily feeds, a few model calls, honest counts", 
     }
     expect(r.current()).toMatchObject({ posts: 2, checked: 0, failing: 0, unreadable: 2, complete: false });
     // after a restart the posts stay given up: no new calls
-    const calls = net.modelCalls.length;
     const again = fakeNet({ feeds: { [A.host]: rss([item(A.host, "g1", NOW - DAY, "gig")]) }, reply: byTitle });
     const r2 = createNewsletterReader(config, file, again.impl, () => now + MATCH_RETRY_MS, [A]);
     r2.schedule();
     await r2.idle();
     expect(again.modelCalls).toHaveLength(0);
     expect(r2.current()).toMatchObject({ unreadable: 2 });
-    expect(net.modelCalls).toHaveLength(calls);
   });
 
   it("two schedules at once run one pass", async () => {
@@ -395,7 +421,7 @@ describe("newsletter reader — daily feeds, a few model calls, honest counts", 
       file,
       JSON.stringify({
         version: OFFICE_VERSION,
-        feeds: { nomad: { ok: true, last_ok: new Date(NOW).toISOString(), since: "2026-10-01" }, gigs: { ok: false, last_ok: "not a date", since: null } },
+        feeds: { nomad: { ok: true, last_ok: new Date(NOW).toISOString(), since: "2026-10-01" }, gigs: { ok: true, last_ok: "Tue, 04 Nov 2026 12:00:00 GMT", since: null } },
         items: { "gigs:0123456789abcdef": { feed: "gigs", title: "orphan gig", url: `https://${A.host}/p/k`, date: "2026-11-03", topics: ["ugc-gigs"], confidence: 0.9 } },
       }),
     );

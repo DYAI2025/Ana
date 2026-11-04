@@ -396,7 +396,7 @@ export const worldEn = {
     newslettersNeverRead: "Newsletters: no feed could be read so far ({n} tried).",
     newslettersStoreError: "Newsletters: the saved readings could not be loaded, so nothing is read until that is fixed.",
     newslettersOff: "Newsletters are not read yet (no model key on the server).",
-    newsletterCheck: "Check: the {core} newsletters on these themes touch one of the topics in {a}% of their checked posts, the {control} broad travel ones in {b}%. If both were alike, the matching would see the topics everywhere.",
+    newsletterCheck: "Check: the newsletters on these themes ({core} read) touch one of the topics in {a}% of their checked posts, the broad travel ones ({control} read) in {b}%. If both were alike, the matching would see the topics everywhere.",
     newsletterEvidence: "What paid newsletters write",
     newsletterMethod: "Newsletters = {feeds} popular Substack newsletters from the Travel leaderboards ({date}): {core} on Ana's themes and {control} broad travel ones as a check; only the {core} count for the topics. Read once a day through their public RSS feeds. A feed holds only its newest posts, so the counts say “since …” until 30 days are covered. Claude Haiku matches each post to the topics from its title, subtitle and first lines. A feed shows no likes or reads, so this tells what newsletters people pay for write about, not what did well. Newsletters do not move the dots.",
     anaIndex: "Ana's audience: {n} posts on it, saved & shared {index}× as often as her usual posts.",

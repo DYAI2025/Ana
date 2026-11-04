@@ -16,7 +16,8 @@ import { createBriefService, type BriefService } from "./briefService";
 
 let shared: { key: string; service: WorldService; brief: BriefService | null } | null = null;
 // the newsletter feeds are read on a clock too, not only when someone opens the world: a busy feed holds a few days
-// kept on globalThis: a reloaded module (dev, a second instance) must still stop the clock it started before
+// kept on globalThis: a reloaded module (dev hot reload) must still stop the clock the earlier copy started. Only the
+// clock is shared, not the reader: two live copies of this module would each keep their own reader.
 const TIMER = Symbol.for("ana.world.newsletterTimer");
 const timers = globalThis as typeof globalThis & { [TIMER]?: ReturnType<typeof setInterval> | null };
 function setNewsletterTimer(next: ReturnType<typeof setInterval> | null) {

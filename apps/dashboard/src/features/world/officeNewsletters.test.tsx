@@ -30,7 +30,7 @@ describe("the office board — what paid newsletters write about each topic", ()
     expect(screen.getByTestId("office-newsletters-ugc-gigs").textContent).toBe("Paid newsletters: 2 of 6 on these themes wrote about it since Oct 30 (Travel Creator Gigs, Life Unscripted; 12 post(s)).");
     expect(screen.getByTestId("office-newsletters-homesick").textContent).toBe("Paid newsletters: none of the 6 on these themes wrote about it since Oct 30.");
     expect(screen.getByTestId("office-newsletters-check").textContent).toBe(
-      "Check: the 6 newsletters on these themes touch one of the topics in 50% of their checked posts, the 2 broad travel ones in 17%. If both were alike, the matching would see the topics everywhere.",
+      "Check: the newsletters on these themes (6 read) touch one of the topics in 50% of their checked posts, the broad travel ones (2 read) in 17%. If both were alike, the matching would see the topics everywhere.",
     );
     const topic = screen.getByTestId("office-topic-ugc-gigs");
     const link = within(topic).getByRole("link", { name: "A brand is hiring travel creators" });
@@ -46,8 +46,8 @@ describe("the office board — what paid newsletters write about each topic", ()
     expect(screen.queryByTestId("office-newsletters-check")).toBeNull();
     few.unmount();
     show({ ...w, newsletters: { ...w.newsletters, check: { core: { feeds: 5, checked: 10, matched: 5 }, control: { feeds: 1, checked: 10, matched: 1 } } } });
-    expect(screen.getByTestId("office-newsletters-check").textContent).toContain("the 5 newsletters on these themes touch one of the topics in 50%");
-    expect(screen.getByTestId("office-newsletters-check").textContent).toContain("the 1 broad travel ones in 10%");
+    expect(screen.getByTestId("office-newsletters-check").textContent).toContain("the newsletters on these themes (5 read) touch one of the topics in 50%");
+    expect(screen.getByTestId("office-newsletters-check").textContent).toContain("the broad travel ones (1 read) in 10%");
   });
 
   it("a fully covered window says 'in the last 30 days'", () => {

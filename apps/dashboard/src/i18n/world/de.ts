@@ -397,7 +397,7 @@ export const worldDe: Messages["world"] = {
     newslettersNeverRead: "Newsletter: Bisher konnte kein Feed gelesen werden ({n} versucht).",
     newslettersStoreError: "Newsletter: Die gespeicherten Lesungen konnten nicht geladen werden; bis das behoben ist, wird nichts gelesen.",
     newslettersOff: "Newsletter werden noch nicht gelesen (kein Modell-Schlüssel auf dem Server).",
-    newsletterCheck: "Kontrolle: Die {core} Newsletter zu diesen Themen berühren in {a} % ihrer geprüften Beiträge eines der Themen, die {control} allgemeinen Reise-Newsletter in {b} %. Wären beide gleich, sähe die Zuordnung die Themen überall.",
+    newsletterCheck: "Kontrolle: Die Newsletter zu diesen Themen ({core} gelesen) berühren in {a} % ihrer geprüften Beiträge eines der Themen, die allgemeinen Reise-Newsletter ({control} gelesen) in {b} %. Wären beide gleich, sähe die Zuordnung die Themen überall.",
     newsletterEvidence: "Was bezahlte Newsletter schreiben",
     newsletterMethod: "Newsletter = {feeds} beliebte Substack-Newsletter aus den Reise-Ranglisten ({date}): {core} zu Anas Themen und {control} allgemeine Reise-Newsletter zur Kontrolle; nur die {core} zählen für die Themen. Einmal am Tag über ihre öffentlichen RSS-Feeds gelesen. Ein Feed enthält nur seine neuesten Beiträge, daher steht bei den Zahlen „seit …“, bis 30 Tage abgedeckt sind. Claude Haiku ordnet jeden Beitrag anhand von Titel, Untertitel und ersten Zeilen den Themen zu. Ein Feed zeigt keine Likes oder Leser: Das sagt, worüber Newsletter schreiben, für die Menschen zahlen, nicht, was gut lief. Newsletter verschieben die Punkte nicht.",
     anaIndex: "Anas Publikum: {n} Posts dazu, {index}× so oft gespeichert & geteilt wie ihre üblichen Posts.",

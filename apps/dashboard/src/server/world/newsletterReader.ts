@@ -194,6 +194,7 @@ export function newslettersFile(env: Readonly<Record<string, string | undefined>
 }
 
 const DAY_RE = /^\d{4}-\d{2}-\d{2}$/;
+const ISO_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$/;
 const KEY_RE = /^[a-z0-9-]{1,40}:[0-9a-f]{16}$/;
 const isObject = (x: unknown): x is Record<string, unknown> => typeof x === "object" && x !== null && !Array.isArray(x);
 
@@ -217,7 +218,7 @@ export async function readNewsletterStore(file: string, version: string, feeds: 
   const sameCatalog = raw.version === version;
   for (const [id, v] of Object.entries(raw.feeds)) {
     if (!byId.has(id) || !isObject(v) || typeof v.ok !== "boolean") continue;
-    const lastOk = typeof v.last_ok === "string" && Number.isFinite(Date.parse(v.last_ok)) ? v.last_ok : null;
+    const lastOk = typeof v.last_ok === "string" && ISO_RE.test(v.last_ok) && Number.isFinite(Date.parse(v.last_ok)) ? v.last_ok : null;
     const since = typeof v.since === "string" && DAY_RE.test(v.since) ? v.since : null;
     // a read without a covered day is taken as covered only from the day of that read
     if (lastOk) out.feeds[id] = { ok: v.ok, last_ok: lastOk, since: since ?? lastOk.slice(0, 10) };
@@ -250,6 +251,14 @@ export interface NewsletterReader {
 }
 
 export const FEED_EVERY_MS = 24 * 3_600_000;
+/** posts a Substack feed carries (all eight feeds had exactly 20 on 2026-11-04); fewer = the whole history */
+export const FEED_CAP = 20;
+/** "covered since forever" */
+const EVER = "1970-01-01";
+const minDay = (a: string, b: string) => (a < b ? a : b);
+/** after a model or network outage the reader waits this long before the next call, doubling up to OUTAGE_MAX_MS */
+export const OUTAGE_MS = 30 * 60_000;
+export const OUTAGE_MAX_MS = 6 * 3_600_000;
 const FEED_RETRY_MS = 3_600_000;
 export const MATCH_RETRY_MS = 30 * 60_000;
 /** posts per model call (all from one newsletter) and calls per run */
@@ -317,6 +326,8 @@ export function createNewsletterReader(
   let busy = false;
   const feedFailedAt = new Map<string, number>();
   const matchFailedAt = new Map<string, number>();
+  let outageUntil = 0;
+  let outageStep = 0;
 
   const load = () =>
     (loaded ??= readNewsletterStore(file, version, feeds, known).then(
@@ -332,6 +343,15 @@ export function createNewsletterReader(
     ));
 
   const inWindow = (date: string) => date >= windowStart(now());
+  /** the counts cover the window only from the day the last-covered core feed reaches back to (never after today) */
+  const coveredSince = () => {
+    const from = windowStart(now());
+    const since = feeds
+      .filter((f) => f.role === "core" && store.feeds[f.id]?.last_ok)
+      .map((f) => store.feeds[f.id]?.since ?? from)
+      .reduce((a, b) => (b > a ? b : a), from);
+    return minDay(since, day(now()));
+  };
 
   async function readFeeds(): Promise<boolean> {
     let changed = false;
@@ -356,8 +376,9 @@ export function createNewsletterReader(
         else if (!had.text) had.text = it.text;
       }
       // the feed reaches back to its oldest post; if that is newer than the last good read, posts in between are lost
-      // the oldest post's day may be only partly in the feed: covered from the next day on
-      const oldest = parsed.oldest === null ? day(now()) : day(parsed.oldest + DAY_MS);
+      // a feed below its cap holds its whole history: nothing older is missing. A full feed may have dropped earlier
+      // posts of its oldest post's day, so it is covered from the next day on (never later than today).
+      const oldest = parsed.oldest === null || parsed.raw < FEED_CAP ? EVER : minDay(day(parsed.oldest + DAY_MS), day(now()));
       const gap = !last?.last_ok || (parsed.oldest !== null && parsed.oldest > Date.parse(last.last_ok));
       store.feeds[feed.id] = { ok: true, last_ok: new Date(now()).toISOString(), since: gap ? oldest : (last?.since ?? oldest) };
       changed = true;
@@ -368,8 +389,11 @@ export function createNewsletterReader(
   /** the next model calls: newest posts first, one newsletter per call; a post that failed before goes alone */
   function batches(): Entry[][] {
     const t = now();
+    if (t < outageUntil) return [];
+    // posts before the covered day are never shown: they are not worth a call
+    const since = coveredSince();
     const todo = Object.entries(store.items)
-      .filter(([key, v]) => v.topics === undefined && !v.gave_up && inWindow(v.date) && t - (matchFailedAt.get(key) ?? -Infinity) >= MATCH_RETRY_MS)
+      .filter(([key, v]) => v.topics === undefined && !v.gave_up && inWindow(v.date) && v.date >= since && t - (matchFailedAt.get(key) ?? -Infinity) >= MATCH_RETRY_MS)
       // newest day first; within a day the feed's own order (newest first) stays
       .sort((a, b) => (a[1].date < b[1].date ? 1 : a[1].date > b[1].date ? -1 : 0));
     const out: Entry[][] = [];
@@ -396,14 +420,21 @@ export function createNewsletterReader(
     let changed = false;
     for (const batch of batches()) {
       const answer = await askModel(config, [{ type: "text", text: `${prompt}\n${batchText(batch.map(([, v]) => ({ title: v.title, text: v.text ?? "" })))}` }], fetchImpl, 120 + 60 * batch.length).catch((): undefined => undefined);
-      const readings = answer === undefined ? new Map<number, TopicReading>() : parseBatchAnswer(answer, batch.length, known);
+      if (answer === undefined) {
+        // the model or the network is down: no more calls this run, a growing pause for the reader, and it does not
+        // count against the posts
+        outageStep = outageStep ? Math.min(outageStep * 2, OUTAGE_MAX_MS) : OUTAGE_MS;
+        outageUntil = now() + outageStep;
+        break;
+      }
+      outageStep = 0;
+      outageUntil = 0;
+      const readings = parseBatchAnswer(answer, batch.length, known);
       batch.forEach(([key, v], n) => {
         const r = readings.get(n);
         changed = true;
         if (!r) {
           matchFailedAt.set(key, now());
-          // the model or the network was down: try again later, it does not count against the post
-          if (answer === undefined) return;
           const fails = (v.fails ?? 0) + 1;
           store.items[key] = fails >= MATCH_TRIES ? { feed: v.feed, title: v.title, url: v.url, date: v.date, text: v.text, gave_up: true } : { ...v, fails };
           return;
@@ -452,8 +483,7 @@ export function createNewsletterReader(
       const from = windowStart(now());
       const core = feeds.filter((f) => f.role === "core");
       const read = core.filter((f) => store.feeds[f.id]?.last_ok);
-      // the counts cover the window only from the day the last-covered core feed reaches back to
-      const since = read.map((f) => store.feeds[f.id]?.since ?? from).reduce((a, b) => (b > a ? b : a), from);
+      const since = coveredSince();
       const topicsOut: Record<string, NewsletterTopic> = Object.create(null);
       const readBy = (r: "core" | "control") => feeds.filter((f) => f.role === r && store.feeds[f.id]?.last_ok).length;
       const check = { core: { feeds: readBy("core"), checked: 0, matched: 0 }, control: { feeds: readBy("control"), checked: 0, matched: 0 } };
