@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import type { useI18n } from "@/components/providers/I18nProvider";
 import { useReducedMotion } from "@/lib/hooks/useReducedMotion";
+import { AnalystPanel, useAnalystSession } from "./AnalystPanel";
 import type { WorldPost } from "./model";
 import { OFFICE_AS_OF, OFFICE_CONFIRMED, OFFICE_MIN_N, OFFICE_SOURCE, OFFICE_TOPICS, officeView, ROOM_SPOTS, type BoardDot, type OfficePoint, type OfficeQuadrant, type RoomSpot } from "./office";
 import { PEOPLE } from "./people";
@@ -103,9 +104,9 @@ const SPOT_ICON: Record<RoomSpot, string> = { board: "📋", computer: "💻", l
 
 /**
  * Ana's office: a small 3D room you walk into from the world (the hut at Ana's place, or the button in her panel).
- * The board on the wall holds the topics for Substack, the computer is where Claude will answer later, the lamp just
- * switches. Everything is reachable with the buttons that float over the things too (keyboard, screen readers), and
- * without WebGL the board opens directly.
+ * The board on the wall holds the topics for Substack, the computer is the text analyst, the lamp just switches.
+ * Everything is reachable with the buttons that float over the things too (keyboard, screen readers). Without WebGL the
+ * board opens directly and two buttons switch between board and computer.
  */
 export function OfficeRoom({ world, posts, t, locale, onClose, onPost }: { world: WorldPayload; posts: readonly WorldPost[]; t: T; locale: string; onClose: () => void; onPost: (id: string) => void }) {
   const reduced = useReducedMotion();
@@ -122,6 +123,11 @@ export function OfficeRoom({ world, posts, t, locale, onClose, onPost }: { world
   const spotRef = useRef<RoomSpot | null>(null);
   const [lamp, setLamp] = useState(true);
   const [hover, setHover] = useState<RoomSpot | null>(null);
+  const analyst = useAnalystSession();
+  // without WebGL there is no room to step back into: board and computer are the two views
+  const [flatSpot, setFlatSpot] = useState<"board" | "computer">("board");
+  const flatSpotRef = useRef<"board" | "computer">("board");
+  const flatComputerRef = useRef<HTMLButtonElement>(null);
   const reader = world.post_topics.state === "on";
   const view = useMemo(() => officeView(OFFICE_TOPICS, posts, reader ? world.post_topics.topics : null), [posts, reader, world.post_topics.topics]);
   const dots = useMemo(() => boardDots(view.points, layout(view.points, view.threshold)), [view]);
@@ -144,6 +150,12 @@ export function OfficeRoom({ world, posts, t, locale, onClose, onPost }: { world
     requestAnimationFrame(() => requestAnimationFrame(() => labelRefs.current[lastSpot.current]?.focus()));
   }, []);
 
+  const showFlat = useCallback((s: "board" | "computer") => {
+    flatSpotRef.current = s;
+    setFlatSpot(s);
+    document.getElementById("office-drawer-title")?.focus();
+  }, []);
+
   // focus moves into the room and back to where it came from (or to the office button when that is gone).
   // Escape steps back (board → room → world) and Tab stays inside, wherever focus happens to be;
   // only another dialog on top keeps its own keys
@@ -157,12 +169,16 @@ export function OfficeRoom({ world, posts, t, locale, onClose, onPost }: { world
       const otherDialog = at instanceof Element && !room.contains(at) && at.closest("[role='dialog']") !== null;
       if (otherDialog) return;
       if (e.key === "Escape") {
-        if (spotRef.current) back();
+        if (flatSpotRef.current === "computer") {
+          flatSpotRef.current = "board";
+          setFlatSpot("board");
+          flatComputerRef.current?.focus();
+        } else if (spotRef.current) back();
         else onClose();
         return;
       }
       if (e.key !== "Tab") return;
-      const items = [...room.querySelectorAll<HTMLElement>("button, a[href], summary, [tabindex='0']")].filter((el) => el.getClientRects().length > 0);
+      const items = [...room.querySelectorAll<HTMLElement>("button, a[href], summary, textarea, input, select, [tabindex='0']")].filter((el) => el.getClientRects().length > 0 && !el.matches(":disabled"));
       const first = items[0];
       const last = items[items.length - 1];
       if (!first || !last) return;
@@ -254,7 +270,7 @@ export function OfficeRoom({ world, posts, t, locale, onClose, onPost }: { world
 
   // without WebGL the board is what the room is for: it opens right away
   const flat = gl === "unsupported" || gl === "failed";
-  const shown: RoomSpot | null = flat ? "board" : spot;
+  const shown: RoomSpot | null = flat ? flatSpot : spot;
 
   const room = (
     <div className={styles.officeBackdrop} data-testid="office-backdrop">
@@ -305,13 +321,24 @@ export function OfficeRoom({ world, posts, t, locale, onClose, onPost }: { world
                     ← {t("world.office.back")}
                   </button>
                 ) : null}
+                {flat ? (
+                  <div role="group" aria-label={t("world.office.flatSwitch")} className={styles.officeFlatSwitch}>
+                    <button type="button" className={styles.officeBack} aria-pressed={flatSpot === "board"} onClick={() => showFlat("board")} data-testid="office-flat-board">
+                      <span aria-hidden="true">{SPOT_ICON.board} </span>
+                      {t("world.office.spots.board")}
+                    </button>
+                    <button ref={flatComputerRef} type="button" className={styles.officeBack} aria-pressed={flatSpot === "computer"} onClick={() => showFlat("computer")} data-testid="office-flat-computer">
+                      <span aria-hidden="true">{SPOT_ICON.computer} </span>
+                      {t("world.office.spots.computer")}
+                    </button>
+                  </div>
+                ) : null}
               </div>
               {shown === "board" ? (
                 <OfficeBoard world={world} posts={posts} t={t} locale={locale} onPost={onPost} />
               ) : (
                 <div className={styles.officeComputer} data-testid="office-computer">
-                  <p>{t("world.office.computerBody")}</p>
-                  <p className={styles.note}>{t("world.office.computerNote")}</p>
+                  <AnalystPanel session={analyst} posts={posts} t={t} locale={locale} onPost={onPost} />
                 </div>
               )}
             </aside>

@@ -2,7 +2,8 @@
 /**
  * Fails when anything the browser receives contains a Jira credential (ANA-5 AC9 / DRS R2G gate 3) or the Instagram
  * worker key, its variable names, a Bearer header or the worker's internal path (ANA-38 AC9 / DRS R2G gate 4), or the
- * ANA Brain dashboard token, its variable name or any Brain token shape (ANA-35 AC13).
+ * ANA Brain dashboard token, its variable name or any Brain token shape (ANA-35 AC13), or anything of the World
+ * analyst: its variable names, provider keys and provider hosts (ANAK-3 R2G).
  *
  * Scans the client bundle (.next/static) and the prerendered pages Next.js serves (.next/server/app/*.html|.rsc|.body).
  * Server-only chunks are not scanned: they legitimately reference process.env.JIRA_API_TOKEN by name.
@@ -17,6 +18,10 @@ const build = process.argv[2] ?? ".next";
 const token = process.env.JIRA_API_TOKEN?.trim();
 const socialKey = process.env.SOCIAL_IG_INTERNAL_READ_KEY?.trim();
 const brainToken = process.env.BRAIN_API_TOKEN?.trim();
+const analystKeys = ["WORLD_ANALYST_ANTHROPIC_API_KEY", "WORLD_ANALYST_OPENAI_API_KEY", "WORLD_ANALYST_OPENROUTER_API_KEY"].flatMap((name) => {
+  const value = process.env[name]?.trim();
+  return value && value.length >= 8 ? [{ name, value }] : [];
+});
 
 const rules = [
   { name: "JIRA_API_TOKEN variable name", test: (text) => count(text, /JIRA_API_TOKEN/g) },
@@ -38,6 +43,13 @@ const rules = [
   // dashboard tokens (anad_) and personal access keys (anab_) as the Brain issues them
   { name: "ANA Brain token shape", test: (text) => count(text, /ana[bd]_[A-Za-z0-9_-]{32,}/g) },
   ...(brainToken && brainToken.length >= 8 ? [{ name: "configured BRAIN_API_TOKEN value", test: (text) => text.split(brainToken).length - 1 }] : []),
+  { name: "WORLD_ANALYST_* variable name", test: (text) => count(text, /WORLD_ANALYST_[A-Z_]+/g) },
+  // OpenAI (sk-…, sk-proj-…) and OpenRouter (sk-or-…) keys
+  { name: "provider API key shape", test: (text) => count(text, /\bsk-[A-Za-z0-9_-]{20,}/g) },
+  { name: "OpenAI API endpoint", test: (text) => count(text, /api\.openai\.com/g) },
+  { name: "OpenRouter API endpoint", test: (text) => count(text, /openrouter\.ai/g) },
+  { name: "e2e fake analyst key", test: (text) => count(text, /e2e-fake-analyst-key/g) },
+  ...analystKeys.map(({ name, value }) => ({ name: `configured ${name} value`, test: (text) => text.split(value).length - 1 })),
 ];
 
 function count(text, re) {

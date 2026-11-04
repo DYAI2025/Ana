@@ -425,7 +425,7 @@ test.describe("ANA World — 3D view over real dashboard data", () => {
     await page.keyboard.press("Escape");
     await expect(office).toHaveAttribute("data-spot", "room");
     await expect(page.getByTestId("office-drawer")).toHaveCount(0);
-    // the computer says honestly that it comes later
+    // the computer holds the analyst (e2e/analyst.spec.ts)
     await page.getByTestId("office-spot-computer").click();
     await expect(page.getByTestId("office-computer")).toBeVisible();
     await page.getByTestId("office-back").click();

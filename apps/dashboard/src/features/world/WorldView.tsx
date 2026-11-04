@@ -1047,9 +1047,15 @@ export function WorldView() {
             {world && gl === "ok" ? <WhoBlock view={who} title={whoTitle} t={t} className={styles.who ?? ""} testId="world-who" /> : null}
             {gl === "loading" ? <p className={styles.stageNote}>{t("world.loading")}</p> : null}
             {gl === "unsupported" ? (
-              <p className={styles.stageNote} data-testid="world-no-webgl">
-                {t("world.noWebgl")}
-              </p>
+              <div className={styles.stageNote} data-testid="world-no-webgl">
+                <p>{t("world.noWebgl")}</p>
+                {world && ig ? (
+                  <button type="button" className={styles.officeOpen} onClick={() => setOffice(true)} data-testid="world-office-open-flat">
+                    <span aria-hidden="true">🏠 </span>
+                    {t("world.office.open")}
+                  </button>
+                ) : null}
+              </div>
             ) : null}
           </div>
         </div>

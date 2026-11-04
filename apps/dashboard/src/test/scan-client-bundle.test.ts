@@ -27,6 +27,16 @@ const BRAIN_SHAPE = `anad_${"Q".repeat(43)}`;
 const KEY_SHAPE = `anab_${"Z".repeat(43)}`;
 
 describe("scan-client-bundle", () => {
+  it.each(["WORLD_ANALYST_ANTHROPIC_API_KEY", "WORLD_ANALYST_OPENAI_API_KEY", "WORLD_ANALYST_OPENROUTER_API_KEY"])("fails on the configured value of %s without printing it, and only then", (name) => {
+    const value = "plain-looking-value-0001";
+    const dir = build(`const x=${JSON.stringify(value)};`);
+    expect(scan(dir).status).toBe(0);
+    const r = scan(dir, { [name]: value });
+    expect(r.status).toBe(1);
+    expect(r.out).toContain(`configured ${name} value`);
+    expect(r.out).not.toContain(value);
+  });
+
   it("passes a clean bundle and refuses an empty build", () => {
     expect(scan(build("")).status).toBe(0);
     expect(scan(build(null)).status).toBe(2);
@@ -46,6 +56,14 @@ describe("scan-client-bundle", () => {
     ["ANTHROPIC_API_KEY variable name", "process.env.ANTHROPIC_API_KEY"],
     ["Anthropic API key shape", "sk-ant-" + "x".repeat(40)],
     ["Anthropic API endpoint", "https://api.anthropic.com/v1/messages"],
+    // ANAK-3: the analyst's names, keys and hosts stay on the server
+    ["WORLD_ANALYST_* variable name", "process.env.WORLD_ANALYST_OPENAI_API_KEY"],
+    ["WORLD_ANALYST_* variable name", "WORLD_ANALYST_PROVIDER"],
+    ["provider API key shape", "sk-proj-" + "x".repeat(40)],
+    ["provider API key shape", "sk-or-v1-" + "x".repeat(40)],
+    ["OpenAI API endpoint", "https://api.openai.com/v1/chat/completions"],
+    ["OpenRouter API endpoint", "https://openrouter.ai/api/v1/chat/completions"],
+    ["e2e fake analyst key", "e2e-fake-analyst-key"],
   ])("fails on %s without printing the value", (rule, canary) => {
     const r = scan(build(`const x=${JSON.stringify(canary)};`));
     expect(r.status).toBe(1);
