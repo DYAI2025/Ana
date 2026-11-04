@@ -86,6 +86,8 @@ export interface WorldScene {
   /** lifts these posts' cards out of the orbit and shrinks the others; null = all as usual */
   highlight(postIds: readonly string[] | null): void;
   resize(): void;
+  /** stops drawing while another 3D view (Ana's office) covers the world; the loop stays alive and cheap */
+  pause(paused: boolean): void;
   dispose(): void;
 }
 
@@ -1036,9 +1038,10 @@ export function createWorldScene(
     if (l.el instanceof HTMLButtonElement) l.el.tabIndex = -1;
   }
 
+  let paused = false;
   function frame() {
     raf = requestAnimationFrame(frame);
-    if (document.hidden) return;
+    if (document.hidden || paused) return;
     const dt = Math.min(0.05, clock.getDelta());
     T += dt;
     const mo = reduced ? 0 : 1;
@@ -1361,6 +1364,12 @@ export function createWorldScene(
     focus,
     highlight,
     resize,
+    pause(p) {
+      paused = p;
+      canvas.dataset.paused = p ? "true" : "false";
+      // the clock must not count the paused time as one long frame
+      if (!p) clock.getDelta();
+    },
     dispose() {
       cancelAnimationFrame(raf);
       canvas.removeEventListener("pointerdown", onDown);

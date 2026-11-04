@@ -393,6 +393,8 @@ test.describe("ANA World — 3D view over real dashboard data", () => {
     await page.locator('[data-testid="office-canvas"][data-ready="true"]').waitFor({ timeout: 20_000 });
     await expect(office).toHaveAttribute("data-spot", "room");
     for (const s of ["board", "computer", "lamp"]) await expect(page.getByTestId(`office-spot-${s}`)).toBeVisible();
+    // only one 3D view draws: the world rests behind the office
+    await expect(page.getByTestId("world-canvas")).toHaveAttribute("data-paused", "true");
     // the lamp switches
     await expect(page.getByTestId("office-canvas")).toHaveAttribute("data-lamp", "on");
     await page.getByTestId("office-spot-lamp").click();
@@ -401,6 +403,7 @@ test.describe("ANA World — 3D view over real dashboard data", () => {
     // the board opens the topics: eleven from the test run; the e2e server has no model, so none counts as tested
     await page.getByTestId("office-spot-board").click();
     await expect(office).toHaveAttribute("data-spot", "board");
+    await expect(page.locator("#office-drawer-title")).toBeFocused();
     await expect(page.getByTestId("office-canvas")).toHaveAttribute("data-spot", "board");
     const board = page.getByTestId("office-board");
     await expect(board).toBeVisible();
@@ -434,6 +437,7 @@ test.describe("ANA World — 3D view over real dashboard data", () => {
     // Escape in the room leads back to the world
     await page.keyboard.press("Escape");
     await expect(office).toHaveCount(0);
+    await expect(page.getByTestId("world-canvas")).toHaveAttribute("data-paused", "false");
     // Ana's panel has the door too; leaving with the button gives focus back to it
     await page.locator(".world-label.person", { hasText: /^Ana/ }).click();
     await page.getByTestId("office-open").click();

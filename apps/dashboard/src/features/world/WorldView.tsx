@@ -195,6 +195,10 @@ export function WorldView() {
   // Ana's office: a 3D room entered through the hut at her place (or the button in her panel)
   const [office, setOffice] = useState(false);
   const closeOffice = useCallback(() => setOffice(false), []);
+  // only one 3D view draws at a time: the world rests while the office is open
+  useEffect(() => {
+    sceneRef.current?.pause(office);
+  }, [office]);
   // a category value picked in "What works", or the top posts, lit up in the orbit
   const [worksPick, setWorksPick] = useState<{ field: TagField; value: string } | "top" | "fresh" | null>(null);
   // what "What works" ranks by: engagement, or saves + shares (the closer hint for long reads, e.g. Substack)

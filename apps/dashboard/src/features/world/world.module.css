@@ -1469,6 +1469,11 @@ button.barLabel {
   display: block;
 }
 
+.officeCanvas[hidden],
+.officeSpots[hidden] {
+  display: none;
+}
+
 .officeSpots {
   position: absolute;
   inset: 0;
@@ -1540,6 +1545,7 @@ button.barLabel {
 }
 
 .officeDrawerHead h3 {
+  outline: none;
   margin: 0;
   font: 650 18px/1.2 var(--font);
 }

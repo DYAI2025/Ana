@@ -188,9 +188,14 @@ export function OfficeRoom({ world, posts, t, locale, onClose, onPost }: { world
     let disposed = false;
     let raf = 0;
     let ro: ResizeObserver | null = null;
+    // a room that does not load within 8 s gives way to the board, so the office is never an empty box
+    const slow = setTimeout(() => {
+      if (!disposed && !sceneRef.current) setGl("unsupported");
+    }, 8_000);
     import("./scene/officeRoom")
       .then((mod) => {
-        if (disposed) return;
+        if (disposed || !canvas.isConnected) return;
+        clearTimeout(slow);
         const scene = mod.createRoomScene(canvas, { reducedMotion: reduced, ana: PEOPLE.ana.avatar, onPick: use, onHover: setHover });
         sceneRef.current = scene;
         ro = new ResizeObserver(() => scene.resize());
@@ -215,6 +220,7 @@ export function OfficeRoom({ world, posts, t, locale, onClose, onPost }: { world
       });
     return () => {
       disposed = true;
+      clearTimeout(slow);
       cancelAnimationFrame(raf);
       ro?.disconnect();
       sceneRef.current?.dispose();
@@ -225,6 +231,10 @@ export function OfficeRoom({ world, posts, t, locale, onClose, onPost }: { world
   useEffect(() => {
     if (gl === "ok") sceneRef.current?.setBoard(dots);
   }, [gl, dots]);
+  // opening the board or the computer takes keyboard focus into its drawer
+  useEffect(() => {
+    if (spot === "board" || spot === "computer") document.getElementById("office-drawer-title")?.focus();
+  }, [spot]);
   useEffect(() => {
     sceneRef.current?.setLamp(lamp);
   }, [lamp, gl]);
@@ -272,7 +282,7 @@ export function OfficeRoom({ world, posts, t, locale, onClose, onPost }: { world
           {shown === "board" || shown === "computer" ? (
             <aside className={styles.officeDrawer} aria-labelledby="office-drawer-title" data-testid="office-drawer">
               <div className={styles.officeDrawerHead}>
-                <h3 id="office-drawer-title">
+                <h3 id="office-drawer-title" tabIndex={-1}>
                   <span aria-hidden="true">{SPOT_ICON[shown]} </span>
                   {t(`world.office.spots.${shown}`)}
                 </h3>
