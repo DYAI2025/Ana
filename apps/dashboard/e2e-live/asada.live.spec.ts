@@ -156,7 +156,9 @@ test.afterAll(() => {
 });
 
 test("P01 · without an Access session the origin is not served; with it the dashboard answers", async ({ page }) => {
-  const anonymous = await playwrightRequest.newContext({ baseURL: BASE });
+  // inside the test runner a new request context inherits `use.storageState` (the Access session) from the config;
+  // an explicitly empty storage state keeps this request anonymous
+  const anonymous = await playwrightRequest.newContext({ baseURL: BASE, storageState: { cookies: [], origins: [] } });
   const anon = await anonymous.get("/", { maxRedirects: 0 });
   const location = anon.headers()["location"] ?? "";
   result.anonymous = { status: anon.status(), location: location.replace(/\?.*$/, "") };
