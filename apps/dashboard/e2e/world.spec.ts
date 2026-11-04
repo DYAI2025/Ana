@@ -416,6 +416,18 @@ test.describe("ANA World — 3D view over real dashboard data", () => {
     await expect(office).toHaveCount(0);
     await page.getByTestId("office-open").click();
     await expect(page.getByTestId("office")).toBeVisible();
+    // Tab stays in the room: back from the first control lands on the last one inside it, even from the page body
+    await expect(page.getByTestId("office-close")).toBeFocused();
+    await page.keyboard.press("Shift+Tab");
+    expect(await page.evaluate(() => document.querySelector("[data-testid='office']")?.contains(document.activeElement))).toBe(true);
+    await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
+    await page.keyboard.press("Tab");
+    await expect(page.getByTestId("office-close")).toBeFocused();
+    // closing gives focus back to the button that opened the room
+    await page.keyboard.press("Escape");
+    await expect(page.getByTestId("office-open")).toBeFocused();
+    await page.getByTestId("office-open").click();
+    await expect(page.getByTestId("office")).toBeVisible();
     await page.getByTestId("office-backdrop").click({ position: { x: 4, y: 4 } });
     await expect(page.getByTestId("office")).toHaveCount(0);
   });

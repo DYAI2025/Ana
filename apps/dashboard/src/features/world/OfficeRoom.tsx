@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import type { useI18n } from "@/components/providers/I18nProvider";
 import type { WorldPost } from "./model";
@@ -90,14 +90,37 @@ export function OfficeRoom({ world, posts, t, locale, onClose, onPost }: { world
   const asOf = useMemo(() => new Intl.DateTimeFormat(locale, { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" }).format(new Date(`${OFFICE_AS_OF}T12:00:00Z`)), [locale]);
   const byId = useMemo(() => new Map(posts.map((p) => [p.id, p])), [posts]);
 
-  // focus moves into the room and back to where it came from (or to the office button when that is gone);
-  // Escape closes, but not while another overlay outside the room has focus
+  // focus moves into the room and back to where it came from (or to the office button when that is gone).
+  // Escape closes and Tab stays inside the room, wherever focus happens to be (also when it fell to the page body);
+  // only another dialog on top keeps its own keys
   useEffect(() => {
     const before = document.activeElement as HTMLElement | null;
     closeRef.current?.focus();
     const onKey = (e: KeyboardEvent) => {
+      const room = dialogRef.current;
+      if (!room) return;
       const at = document.activeElement;
-      if (e.key === "Escape" && (!at || at === document.body || dialogRef.current?.contains(at))) onClose();
+      const otherDialog = at instanceof Element && !room.contains(at) && at.closest("[role='dialog']") !== null;
+      if (otherDialog) return;
+      if (e.key === "Escape") {
+        onClose();
+        return;
+      }
+      if (e.key !== "Tab") return;
+      const items = [...room.querySelectorAll<HTMLElement>("button, a[href], summary, [tabindex='0']")].filter((el) => el.getClientRects().length > 0);
+      const first = items[0];
+      const last = items[items.length - 1];
+      if (!first || !last) return;
+      if (!at || !room.contains(at)) {
+        e.preventDefault();
+        (e.shiftKey ? last : first).focus();
+      } else if (e.shiftKey && at === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && at === last) {
+        e.preventDefault();
+        first.focus();
+      }
     };
     document.addEventListener("keydown", onKey);
     return () => {
@@ -106,26 +129,6 @@ export function OfficeRoom({ world, posts, t, locale, onClose, onPost }: { world
       target?.focus?.();
     };
   }, [onClose]);
-
-  // Tab stays inside the room
-  const trap = (e: ReactKeyboardEvent) => {
-    if (e.key !== "Tab" || !dialogRef.current) return;
-    const items = [...dialogRef.current.querySelectorAll<HTMLElement>("button, a[href], summary, [tabindex='0']")].filter((el) => el.offsetParent !== null);
-    const first = items[0];
-    const last = items[items.length - 1];
-    if (!first || !last) return;
-    const at = document.activeElement;
-    if (!at || !dialogRef.current.contains(at)) {
-      e.preventDefault();
-      first.focus();
-    } else if (e.shiftKey && at === first) {
-      e.preventDefault();
-      last.focus();
-    } else if (!e.shiftKey && at === last) {
-      e.preventDefault();
-      first.focus();
-    }
-  };
 
   const pick = (id: string) => {
     setPicked(id);
@@ -141,11 +144,13 @@ export function OfficeRoom({ world, posts, t, locale, onClose, onPost }: { world
           ? t("world.office.anaNoBase", { n: p.ana.n })
           : t("world.office.anaFew", { n: p.ana.n, min: OFFICE_MIN_N });
   // the posts actually in the Instagram snapshot (the live pulse adds a few without numbers, never read for topics)
-  const total = world.instagram.ok ? world.instagram.snapshot.posts.length : posts.length;
+  const snapshot = world.instagram.ok ? world.instagram.snapshot.posts.map((x) => x.media_id) : null;
+  const total = snapshot ? snapshot.length : posts.length;
+  const read = snapshot ? snapshot.filter((id) => Object.hasOwn(world.post_topics.topics, id)).length : view.read;
 
   const room = (
     <div className={styles.officeBackdrop} onMouseDown={(e) => e.target === e.currentTarget && onClose()} data-testid="office-backdrop">
-      <div ref={dialogRef} className={styles.office} role="dialog" aria-modal="true" aria-labelledby="office-title" onKeyDown={trap} data-testid="office">
+      <div ref={dialogRef} className={styles.office} role="dialog" aria-modal="true" aria-labelledby="office-title" data-testid="office">
         <header className={styles.officeHead}>
           <div>
             <h2 id="office-title">
@@ -160,7 +165,7 @@ export function OfficeRoom({ world, posts, t, locale, onClose, onPost }: { world
         </header>
         <p className={styles.officeLead}>{t("world.office.lead")}</p>
         <p className={styles.muted} data-testid="office-asof">
-          {reader ? t("world.office.asOf", { source: OFFICE_SOURCE, date: asOf, read: Math.min(view.read, total), total }) : t("world.office.readerOff")}
+          {reader ? t("world.office.asOf", { source: OFFICE_SOURCE, date: asOf, read, total }) : t("world.office.readerOff")}
           {reader && world.post_topics.failing > 0 ? ` ${t("world.office.failing", { n: world.post_topics.failing })}` : ""}
         </p>
         <div className={styles.officeBody}>
