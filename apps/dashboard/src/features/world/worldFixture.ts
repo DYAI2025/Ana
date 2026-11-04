@@ -48,8 +48,20 @@ export function world(): WorldPayload {
     post_tags: { state: "on", tags: { p1: tag("beach"), p2: tag("beach", true), p3: tag("beach"), p4: tag("food", true), p5: tag("food", false, 0.2) } },
     post_topics: { state: "on", version: "t", topics: { p1: ["solo-lessons"], p2: ["solo-lessons"], p3: [] }, failing: 0 },
     newsletters: {
-      state: "on", read_at: "2026-11-03T08:00:00.000Z", feeds: 8, feeds_ok: 7, posts: 40, read: 38, failing: 2,
-      topics: { "ugc-gigs": [{ feed: "travel-creator-gigs", title: "A brand is hiring travel creators", url: "https://travelcreatorgigs.substack.com/p/a-brand", date: "2026-11-02" }, { feed: "life-unscripted", title: "Hotel shoot callout", url: "https://millieameliacreates.substack.com/p/hotel", date: "2026-11-01" }] },
+      state: "on", read_at: "2026-11-03T08:00:00.000Z", feeds: 6, feeds_read: 6, feeds_failing: 0, since: "2026-10-30",
+      posts: 40, checked: 40, failing: 0, unreadable: 0, complete: true,
+      check: { core: { checked: 34, matched: 17 }, control: { checked: 6, matched: 1 } },
+      topics: {
+        "ugc-gigs": {
+          posts: 12,
+          feeds: ["travel-creator-gigs", "life-unscripted"],
+          hits: [
+            { feed: "travel-creator-gigs", title: "A brand is hiring travel creators", url: "https://travelcreatorgigs.substack.com/p/a-brand", date: "2026-11-02" },
+            { feed: "life-unscripted", title: "Hotel shoot callout", url: "https://millieameliacreates.substack.com/p/hotel", date: "2026-11-01" },
+          ],
+        },
+      },
+      store_error: false,
     },
     brain: { state: "off", last_day: null, note: null, reason: null },
     brief: { state: "off", busy: false, latest: null, weekly: null, in_brain: false, brain: false, reason: null },

@@ -4,10 +4,10 @@
  * crawling or scraping the site; a feed is published for feed readers.
  *
  * Picked once from Substack's Travel leaderboards of 2026-11-04 ("Rising" = fastest-growing paid subscriptions,
- * "Bestseller" = highest paid revenue): six whose recent posts speak to Ana's topics, and two broad travel newsletters
- * as a check: if those match Ana's topics as often as the others, the matching sees her topics everywhere and is not
- * worth much. A feed carries no likes or reads, so a hit says "a paid newsletter writes about this", never "this post
- * did well".
+ * "Bestseller" = highest paid revenue): six whose recent posts speak to Ana's topics (core), and two broad travel
+ * newsletters as a check (control): if those touch Ana's topics as often as the core ones, the matching sees her topics
+ * everywhere and is not worth much. Topic counts use the core newsletters only. A feed carries no likes or reads, so a
+ * hit says "a paid newsletter writes about this", never "this post did well".
  */
 
 export interface NewsletterFeed {
@@ -34,7 +34,7 @@ export const NEWSLETTER_FEEDS: readonly NewsletterFeed[] = [
 
 /** the day the list was picked from the leaderboards */
 export const NEWSLETTERS_PICKED = "2026-11-04";
-/** posts older than this are not counted */
+/** the window: today and the 29 days before it (UTC days) */
 export const NEWSLETTER_DAYS = 30;
 
 export interface NewsletterHit {
@@ -46,30 +46,57 @@ export interface NewsletterHit {
   date: string;
 }
 
-export interface WorldNewsletters {
-  state: "on" | "off";
-  /** when the last feed was read */
-  read_at: string | null;
-  /** feeds in the list and feeds whose last read worked */
-  feeds: number;
-  feeds_ok: number;
-  /** posts of the last NEWSLETTER_DAYS days, and how many of them the model has matched to topics */
+/** One topic over the core newsletters: counted over every post in the window; `hits` is only the newest few. */
+export interface NewsletterTopic {
   posts: number;
-  read: number;
-  /** posts per office topic, newest first */
-  topics: Record<string, NewsletterHit[]>;
-  /** posts whose matching failed and that wait for their retry */
-  failing: number;
+  /** ids of the core newsletters that wrote about it */
+  feeds: string[];
+  hits: NewsletterHit[];
 }
 
-export const NEWSLETTERS_OFF: WorldNewsletters = { state: "off", read_at: null, feeds: NEWSLETTER_FEEDS.length, feeds_ok: 0, posts: 0, read: 0, topics: {}, failing: 0 };
+export interface WorldNewsletters {
+  state: "on" | "off";
+  /** the last successful read of any feed (ISO) */
+  read_at: string | null;
+  /** core newsletters in the list, and those read at least once (the denominator of every topic count) */
+  feeds: number;
+  feeds_read: number;
+  /** feeds (core or control) whose latest read failed */
+  feeds_failing: number;
+  /** the counts cover the posts from this day on (YYYY-MM-DD); null = the whole window */
+  since: string | null;
+  /** posts in the window (all feeds), checked by the model, waiting for a retry, given up after repeated failures */
+  posts: number;
+  checked: number;
+  failing: number;
+  unreadable: number;
+  /** every post in the window is checked and no core feed is failing: only then may a topic say "none wrote about it" */
+  complete: boolean;
+  /** the check: checked posts and those with at least one topic, core against control */
+  check: { core: { checked: number; matched: number }; control: { checked: number; matched: number } };
+  /** per office topic (core newsletters only) */
+  topics: Record<string, NewsletterTopic>;
+  /** the stored readings could not be loaded: nothing is read until that is fixed */
+  store_error: boolean;
+}
+
+export const NEWSLETTERS_OFF: WorldNewsletters = {
+  state: "off",
+  read_at: null,
+  feeds: NEWSLETTER_FEEDS.filter((f) => f.role === "core").length,
+  feeds_read: 0,
+  feeds_failing: 0,
+  since: null,
+  posts: 0,
+  checked: 0,
+  failing: 0,
+  unreadable: 0,
+  complete: false,
+  check: { core: { checked: 0, matched: 0 }, control: { checked: 0, matched: 0 } },
+  topics: {},
+  store_error: false,
+};
 
 export function feedName(id: string): string {
   return NEWSLETTER_FEEDS.find((f) => f.id === id)?.name ?? id;
-}
-
-/** How many posts and which newsletters (names, in first-seen order) wrote about one topic. */
-export function newsletterSummary(hits: readonly NewsletterHit[] | undefined): { posts: number; names: string[] } {
-  const list = hits ?? [];
-  return { posts: list.length, names: [...new Set(list.map((h) => feedName(h.feed)))] };
 }
