@@ -248,11 +248,10 @@ export function parseAnswer(raw: string, catalog: FactCatalog, brainItems: Reado
 
   const hypotheses = through(items(o, "hypotheses"), MAX_HYPOTHESES, (x) => {
     const text = typeof x.text === "string" ? checkableText(x.text) : null;
-    const refs: unknown[] = Array.isArray(x.refs) ? x.refs : [];
+    const refs = (Array.isArray(x.refs) ? x.refs : []) as string[];
     if (!text || text.length > MAX_HYPOTHESIS_CHARS || refs.length === 0) return null;
     if (LINK.test(text) || HANDLE.test(text) || OUT_OF_SCOPE.test(text)) return null;
     if (NOT_IN_THESE_FACTS.test(text) || MORE_NUMBER_WORDS.test(text)) return null;
-    if (!refs.every((r): r is string => typeof r === "string")) return null;
     const pool: Fact[] = [];
     const resolved: HypothesisRef[] = [];
     let probe = text;

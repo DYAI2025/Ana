@@ -162,12 +162,15 @@ describe("configuration", () => {
   });
 
   it("never takes the tagger's ANTHROPIC_API_KEY", () => {
-    expect(analystConfigFromEnv({ WORLD_ANALYST_PROVIDER: "anthropic", ANTHROPIC_API_KEY: "tagger-key-000000000" }).state).toBe("misconfigured");
+    expect(analystConfigFromEnv({ WORLD_ANALYST_PROVIDER: "anthropic", WORLD_ANALYST_MODEL: "m", ANTHROPIC_API_KEY: "tagger-key-000000000" }).state).toBe("misconfigured");
   });
 
   it.each(PROVIDERS)("%s without a model is misconfigured: no provider picks one silently", (provider) => {
-    expect(analystConfigFromEnv({ ...env, WORLD_ANALYST_PROVIDER: provider, WORLD_ANALYST_MODEL: "  " }).state).toBe("misconfigured");
-    expect(analystConfigFromEnv({ ...env, WORLD_ANALYST_PROVIDER: provider }).state).toBe("misconfigured");
+    // the key is there: the model is what is missing
+    const keyed = { ...env, WORLD_ANALYST_OPENROUTER_API_KEY: KEYS.openrouter, WORLD_ANALYST_PROVIDER: provider };
+    expect(analystConfigFromEnv({ ...keyed, WORLD_ANALYST_MODEL: "m" }).state).toBe("on");
+    expect(analystConfigFromEnv({ ...keyed, WORLD_ANALYST_MODEL: "  " }).state).toBe("misconfigured");
+    expect(analystConfigFromEnv(keyed).state).toBe("misconfigured");
   });
 
   it("the test base URL counts only under the e2e control and on loopback", async () => {
