@@ -136,19 +136,36 @@ export function renderPrompt(question: string, catalog: FactCatalog, brain: read
   return { system: SYSTEM_PROMPT, user: parts.join("\n") };
 }
 
-const LINK = /https?:\/\/|www\.|(?<![\p{L}\p{N}])[\p{L}\p{N}-]+\.(?:com|net|org|io|ai|de|it|co|app|dev|invalid)(?![\p{L}\p{N}])/iu;
+/** any scheme, www, or labels joined by dots ending in letters; "z.B." and "5.2 %" are not. By shape, not by a list of endings. */
+const LINK = /\p{L}[\p{L}\p{N}+.-]*:\/\/|www[.。]|(?<![\p{L}\p{N}])[\p{L}\p{N}-]+(?:[.。][\p{L}\p{N}-]+)*[.。]\p{L}{2,}(?![\p{L}\p{N}])/iu;
 const HANDLE = /(?<![\p{L}\p{N}])@[\p{L}\p{N}_.]/u;
 /** named words of what this slice leaves out: audience and H1/H4 inference, engagement read as money. A list, not a proof. */
 const OUT_OF_SCOPE =
-  /(?<![\p{L}\p{N}])(?:H[1-4]|Opportunity Drop|Working File|Zielgruppe\p{L}*|Publikum\p{L}*|Altersgruppe\p{L}*|Kaufkraft|audience\p{L}*|target group\p{L}*|demographic\p{L}*|pubblico|destinatari|fascia d'età|Umsatz\p{L}*|Absatz\p{L}*|Einnahmen|Verkäufe\p{L}*|revenue|sales|ricavi|vendite)(?![\p{L}\p{N}])/iu;
+  /(?<![\p{L}\p{N}])(?:H[1-4]|Opportunity Drop|Working File|audience\p{L}*|target group\p{L}*|demographic\p{L}*|pubblico|destinatari|fascia d'età|revenue|sales|ricavi|vendite)(?![\p{L}\p{N}])|\p{L}*(?:zielgruppe|publikum|altersgruppe|kaufkraft|umsatz|absatz|einnahmen|verkäufe)\p{L}*/iu;
+/** the names numbersBacked lets pass are the brief's facts; the analyst's facts hold no tier and no such window */
+const NOT_IN_THESE_FACTS = /(?<![\p{L}\p{N}])(?:Tier ?[123]|(?:7|28|30)[ -](?:Tage|Tagen|days))(?![\p{L}\p{N}])/iu;
+/** quantities brief.ts's list does not hold: Italian (a supported language) and German compounds. "uno", "due", "sei" are ordinary words too. */
+const MORE_NUMBER_WORDS = /(?<!\p{L})(?:due volte|tre|quattro|cinque|sette|otto|nove|dieci|venti|trenta|quaranta|cinquanta|cento|mille|doppi[oa]|tripl[oa]|metà)(?!\p{L})|\p{L}+(?:hundert|tausend|zwanzig|dreißig|vierzig|fünfzig|sechzig|siebzig|achtzig|neunzig)\p{L}*/iu;
+/** Number signs outside the digits and invisible format characters have no place in a sentence and could hide a word. */
+const HIDDEN = /[\p{Nl}\p{No}\p{Cf}]/u;
+/** The panel's languages write in Latin script; a homoglyph or a numeral of another script cannot be checked against the facts. */
+const CHECKABLE_SCRIPT = /^[\p{Script=Latin}\p{Script=Common}\p{Script=Inherited}]*$/u;
+
+/** The text the checks and the screen see: compatibility forms folded, so a full-width link is a link; null when it cannot be checked at all. */
+function checkableText(raw: string): string | null {
+  if (HIDDEN.test(raw)) return null;
+  const text = raw.normalize("NFKC").replace(/\s+/g, " ").trim();
+  return CHECKABLE_SCRIPT.test(text) ? text : null;
+}
 
 const pct = (x: number | null, digits: number) => (x === null ? "" : `${(x * 100).toFixed(digits)} %`);
 
+/** One value per part: numbersBacked reads "20 200" as one number, so values must not stand next to each other with a space. */
 function postFactText(p: PostFact): string {
   const f = p.facts;
-  return `${p.day} ${f.reach ?? ""} ${f.views ?? ""} ${f.saves ?? ""} ${f.shares ?? ""} ${f.total_interactions ?? ""} ${pct(f.er, 1)} ${pct(f.er, 2)} ${pct(f.ssr, 1)} ${pct(f.ssr, 2)}`;
+  return [f.reach, f.views, f.saves, f.shares, f.total_interactions, pct(f.er, 1), pct(f.er, 2), pct(f.ssr, 1), pct(f.ssr, 2)].map((v) => v ?? "").join(" | ");
 }
-const groupFactText = (g: GroupFact) => `${pct(g.median, 1)} ${pct(g.median, 2)} n ${g.n}`;
+const groupFactText = (g: GroupFact) => `${pct(g.median, 1)} | ${pct(g.median, 2)} | n ${g.n}`;
 
 export interface ParsedAnswer {
   ok: true;
@@ -191,38 +208,54 @@ export function parseAnswer(raw: string, catalog: FactCatalog, brainItems: Reado
     return out;
   };
   const cited = new Set<string>();
+  const taken = new Set<string>();
+  /** a repeat of something already taken is one more rejected item, not a second row */
+  const once = (key: string) => {
+    if (taken.has(key)) return false;
+    taken.add(key);
+    return true;
+  };
 
+  // Map.get with anything but the exact string finds nothing: a ref in an array or an object is no ref
   const measured = through(items(o, "measured"), MAX_MEASURED, (x) => {
-    const p = catalog.posts.get(String(x.ref));
+    const p = catalog.posts.get(x.ref as string);
     if (!p || !(ANALYST_METRICS as readonly unknown[]).includes(x.metric)) return null;
     const metric = x.metric as AnalystMetric;
+    if (!once(`m:${p.ref}:${metric}`)) return null;
     cited.add(p.media_id);
     return { media_id: p.media_id, day: p.day, format: p.format, metric, value: p.facts[metric] };
   });
 
   const categories = through(items(o, "categories"), MAX_CATEGORIES, (x) => {
-    const p = catalog.posts.get(String(x.ref));
+    const p = catalog.posts.get(x.ref as string);
     if (!p?.categories || !(ANALYST_FIELDS as readonly unknown[]).includes(x.field)) return null;
     const field = x.field as AnalystField;
+    if (!once(`c:${p.ref}:${field}`)) return null;
     cited.add(p.media_id);
     return { media_id: p.media_id, field, value: p.categories[field] };
   });
 
   const groups = through(items(o, "groups"), MAX_ANSWER_GROUPS, (x) => {
-    const g = catalog.groups.get(String(x.ref));
-    if (!g) return null;
+    const g = catalog.groups.get(x.ref as string);
+    if (!g || !once(`g:${g.ref}`)) return null;
     return { field: g.field, value: g.value, metric: g.metric, median: g.median, n: g.n, small: g.small };
   });
 
-  const brain = through(items(o, "brain"), brainItems.size, (x) => (brainItems.has(String(x.ref)) ? String(x.ref) : null));
+  const brain = through(items(o, "brain"), brainItems.size, (x) => {
+    const ref = x.ref as string;
+    return brainItems.has(ref) && once(`b:${ref}`) ? ref : null;
+  });
 
   const hypotheses = through(items(o, "hypotheses"), MAX_HYPOTHESES, (x) => {
-    const text = typeof x.text === "string" ? x.text.trim() : "";
-    const refs = Array.isArray(x.refs) ? x.refs.map(String) : [];
+    const text = typeof x.text === "string" ? checkableText(x.text) : null;
+    const refs: unknown[] = Array.isArray(x.refs) ? x.refs : [];
     if (!text || text.length > MAX_HYPOTHESIS_CHARS || refs.length === 0) return null;
     if (LINK.test(text) || HANDLE.test(text) || OUT_OF_SCOPE.test(text)) return null;
+    if (NOT_IN_THESE_FACTS.test(text) || MORE_NUMBER_WORDS.test(text)) return null;
+    if (!refs.every((r): r is string => typeof r === "string")) return null;
     const pool: Fact[] = [];
     const resolved: HypothesisRef[] = [];
+    let probe = text;
     for (const ref of refs) {
       const p = catalog.posts.get(ref);
       const g = catalog.groups.get(ref);
@@ -230,15 +263,17 @@ export function parseAnswer(raw: string, catalog: FactCatalog, brainItems: Reado
       if (p) {
         pool.push({ id: ref, kind: "content", text: postFactText(p) });
         resolved.push({ type: "post", media_id: p.media_id });
+        // its day may be named as a day; its parts are no figures
+        probe = probe.split(p.day).join(" ");
       } else if (g) {
         pool.push({ id: ref, kind: "content", text: groupFactText(g) });
-        resolved.push({ type: "group", field: g.field, value: g.value, metric: g.metric });
+        resolved.push({ type: "group", field: g.field, value: g.value, metric: g.metric, n: g.n, small: g.small });
       } else if (b) {
         pool.push({ id: ref, kind: "content", text: b.text });
         resolved.push({ type: "brain", note_id: b.note_id });
       } else return null;
     }
-    if (!numbersBacked(text, pool)) return null;
+    if (!numbersBacked(probe, pool) || !once(`h:${text}`)) return null;
     for (const r of resolved) if (r.type === "post") cited.add(r.media_id);
     return { text, refs: resolved };
   });

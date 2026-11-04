@@ -6,6 +6,9 @@ import { mkdirSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import AxeBuilder from "@axe-core/playwright";
 import type { Page } from "@playwright/test";
+import { worldDe } from "../src/i18n/world/de";
+import { worldEn } from "../src/i18n/world/en";
+import { worldIt } from "../src/i18n/world/it";
 import { expect, FAKE_BRAIN, FAKE_SOCIAL, test } from "./fixtures";
 
 const STATE_DIR = "test-results/.world-state";
@@ -19,6 +22,8 @@ interface Obs {
 }
 interface SnapshotPost {
   media_id: string;
+  published_at: string | null;
+  insights_state: string;
   caption: string | null;
   permalink: string | null;
   thumbnail_url: string | null;
@@ -28,6 +33,7 @@ interface SnapshotPost {
 interface Snapshot {
   handle: string;
   account_id: string;
+  observed_at: string;
   posts: SnapshotPost[];
   account: Obs[];
 }
@@ -68,6 +74,18 @@ function allowRefusals(consoleErrors: string[]) {
   for (let i = consoleErrors.length - 1; i >= 0; i--) if (/Failed to load resource: the server responded with a status of (422|429|502)\b/.test(consoleErrors[i] as string)) consoleErrors.splice(i, 1);
 }
 
+/** what the visible text must say, formatted here in the page's own language, independent of the panel's code */
+async function shown(page: Page) {
+  const lang = await page.evaluate(() => document.documentElement.lang);
+  const number = new Intl.NumberFormat(lang);
+  const percent = new Intl.NumberFormat(lang, { style: "percent", minimumFractionDigits: 1, maximumFractionDigits: 2 });
+  return {
+    value: (metric: string, v: number) => (metric === "er" || metric === "ssr" ? percent.format(v) : number.format(v)),
+    rate: (v: number) => percent.format(v),
+    time: (iso: string) => new Intl.DateTimeFormat(lang, { dateStyle: "medium", timeStyle: "short", timeZone: "UTC" }).format(new Date(iso)),
+  };
+}
+
 const brainCalls = async (page: Page) => ((await (await page.request.get(`${FAKE_BRAIN}/__fake/search-calls`)).json()) as { calls: Array<{ name: string; args: Record<string, unknown> }> }).calls;
 
 test.describe("ANAK-3 · World analyst", () => {
@@ -85,13 +103,16 @@ test.describe("ANAK-3 · World analyst", () => {
     const snap = await snapshot(page);
     // two confident records and one below the confidence floor, for posts that carry a value
     const rated = snap.posts.filter((p) => measured(p, "reach") && measured(p, "total_interactions") !== null);
-    const tags = Object.fromEntries(rated.map((p, i) => [p.media_id, { theme: "beach", ana: "face", shot: "selfie", hook: "tip", cta: "none", mood: "calm", country: "KE", brand: true, confidence: i === 0 ? 0.3 : 0.91, model: "m", at: "2026-01-01T00:00:00Z" }]));
+    // a different theme per post, so a category from the wrong post shows; "beach" twice gives the groups something to rank
+    const THEMES = ["beach", "beach", "city", "food", "nature", "culture", "stay"];
+    const tags = Object.fromEntries(rated.map((p, i) => [p.media_id, { theme: THEMES[i % THEMES.length] as string, ana: "face", shot: "selfie", hook: "tip", cta: "none", mood: "calm", country: "KE", brand: true, confidence: i === 0 ? 0.3 : 0.91, model: "m", at: "2026-01-01T00:00:00Z" }]));
     mkdirSync(STATE_DIR, { recursive: true });
     writeFileSync(TAGS, JSON.stringify({ version: 1, tags }));
 
     await openComputer(page);
     await ask(page);
 
+    const see = await shown(page);
     const rows = page.getByTestId("analyst-measured").locator("li");
     await expect(rows).toHaveCount(2);
     for (const row of await rows.all()) {
@@ -102,6 +123,8 @@ test.describe("ANAK-3 · World analyst", () => {
       // computed here from the worker's own observations, independent of the analyst's code
       const expected = metric === "er" ? (measured(post, "total_interactions") as number) / (measured(post, "reach") as number) : measured(post, metric);
       expect(value).toBeCloseTo(expected as number, 5);
+      // the number a person reads, not only the attribute
+      await expect(row.locator("strong")).toHaveText(see.value(metric, expected as number));
     }
 
     const categories = page.getByTestId("analyst-categories").locator("li");
@@ -110,13 +133,31 @@ test.describe("ANAK-3 · World analyst", () => {
     expect(tagged).not.toBe(rated[0]?.media_id);
     expect(tags[tagged]?.confidence).toBeGreaterThanOrEqual(0.5);
     await expect(categories.first()).toHaveAttribute("data-value", tags[tagged]?.theme as string);
+    const lang = await page.evaluate(() => document.documentElement.lang);
+    const words = { de: worldDe, en: worldEn, it: worldIt }[lang as "de" | "en" | "it"];
+    await expect(categories.first().locator("strong")).toHaveText(words.works.values.theme[tags[tagged]?.theme as keyof typeof words.works.values.theme]);
+
+    // group size on screen
+    const group = page.getByTestId("analyst-groups").locator("li").first();
+    await expect(group).toContainText(`(n ${await group.getAttribute("data-n")})`);
+    await expect(group).toContainText(see.rate(Number(await group.getAttribute("data-median"))));
 
     await expect(page.getByTestId("analyst-hypotheses")).toContainText("Könnte am Format liegen.");
     const status = page.getByTestId("analyst-status");
     await expect(status).toHaveAttribute("data-stale", "false");
     await expect(status).toHaveAttribute("data-categories", "ok");
-    await expect(page.getByTestId("analyst-fetched")).toContainText(/\d/);
-    await expect(page.getByTestId("analyst-window")).toContainText(String(snap.posts.length));
+    await expect(page.getByTestId("analyst-fetched")).toContainText(see.time(snap.observed_at));
+    // the window, worked out here: eligible posts, newest first, at most 40
+    const eligible = snap.posts
+      .filter((p) => (p.insights_state === "ok" || p.insights_state === "partial") && p.published_at)
+      .map((p) => (p.published_at as string).slice(0, 10))
+      .sort()
+      .slice(-40);
+    const windowText = page.getByTestId("analyst-window");
+    await expect(windowText).toContainText(String(snap.posts.length));
+    await expect(windowText).toContainText(String(eligible.length));
+    await expect(windowText).toContainText(eligible[0] as string);
+    await expect(windowText).toContainText(eligible[eligible.length - 1] as string);
     expect(await llm.requests()).toHaveLength(1);
   });
 
@@ -124,9 +165,20 @@ test.describe("ANAK-3 · World analyst", () => {
     await llm.mode("ok");
     await openComputer(page);
     await ask(page);
-    await page.getByTestId("analyst-measured").getByTestId("analyst-post").first().click();
+    const link = page.getByTestId("analyst-measured").getByTestId("analyst-post").first();
+    // the fake cites the highest-ER post, not the first in the list
+    const id = (await link.getAttribute("data-media")) as string;
+    const snap = await snapshot(page);
+    const cited = snap.posts.find((p) => p.media_id === id) as SnapshotPost;
+    expect(snap.posts[0]?.media_id).not.toBe(id);
+    await link.click();
     await expect(page.getByTestId("office")).toHaveCount(0);
     await expect(page.getByRole("tab", { selected: true })).toHaveAttribute("data-testid", "world-tab-selection");
+    const pane = page.getByTestId("world-post");
+    const views = measured(cited, "views");
+    const reach = measured(cited, "reach");
+    const see = await shown(page);
+    await expect(pane).toContainText(see.value("reach", (reach ?? views) as number));
   });
 
   test("AC-03/04 · what leaves for the model and what reaches the browser hold none of the excluded fields", async ({ page, llm }) => {
@@ -211,13 +263,20 @@ test.describe("ANAK-3 · World analyst", () => {
   });
 
   // the snapshot cache stays fresh for minutes here, so the server's own path to stale is proved in service.test.ts; this proves the panel
-  test("AC-05 · an answer from an old snapshot shows STALE and the old fetch time", async ({ page }) => {
+  test("AC-01/03/05 · an answer from an old snapshot: STALE and the old time, unmeasured is no 0, a small group says so, an unloaded post stays in the room", async ({ page }) => {
     await page.route("**/api/world/analyst", async (route) => {
       if (route.request().method() !== "POST") return route.fallback();
       return route.fulfill({
         json: {
           ok: true,
-          answer: { measured: [{ media_id: "m", day: "2026-01-02", format: "reel", metric: "reach", value: 100 }], categories: [], groups: [], brain: [], hypotheses: [], rejected: 0 },
+          answer: {
+            measured: [{ media_id: "m", day: "2026-01-02", format: "reel", metric: "reach", value: 100 }, { media_id: "m", day: "2026-01-02", format: "reel", metric: "saves", value: null }],
+            categories: [],
+            groups: [{ field: "theme", value: "beach", metric: "er", median: 0.2, n: 1, small: true }],
+            brain: [],
+            hypotheses: [{ text: "Könnte tragen.", refs: [{ type: "post", media_id: "m" }, { type: "group", field: "theme", value: "beach", metric: "er", n: 1, small: true }] }],
+            rejected: 0,
+          },
           status: { fetched_at: "2026-01-02T08:30:00Z", stale: true, categories: "none", window: { from: "2026-01-02", to: "2026-01-02", considered: 1, total: 1 }, brain: { state: "none", reason: null, withheld: 0 } },
         },
       });
@@ -225,8 +284,23 @@ test.describe("ANAK-3 · World analyst", () => {
     await openComputer(page);
     await ask(page);
     await expect(page.getByTestId("analyst-stale")).toContainText("STALE");
-    await expect(page.getByTestId("analyst-fetched")).toContainText("2026");
+    const see = await shown(page);
+    await expect(page.getByTestId("analyst-fetched")).toContainText(see.time("2026-01-02T08:30:00Z"));
     await expect(page.getByTestId("analyst-status")).toHaveAttribute("data-stale", "true");
+    const rows = page.getByTestId("analyst-measured").locator("li");
+    await expect(rows.nth(1)).toHaveAttribute("data-value", "null");
+    await expect(rows.nth(1).locator("strong")).not.toHaveText(/\d/);
+    // size and warning both where the group is listed and where a hypothesis rests on it
+    const small = page.getByTestId("analyst-groups").locator("li").first().locator("em");
+    await expect(small).toBeVisible();
+    const warning = (await small.textContent())?.trim() as string;
+    await expect(page.getByTestId("analyst-groups")).toContainText("(n 1)");
+    await expect(page.getByTestId("analyst-hypotheses")).toContainText("n 1");
+    await expect(page.getByTestId("analyst-hypotheses")).toContainText(warning);
+    // this post is not in what the page loaded: no way out of the room, no raw id
+    await expect(page.getByTestId("analyst-post")).toHaveCount(0);
+    await expect(page.getByTestId("analyst-post-unloaded").first()).not.toHaveText("m");
+    await expect(page.getByRole("button", { name: /^m$/ })).toHaveCount(0);
   });
 
   test("AC-05 · switched off or misconfigured the panel says so and offers nothing to send", async ({ page, llm }) => {
@@ -249,7 +323,7 @@ test.describe("ANAK-3 · World analyst", () => {
     expect(await llm.requests()).toHaveLength(0);
   });
 
-  test("AC-06 · a released note shows with its provenance; only search and get; the rest is a count", async ({ page, llm }) => {
+  test("AC-06 · a released note shows with its provenance; the rest is a count, the low-scoring and the foreign hit are never read", async ({ page, llm }) => {
     await openComputer(page);
     await ask(page, "Was weiß das Brain?");
     const note = page.getByTestId("analyst-brain").locator("article");
@@ -260,16 +334,24 @@ test.describe("ANAK-3 · World analyst", () => {
     await expect(note).toHaveAttribute("data-origin", "agent:lumen");
     await expect(note).toHaveAttribute("data-index-state", "not_proven");
     await expect(note).toContainText("Median aller Posts: ER 3.1 %");
+    // provenance a person can read, not only attributes
+    for (const visible of ["kn-world-pulse-2026-w01", "src-ana-world-pulse", "DERIVED", "agent:lumen"]) await expect(note).toContainText(visible);
+    await expect(note.locator("p")).toHaveCount(3);
+    await expect(page.getByTestId("analyst-hypotheses")).toContainText("Passt zum Puls.");
+    await expect(page.getByTestId("analyst-hypotheses")).toContainText("kn-world-pulse-2026-w01");
+    await expect(page.getByTestId("analyst-brain-state")).toContainText("Brain");
     await expect(note).not.toContainText("GEOGRAPHY-CANARY");
     await expect(page.getByTestId("analyst-status")).toHaveAttribute("data-withheld", "1");
     await expect(page.getByTestId("analyst-withheld")).toBeVisible();
 
+    // "only search and get" is proved through the route with a recording fetch (service.test.ts): this log holds only those two by construction
     const calls = await brainCalls(page);
-    expect([...new Set(calls.map((c) => c.name))].sort()).toEqual(["brain_get", "brain_search"]);
     expect(calls.find((c) => c.name === "brain_search")?.args).toEqual({ query: "Was weiß das Brain?", limit: 25 });
+    expect(calls.some((c) => c.args.id === "kn-world-pulse-2026-w01")).toBe(true);
     for (const c of calls.filter((x) => x.name === "brain_get")) expect(Object.keys(c.args)).toEqual(["id"]);
-    // the foreign note was read and held back, the low-scoring hit never read
+    // the low-scoring hit (below the floor) and the foreign note (refused by its id) are never read
     expect(calls.some((c) => c.args.id === "kn-world-pulse-2025-w50")).toBe(false);
+    expect(calls.some((c) => c.args.id === "top-substack-signals")).toBe(false);
 
     const [sent] = await llm.requests();
     expect(sent).toContain("Median aller Posts");
@@ -289,6 +371,7 @@ test.describe("ANAK-3 · World analyst", () => {
       const status = page.getByTestId("analyst-status");
       await expect(status).toHaveAttribute("data-brain", state);
       await expect(status).toHaveAttribute("data-brain-reason", reason);
+      await expect(page.getByTestId("analyst-brain-state")).toContainText(state.toUpperCase());
       await expect(page.getByTestId("analyst-brain")).toHaveCount(0);
       const [sent] = await llm.requests();
       expect(sent).not.toContain("Median aller Posts");

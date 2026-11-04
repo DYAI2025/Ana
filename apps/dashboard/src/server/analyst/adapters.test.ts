@@ -88,6 +88,19 @@ describe("OpenRouter adapter (docs read 2026-11-04)", () => {
     expect(c.json).not.toHaveProperty("route");
   });
 
+  it("maps refusal, length, content_filter, null content and an unknown finish", async () => {
+    const answer = (message: unknown, finish_reason: string) => ({ choices: [{ message, finish_reason }] });
+    expect(await callProvider(on("openrouter"), prompt, recorder(answer({ content: null, refusal: "no" }, "stop")).fetchImpl)).toEqual({ ok: false, reason: "refused" });
+    expect(await callProvider(on("openrouter"), prompt, recorder(answer({ content: "x" }, "length")).fetchImpl)).toEqual({ ok: false, reason: "truncated" });
+    expect(await callProvider(on("openrouter"), prompt, recorder(answer({ content: "x" }, "content_filter")).fetchImpl)).toEqual({ ok: false, reason: "refused" });
+    expect(await callProvider(on("openrouter"), prompt, recorder(answer({ content: null }, "stop")).fetchImpl)).toEqual({ ok: false, reason: "invalid" });
+    expect(await callProvider(on("openrouter"), prompt, recorder(answer({ content: "x" }, "tool_calls")).fetchImpl)).toEqual({ ok: false, reason: "invalid" });
+  });
+
+  it("an error object at the top of a 200 is no answer", async () => {
+    expect(await callProvider(on("openrouter"), prompt, recorder({ error: { code: 502, message: "upstream secret detail" } }).fetchImpl)).toEqual({ ok: false, reason: "invalid" });
+  });
+
   it("treats an error delivered inside a 200 as a failure, even next to partial content", async () => {
     const body = { choices: [{ message: { content: "PARTIAL" }, finish_reason: "error", error: { code: 502, message: "upstream secret detail" } }] };
     const result = await callProvider(on("openrouter"), prompt, recorder(body).fetchImpl);
@@ -152,9 +165,9 @@ describe("configuration", () => {
     expect(analystConfigFromEnv({ WORLD_ANALYST_PROVIDER: "anthropic", ANTHROPIC_API_KEY: "tagger-key-000000000" }).state).toBe("misconfigured");
   });
 
-  it("Haiku is the default only for Anthropic", () => {
-    const c = analystConfigFromEnv({ ...env, WORLD_ANALYST_PROVIDER: "anthropic" });
-    expect(c.state === "on" && c.model).toBe("claude-haiku-5-5");
+  it.each(PROVIDERS)("%s without a model is misconfigured: no provider picks one silently", (provider) => {
+    expect(analystConfigFromEnv({ ...env, WORLD_ANALYST_PROVIDER: provider, WORLD_ANALYST_MODEL: "  " }).state).toBe("misconfigured");
+    expect(analystConfigFromEnv({ ...env, WORLD_ANALYST_PROVIDER: provider }).state).toBe("misconfigured");
   });
 
   it("the test base URL counts only under the e2e control and on loopback", async () => {

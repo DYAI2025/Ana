@@ -49,7 +49,7 @@ export interface BrainBlock {
   text: string;
 }
 
-export type HypothesisRef = { type: "post"; media_id: string } | { type: "group"; field: GroupBlock["field"]; value: string; metric: GroupBlock["metric"] } | { type: "brain"; note_id: string };
+export type HypothesisRef = { type: "post"; media_id: string } | { type: "group"; field: GroupBlock["field"]; value: string; metric: GroupBlock["metric"]; n: number; small: boolean } | { type: "brain"; note_id: string };
 
 export interface HypothesisBlock {
   text: string;
@@ -57,7 +57,7 @@ export interface HypothesisBlock {
 }
 
 export type BrainState = "ok" | "none" | "blocked" | "unknown";
-export type BrainReason = "no_release" | "not_configured" | "stale_index" | "projection_unreadable" | "brain_failed";
+export type BrainReason = "no_release" | "not_configured" | "stale_index" | "projection_unreadable" | "brain_failed" | "provenance_unclear";
 
 export interface AnalystStatus {
   fetched_at: string;

@@ -99,7 +99,9 @@ const valueLabel = (t: T, field: GroupBlock["field"], value: string) => t(`world
 
 function PostLink({ id, posts, t, onPost }: { id: string; posts: readonly WorldPost[]; t: T; onPost: (id: string) => void }) {
   const post = posts.find((p) => p.id === id);
-  const label = post ? `${post.published_at?.slice(0, 10) ?? "—"} · ${t(`world.works.values.format.${post.format}` as never)}` : id;
+  // newer than what this page loaded: there is nothing to open yet, and leaving the room would lose the answer
+  if (!post) return <span data-testid="analyst-post-unloaded" data-media={id}>{t("world.office.analyst.postNotLoaded")}</span>;
+  const label = `${post.published_at?.slice(0, 10) ?? "—"} · ${t(`world.works.values.format.${post.format}` as never)}`;
   return (
     <button type="button" className={styles.analystPost} onClick={() => onPost(id)} data-testid="analyst-post" data-media={id} aria-label={t("world.office.analyst.openPost", { post: label })}>
       {label}
@@ -129,7 +131,8 @@ function StatusBlock({ status, t, locale }: { status: AnalystStatus; t: T; local
 
 function refLabel(ref: Exclude<HypothesisRef, { type: "post" }>, t: T): string {
   if (ref.type === "brain") return ref.note_id;
-  return `${t(`world.office.analyst.fields.${ref.field}`)}: ${valueLabel(t, ref.field, ref.value)} (${t(`world.office.analyst.metrics.${ref.metric}`)})`;
+  const group = `${t(`world.office.analyst.fields.${ref.field}`)}: ${valueLabel(t, ref.field, ref.value)} (${t(`world.office.analyst.metrics.${ref.metric}`)}, n ${ref.n})`;
+  return ref.small ? `${group}, ${t("world.office.analyst.small")}` : group;
 }
 
 function Answer({ answer, posts, t, locale, onPost }: { answer: AnalystAnswer; posts: readonly WorldPost[]; t: T; locale: string; onPost: (id: string) => void }) {

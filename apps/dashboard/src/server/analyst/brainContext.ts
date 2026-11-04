@@ -178,34 +178,43 @@ function sourceReleased(fm: NoteFrontmatter): boolean {
 
 const unreachable = (e: unknown) => e instanceof BrainToolError && e.kind === "unreachable";
 
-/** Reads a note and its sources and applies the whole release rule. Null: withheld. A missing or refused note withholds; an unreachable Brain throws. */
-async function readReleased(reader: BrainReader, id: string, sources: ReadonlySet<string>): Promise<Omit<ReleasedItem, "ref" | "score"> | null> {
-  if (!NOTE_ID.test(id)) return null;
-  let note: BrainNote;
+/** A provenance field the rule depends on is absent: that is not a "no", it is not knowing. */
+const unclearNote = (fm: NoteFrontmatter | undefined) => !fm || fm.created_by === undefined || fm.status === undefined || fm.superseded_by === undefined;
+const unclearSource = (fm: NoteFrontmatter | undefined) => !fm || fm.type === undefined || fm.created_by === undefined || fm.superseded_by === undefined || fm.source?.access === undefined || fm.source?.data_class === undefined;
+
+type Released = Omit<ReleasedItem, "ref" | "score">;
+/** A note the rule refuses is "withheld". One whose provenance cannot be established is "unclear": AC-06 wants that visible. An unreachable Brain throws. */
+type ReadResult = Released | "withheld" | "unclear";
+
+async function readNote(reader: BrainReader, id: string): Promise<BrainNote | null> {
   try {
-    note = await reader.get(id);
+    return await reader.get(id);
   } catch (e) {
     if (unreachable(e)) throw e;
     return null;
   }
+}
+
+/** Reads a note and its sources and applies the whole release rule. */
+async function readReleased(reader: BrainReader, id: string, sources: ReadonlySet<string>): Promise<ReadResult> {
+  if (!NOTE_ID.test(id)) return "withheld";
+  const note = await readNote(reader, id);
+  if (!note || unclearNote(note.frontmatter)) return "unclear";
   const fm = note.frontmatter;
-  if (fm?.created_by !== DASHBOARD_ACTOR || fm.status !== "DERIVED" || fm.superseded_by !== null) return null;
+  if (fm.created_by !== DASHBOARD_ACTOR || fm.status !== "DERIVED" || fm.superseded_by !== null) return "withheld";
   const blocks = parseBlocks(note.body);
-  if (blocks.length === 0 || blocks.some((b) => b.by !== DASHBOARD_ACTOR)) return null;
+  if (blocks.length === 0 || blocks.some((b) => b.by !== DASHBOARD_ACTOR)) return "withheld";
   const sourceIds = [...new Set((fm.source_refs ?? []).map((r) => r.source))];
-  if (sourceIds.length === 0 || sourceIds.some((s) => !sources.has(s))) return null;
+  if (sourceIds.length === 0) return "unclear";
+  if (sourceIds.some((s) => !sources.has(s))) return "withheld";
   for (const sourceId of sourceIds) {
-    let source: BrainNote;
-    try {
-      source = await reader.get(sourceId);
-    } catch (e) {
-      if (unreachable(e)) throw e;
-      return null;
-    }
-    if (!sourceReleased(source.frontmatter)) return null;
+    const source = await readNote(reader, sourceId);
+    if (!source || unclearSource(source.frontmatter)) return "unclear";
+    if (!sourceReleased(source.frontmatter)) return "withheld";
   }
   const current = currentBlock(blocks);
-  if (!current) return null;
+  // a block the Brain holds as a candidate would go out under the note's DERIVED
+  if (!current || current.status !== "DERIVED") return "withheld";
   const kept: string[] = [];
   let length = 0;
   for (const part of releasedSegments(current.text)) {
@@ -213,7 +222,7 @@ async function readReleased(reader: BrainReader, id: string, sources: ReadonlySe
     kept.push(part);
     length += part.length + 3;
   }
-  if (kept.length === 0) return null;
+  if (kept.length === 0) return "withheld";
   return { note_id: id, source_ids: sourceIds, status: fm.status, origin: fm.created_by, block: current.block, at: current.at, text: kept.join(" ¦ ") };
 }
 
@@ -236,20 +245,25 @@ export async function retrieveBrainContext(question: string, deps: RetrieveDeps)
     const items: ReleasedItem[] = [];
     let withheld = 0;
     let total = 0;
+    let unclear = false;
     for (const hit of hits) {
-      if (hit.score < SCORE_FLOOR) continue;
+      // a missing or non-numeric score is no match either: "0.9" >= 0.45 would be true in JavaScript
+      if (typeof hit.score !== "number" || !(hit.score >= SCORE_FLOOR)) continue;
       if (items.length === MAX_NOTES) {
         withheld++;
         continue;
       }
       const released = await readReleased(deps.reader, hit.id, deps.sources);
-      if (!released || total + released.text.length > MAX_TOTAL_CHARS) {
+      if (released === "unclear") unclear = true;
+      if (typeof released === "string" || total + released.text.length > MAX_TOTAL_CHARS) {
         withheld++;
         continue;
       }
       total += released.text.length;
       items.push({ ...released, ref: deps.ref(), score: hit.score });
     }
+    // no note text next to a provenance nobody can establish
+    if (unclear) return { state: "unknown", reason: "provenance_unclear", items: [], withheld: withheld + items.length };
     return { state: items.length ? "ok" : "none", reason: null, items, withheld };
   } catch {
     return blocked("unknown", "brain_failed");
@@ -257,18 +271,21 @@ export async function retrieveBrainContext(question: string, deps: RetrieveDeps)
 }
 
 /** Reads again before anything is shown: what the Brain says now must still pass the rule and still be the same text. */
-export async function verifyBeforeOutput(reader: BrainReader, items: readonly ReleasedItem[], sources: ReadonlySet<string>): Promise<{ items: ReleasedItem[]; dropped: number }> {
+export async function verifyBeforeOutput(reader: BrainReader, items: readonly ReleasedItem[], sources: ReadonlySet<string>): Promise<{ items: ReleasedItem[]; dropped: number; failure: "brain_failed" | "provenance_unclear" | null }> {
   const kept: ReleasedItem[] = [];
   let dropped = 0;
+  let failure: "brain_failed" | "provenance_unclear" | null = null;
   for (const item of items) {
-    let again: Awaited<ReturnType<typeof readReleased>> = null;
+    let again: ReadResult;
     try {
       again = await readReleased(reader, item.note_id, sources);
     } catch {
-      again = null;
+      again = "withheld";
+      failure = "brain_failed";
     }
-    if (again && again.block === item.block && again.text === item.text) kept.push(item);
+    if (again === "unclear") failure ??= "provenance_unclear";
+    if (typeof again !== "string" && again.block === item.block && again.text === item.text) kept.push(item);
     else dropped++;
   }
-  return { items: kept, dropped };
+  return { items: kept, dropped, failure };
 }

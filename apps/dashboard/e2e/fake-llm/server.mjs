@@ -37,7 +37,7 @@ function answer(user) {
     categories: tagged ? [{ ref: tagged.ref, field: "theme" }] : [],
     groups: facts.groups.slice(0, 1).map((g) => ({ ref: g.ref })),
     brain: brain.map((b) => ({ ref: b.ref })),
-    hypotheses: [{ text: "Könnte am Format liegen.", refs: [first.ref] }],
+    hypotheses: [{ text: "Könnte am Format liegen.", refs: [first.ref] }, ...(brain[0] ? [{ text: "Passt zum Puls.", refs: [first.ref, brain[0].ref] }] : [])],
   };
   if (mode === "injection") {
     out.measured.push({ ref: "p_00000000", metric: "er" }, { ref: first.ref, metric: "followers" });

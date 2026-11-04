@@ -2,6 +2,7 @@
 import { describe, expect, it } from "vitest";
 import type { BrainResult } from "@/features/brain/types";
 import { digestText, type PulseDigest } from "@/features/world/pulse";
+import { BrainToolError } from "@/server/brain/mcpClient";
 import { createBrainReader, MAX_NOTE_CHARS, MAX_NOTES, MAX_TOTAL_CHARS, parseBlocks, releasedSegments, retrieveBrainContext, SCORE_FLOOR, verifyBeforeOutput, type BrainReader, type NoteFrontmatter } from "./brainContext";
 
 /** a real digest with canaries in every segment that must stay on the server */
@@ -108,18 +109,18 @@ describe("retrieveBrainContext: the release rule", () => {
     ["data class G3 on the source", world({}, { source: { access: "internal", data_class: "G3" } })],
     ["data class UNKNOWN on the source", world({}, { source: { access: "internal", data_class: "UNKNOWN" } })],
     ["a restricted source", world({}, { source: { access: "restricted", data_class: "G1" } })],
-    ["a source without access", world({}, { source: { data_class: "G1" } })],
     ["a source of another author", world({}, { created_by: "ben" })],
     ["a retired source", world({}, { superseded_by: "src-newer" })],
     ["a retired note", world({ frontmatter: noteFm({ superseded_by: "kn-newer" }) })],
     ["a note of another status", world({ frontmatter: noteFm({ status: "CONFIRMED" }) })],
     ["a note of another author", world({ frontmatter: noteFm({ created_by: "ana" }) })],
-    ["a note without sources", world({ frontmatter: noteFm({ source_refs: [] }) })],
     // the other source is fully released in itself: only the provider's list keeps this note back
     ["a note citing a source not on the list", { ...world({ frontmatter: noteFm({ source_refs: [{ source: SOURCE }, { source: "src-other" }] }) }), "src-other": { frontmatter: sourceFm(), body: "" } }],
     ["a foreign block in the note", world({ body: body(line(REAL_DIGEST), line("Median aller Posts: ER 1.0 %, Save+Share 1.00 %.", "vince", "obs-foreign", "2026-03-06T06:00:00Z")) })],
     ["a block with no allowed segment", world({ body: body(line("Reichweite 28 T 44444, Follower 987654.")) })],
     ["a note without blocks", world({ body: "Tägliche Messwerte\n" })],
+    ["a current block not marked DERIVED", world({ body: body(line(REAL_DIGEST), line("Median aller Posts: ER 9.9 %, Save+Share 9.90 %.", "agent:lumen", "obs-new", "2026-03-06T06:00:00Z").replace("DERIVED", "CANDIDATE")) })],
+    ["a current block without a status", world({ body: body(line(REAL_DIGEST), "- 2026-03-06T06:00:00Z · agent:lumen · Median aller Posts: ER 9.9 %, Save+Share 9.90 %. ^obs-new") })],
   ])("withholds %s: no text, no id, only a count", async (_name, notes) => {
     const c = await retrieveBrainContext("frage", deps(fakeReader(notes, HIT)));
     expect(c).toMatchObject({ state: "none", items: [], withheld: 1 });
@@ -131,6 +132,41 @@ describe("retrieveBrainContext: the release rule", () => {
     const c = await retrieveBrainContext("frage", deps(reader));
     expect(c).toMatchObject({ items: [], withheld: 1 });
     expect(reader.calls).toEqual(["search"]);
+  });
+
+  // AC-06: unclear provenance is a visible UNKNOWN, not "nothing matched", and no note text goes out next to it
+  it.each<[string, Record<string, { frontmatter: NoteFrontmatter; body: string }>]>([
+    ["a source without access", world({}, { source: { data_class: "G1" } })],
+    ["a source without a data class", world({}, { source: { access: "internal" } })],
+    ["a source without any source block", { [NOTE]: world()[NOTE]!, [SOURCE]: { frontmatter: { type: "source", created_by: "agent:lumen", superseded_by: null }, body: "" } }],
+    ["a note without sources", world({ frontmatter: noteFm({ source_refs: [] }) })],
+    ["a note without the retirement field", world({ frontmatter: noteFm({ superseded_by: undefined }) })],
+    ["a source the Brain cannot give", { [NOTE]: world()[NOTE]! }],
+  ])("%s: unknown, visibly, and nothing released", async (_name, notes) => {
+    const c = await retrieveBrainContext("frage", deps(fakeReader(notes, HIT)));
+    expect(c).toMatchObject({ state: "unknown", reason: "provenance_unclear", items: [], withheld: 1 });
+    expect(JSON.stringify(c)).not.toContain(NOTE);
+  });
+
+  it("a note the Brain refuses to give is unclear, not absent", async () => {
+    const c = await retrieveBrainContext("frage", deps(fakeReader({ [SOURCE]: world()[SOURCE]! }, HIT)));
+    expect(c).toMatchObject({ state: "unknown", reason: "provenance_unclear", items: [] });
+  });
+
+  it("one unclear hit keeps the released one back too", async () => {
+    const other = "kn-world-pulse-2026-w11";
+    const notes = { ...world(), [other]: { frontmatter: noteFm({ source_refs: [] }), body: body(line(REAL_DIGEST)) } };
+    const c = await retrieveBrainContext("frage", deps(fakeReader(notes, [{ id: NOTE, score: 0.9 }, { id: other, score: 0.8 }])));
+    expect(c).toMatchObject({ state: "unknown", reason: "provenance_unclear", items: [], withheld: 2 });
+  });
+
+  it("a hit without a usable score is no hit", async () => {
+    for (const score of [undefined, null, "0.9", Number.NaN]) {
+      const reader = fakeReader(world(), [{ id: NOTE, score: score as unknown as number }]);
+      const c = await retrieveBrainContext("frage", deps(reader));
+      expect(c).toMatchObject({ state: "none", items: [], withheld: 0 });
+      expect(reader.calls).toEqual(["search"]);
+    }
   });
 
   it("a list for another provider releases nothing and the Brain is not asked", async () => {
@@ -223,10 +259,28 @@ describe("verifyBeforeOutput", () => {
     ["a source retired meanwhile", world({}, { superseded_by: "src-newer" })],
     ["a source reclassified meanwhile", world({}, { source: { access: "internal", data_class: "G3" } })],
     ["a newer block", world({ body: body(line(REAL_DIGEST), line("Median aller Posts: ER 9.9 %, Save+Share 9.90 %.", "agent:lumen", "obs-new", "2026-03-06T06:00:00Z")) })],
-    ["a missing note", { [SOURCE]: { frontmatter: sourceFm(), body: "" } }],
-  ])("drops %s", async (_name, notes) => {
+  ])("drops %s, a plain change and no failure", async (_name, notes) => {
     const items = await first();
-    expect(await verifyBeforeOutput(fakeReader(notes, []), items, new Set([SOURCE]))).toEqual({ items: [], dropped: 1 });
+    expect(await verifyBeforeOutput(fakeReader(notes, []), items, new Set([SOURCE]))).toEqual({ items: [], dropped: 1, failure: null });
+  });
+
+  it.each<[string, Record<string, { frontmatter: NoteFrontmatter; body: string }>]>([
+    ["a missing note", { [SOURCE]: { frontmatter: sourceFm(), body: "" } }],
+    ["a source that lost its access", world({}, { source: { data_class: "G1" } })],
+  ])("%s: dropped, and provenance is unclear now", async (_name, notes) => {
+    const items = await first();
+    expect(await verifyBeforeOutput(fakeReader(notes, []), items, new Set([SOURCE]))).toEqual({ items: [], dropped: 1, failure: "provenance_unclear" });
+  });
+
+  it("an unreachable Brain: dropped, and the failure says so", async () => {
+    const items = await first();
+    const reader: BrainReader = {
+      search: async () => [],
+      get: async () => {
+        throw new BrainToolError("brain_get", "unreachable", "unreachable");
+      },
+    };
+    expect(await verifyBeforeOutput(reader, items, new Set([SOURCE]))).toEqual({ items: [], dropped: 1, failure: "brain_failed" });
   });
 });
 

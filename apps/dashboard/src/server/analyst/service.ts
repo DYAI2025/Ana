@@ -125,20 +125,26 @@ export async function askAnalyst(rawQuestion: unknown, deps: AnalystDeps): Promi
     const parsed = parseAnswer(answer.text, catalog, byRef);
     if (!parsed.ok) return { ok: false, reason: parsed.reason };
 
-    // what is shown of the Brain is read again now; a note that changed or was retired in between is not a hit
-    const inHypotheses = new Set(parsed.hypotheses.flatMap((h) => h.refs.flatMap((r) => (r.type === "brain" ? [r.note_id] : []))));
-    const cited = context.items.filter((i) => parsed.brain.includes(i.ref) || inHypotheses.has(i.note_id));
-    const checked = brain.reader && cited.length ? await verifyBeforeOutput(brain.reader, cited, config.brainSources) : { items: [] as ReleasedItem[], dropped: 0 };
+    // Every released note went to the provider, so every one is shown with its provenance, whether the model named it or
+    // not. Each is read again now: one that changed or was retired in between is no hit.
+    const checked = brain.reader && context.items.length ? await verifyBeforeOutput(brain.reader, context.items, config.brainSources) : { items: [] as ReleasedItem[], dropped: 0, failure: null };
     const stillThere = new Set(checked.items.map((i) => i.note_id));
     const hypotheses: HypothesisBlock[] = parsed.hypotheses.filter((h) => h.refs.every((r) => r.type !== "brain" || stillThere.has(r.note_id)));
-    const rejected = parsed.rejected + checked.dropped + (parsed.hypotheses.length - hypotheses.length);
+    const rejected = parsed.rejected + (parsed.hypotheses.length - hypotheses.length);
+    // the post reference may have hung on a hypothesis that just went
+    if (parsed.measured.length === 0 && parsed.categories.length === 0 && !hypotheses.some((h) => h.refs.some((r) => r.type === "post"))) return { ok: false, reason: "no_evidence" };
 
     const status: AnalystStatus = {
       fetched_at: catalog.fetched_at,
       stale: social.stale,
       categories: stored === "unreadable" ? "unreadable" : Object.keys(tags).length > 0 ? "ok" : "none",
       window: catalog.window,
-      brain: { state: context.state, reason: context.reason, withheld: context.withheld },
+      // from the last read, not the first: "found" next to nothing shown would be false
+      brain: {
+        state: checked.failure ? "unknown" : checked.items.length > 0 ? "ok" : context.state === "ok" ? "none" : context.state,
+        reason: checked.failure ?? context.reason,
+        withheld: context.withheld + checked.dropped,
+      },
     };
     return { ok: true, answer: { measured: parsed.measured, categories: parsed.categories, groups: parsed.groups, brain: checked.items.map(toBrainBlock), hypotheses, rejected }, status };
   } finally {

@@ -118,6 +118,16 @@ describe("buildFacts", () => {
     expect(c.fetched_at).toBe("2026-10-10T12:00:00Z");
   });
 
+  it("the posts it keeps are the newest, whatever order the worker gives", () => {
+    const shuffled = Array.from({ length: MAX_POSTS + 5 }, (_, i) => i).sort((a, b) => (a * 7) % 11 - (b * 7) % 11);
+    const many = shuffled.map((i) => post(`n${i}`, new Date(Date.UTC(2026, 0, 1 + i)).toISOString(), { reach: 10, total_interactions: 1 }));
+    const c = buildFacts(snapshot(many), {});
+    const ids = new Set([...c.posts.values()].map((p) => p.media_id));
+    for (let i = 5; i < MAX_POSTS + 5; i++) expect(ids.has(`n${i}`), `n${i}`).toBe(true);
+    expect(c.window.from).toBe("2026-01-06");
+    expect(c.window.to).toBe("2026-02-14");
+  });
+
   it("refs are opaque and differ per request", () => {
     const one = refOf(buildFacts(snapshot(POSTS), TAGS), "id-a");
     const two = refOf(buildFacts(snapshot(POSTS), TAGS), "id-a");
@@ -213,6 +223,30 @@ describe("parseAnswer: the model names refs, the server renders values", () => {
     expect(result.rejected).toBe(4 + 3 + 2);
   });
 
+  it("rejects wrongly typed refs in every block and does not throw on them", () => {
+    const c = catalog();
+    const a = refOf(c, "id-a");
+    const g = groupRef(c, "theme", "beach", "er");
+    const result = parseAnswer(raw({ measured: [{ ref: a, metric: "er" }, { ref: [a], metric: "reach" }, { ref: { toString: 1 }, metric: "reach" }], categories: [{ ref: [a], field: "theme" }, { ref: 7, field: "theme" }], groups: [{ ref: [g] }], brain: [{ ref: ["b_x"] }] }), c, new Map([["b_x", { ref: "b_x", note_id: "n", text: "t" }]]));
+    if (!result.ok) throw new Error("no");
+    expect(result.measured).toHaveLength(1);
+    expect([result.categories, result.groups, result.brain]).toEqual([[], [], []]);
+    expect(result.rejected).toBe(6);
+  });
+
+  it("takes each item once and counts the repeats", () => {
+    const c = catalog();
+    const a = refOf(c, "id-a");
+    const g = groupRef(c, "theme", "beach", "er");
+    const result = parseAnswer(raw({ measured: [{ ref: a, metric: "er" }, { ref: a, metric: "er" }, { ref: a, metric: "reach" }], categories: [{ ref: a, field: "theme" }, { ref: a, field: "theme" }], groups: [{ ref: g }, { ref: g }], hypotheses: [{ text: "Könnte tragen.", refs: [a] }, { text: "Könnte tragen.", refs: [a] }] }), c);
+    if (!result.ok) throw new Error("no");
+    expect(result.measured).toHaveLength(2);
+    expect(result.categories).toHaveLength(1);
+    expect(result.groups).toHaveLength(1);
+    expect(result.hypotheses).toHaveLength(1);
+    expect(result.rejected).toBe(4);
+  });
+
   it("refuses as no_evidence when no post reference survives, also next to groups and hypotheses", () => {
     const c = catalog();
     const g = groupRef(c, "theme", "beach", "er");
@@ -257,12 +291,96 @@ describe("parseAnswer: the model names refs, the server renders values", () => {
       ["an H1 lean", "Das spricht für H1."],
       ["an H4 lean", "H4 Working File passt."],
       ["revenue from engagement", "Das bringt mehr Umsatz."],
+      ["a short link", "Mehr auf bit.ly/abc lesen."],
+      ["a messenger link", "Siehe t.me/kanal."],
+      ["a domain off any list", "Steht auf ana.substack.me."],
+      ["another scheme", "Liegt unter ftp://files.example.ch/x."],
+      ["a link in full-width colon", "Liegt unter https：//evil.example."],
+      ["a link in full-width letters", "Liegt unter ｗｗｗ．evil．example."],
+      ["a handle in a full-width at", "Frag ＠jemand danach."],
+      ["a German compound of a listed word", "Die Kernzielgruppe mag das."],
+      ["another compound", "Das hebt den Gesamtumsatz."],
+      ["a third compound", "Mehr Werbeeinnahmen."],
+      ["a listed word with a zero-width space", "Your audi\u200Bence loves it."],
+      ["a listed word with a soft hyphen", "Die Ziel\u00ADgruppe mag das."],
+      ["a listed phrase with two spaces", "The target  group loves it."],
+      ["a listed word decomposed", "Mehr Verka\u0308ufe."],
+      ["an H1 in a subscript", "Das spricht für H₁."],
+      ["a time window the facts do not hold", "Vor 30 Tagen lief es besser."],
+      ["a tier the facts do not hold", "Das trägt in Tier 1."],
+      ["a roman numeral sign", "Das bringt Ⅻ Kunden."],
+      ["a fraction sign", "Das bringt ½ mehr."],
+      ["a circled number", "Das bringt ③ mehr."],
+      ["a superscript", "Das bringt 10³ mehr."],
+      ["Chinese numerals", "这带来三百个客户"],
+      ["a German number word as a compound", "Das bringt einhundert Kunden."],
+      ["another German compound number", "Das bringt einundzwanzig Kunden."],
+      ["an Italian number word", "Porta dieci clienti."],
+      ["an Italian quantity", "Il doppio delle persone."],
+      ["a unit glued to a date part", "Das bringt 10k Reichweite."],
     ])("rejects and counts %s", (_name, text) => {
       const c = catalog();
       const result = withHyp(c, text, [refOf(c, "id-a")]);
       if (!result.ok) throw new Error("no");
       expect(result.hypotheses).toEqual([]);
       expect(result.rejected).toBe(1);
+    });
+
+    // measured values sit next to each other in the fact text: three digits after a space read as a thousands group
+    it("checks every value on its own, never two neighbours glued into one number", () => {
+      const c = catalog();
+      const a = refOf(c, "id-a"); // shares 20, total_interactions 200
+      const kept = withHyp(c, "Das waren 200 Interaktionen.", [a]);
+      if (!kept.ok) throw new Error("no");
+      expect(kept.hypotheses).toHaveLength(1);
+      const glued = withHyp(c, "Das waren 20200 Interaktionen.", [a]);
+      if (!glued.ok) throw new Error("no");
+      expect(glued.hypotheses).toEqual([]);
+      expect(glued.rejected).toBe(1);
+    });
+
+    it("the day of a cited post may be named as a day, its parts are no figures", () => {
+      const c = catalog();
+      const a = refOf(c, "id-a");
+      const result = withHyp(c, "Der Post vom 2026-10-09 trug.", [a]);
+      if (!result.ok) throw new Error("no");
+      expect(result.hypotheses).toHaveLength(1);
+    });
+
+    it("what it keeps is normalised text", () => {
+      const c = catalog();
+      const result = withHyp(c, "Das  waren １０００ Reichweite.", [refOf(c, "id-a")]);
+      if (!result.ok) throw new Error("no");
+      expect(result.hypotheses[0]?.text).toBe("Das waren 1000 Reichweite.");
+    });
+
+    it("a group it rests on carries its size, so the screen can show it", () => {
+      const c = catalog();
+      const small = [...c.groups.values()].find((g) => g.small);
+      if (!small) throw new Error("fixture needs a small group");
+      const result = withHyp(c, "Könnte tragen.", [refOf(c, "id-a"), small.ref]);
+      if (!result.ok) throw new Error("no");
+      expect(result.hypotheses[0]?.refs[1]).toMatchObject({ type: "group", n: small.n, small: true });
+    });
+
+    it("keeps a Brain ref next to the post it rests on", () => {
+      const c = catalog();
+      const a = refOf(c, "id-a");
+      const brain = new Map([["b_x", { ref: "b_x", note_id: "kn-world-pulse-2026-w10", text: "Median aller Posts: ER 3.1 %." }]]);
+      const result = parseAnswer(raw({ hypotheses: [{ text: "Passt zu 3.1 %.", refs: [a, "b_x"] }] }), c, brain);
+      if (!result.ok) throw new Error("no");
+      expect(result.hypotheses[0]?.refs).toEqual([{ type: "post", media_id: "id-a" }, { type: "brain", note_id: "kn-world-pulse-2026-w10" }]);
+    });
+
+    it("rejects refs that are no strings, without throwing", () => {
+      const c = catalog();
+      const a = refOf(c, "id-a");
+      for (const refs of [[[a]], [{ toString: 1 }], [a, 7], [null]]) {
+        const result = withHyp(c, "Könnte tragen.", refs);
+        if (!result.ok) throw new Error("no");
+        expect(result.hypotheses).toEqual([]);
+        expect(result.rejected).toBe(1);
+      }
     });
 
     it("rejects a hypothesis citing nothing or an unknown ref, and an overlong one", () => {

@@ -27,7 +27,6 @@ const BASE_URL: Record<Provider, string> = {
   openai: "https://api.openai.com",
   openrouter: "https://openrouter.ai/api",
 };
-const DEFAULT_MODEL: Partial<Record<Provider, string>> = { anthropic: "claude-haiku-5-5" };
 const DEFAULT_DAILY_CAP = 30;
 const LOOPBACK = new Set(["127.0.0.1", "localhost", "[::1]"]);
 
@@ -51,8 +50,8 @@ export function analystConfigFromEnv(env: Readonly<Record<string, string | undef
   const name = provider.toUpperCase();
   const key = env[`WORLD_ANALYST_${name}_API_KEY`]?.trim();
   if (!key) return { state: "misconfigured", reason: "no key for the selected provider" };
-  const model = env.WORLD_ANALYST_MODEL?.trim() || DEFAULT_MODEL[provider];
-  if (!model) return { state: "misconfigured", reason: "no model for the selected provider" };
+  const model = env.WORLD_ANALYST_MODEL?.trim();
+  if (!model) return { state: "misconfigured", reason: "no model set" };
   const brainSources = new Set(
     (env[`WORLD_ANALYST_BRAIN_SOURCES_${name}`] ?? "")
       .split(",")

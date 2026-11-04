@@ -27,6 +27,7 @@ const observations = new Map();
 let searchCalls = [];
 const WEEK_NOTE = "kn-world-pulse-2026-w01";
 const FOREIGN_NOTE = "top-substack-signals";
+const LOW_SCORING_NOTE = "kn-world-pulse-2025-w50";
 const SOURCE = "src-ana-world-pulse";
 const DIGEST = [
   "Puls 2026-01-05 (Instagram, aggregiert, gemessen; Kategorien von Claude Haiku gelesen, 6 Posts).",
@@ -67,6 +68,8 @@ const server = http.createServer(async (req, res) => {
     if (req.headers.authorization !== `Bearer ${agentKey}`) return send(res, 401, { error: "unauthorized" });
     const rpc = JSON.parse(raw);
     const { name, arguments: args } = rpc.params ?? {};
+    // the low-scoring hit is logged too: a read of it would mean the score floor did not hold
+    if (name === "brain_get" && args?.id === LOW_SCORING_NOTE) searchCalls.push({ name, args });
     if (name === "brain_search" || (name === "brain_get" && NOTES.has(args?.id))) {
       searchCalls.push({ name, args });
       if (name === "brain_search" && mode === "search-down") return req.socket.destroy();

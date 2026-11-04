@@ -163,6 +163,9 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
+const request = (init: { host?: string; type?: string; body?: string; origin?: string } = {}) =>
+  new Request(`http://${init.host ?? "127.0.0.1:3100"}/api/world/analyst`, { method: "POST", headers: { host: init.host ?? "127.0.0.1:3100", "content-type": init.type ?? "application/json", ...(init.origin ? { origin: init.origin } : {}) }, body: init.body ?? JSON.stringify({ question: "x" }) });
+
 describe("disabled and misconfigured", () => {
   it("off: no provider, no worker, no Brain, no projection", async () => {
     const w = makeWorld();
@@ -191,8 +194,6 @@ describe("disabled and misconfigured", () => {
 });
 
 describe("route: same gate as the world routes", () => {
-  const request = (init: { host?: string; type?: string; body?: string; origin?: string } = {}) =>
-    new Request(`http://${init.host ?? "127.0.0.1:3100"}/api/world/analyst`, { method: "POST", headers: { host: init.host ?? "127.0.0.1:3100", "content-type": init.type ?? "application/json", ...(init.origin ? { origin: init.origin } : {}) }, body: init.body ?? JSON.stringify({ question: "x" }) });
 
   beforeEach(() => {
     vi.stubGlobal("fetch", vi.fn(async () => new Response("{}")));
@@ -438,21 +439,91 @@ describe("AC-06 through the route path", () => {
     expect(r.status.brain).toEqual({ state, reason, withheld: 0 });
   });
 
-  it("a note retired between the context and the answer is not shown as a hit", async () => {
-    const w = makeWorld();
+  const retiredAfterCall = (w: ReturnType<typeof makeWorld>) => {
     const first = { [NOTE]: NOTE_DOC, [SOURCE]: SOURCE_DOC };
     const retired = { [NOTE]: { ...NOTE_DOC, frontmatter: { ...NOTE_DOC.frontmatter, superseded_by: "kn-newer" } }, [SOURCE]: SOURCE_DOC };
     w.docs = () => (w.provider.length === 0 ? first : retired);
+  };
+
+  it("a note retired between the context and the answer is no hit, and the status says what happened", async () => {
+    const w = makeWorld();
+    retiredAfterCall(w);
     const r = must(await ask(w));
     expect(r.answer.brain).toEqual([]);
+    expect(r.status.brain).toEqual({ state: "none", reason: null, withheld: 1 });
+    // the model did nothing wrong here
+    expect(r.answer.rejected).toBe(0);
+  });
+
+  it("a Brain that fails during the read before output: no hit, and the status says UNKNOWN", async () => {
+    const w = makeWorld();
+    w.answer = (user: string) => {
+      w.brainDown = true;
+      return honestAnswer(user);
+    };
+    const r = must(await ask(w));
+    expect(r.answer.brain).toEqual([]);
+    expect(r.status.brain).toEqual({ state: "unknown", reason: "brain_failed", withheld: 1 });
+    expect(r.answer.measured.length).toBeGreaterThan(0);
+  });
+
+  it("a note the model did not name still shows: its text left the server, so its provenance is on screen", async () => {
+    const w = makeWorld();
+    w.answer = (user: string) => ({ ...honestAnswer(user), brain: [] });
+    const r = must(await ask(w));
+    expect(r.answer.brain.map((b) => b.note_id)).toEqual([NOTE]);
+    expect(r.answer.brain[0]).toMatchObject({ source_ids: [SOURCE], status: "DERIVED", origin: "agent:lumen", uncertainty: "derived_unconfirmed", index_state: "not_proven" });
+  });
+
+  it("the only post reference hung on a hypothesis whose note is gone: no_evidence, not an empty answer", async () => {
+    const w = makeWorld();
+    retiredAfterCall(w);
+    w.answer = (user: string) => {
+      const base = honestAnswer(user);
+      const post = (base.measured[0] as { ref: string }).ref;
+      const brain = (base.brain[0] as { ref: string }).ref;
+      return { measured: [], categories: [], groups: [], brain: [], hypotheses: [{ text: "Könnte tragen.", refs: [post, brain] }] };
+    };
+    expect(await ask(w)).toEqual({ ok: false, reason: "no_evidence" });
+  });
+
+  it("a hypothesis resting on a note that is gone goes, a hypothesis resting on a post stays", async () => {
+    const w = makeWorld();
+    retiredAfterCall(w);
+    w.answer = (user: string) => {
+      const base = honestAnswer(user);
+      const post = (base.measured[0] as { ref: string }).ref;
+      const brain = (base.brain[0] as { ref: string }).ref;
+      return { ...base, hypotheses: [{ text: "Könnte tragen.", refs: [post, brain] }, { text: "Könnte am Format liegen.", refs: [post] }] };
+    };
+    const r = must(await ask(w));
+    expect(r.answer.hypotheses.map((h) => h.text)).toEqual(["Könnte am Format liegen."]);
     expect(r.answer.rejected).toBe(1);
+  });
+
+  it("through the route itself: the answer, its Brain block, and only search and get with exact arguments", async () => {
+    const w = makeWorld();
+    for (const [k, v] of Object.entries({ ...ENV, WORLD_STATE_DIR: dir, SOCIAL_IG_WORKER_URL: "http://127.0.0.1:9", SOCIAL_IG_INTERNAL_READ_KEY: "fake-worker-key-000" })) vi.stubEnv(k, v);
+    const worker = new Response(JSON.stringify(buildSnapshot({ count: 5, observedAt: "2026-10-10T12:00:00Z" })));
+    vi.stubGlobal("fetch", (async (input: string | URL | Request, init?: RequestInit) => (String(input).includes("127.0.0.1:9/") && !/\/(mcp|projection)$/.test(new URL(String(input)).pathname) && !String(input).includes("api.openai") ? worker.clone() : w.fetchImpl(input, init))) as typeof fetch);
+    const response = await POST(request({ body: JSON.stringify({ question: "Was läuft?" }) }));
+    const body = (await response.json()) as AnalystResponse;
+    expect(response.status).toBe(200);
+    expect(response.headers.get("cache-control")).toBe("no-store");
+    expect(must(body).answer.brain.map((b) => b.note_id)).toEqual([NOTE]);
+    expect(w.provider).toHaveLength(1);
+    expect(new Set(w.tools.map((t) => t.name))).toEqual(new Set(["brain_search", "brain_get"]));
+    expect(w.tools[0]).toEqual({ name: "brain_search", args: { query: "Was läuft?", limit: 25 } });
+    for (const t of w.tools.slice(1)) expect(Object.keys(t.args)).toEqual(["id"]);
+    expect(JSON.stringify(w.tools)).not.toContain("include_retired");
   });
 
   it("an answer that cites a Brain ref of nothing is rejected, not shown", async () => {
     const w = makeWorld();
     w.answer = (user: string) => ({ ...honestAnswer(user), brain: [{ ref: "b_nope" }] });
     const r = must(await ask(w));
-    expect(r.answer.brain).toEqual([]);
+    // the note that really went out still shows; the invented ref is one rejected item
+    expect(r.answer.brain.map((b) => b.note_id)).toEqual([NOTE]);
     expect(r.answer.rejected).toBe(1);
   });
 
