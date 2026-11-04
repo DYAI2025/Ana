@@ -263,6 +263,8 @@ export interface AnaSpot {
   frame: THREE.Group;
   anaSpot: THREE.Vector3;
   hammock: THREE.Group;
+  /** the hut with the blue roof: the door to Ana's office */
+  hut: THREE.Group;
 }
 
 export function buildAnaSpot(lat: number, lon: number): AnaSpot {
@@ -293,6 +295,12 @@ export function buildAnaSpot(lat: number, lon: number): AnaSpot {
   roof.rotation.y = Math.PI / 4;
   roof.position.y = 0.86;
   hut.add(roof);
+  const door = mesh(new THREE.BoxGeometry(0.16, 0.3, 0.02), 0xf2b84b, 1.1);
+  door.position.set(0, 0.34, 0.205);
+  hut.add(door);
+  const wall = mesh(new THREE.BoxGeometry(0.5, 0.42, 0.4), 0xfbf3e6, 1.04);
+  wall.position.y = 0.4;
+  hut.add(wall);
   hut.position.set(0.1, 0.06, -0.72);
   frame.add(hut);
   // camera on a tripod (she films)
@@ -322,7 +330,7 @@ export function buildAnaSpot(lat: number, lon: number): AnaSpot {
   cloth.position.y = 0.2;
   hammock.add(cloth);
   frame.add(hammock);
-  return { frame, anaSpot: new THREE.Vector3(-0.1, 0.1, 0.25), hammock };
+  return { frame, anaSpot: new THREE.Vector3(-0.1, 0.1, 0.25), hammock, hut };
 }
 
 export interface Scooter {

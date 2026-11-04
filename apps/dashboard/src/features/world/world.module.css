@@ -1402,3 +1402,199 @@ button.barLabel {
   margin: 4px 0;
   max-width: 90ch;
 }
+
+/* Ana's office as a 3D room: the stage fills the dialog, the things float as buttons, the board opens in a drawer */
+.officeRoom {
+  width: min(1320px, 100%);
+  height: calc(100dvh - 32px);
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  background: linear-gradient(180deg, #fdf3ea, #f4e6da);
+  border: 1px solid var(--glass-edge);
+  border-radius: 22px;
+  box-shadow: var(--glass-shadow-raised);
+  overflow: hidden;
+  color: var(--text);
+}
+
+.officeBar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--hairline);
+}
+
+.officeBar h2 {
+  margin: 0;
+  font: 650 22px/1.2 var(--font);
+}
+
+.officeBar p {
+  margin: 2px 0 0;
+  color: var(--text-secondary);
+  font-size: 14px;
+}
+
+.officeExit,
+.officeBack {
+  flex: none;
+  padding: 8px 14px;
+  border: 1px solid var(--hairline-strong);
+  border-radius: 999px;
+  background: var(--pearl);
+  color: var(--text);
+  font: 600 14px/1.2 var(--font);
+  cursor: pointer;
+}
+
+.officeExit:focus-visible,
+.officeBack:focus-visible,
+.officeSpot:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.officeStage {
+  position: relative;
+  min-height: 0;
+}
+
+.officeCanvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.officeCanvas[hidden],
+.officeSpots[hidden] {
+  display: none;
+}
+
+.officeSpots {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.officeSpot {
+  position: absolute;
+  left: 0;
+  top: 0;
+  pointer-events: auto;
+  padding: 7px 12px;
+  border: 2px solid #f2b84b;
+  border-radius: 999px;
+  background: rgba(255, 252, 245, 0.95);
+  color: var(--text);
+  font: 650 14px/1.2 var(--font);
+  white-space: nowrap;
+  cursor: pointer;
+  box-shadow: 0 6px 16px rgba(60, 72, 90, 0.18);
+  transition: background 120ms ease;
+  visibility: hidden;
+}
+
+.officeSpot[data-active="true"] {
+  background: #ffe7ac;
+}
+
+.officeDrawer {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  bottom: 12px;
+  width: min(560px, calc(100% - 24px));
+  overflow: auto;
+  padding: 16px 18px;
+  background: var(--surface-solid);
+  border: 1px solid var(--glass-edge);
+  border-radius: 18px;
+  box-shadow: var(--glass-shadow-raised);
+  animation: officeSlide 220ms ease-out;
+}
+
+@keyframes officeSlide {
+  from {
+    transform: translateX(24px);
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .officeDrawer {
+    animation: none;
+  }
+}
+
+.officeDrawerHead {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  position: sticky;
+  top: -16px;
+  margin: -16px -18px 8px;
+  padding: 12px 18px;
+  background: var(--surface-solid);
+  border-bottom: 1px solid var(--hairline);
+  z-index: 1;
+}
+
+.officeDrawerHead h3 {
+  outline: none;
+  margin: 0;
+  font: 650 18px/1.2 var(--font);
+}
+
+/* in the drawer the board is one column */
+.officeDrawer .officeBody {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.officeDrawer .officeMatrix {
+  position: static;
+}
+
+.officeComputer p {
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+@media (max-width: 700px) {
+  .officeBackdrop {
+    padding: 0;
+  }
+
+  .officeRoom {
+    height: 100dvh;
+    border-radius: 0;
+  }
+
+  .officeBar {
+    padding: 10px 12px;
+  }
+
+  .officeBar h2 {
+    font-size: 18px;
+  }
+
+  .officeSpot {
+    padding: 6px 10px;
+    font-size: 13px;
+  }
+
+  /* on a phone the drawer becomes a sheet over the lower part of the room */
+  .officeDrawer {
+    top: auto;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    width: 100%;
+    height: 78%;
+    border-radius: 18px 18px 0 0;
+  }
+}

@@ -232,3 +232,16 @@ export function officeView(topics: readonly OfficeTopic[], posts: ReadonlyArray<
     read: postTopics ? posts.filter((p) => Object.hasOwn(postTopics, p.id)).length : 0,
   };
 }
+
+/** The things in Ana's office room you can use (scene/officeRoom.ts). */
+export type RoomSpot = "board" | "computer" | "lamp";
+export const ROOM_SPOTS: readonly RoomSpot[] = ["board", "computer", "lamp"];
+
+/** A topic on the board in the room: its number, quadrant and place inside the quadrant (0..1 from left / bottom). */
+export interface BoardDot {
+  n: number;
+  quadrant: OfficeQuadrant;
+  tested: boolean;
+  x: number;
+  y: number;
+}

@@ -1,10 +1,13 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import type { useI18n } from "@/components/providers/I18nProvider";
+import { useReducedMotion } from "@/lib/hooks/useReducedMotion";
 import type { WorldPost } from "./model";
-import { OFFICE_AS_OF, OFFICE_CONFIRMED, OFFICE_MIN_N, OFFICE_SOURCE, OFFICE_TOPICS, officeView, type OfficePoint, type OfficeQuadrant } from "./office";
+import { OFFICE_AS_OF, OFFICE_CONFIRMED, OFFICE_MIN_N, OFFICE_SOURCE, OFFICE_TOPICS, officeView, ROOM_SPOTS, type BoardDot, type OfficePoint, type OfficeQuadrant, type RoomSpot } from "./office";
+import { PEOPLE } from "./people";
+import type { RoomScene } from "./scene/officeRoom";
 import type { WorldPayload } from "./types";
 import styles from "./world.module.css";
 
@@ -74,24 +77,75 @@ function Cover({ post, onPost, label }: { post: WorldPost; onPost: (id: string) 
   );
 }
 
+/** Where each topic sits inside its quadrant (0..1 from the left and from the bottom), for the board in the room. */
+export function boardDots(points: readonly OfficePoint[], pos: ReadonlyMap<string, { x: number; y: number }>): BoardDot[] {
+  return points.map((p) => {
+    const at = pos.get(p.id) ?? { x: MID_X, y: MID_Y };
+    const [x0, x1] = p.outside.high ? [MID_X, R] : [L, MID_X];
+    const [y0, y1] = p.quadrant === "starter" || p.quadrant === "niche" ? [TOP, MID_Y] : [MID_Y, BOTTOM];
+    return { n: p.n, quadrant: p.quadrant, tested: p.ana.index !== null, x: Math.max(0, Math.min(1, (at.x - x0) / (x1 - x0))), y: Math.max(0, Math.min(1, (y1 - at.y) / (y1 - y0))) };
+  });
+}
+
+/** Whether WebGL is there; the probe's context is released at once (each open of the office probes again). */
+function supportsWebGL(): boolean {
+  try {
+    const c = document.createElement("canvas");
+    const ctx = c.getContext("webgl2") ?? c.getContext("webgl");
+    ctx?.getExtension("WEBGL_lose_context")?.loseContext();
+    return Boolean(ctx);
+  } catch {
+    return false;
+  }
+}
+
+const SPOT_ICON: Record<RoomSpot, string> = { board: "📋", computer: "💻", lamp: "💡" };
+
 /**
- * Ana's office: the topic matrix (outside talk × Ana's save+share) and the topics for Substack with their evidence.
- * Opens over the world as a dialog when Ana is picked; every topic is a hypothesis until a real post tests it.
+ * Ana's office: a small 3D room you walk into from the world (the hut at Ana's place, or the button in her panel).
+ * The board on the wall holds the topics for Substack, the computer is where Claude will answer later, the lamp just
+ * switches. Everything is reachable with the buttons that float over the things too (keyboard, screen readers), and
+ * without WebGL the board opens directly.
  */
 export function OfficeRoom({ world, posts, t, locale, onClose, onPost }: { world: WorldPayload; posts: readonly WorldPost[]; t: T; locale: string; onClose: () => void; onPost: (id: string) => void }) {
-  const reader = world.post_topics.state === "on";
-  const view = useMemo(() => officeView(OFFICE_TOPICS, posts, reader ? world.post_topics.topics : null), [posts, reader, world.post_topics.topics]);
-  const pos = useMemo(() => layout(view.points, view.threshold), [view]);
-  const [picked, setPicked] = useState<string | null>(null);
+  const reduced = useReducedMotion();
   const dialogRef = useRef<HTMLDivElement>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
-  const nf = useMemo(() => new Intl.NumberFormat(locale), [locale]);
-  const nf1 = useMemo(() => new Intl.NumberFormat(locale, { minimumFractionDigits: 1, maximumFractionDigits: 1 }), [locale]);
-  const asOf = useMemo(() => new Intl.DateTimeFormat(locale, { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" }).format(new Date(`${OFFICE_AS_OF}T12:00:00Z`)), [locale]);
-  const byId = useMemo(() => new Map(posts.map((p) => [p.id, p])), [posts]);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const sceneRef = useRef<RoomScene | null>(null);
+  const labelRefs = useRef<Partial<Record<RoomSpot, HTMLButtonElement | null>>>({});
+  const [gl, setGl] = useState<"loading" | "ok" | "unsupported" | "failed">("loading");
+  // read once when the room is built: the scene is never rebuilt on the same canvas (its context is released on close)
+  const reducedRef = useRef(reduced);
+  const lastSpot = useRef<RoomSpot>("board");
+  const [spot, setSpot] = useState<RoomSpot | null>(null);
+  const spotRef = useRef<RoomSpot | null>(null);
+  const [lamp, setLamp] = useState(true);
+  const [hover, setHover] = useState<RoomSpot | null>(null);
+  const reader = world.post_topics.state === "on";
+  const view = useMemo(() => officeView(OFFICE_TOPICS, posts, reader ? world.post_topics.topics : null), [posts, reader, world.post_topics.topics]);
+  const dots = useMemo(() => boardDots(view.points, layout(view.points, view.threshold)), [view]);
+
+  const use = useCallback((s: RoomSpot) => {
+    if (s === "lamp") {
+      setLamp((on) => !on);
+      return;
+    }
+    spotRef.current = s;
+    lastSpot.current = s;
+    setSpot(s);
+    sceneRef.current?.focus(s);
+  }, []);
+  const back = useCallback(() => {
+    spotRef.current = null;
+    setSpot(null);
+    sceneRef.current?.focus(null);
+    // back to the thing you came from, once its button floats again (the follow loop shows it on its next frame)
+    requestAnimationFrame(() => requestAnimationFrame(() => labelRefs.current[lastSpot.current]?.focus()));
+  }, []);
 
   // focus moves into the room and back to where it came from (or to the office button when that is gone).
-  // Escape closes and Tab stays inside the room, wherever focus happens to be (also when it fell to the page body);
+  // Escape steps back (board → room → world) and Tab stays inside, wherever focus happens to be;
   // only another dialog on top keeps its own keys
   useEffect(() => {
     const before = document.activeElement as HTMLElement | null;
@@ -103,7 +157,8 @@ export function OfficeRoom({ world, posts, t, locale, onClose, onPost }: { world
       const otherDialog = at instanceof Element && !room.contains(at) && at.closest("[role='dialog']") !== null;
       if (otherDialog) return;
       if (e.key === "Escape") {
-        onClose();
+        if (spotRef.current) back();
+        else onClose();
         return;
       }
       if (e.key !== "Tab") return;
@@ -128,7 +183,156 @@ export function OfficeRoom({ world, posts, t, locale, onClose, onPost }: { world
       const target = before && before !== document.body && before.isConnected ? before : document.querySelector<HTMLElement>('[data-testid="office-open"]');
       target?.focus?.();
     };
-  }, [onClose]);
+  }, [onClose, back]);
+
+  // the 3D room: loaded lazily, never on the server; the floating buttons follow their things every frame
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    if (!supportsWebGL()) {
+      void Promise.resolve().then(() => setGl("unsupported"));
+      return;
+    }
+    let disposed = false;
+    let raf = 0;
+    let ro: ResizeObserver | null = null;
+    // a room that does not load within 8 s gives way to the board, so the office is never an empty box
+    let gaveUp = false;
+    const slow = setTimeout(() => {
+      if (!disposed && !sceneRef.current) {
+        gaveUp = true;
+        setGl("failed");
+      }
+    }, 8_000);
+    import("./scene/officeRoom")
+      .then((mod) => {
+        // too late: the board is already open in its place
+        if (disposed || gaveUp || !canvas.isConnected) return;
+        clearTimeout(slow);
+        const scene = mod.createRoomScene(canvas, { reducedMotion: reducedRef.current, ana: PEOPLE.ana.avatar, onPick: use, onHover: setHover });
+        sceneRef.current = scene;
+        ro = new ResizeObserver(() => scene.resize());
+        ro.observe(canvas);
+        const follow = () => {
+          const at = scene.anchors();
+          for (const s of ROOM_SPOTS) {
+            const el = labelRefs.current[s];
+            const a = at[s];
+            if (!el) continue;
+            el.style.visibility = a ? "visible" : "hidden";
+            // the computer's sign leans left, the lamp's right: they stand close together on the desk
+            if (a) el.style.transform = `translate(${Math.round(a.x)}px, ${Math.round(a.y)}px) translate(${s === "computer" ? "-88%" : s === "lamp" ? "-12%" : "-50%"}, -125%)`;
+          }
+          raf = requestAnimationFrame(follow);
+        };
+        raf = requestAnimationFrame(follow);
+        setGl("ok");
+      })
+      .catch(() => {
+        if (!disposed) setGl("failed");
+      });
+    return () => {
+      disposed = true;
+      clearTimeout(slow);
+      cancelAnimationFrame(raf);
+      ro?.disconnect();
+      sceneRef.current?.dispose();
+      sceneRef.current = null;
+    };
+  }, [use]);
+
+  useEffect(() => {
+    if (gl === "ok") sceneRef.current?.setBoard(dots);
+  }, [gl, dots]);
+  // opening the board or the computer takes keyboard focus into its drawer
+  useEffect(() => {
+    if (spot === "board" || spot === "computer") document.getElementById("office-drawer-title")?.focus();
+  }, [spot]);
+  useEffect(() => {
+    sceneRef.current?.setLamp(lamp);
+  }, [lamp, gl]);
+
+  // without WebGL the board is what the room is for: it opens right away
+  const flat = gl === "unsupported" || gl === "failed";
+  const shown: RoomSpot | null = flat ? "board" : spot;
+
+  const room = (
+    <div className={styles.officeBackdrop} data-testid="office-backdrop">
+      <div ref={dialogRef} className={styles.officeRoom} role="dialog" aria-modal="true" aria-labelledby="office-title" data-testid="office" data-spot={shown ?? "room"} data-gl={gl}>
+        <header className={styles.officeBar}>
+          <div>
+            <h2 id="office-title">
+              <span aria-hidden="true">🏠 </span>
+              {t("world.office.title")}
+            </h2>
+            <p>{gl === "unsupported" ? t("world.office.noWebgl") : gl === "failed" ? t("world.office.loadFailed") : t("world.office.hint")}</p>
+          </div>
+          <button ref={closeRef} type="button" className={styles.officeExit} onClick={onClose} data-testid="office-close">
+            <span aria-hidden="true">🌍 </span>
+            {t("world.office.exit")}
+          </button>
+        </header>
+        <div className={styles.officeStage}>
+          <canvas ref={canvasRef} className={styles.officeCanvas} role="img" aria-label={t("world.office.roomLabel")} data-testid="office-canvas" hidden={flat} />
+          <div className={styles.officeSpots} hidden={gl !== "ok"}>
+            {ROOM_SPOTS.map((s) => (
+              <button
+                key={s}
+                ref={(el) => {
+                  labelRefs.current[s] = el;
+                }}
+                type="button"
+                className={styles.officeSpot}
+                data-active={shown === s || (s === "lamp" && lamp) || hover === s}
+                aria-pressed={s === "lamp" ? lamp : undefined}
+                onClick={() => use(s)}
+                data-testid={`office-spot-${s}`}
+              >
+                <span aria-hidden="true">{SPOT_ICON[s]} </span>
+                {s === "lamp" ? t(lamp ? "world.office.spots.lampOn" : "world.office.spots.lampOff") : t(`world.office.spots.${s}`)}
+              </button>
+            ))}
+          </div>
+          {shown === "board" || shown === "computer" ? (
+            <aside className={styles.officeDrawer} aria-labelledby="office-drawer-title" data-testid="office-drawer">
+              <div className={styles.officeDrawerHead}>
+                <h3 id="office-drawer-title" tabIndex={-1}>
+                  <span aria-hidden="true">{SPOT_ICON[shown]} </span>
+                  {t(`world.office.spots.${shown}`)}
+                </h3>
+                {gl === "ok" ? (
+                  <button type="button" className={styles.officeBack} onClick={back} data-testid="office-back">
+                    ← {t("world.office.back")}
+                  </button>
+                ) : null}
+              </div>
+              {shown === "board" ? (
+                <OfficeBoard world={world} posts={posts} t={t} locale={locale} onPost={onPost} />
+              ) : (
+                <div className={styles.officeComputer} data-testid="office-computer">
+                  <p>{t("world.office.computerBody")}</p>
+                  <p className={styles.note}>{t("world.office.computerNote")}</p>
+                </div>
+              )}
+            </aside>
+          ) : null}
+        </div>
+      </div>
+    </div>
+  );
+  return typeof document === "undefined" ? null : createPortal(room, document.body);
+}
+
+/** The topic board: the matrix and the topics for Substack with their evidence (what the board in the room opens). */
+export function OfficeBoard({ world, posts, t, locale, onPost }: { world: WorldPayload; posts: readonly WorldPost[]; t: T; locale: string; onPost: (id: string) => void }) {
+  const reader = world.post_topics.state === "on";
+  const view = useMemo(() => officeView(OFFICE_TOPICS, posts, reader ? world.post_topics.topics : null), [posts, reader, world.post_topics.topics]);
+  const pos = useMemo(() => layout(view.points, view.threshold), [view]);
+  const [picked, setPicked] = useState<string | null>(null);
+  const nf = useMemo(() => new Intl.NumberFormat(locale), [locale]);
+  const nf1 = useMemo(() => new Intl.NumberFormat(locale, { minimumFractionDigits: 1, maximumFractionDigits: 1 }), [locale]);
+  const asOf = useMemo(() => new Intl.DateTimeFormat(locale, { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" }).format(new Date(`${OFFICE_AS_OF}T12:00:00Z`)), [locale]);
+  const byId = useMemo(() => new Map(posts.map((p) => [p.id, p])), [posts]);
 
   const pick = (id: string) => {
     setPicked(id);
@@ -148,21 +352,8 @@ export function OfficeRoom({ world, posts, t, locale, onClose, onPost }: { world
   const total = snapshot ? snapshot.length : posts.length;
   const read = snapshot ? snapshot.filter((id) => Object.hasOwn(world.post_topics.topics, id)).length : view.read;
 
-  const room = (
-    <div className={styles.officeBackdrop} onMouseDown={(e) => e.target === e.currentTarget && onClose()} data-testid="office-backdrop">
-      <div ref={dialogRef} className={styles.office} role="dialog" aria-modal="true" aria-labelledby="office-title" data-testid="office">
-        <header className={styles.officeHead}>
-          <div>
-            <h2 id="office-title">
-              <span aria-hidden="true">🗂️ </span>
-              {t("world.office.title")}
-            </h2>
-            <p>{t("world.office.subtitle")}</p>
-          </div>
-          <button ref={closeRef} type="button" className={styles.officeClose} onClick={onClose} aria-label={t("world.office.close")} data-testid="office-close">
-            ✕
-          </button>
-        </header>
+  return (
+    <div className={styles.officeBoard} data-testid="office-board">
         <p className={styles.officeLead}>{t("world.office.lead")}</p>
         <p className={styles.muted} data-testid="office-asof">
           {reader ? t("world.office.asOf", { source: OFFICE_SOURCE, date: asOf, read, total }) : t("world.office.readerOff")}
@@ -279,8 +470,6 @@ export function OfficeRoom({ world, posts, t, locale, onClose, onPost }: { world
           <p className={styles.note}>{t("world.office.method")}</p>
           <p className={styles.note}>{t("world.office.next")}</p>
         </footer>
-      </div>
     </div>
   );
-  return typeof document === "undefined" ? null : createPortal(room, document.body);
 }

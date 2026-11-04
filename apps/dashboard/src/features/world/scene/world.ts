@@ -38,6 +38,8 @@ export interface SceneLabels {
   people: Record<WorldPersonId, { name: string; sub: string }>;
   berlin: string;
   anaPlace: string;
+  /** the sign on the hut at Ana's place: her office */
+  office: string;
   vps: string;
   vpsSub: string;
   ring: string;
@@ -70,7 +72,8 @@ export type SceneRef =
   | { type: "country"; key: string }
   | { type: "place"; id: "berlin" | "ana" }
   | { type: "vps" }
-  | { type: "ring" };
+  | { type: "ring" }
+  | { type: "office" };
 
 export type ViewName = "world" | "berlin" | "ana" | "orbit";
 
@@ -83,6 +86,8 @@ export interface WorldScene {
   /** lifts these posts' cards out of the orbit and shrinks the others; null = all as usual */
   highlight(postIds: readonly string[] | null): void;
   resize(): void;
+  /** stops drawing while another 3D view (Ana's office) covers the world; the loop stays alive and cheap */
+  pause(paused: boolean): void;
   dispose(): void;
 }
 
@@ -291,6 +296,8 @@ export function createWorldScene(
     anaSpot.frame.add(anaRoot);
     anaSpot.frame.add(lookProps);
     pick(anaSpot.frame, { type: "place", id: "ana" });
+    pick(anaSpot.hut, { type: "office" });
+    anaSpot.hut.add(officeAnchor);
     pick(anaRoot, { type: "person", id: "ana" });
     pick(lookProps, { type: "person", id: "ana" });
     VIEWS.ana = { ...(place ? closeView(place.lat, place.lon, 1.2) : closeView(-8, -150, 4.2)), focus: "ana" };
@@ -298,6 +305,7 @@ export function createWorldScene(
     anaSpot.frame.add(anaLabelAnchor);
   }
   const anaLabelAnchor = new THREE.Object3D();
+  const officeAnchor = new THREE.Object3D();
 
   /** the outfit from her newest post (or a pick): rebuilt only when it changes */
   function dressAna(look: AnaLookId, colors: OutfitColors | null) {
@@ -686,6 +694,7 @@ export function createWorldScene(
       (anaLabel = label(L.people.ana.name, L.people.ana.sub, anaRoot, { type: "person", id: "ana" }, { dy: 1.5, focus: "ana", maxDist: 22, cls: "person", tint: PEOPLE.ana.tint, priority: 6 })),
       (berlinLabel = label(L.berlin, "", office.frame, { type: "place", id: "berlin" }, { dy: 2.4, minDist: 22, priority: 5 })),
       (placeLabel = label(L.anaPlace, "", anaLabelAnchor, { type: "place", id: "ana" }, { dy: 2.1, minDist: 22, priority: 5 })),
+      label(`🏠 ${L.office}`, null, officeAnchor, { type: "office" }, { dy: 1.2, focus: "ana", maxDist: 22, cls: "office", priority: 5 }),
       label(L.vps, L.vpsSub, sat, { type: "vps" }, { dy: 0.9, minDist: 18, priority: 3 }),
       label(L.ring, L.ringSub, ringAnchor, { type: "ring" }, { dy: 1, minDist: 30, priority: 3 }),
     );
@@ -1029,9 +1038,10 @@ export function createWorldScene(
     if (l.el instanceof HTMLButtonElement) l.el.tabIndex = -1;
   }
 
+  let paused = false;
   function frame() {
     raf = requestAnimationFrame(frame);
-    if (document.hidden) return;
+    if (document.hidden || paused) return;
     const dt = Math.min(0.05, clock.getDelta());
     T += dt;
     const mo = reduced ? 0 : 1;
@@ -1354,6 +1364,12 @@ export function createWorldScene(
     focus,
     highlight,
     resize,
+    pause(p) {
+      paused = p;
+      canvas.dataset.paused = p ? "true" : "false";
+      // the clock must not count the paused time as one long frame
+      if (!p) clock.getDelta();
+    },
     dispose() {
       cancelAnimationFrame(raf);
       canvas.removeEventListener("pointerdown", onDown);

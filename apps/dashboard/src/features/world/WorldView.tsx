@@ -98,7 +98,10 @@ function useWorld(sinkRef: { current: (e: PulseEvent[]) => void }) {
 function supportsWebGL(): boolean {
   try {
     const c = document.createElement("canvas");
-    return Boolean(c.getContext("webgl2") ?? c.getContext("webgl"));
+    const ctx = c.getContext("webgl2") ?? c.getContext("webgl");
+    // the probe's context is released at once: browsers keep only a few alive
+    ctx?.getExtension("WEBGL_lose_context")?.loseContext();
+    return Boolean(ctx);
   } catch {
     return false;
   }
@@ -192,9 +195,13 @@ export function WorldView() {
   const layer: Layer = layerPick ?? (world?.audience.engaged_country_week.state === "ok" ? "week" : "engaged");
   const [tab, setTab] = useState<Tab>("now");
   const [selected, setSelected] = useState<SceneRef | null>(null);
-  // Ana's office: opens over the world when Ana is picked (in the scene or with the button)
+  // Ana's office: a 3D room entered through the hut at her place (or the button in her panel)
   const [office, setOffice] = useState(false);
   const closeOffice = useCallback(() => setOffice(false), []);
+  // only one 3D view draws at a time: the world rests while the office is open
+  useEffect(() => {
+    sceneRef.current?.pause(office);
+  }, [office]);
   // a category value picked in "What works", or the top posts, lit up in the orbit
   const [worksPick, setWorksPick] = useState<{ field: TagField; value: string } | "top" | "fresh" | null>(null);
   // what "What works" ranks by: engagement, or saves + shares (the closer hint for long reads, e.g. Substack)
@@ -287,6 +294,7 @@ export function WorldView() {
         },
         berlin: t("world.places.berlin"),
         anaPlace: anaPlaceLabel ? t("world.places.anaSet", { place: anaPlaceLabel }) : t("world.places.anaUnknown"),
+        office: t("world.office.house"),
         vps: t("world.vps.name"),
         vpsSub: world.release.sha ? t("world.vps.sub", { sha: world.release.sha.slice(0, 7) }) : t("world.vps.subLocal"),
         ring: t("world.ring.name"),
@@ -320,9 +328,13 @@ export function WorldView() {
         sceneRef.current = mod.createWorldScene(canvas, host, geo, {
           reducedMotion: reduced,
           onSelect: (ref) => {
+            // the hut at Ana's place is the door to her office
+            if (ref.type === "office") {
+              setOffice(true);
+              return;
+            }
             setSelected(ref);
             setTab("selection");
-            if (ref.type === "person" && ref.id === "ana") setOffice(true);
           },
         });
         ro = new ResizeObserver(() => sceneRef.current?.resize());
@@ -939,6 +951,8 @@ export function WorldView() {
         </div>
       );
     }
+    // the office is never a selection (it opens as a room)
+    if (s.type === "office") return <div className={styles.pane}><p className={styles.muted}>{t("world.selectHint")}</p></div>;
     return (
       <div className={styles.pane}>
         <h3 className={styles.selTitle}>{s.id === "berlin" ? t("world.places.berlin") : anaPlaceLabel ?? t("world.places.anaUnknown")}</h3>
