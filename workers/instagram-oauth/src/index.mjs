@@ -37,6 +37,11 @@ const SNAPSHOT_INSIGHT_CONCURRENCY = 5;
 const MEDIA_INSIGHT_METRICS = ['reach','views','saved','shares','likes','comments','total_interactions'];
 const ACCOUNT_METRICS = ['reach','views','accounts_engaged','total_interactions'];
 const ACCOUNT_WINDOW_DAYS = 28;
+// Token health = proof that the base token is valid for the expected account (cron /me, refresh or OAuth callback).
+// It confirms neither media, insights nor single permissions: /admin/probe and /admin/insights-probe remain for that.
+const HEALTH_SCOPE = 'basic-token-and-account-id';
+// Without a successful check for 36 h the operator status is UNVERIFIED (computed on read, never stored).
+const HEALTH_FRESH_SECONDS = 36 * 3600;
 
 class MetaError extends Error {
   constructor(kind, code = null) { super(kind); this.metaCode = code; }
@@ -299,11 +304,12 @@ async function callback(req,env,url) {
     const t=nowSeconds();
     // One transaction: the callback that claims the invitation is the only one that stores a token.
     // changes() reads the claim statement directly before it, so a concurrent callback that lost the claim writes nothing.
+    // The identity check above is a successful health check: the new token is fresh at once, every health field reset.
     const [claim]=await env.DB.batch([
       env.DB.prepare('UPDATE oauth_invites SET used_at=? WHERE invite_hash=? AND used_at IS NULL').bind(t,attempt.invite_hash),
-      env.DB.prepare(`INSERT INTO instagram_tokens (account_id,username,token_iv,token_ciphertext,granted_permissions,issued_at,expires_at,updated_at,connection_status)
-       SELECT ?,?,?,?,?,?,?,?,? WHERE changes()=1 ON CONFLICT(account_id) DO UPDATE SET username=excluded.username,token_iv=excluded.token_iv,token_ciphertext=excluded.token_ciphertext,granted_permissions=excluded.granted_permissions,issued_at=excluded.issued_at,expires_at=excluded.expires_at,updated_at=excluded.updated_at,connection_status='CONNECTED',last_refresh_error=NULL`)
-        .bind(account.user_id,account.username,token.iv,token.ciphertext,JSON.stringify(exchanged.permissions),t,t+exchanged.expiresIn,t,'CONNECTED'),
+      env.DB.prepare(`INSERT INTO instagram_tokens (account_id,username,token_iv,token_ciphertext,granted_permissions,issued_at,expires_at,updated_at,connection_status,last_check_at,last_check_result,last_check_error_class,last_health_ok_at,last_health_ok_source)
+       SELECT ?,?,?,?,?,?,?,?,?,?,'OK',NULL,?,'callback' WHERE changes()=1 ON CONFLICT(account_id) DO UPDATE SET username=excluded.username,token_iv=excluded.token_iv,token_ciphertext=excluded.token_ciphertext,granted_permissions=excluded.granted_permissions,issued_at=excluded.issued_at,expires_at=excluded.expires_at,updated_at=excluded.updated_at,connection_status='CONNECTED',last_refresh_error=NULL,last_check_at=excluded.last_check_at,last_check_result='OK',last_check_error_class=NULL,last_health_ok_at=excluded.last_health_ok_at,last_health_ok_source='callback'`)
+        .bind(account.user_id,account.username,token.iv,token.ciphertext,JSON.stringify(exchanged.permissions),t,t+exchanged.expiresIn,t,'CONNECTED',t,t),
       env.DB.prepare('UPDATE oauth_attempts SET consumed_at=? WHERE invite_hash=? AND consumed_at IS NULL').bind(t,attempt.invite_hash)
     ]);
     if (claim?.meta?.changes !== 1) {
@@ -325,8 +331,14 @@ async function findToken(env) {
 async function readStatus(env) {
   const record=await findToken(env);
   if (!record) return json({connected:false,status:'NOT_AUTHORIZED'});
-  const expired = record.expires_at <= nowSeconds();
-  return json({connected:record.connection_status==='CONNECTED' && !expired,status:expired?'REAUTH_REQUIRED':record.connection_status,username:record.username,expires_at:record.expires_at,issued_at:record.issued_at,permissions_reported:JSON.parse(record.granted_permissions||'[]'),last_refresh_attempt_at:record.last_refresh_attempt_at,last_refresh_error:record.last_refresh_error});
+  const t = nowSeconds();
+  const okAt = record.last_health_ok_at ?? null;
+  // Order matters: a stored REAUTH_REQUIRED or an expiry wins over any freshness. Only CONNECTED and REAUTH_REQUIRED
+  // are ever stored, so anything but CONNECTED fails closed.
+  const status = record.connection_status !== 'CONNECTED' || record.expires_at <= t ? 'REAUTH_REQUIRED'
+    : okAt === null || t - okAt >= HEALTH_FRESH_SECONDS ? 'UNVERIFIED' : 'CONNECTED';
+  return json({connected:status==='CONNECTED',status,username:record.username,expires_at:record.expires_at,issued_at:record.issued_at,permissions_reported:JSON.parse(record.granted_permissions||'[]'),last_refresh_attempt_at:record.last_refresh_attempt_at,last_refresh_error:record.last_refresh_error,
+    health:{scope:HEALTH_SCOPE,last_check_at:record.last_check_at??null,last_check_result:record.last_check_result??null,last_check_error_class:record.last_check_error_class??null,last_ok_at:okAt,last_ok_source:record.last_health_ok_source??null,fresh_until:okAt===null?null:okAt+HEALTH_FRESH_SECONDS}});
 }
 async function usableToken(env) {
   const row=await findToken(env);
@@ -636,13 +648,17 @@ async function readSocialAudience(req,env) {
   return json({audience_version:1, fetched_at:new Date().toISOString(), provider:'instagram', api_version:GRAPH_VERSION, metrics});
 }
 async function refresh(env,force=false) {
-  const row=await findToken(env);
+  return refreshRow(env,await findToken(env),force);
+}
+// A refresh attempt is also a health check of the token row it was given (see dailyCheck).
+async function refreshRow(env,row,force) {
   if(!row)return {status:'NOT_AUTHORIZED'};
   const t=nowSeconds();
-  // Guarded by ciphertext so a concurrent re-authorization is never overwritten.
-  const mark=(status,error)=>env.DB.prepare('UPDATE instagram_tokens SET connection_status=?, last_refresh_attempt_at=?, last_refresh_error=?, updated_at=? WHERE account_id=? AND token_ciphertext=?')
-    .bind(status,t,error,t,row.account_id,row.token_ciphertext).run();
-  if(row.expires_at<=t){await mark('REAUTH_REQUIRED','expired');return {status:'REAUTH_REQUIRED'};}
+  // Guarded by ciphertext so a concurrent re-authorization is never overwritten. A null status keeps the stored one:
+  // a failure that does not invalidate the token never reverts a concurrent REAUTH_REQUIRED.
+  const mark=(status,error,check)=>env.DB.prepare('UPDATE instagram_tokens SET connection_status=COALESCE(?,connection_status), last_refresh_attempt_at=?, last_refresh_error=?, updated_at=?, last_check_at=?, last_check_result=?, last_check_error_class=? WHERE account_id=? AND token_ciphertext=?')
+    .bind(status,t,error,t,t,check,error,row.account_id,row.token_ciphertext).run();
+  if(row.expires_at<=t){await mark('REAUTH_REQUIRED','expired','EXPIRED');return {status:'REAUTH_REQUIRED'};}
   if(row.connection_status==='REAUTH_REQUIRED')return {status:'REAUTH_REQUIRED'};
   // Meta refuses refresh for tokens younger than 24 hours. Normally run around day 45.
   if(t-row.issued_at<86400 || (!force && row.expires_at-t>15*86400))return {status:'NOT_DUE'};
@@ -654,19 +670,49 @@ async function refresh(env,force=false) {
     const fresh=await getMetaJson(u.href);
     if(typeof fresh.access_token!=='string'||!Number.isFinite(Number(fresh.expires_in))||Number(fresh.expires_in)<MIN_TOKEN_SECONDS)throw Error('invalid-refresh');
     const sealed=await seal(fresh.access_token,env,row.account_id);
-    const q=await env.DB.prepare('UPDATE instagram_tokens SET token_iv=?, token_ciphertext=?, issued_at=?, expires_at=?, updated_at=?, connection_status=?, last_refresh_attempt_at=?, last_refresh_error=NULL WHERE account_id=? AND token_ciphertext=?')
-      .bind(sealed.iv,sealed.ciphertext,t,t+Number(fresh.expires_in),t,'CONNECTED',t,row.account_id,row.token_ciphertext).run();
+    // Health in the same UPDATE that rotates the ciphertext: a separate write to the old ciphertext would match nothing.
+    const q=await env.DB.prepare("UPDATE instagram_tokens SET token_iv=?, token_ciphertext=?, issued_at=?, expires_at=?, updated_at=?, connection_status=?, last_refresh_attempt_at=?, last_refresh_error=NULL, last_check_at=?, last_check_result='OK', last_check_error_class=NULL, last_health_ok_at=?, last_health_ok_source='refresh' WHERE account_id=? AND token_ciphertext=?")
+      .bind(sealed.iv,sealed.ciphertext,t,t+Number(fresh.expires_in),t,'CONNECTED',t,t,t,row.account_id,row.token_ciphertext).run();
     const status=q.meta?.changes===1?'REFRESHED':'CONCURRENT_UPDATE';
     logEvent('token-refresh', {status});
     return {status};
   }catch(e){
     const reason=errorClass(e);
-    // OAuthException 190 = token invalid/revoked: only Ana re-authorizing can fix that.
+    // OAuthException 190 = token invalid (revoked or otherwise; Meta does not say reliably): only Ana re-authorizing fixes it.
     const reauth=e instanceof MetaError && e.metaCode===190;
-    await mark(reauth?'REAUTH_REQUIRED':row.connection_status,reason);
+    await mark(reauth?'REAUTH_REQUIRED':null,reason,reauth?'TOKEN_INVALID':'UNVERIFIABLE');
     logEvent('token-refresh', {status:reauth?'REAUTH_REQUIRED':'REFRESH_FAILED', reason});
     return {status:reauth?'REAUTH_REQUIRED':'REFRESH_FAILED',reason};
   }
+}
+// Base-token check for a CONNECTED token that is not due for refresh: one /me call, only user_id is compared
+// (fetchIdentity/isExpectedAccount would also need username).
+async function checkToken(env,row) {
+  const t=nowSeconds();
+  let result='OK', reason=null;
+  try{
+    const me=unwrapSingle(await metaFetch('/me',await openSealed(row,env),{fields:'user_id'}));
+    if(typeof me?.user_id!=='string' || !/^\d+$/.test(me.user_id))throw Error('bad-identity');
+    if(me.user_id!==String(env.EXPECTED_IG_USER_ID))throw Error('wrong-account');
+  }catch(e){
+    reason=errorClass(e);
+    // Only 190 proves the token invalid; every other failure proves nothing either way and never changes the status.
+    result=e instanceof MetaError && e.metaCode===190?'TOKEN_INVALID':'UNVERIFIABLE';
+  }
+  // Bound to the checked ciphertext and to a CONNECTED row: a result for an old token never touches a re-authorized
+  // one, and a late result never revives a row that turned REAUTH_REQUIRED in the meantime.
+  const q=await env.DB.prepare("UPDATE instagram_tokens SET connection_status=?, last_check_at=?, last_check_result=?, last_check_error_class=?, last_health_ok_at=CASE WHEN ?='OK' THEN ? ELSE last_health_ok_at END, last_health_ok_source=CASE WHEN ?='OK' THEN 'cron' ELSE last_health_ok_source END, updated_at=? WHERE account_id=? AND token_ciphertext=? AND connection_status='CONNECTED'")
+    .bind(result==='TOKEN_INVALID'?'REAUTH_REQUIRED':'CONNECTED',t,result,reason,result,t,result,t,row.account_id,row.token_ciphertext).run();
+  const stored=q.meta?.changes===1;
+  logEvent('token-health', {result, ...(reason ? {reason} : {}), stored});
+  return {status:stored?result:'CONCURRENT_UPDATE'};
+}
+// The cron's single check per run, at most one Meta call: expiry and REAUTH_REQUIRED need none, a due refresh is
+// the check, and only a token refresh reports NOT_DUE gets the /me check.
+async function dailyCheck(env) {
+  const row=await findToken(env);
+  const r=await refreshRow(env,row,false);
+  return r.status==='NOT_DUE'?checkToken(env,row):r;
 }
 async function route(req,env,url) {
   if(req.method==='POST' && url.pathname==='/admin/invitations'){
@@ -715,7 +761,7 @@ export default {
   async scheduled(event,env,ctx) {
     if(!configured(env)){logEvent('cron-skipped', {reason:'service-not-configured'});return;}
     ctx.waitUntil((async () => {
-      try { await refresh(env); } catch (e) { logEvent('cron-refresh-error', {reason:errorClass(e)}); }
+      try { await dailyCheck(env); } catch (e) { logEvent('cron-refresh-error', {reason:errorClass(e)}); }
       try {
         // Retain expired hashes briefly for diagnostics, then remove in FK-safe order.
         const cutoff = nowSeconds() - 86400;
