@@ -107,7 +107,6 @@ describe("retrieveBrainContext: the release rule", () => {
   it.each<[string, Record<string, { frontmatter: NoteFrontmatter; body: string }>]>([
     ["data class G2 on the source", world({}, { source: { access: "internal", data_class: "G2" } })],
     ["data class G3 on the source", world({}, { source: { access: "internal", data_class: "G3" } })],
-    ["data class UNKNOWN on the source", world({}, { source: { access: "internal", data_class: "UNKNOWN" } })],
     ["a restricted source", world({}, { source: { access: "restricted", data_class: "G1" } })],
     ["a source of another author", world({}, { created_by: "ben" })],
     ["a retired source", world({}, { superseded_by: "src-newer" })],
@@ -136,6 +135,10 @@ describe("retrieveBrainContext: the release rule", () => {
 
   // AC-06: unclear provenance is a visible UNKNOWN, not "nothing matched", and no note text goes out next to it
   it.each<[string, Record<string, { frontmatter: NoteFrontmatter; body: string }>]>([
+    // what the real Brain writes when nobody classified a source: its schema cannot hold a missing field
+    ["a source whose data class is UNKNOWN", world({}, { source: { access: "internal", data_class: "UNKNOWN" } })],
+    ["a source whose author is UNKNOWN", world({}, { created_by: "UNKNOWN" })],
+    ["a note whose author is UNKNOWN", world({ frontmatter: noteFm({ created_by: "UNKNOWN" }) })],
     ["a source without access", world({}, { source: { data_class: "G1" } })],
     ["a source without a data class", world({}, { source: { access: "internal" } })],
     ["a source without any source block", { [NOTE]: world()[NOTE]!, [SOURCE]: { frontmatter: { type: "source", created_by: "agent:lumen", superseded_by: null }, body: "" } }],
@@ -270,6 +273,15 @@ describe("verifyBeforeOutput", () => {
   ])("%s: dropped, and provenance is unclear now", async (_name, notes) => {
     const items = await first();
     expect(await verifyBeforeOutput(fakeReader(notes, []), items, new Set([SOURCE]))).toEqual({ items: [], dropped: 1, failure: "provenance_unclear" });
+  });
+
+  it("a failure on one note shows no note: no text next to a provenance nobody can establish", async () => {
+    const other = "kn-world-pulse-2026-w11";
+    const one = world();
+    const both = { ...one, [other]: { frontmatter: noteFm(), body: body(line(REAL_DIGEST)) } };
+    const items = (await retrieveBrainContext("frage", deps(fakeReader(both, [{ id: NOTE, score: 0.9 }, { id: other, score: 0.8 }])))).items;
+    expect(items).toHaveLength(2);
+    expect(await verifyBeforeOutput(fakeReader(one, []), items, new Set([SOURCE]))).toEqual({ items: [], dropped: 2, failure: "provenance_unclear" });
   });
 
   it("an unreachable Brain: dropped, and the failure says so", async () => {

@@ -110,7 +110,7 @@ Rules:
 - Name at least one post (p_...) that answers the question. If the facts cannot answer it, return empty lists.
 - er = interactions / reach. ssr = (saves + shares) / reach. null means not measured, it is not 0.
 - A group marked small rests on too few posts to carry a pattern.
-- "hypotheses" holds your only own words, in the language of the question: at most ${MAX_HYPOTHESES}, each ${MAX_HYPOTHESIS_CHARS} characters at most, each citing the refs it rests on. Use digits only for numbers that appear in those refs. No quantities in words, no links, no names of people.
+- "hypotheses" holds your only own words, in the language of the question: at most ${MAX_HYPOTHESES}, each ${MAX_HYPOTHESIS_CHARS} characters at most, each citing the refs it rests on. Use digits only for numbers that appear in those refs; a rate may be written as given or as a percent with one or two decimals. Plain sentences: no markdown, no emoji, no quantities in words, no links, no names of people.
 - Engagement is not revenue or sales. Say nothing about who the audience is or what it wants, and nothing about business ideas such as newsletters.
 - Correlation only: the facts do not say why a post did well.`;
 
@@ -136,36 +136,45 @@ export function renderPrompt(question: string, catalog: FactCatalog, brain: read
   return { system: SYSTEM_PROMPT, user: parts.join("\n") };
 }
 
+/**
+ * What a hypothesis may be made of: Latin letters, ASCII digits, a closed set of punctuation, after folding compatibility
+ * forms. An allowlist on purpose: two review rounds found a new invisible or look-alike character behind every blocklist
+ * (U+200B, then U+FE0F, then U+0085), and a word hidden that way cannot be checked by the lists below. It also keeps "@"
+ * out, so no handle. Emoji and other scripts are refused and counted.
+ */
+const ALLOWED = /^[\p{Script=Latin}0-9 .,:;!?%()'"\/+\-–—…„“”‚‘’«»&=~≈≥≤·]*$/u;
+/** folding would turn these into plain letters and digits ("Ⅻ" into "XII", "½" into "1⁄2"), so they are refused before it */
+const NUMBER_SIGNS = /[\p{Nl}\p{No}]/u;
+
+/** The text the checks and the screen see, or null when it cannot be checked. */
+function checkableText(raw: string): string | null {
+  if (NUMBER_SIGNS.test(raw)) return null;
+  const text = raw.normalize("NFKC").replace(/\s+/g, " ").trim();
+  return ALLOWED.test(text) ? text : null;
+}
+
 /** any scheme, www, or labels joined by dots ending in letters; "z.B." and "5.2 %" are not. By shape, not by a list of endings. */
-const LINK = /\p{L}[\p{L}\p{N}+.-]*:\/\/|www[.。]|(?<![\p{L}\p{N}])[\p{L}\p{N}-]+(?:[.。][\p{L}\p{N}-]+)*[.。]\p{L}{2,}(?![\p{L}\p{N}])/iu;
-const HANDLE = /(?<![\p{L}\p{N}])@[\p{L}\p{N}_.]/u;
+const LINK = /\p{L}[\p{L}\p{N}+.-]*:\/\/|www\.|(?<![\p{L}\p{N}])[\p{L}\p{N}-]+(?:\.[\p{L}\p{N}-]+)*\.\p{L}{2,}(?![\p{L}\p{N}])/iu;
 /** named words of what this slice leaves out: audience and H1/H4 inference, engagement read as money. A list, not a proof. */
 const OUT_OF_SCOPE =
-  /(?<![\p{L}\p{N}])(?:H[1-4]|Opportunity Drop|Working File|audience\p{L}*|target group\p{L}*|demographic\p{L}*|pubblico|destinatari|fascia d'età|revenue|sales|ricavi|vendite)(?![\p{L}\p{N}])|\p{L}*(?:zielgruppe|publikum|altersgruppe|kaufkraft|umsatz|absatz|einnahmen|verkäufe)\p{L}*/iu;
-/** the names numbersBacked lets pass are the brief's facts; the analyst's facts hold no tier and no such window */
-const NOT_IN_THESE_FACTS = /(?<![\p{L}\p{N}])(?:Tier ?[123]|(?:7|28|30)[ -](?:Tage|Tagen|days))(?![\p{L}\p{N}])/iu;
+  /(?<![\p{L}\p{N}])(?:H[1-4]|Opportunity Drops?|Working Files?|audience\p{L}*|target group\p{L}*|demographic\p{L}*|pubblico|destinatari|fascia d['’]età|revenue|sales|ricavi|vendite)(?![\p{L}\p{N}])|\p{L}*(?:zielgruppe|publikum|altersgruppe|kaufkraft|ums[aä]tz|abs[aä]tz|einnahme|verkäufe)\p{L}*/iu;
+/**
+ * Claims with a digit the number check cannot see: the names numbersBacked lets pass are the brief's facts, the analyst's
+ * facts hold no tier and no such window; and a true figure with a scale on it is another figure ("20k" from a real 20).
+ */
+const NOT_IN_THESE_FACTS = /(?<![\p{L}\p{N}])(?:Tier ?[123]|(?:7|28|30)[ -](?:Tage|Tagen|days)|\d+ ?(?:k|m|mn|b|bn|mio|mrd|tsd)(?![\p{L}\p{N}]))/iu;
 /** quantities brief.ts's list does not hold: Italian (a supported language) and German compounds. "uno", "due", "sei" are ordinary words too. */
 const MORE_NUMBER_WORDS = /(?<!\p{L})(?:due volte|tre|quattro|cinque|sette|otto|nove|dieci|venti|trenta|quaranta|cinquanta|cento|mille|doppi[oa]|tripl[oa]|metà)(?!\p{L})|\p{L}+(?:hundert|tausend|zwanzig|dreißig|vierzig|fünfzig|sechzig|siebzig|achtzig|neunzig)\p{L}*/iu;
-/** Number signs outside the digits and invisible format characters have no place in a sentence and could hide a word. */
-const HIDDEN = /[\p{Nl}\p{No}\p{Cf}]/u;
-/** The panel's languages write in Latin script; a homoglyph or a numeral of another script cannot be checked against the facts. */
-const CHECKABLE_SCRIPT = /^[\p{Script=Latin}\p{Script=Common}\p{Script=Inherited}]*$/u;
-
-/** The text the checks and the screen see: compatibility forms folded, so a full-width link is a link; null when it cannot be checked at all. */
-function checkableText(raw: string): string | null {
-  if (HIDDEN.test(raw)) return null;
-  const text = raw.normalize("NFKC").replace(/\s+/g, " ").trim();
-  return CHECKABLE_SCRIPT.test(text) ? text : null;
-}
+const ISO_DAY = /\d{4}-\d{2}-\d{2}/g;
 
 const pct = (x: number | null, digits: number) => (x === null ? "" : `${(x * 100).toFixed(digits)} %`);
 
 /** One value per part: numbersBacked reads "20 200" as one number, so values must not stand next to each other with a space. */
 function postFactText(p: PostFact): string {
   const f = p.facts;
-  return [f.reach, f.views, f.saves, f.shares, f.total_interactions, pct(f.er, 1), pct(f.er, 2), pct(f.ssr, 1), pct(f.ssr, 2)].map((v) => v ?? "").join(" | ");
+  return [f.reach, f.views, f.saves, f.shares, f.total_interactions, f.er, f.ssr, pct(f.er, 1), pct(f.er, 2), pct(f.ssr, 1), pct(f.ssr, 2)].map((v) => v ?? "").join(" | ");
 }
-const groupFactText = (g: GroupFact) => `${pct(g.median, 1)} | ${pct(g.median, 2)} | n ${g.n}`;
+const groupFactText = (g: GroupFact) => `${g.median} | ${pct(g.median, 1)} | ${pct(g.median, 2)} | n ${g.n}`;
 
 export interface ParsedAnswer {
   ok: true;
@@ -232,7 +241,7 @@ export function parseAnswer(raw: string, catalog: FactCatalog, brainItems: Reado
     const field = x.field as AnalystField;
     if (!once(`c:${p.ref}:${field}`)) return null;
     cited.add(p.media_id);
-    return { media_id: p.media_id, field, value: p.categories[field] };
+    return { media_id: p.media_id, day: p.day, format: p.format, field, value: p.categories[field] };
   });
 
   const groups = through(items(o, "groups"), MAX_ANSWER_GROUPS, (x) => {
@@ -250,7 +259,7 @@ export function parseAnswer(raw: string, catalog: FactCatalog, brainItems: Reado
     const text = typeof x.text === "string" ? checkableText(x.text) : null;
     const refs = (Array.isArray(x.refs) ? x.refs : []) as string[];
     if (!text || text.length > MAX_HYPOTHESIS_CHARS || refs.length === 0) return null;
-    if (LINK.test(text) || HANDLE.test(text) || OUT_OF_SCOPE.test(text)) return null;
+    if (LINK.test(text) || OUT_OF_SCOPE.test(text)) return null;
     if (NOT_IN_THESE_FACTS.test(text) || MORE_NUMBER_WORDS.test(text)) return null;
     const pool: Fact[] = [];
     const resolved: HypothesisRef[] = [];
@@ -261,14 +270,16 @@ export function parseAnswer(raw: string, catalog: FactCatalog, brainItems: Reado
       const b = brainItems.get(ref);
       if (p) {
         pool.push({ id: ref, kind: "content", text: postFactText(p) });
-        resolved.push({ type: "post", media_id: p.media_id });
+        resolved.push({ type: "post", media_id: p.media_id, day: p.day, format: p.format });
         // its day may be named as a day; its parts are no figures
         probe = probe.split(p.day).join(" ");
       } else if (g) {
         pool.push({ id: ref, kind: "content", text: groupFactText(g) });
         resolved.push({ type: "group", field: g.field, value: g.value, metric: g.metric, n: g.n, small: g.small });
       } else if (b) {
-        pool.push({ id: ref, kind: "content", text: b.text });
+        // as with a post: a day may be named as a day, its parts are no figures
+        for (const day of b.text.match(ISO_DAY) ?? []) probe = probe.split(day).join(" ");
+        pool.push({ id: ref, kind: "content", text: b.text.replace(ISO_DAY, " ") });
         resolved.push({ type: "brain", note_id: b.note_id });
       } else return null;
     }

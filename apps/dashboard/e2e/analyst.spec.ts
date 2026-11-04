@@ -274,7 +274,7 @@ test.describe("ANAK-3 · World analyst", () => {
             categories: [],
             groups: [{ field: "theme", value: "beach", metric: "er", median: 0.2, n: 1, small: true }],
             brain: [],
-            hypotheses: [{ text: "Könnte tragen.", refs: [{ type: "post", media_id: "m" }, { type: "group", field: "theme", value: "beach", metric: "er", n: 1, small: true }] }],
+            hypotheses: [{ text: "Könnte tragen.", refs: [{ type: "post", media_id: "m", day: "2026-01-02", format: "reel" }, { type: "group", field: "theme", value: "beach", metric: "er", n: 1, small: true }] }],
             rejected: 0,
           },
           status: { fetched_at: "2026-01-02T08:30:00Z", stale: true, categories: "none", window: { from: "2026-01-02", to: "2026-01-02", considered: 1, total: 1 }, brain: { state: "none", reason: null, withheld: 0 } },
@@ -299,6 +299,8 @@ test.describe("ANAK-3 · World analyst", () => {
     await expect(page.getByTestId("analyst-hypotheses")).toContainText(warning);
     // this post is not in what the page loaded: no way out of the room, no raw id
     await expect(page.getByTestId("analyst-post")).toHaveCount(0);
+    // it still says which post: the server resolved it, the page merely has not loaded it
+    await expect(page.getByTestId("analyst-post-unloaded").first()).toContainText("2026-01-02");
     await expect(page.getByTestId("analyst-post-unloaded").first()).not.toHaveText("m");
     await expect(page.getByRole("button", { name: /^m$/ })).toHaveCount(0);
   });

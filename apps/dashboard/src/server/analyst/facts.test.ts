@@ -193,7 +193,7 @@ describe("parseAnswer: the model names refs, the server renders values", () => {
     expect(result).toMatchObject({ ok: true, rejected: 0 });
     if (!result.ok) throw new Error("no");
     expect(result.measured).toEqual([{ media_id: "id-a", day: "2026-10-09", format: "reel", metric: "er", value: 0.2 }]);
-    expect(result.categories).toEqual([{ media_id: "id-a", field: "theme", value: "beach" }]);
+    expect(result.categories).toEqual([{ media_id: "id-a", day: "2026-10-09", format: "reel", field: "theme", value: "beach" }]);
     expect(JSON.stringify(result)).not.toContain("aller Zeiten");
   });
 
@@ -274,7 +274,7 @@ describe("parseAnswer: the model names refs, the server renders values", () => {
       const a = refOf(c, "id-a");
       const result = withHyp(c, "Dieser Post mit 1000 Reichweite könnte tragen, weil 20 % reagierten.", [a]);
       if (!result.ok) throw new Error("no");
-      expect(result.hypotheses).toEqual([{ text: "Dieser Post mit 1000 Reichweite könnte tragen, weil 20 % reagierten.", refs: [{ type: "post", media_id: "id-a" }] }]);
+      expect(result.hypotheses).toEqual([{ text: "Dieser Post mit 1000 Reichweite könnte tragen, weil 20 % reagierten.", refs: [{ type: "post", media_id: "id-a", day: "2026-10-09", format: "reel" }] }]);
       expect(result.rejected).toBe(0);
     });
 
@@ -318,6 +318,26 @@ describe("parseAnswer: the model names refs, the server renders values", () => {
       ["an Italian number word", "Porta dieci clienti."],
       ["an Italian quantity", "Il doppio delle persone."],
       ["a unit glued to a date part", "Das bringt 10k Reichweite."],
+      ["a link behind a variation selector", "Siehe insta.c\uFE0Fom."],
+      ["a link behind a grapheme joiner", "Siehe insta.c\u034Fom."],
+      ["a link behind a control character", "Siehe insta.c\u0001om."],
+      ["a listed word behind a variation selector", "Die Ziel\uFE0Fgruppe mag das."],
+      ["a listed word behind a next-line control", "Die Ziel\u0085gruppe mag das."],
+      ["a quantity behind a variation selector", "Das ist dr\uFE0Fei mal so viel."],
+      ["a number split by an invisible mark", "Das waren 2\uFE0F00 Interaktionen."],
+      ["an emoji, nothing a sentence here needs", "Das lief gut 🔥"],
+      ["markdown", "Das **Reel** lief gut."],
+      ["a hashtag", "Das #Reel lief gut."],
+      ["a true figure with a thousands unit", "Das bringt 20k Reichweite."],
+      ["a true figure in millions", "Das bringt 20 Mio. Reichweite."],
+      ["a true figure in thousands, German", "Das bringt 20 Tsd. Reichweite."],
+      ["a true figure with an M", "That brings 20M views."],
+      ["an inflected listed word", "Die Umsätze stiegen."],
+      ["another inflected listed word", "Die Absätze stiegen."],
+      ["a singular listed word", "Das ist eine Einnahme."],
+      ["a plural listed phrase", "Das gehört in Working Files."],
+      ["another plural listed phrase", "Das sind Opportunity Drops."],
+      ["a listed phrase with a typographic apostrophe", "La fascia d\u2019età giusta."],
     ])("rejects and counts %s", (_name, text) => {
       const c = catalog();
       const result = withHyp(c, text, [refOf(c, "id-a")]);
@@ -337,6 +357,41 @@ describe("parseAnswer: the model names refs, the server renders values", () => {
       if (!glued.ok) throw new Error("no");
       expect(glued.hypotheses).toEqual([]);
       expect(glued.rejected).toBe(1);
+    });
+
+    it("the rate as the model was given it counts, and as a percent", () => {
+      const c = catalog();
+      const a = refOf(c, "id-c"); // er 0.1, ssr 0.01
+      for (const text of ["ER 0.1 bei diesem Post.", "ER 10 % bei diesem Post.", "ER 10.0 % bei diesem Post.", "Save+Share 0.01 hier.", "Save+Share 1.00 % hier."]) {
+        const result = withHyp(c, text, [a]);
+        if (!result.ok) throw new Error("no");
+        expect(result.hypotheses, text).toHaveLength(1);
+      }
+    });
+
+    it("ordinary sentences stay", () => {
+      const c = catalog();
+      const a = refOf(c, "id-a");
+      for (const text of ["Der Post lief gut, z.B. beim Reel.", "Das liegt bzw. läge am Format (d.h. Reel).", "Für größere Reichweite spricht: Format – nicht Thema!", "\"Reel\" und 'Story' wirken?", "E.g. the reel did well; i.e. format.", "Il Reel è andato bene, più della Story.", "Die Umsetzung ist gut."]) {
+        const result = withHyp(c, text, [a]);
+        if (!result.ok) throw new Error("no");
+        expect(result.hypotheses, text).toHaveLength(1);
+      }
+    });
+
+    it("the day in a cited Brain note may be named as a day, its parts are no figures", () => {
+      const c = catalog();
+      const a = refOf(c, "id-a");
+      const brain = new Map([["b_x", { ref: "b_x", note_id: "n", text: "Puls 2026-03-06 (Instagram, aggregiert, gemessen; Kategorien von Claude Haiku gelesen, 12 Posts)." }]]);
+      const take = (text: string) => {
+        const r = parseAnswer(raw({ measured: [{ ref: a, metric: "er" }], hypotheses: [{ text, refs: [a, "b_x"] }] }), c, brain);
+        if (!r.ok) throw new Error("no");
+        return r.hypotheses.length;
+      };
+      expect(take("Laut Puls vom 2026-03-06 trägt es.")).toBe(1);
+      expect(take("Laut Puls 12 Posts.")).toBe(1);
+      expect(take("Der Post hat 2026 Views.")).toBe(0);
+      expect(take("Der Post hat 3 Saves.")).toBe(0);
     });
 
     it("the day of a cited post may be named as a day, its parts are no figures", () => {
@@ -369,7 +424,7 @@ describe("parseAnswer: the model names refs, the server renders values", () => {
       const brain = new Map([["b_x", { ref: "b_x", note_id: "kn-world-pulse-2026-w10", text: "Median aller Posts: ER 3.1 %." }]]);
       const result = parseAnswer(raw({ hypotheses: [{ text: "Passt zu 3.1 %.", refs: [a, "b_x"] }] }), c, brain);
       if (!result.ok) throw new Error("no");
-      expect(result.hypotheses[0]?.refs).toEqual([{ type: "post", media_id: "id-a" }, { type: "brain", note_id: "kn-world-pulse-2026-w10" }]);
+      expect(result.hypotheses[0]?.refs).toEqual([{ type: "post", media_id: "id-a", day: "2026-10-09", format: "reel" }, { type: "brain", note_id: "kn-world-pulse-2026-w10" }]);
     });
 
     it("rejects refs that are no strings, without throwing", () => {

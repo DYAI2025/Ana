@@ -450,7 +450,8 @@ describe("AC-06 through the route path", () => {
     retiredAfterCall(w);
     const r = must(await ask(w));
     expect(r.answer.brain).toEqual([]);
-    expect(r.status.brain).toEqual({ state: "none", reason: null, withheld: 1 });
+    // not "nothing matched": the provider saw it, and the screen says a note went and changed
+    expect(r.status.brain).toEqual({ state: "unknown", reason: "changed_meanwhile", withheld: 1 });
     // the model did nothing wrong here
     expect(r.answer.rejected).toBe(0);
   });

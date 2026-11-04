@@ -139,10 +139,11 @@ export async function askAnalyst(rawQuestion: unknown, deps: AnalystDeps): Promi
       stale: social.stale,
       categories: stored === "unreadable" ? "unreadable" : Object.keys(tags).length > 0 ? "ok" : "none",
       window: catalog.window,
-      // from the last read, not the first: "found" next to nothing shown would be false
+      // From the last read, not the first: "found" next to nothing shown would be false, and "nothing matched" too, when a
+      // note did go to the provider and changed while it answered.
       brain: {
-        state: checked.failure ? "unknown" : checked.items.length > 0 ? "ok" : context.state === "ok" ? "none" : context.state,
-        reason: checked.failure ?? context.reason,
+        state: checked.failure || checked.dropped > 0 ? "unknown" : context.state,
+        reason: checked.failure ?? (checked.dropped > 0 ? "changed_meanwhile" : context.reason),
         withheld: context.withheld + checked.dropped,
       },
     };

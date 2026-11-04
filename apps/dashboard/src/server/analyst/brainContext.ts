@@ -178,9 +178,11 @@ function sourceReleased(fm: NoteFrontmatter): boolean {
 
 const unreachable = (e: unknown) => e instanceof BrainToolError && e.kind === "unreachable";
 
-/** A provenance field the rule depends on is absent: that is not a "no", it is not knowing. */
-const unclearNote = (fm: NoteFrontmatter | undefined) => !fm || fm.created_by === undefined || fm.status === undefined || fm.superseded_by === undefined;
-const unclearSource = (fm: NoteFrontmatter | undefined) => !fm || fm.type === undefined || fm.created_by === undefined || fm.superseded_by === undefined || fm.source?.access === undefined || fm.source?.data_class === undefined;
+/** The Brain's own word when nobody classified or signed something. */
+const UNKNOWN = "UNKNOWN";
+/** A provenance field the rule depends on is absent or says UNKNOWN: that is not a "no", it is not knowing. */
+const unclearNote = (fm: NoteFrontmatter | undefined) => !fm || fm.created_by === undefined || fm.created_by === UNKNOWN || fm.status === undefined || fm.superseded_by === undefined;
+const unclearSource = (fm: NoteFrontmatter | undefined) => !fm || fm.type === undefined || fm.created_by === undefined || fm.created_by === UNKNOWN || fm.superseded_by === undefined || fm.source?.access === undefined || fm.source?.data_class === undefined || fm.source.data_class === UNKNOWN;
 
 type Released = Omit<ReleasedItem, "ref" | "score">;
 /** A note the rule refuses is "withheld". One whose provenance cannot be established is "unclear": AC-06 wants that visible. An unreachable Brain throws. */
@@ -287,5 +289,6 @@ export async function verifyBeforeOutput(reader: BrainReader, items: readonly Re
     if (typeof again !== "string" && again.block === item.block && again.text === item.text) kept.push(item);
     else dropped++;
   }
-  return { items: kept, dropped, failure };
+  // the same rule as before the call: no note text next to a failure, the screen would say "no note" beside one
+  return failure ? { items: [], dropped: items.length, failure } : { items: kept, dropped, failure };
 }

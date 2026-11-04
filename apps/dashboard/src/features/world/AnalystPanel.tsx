@@ -97,11 +97,17 @@ function formats(locale: string) {
 
 const valueLabel = (t: T, field: GroupBlock["field"], value: string) => t(`world.works.values.${field}.${value}` as never);
 
-function PostLink({ id, posts, t, onPost }: { id: string; posts: readonly WorldPost[]; t: T; onPost: (id: string) => void }) {
-  const post = posts.find((p) => p.id === id);
-  // newer than what this page loaded: there is nothing to open yet, and leaving the room would lose the answer
-  if (!post) return <span data-testid="analyst-post-unloaded" data-media={id}>{t("world.office.analyst.postNotLoaded")}</span>;
-  const label = `${post.published_at?.slice(0, 10) ?? "—"} · ${t(`world.works.values.format.${post.format}` as never)}`;
+/** Says which post from the server's answer. The page's own list only decides whether there is anything to open yet. */
+function PostLink({ id, day, format, posts, t, onPost }: { id: string; day: string; format: string; posts: readonly WorldPost[]; t: T; onPost: (id: string) => void }) {
+  const label = `${day} · ${t(`world.works.values.format.${format}` as never)}`;
+  // newer than what this page loaded: leaving the room would lose the answer for an empty pane
+  if (!posts.some((p) => p.id === id)) {
+    return (
+      <span data-testid="analyst-post-unloaded" data-media={id}>
+        {label} ({t("world.office.analyst.postNotLoaded")})
+      </span>
+    );
+  }
   return (
     <button type="button" className={styles.analystPost} onClick={() => onPost(id)} data-testid="analyst-post" data-media={id} aria-label={t("world.office.analyst.openPost", { post: label })}>
       {label}
@@ -145,7 +151,7 @@ function Answer({ answer, posts, t, locale, onPost }: { answer: AnalystAnswer; p
           <ul>
             {answer.measured.map((m) => (
               <li key={`${m.media_id}-${m.metric}`} data-media={m.media_id} data-metric={m.metric} data-value={m.value ?? "null"}>
-                <PostLink id={m.media_id} posts={posts} t={t} onPost={onPost} /> {t(`world.office.analyst.metrics.${m.metric}`)}: <strong>{m.value === null ? t("world.office.analyst.notMeasured") : f.value(m.metric, m.value)}</strong>
+                <PostLink id={m.media_id} day={m.day} format={m.format} posts={posts} t={t} onPost={onPost} /> {t(`world.office.analyst.metrics.${m.metric}`)}: <strong>{m.value === null ? t("world.office.analyst.notMeasured") : f.value(m.metric, m.value)}</strong>
               </li>
             ))}
           </ul>
@@ -157,7 +163,7 @@ function Answer({ answer, posts, t, locale, onPost }: { answer: AnalystAnswer; p
           <ul>
             {answer.categories.map((c) => (
               <li key={`${c.media_id}-${c.field}`} data-media={c.media_id} data-field={c.field} data-value={c.value}>
-                <PostLink id={c.media_id} posts={posts} t={t} onPost={onPost} /> {t(`world.office.analyst.fields.${c.field}`)}: <strong>{valueLabel(t, c.field, c.value)}</strong>
+                <PostLink id={c.media_id} day={c.day} format={c.format} posts={posts} t={t} onPost={onPost} /> {t(`world.office.analyst.fields.${c.field}`)}: <strong>{valueLabel(t, c.field, c.value)}</strong>
               </li>
             ))}
           </ul>
@@ -197,7 +203,7 @@ function Answer({ answer, posts, t, locale, onPost }: { answer: AnalystAnswer; p
                 {h.text}
                 <span className={styles.analystRefs}>
                   {t("world.office.analyst.refs")}{" "}
-                  {h.refs.map((r) => (r.type === "post" ? <PostLink key={r.media_id} id={r.media_id} posts={posts} t={t} onPost={onPost} /> : <span key={refLabel(r, t)}>{refLabel(r, t)} </span>))}
+                  {h.refs.map((r) => (r.type === "post" ? <PostLink key={r.media_id} id={r.media_id} day={r.day} format={r.format} posts={posts} t={t} onPost={onPost} /> : <span key={refLabel(r, t)}>{refLabel(r, t)} </span>))}
                 </span>
               </li>
             ))}
