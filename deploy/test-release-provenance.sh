@@ -23,7 +23,7 @@ RUN=987654321
 
 # --- the workflows: release-shaped names and long retention only for a push to main --------------------------------
 out_id="  OUT_ID: \${{ (github.event_name == 'push' && github.ref == 'refs/heads/main') && github.sha || format('{0}-{1}', github.event_name == 'pull_request' && 'pr' || 'test', github.event.pull_request.head.sha || github.sha) }}"
-retention="  RETENTION_DAYS: \${{ (github.event_name == 'push' && github.ref == 'refs/heads/main') && 30 || 3 }}"
+retention="  RETENTION_DAYS: \${{ (github.event_name == 'push' && github.ref == 'refs/heads/main') && 14 || 3 }}"
 for pair in dashboard:dashboard-image brain:brain; do
   kind="${pair%%:*}" wf="$root/.github/workflows/${pair#*:}.yml"
   [ "$(grep -cxF "$out_id" "$wf")" = 1 ] || fail "$wf: OUT_ID line changed (only a push to main may get a bare commit name)"
@@ -35,7 +35,7 @@ for pair in dashboard:dashboard-image brain:brain; do
     fail "$wf: retention-days is not \${{ env.RETENTION_DAYS }}"
   grep -qF 'name: Output name matches the event' "$wf" || fail "$wf: run-time name guard missing"
   grep -qF '"event=$GITHUB_EVENT_NAME"' "$wf" && grep -qF '> bundle/.ana-build' "$wf" || fail "$wf: bundle no longer records its provenance"
-  ok "$wf: bare-commit name and 30-day retention only on push to main, guard and .ana-build present"
+  ok "$wf: bare-commit name and 14-day retention only on push to main, guard and .ana-build present"
 done
 
 # --- release.sh --check-bundle -----------------------------------------------------------------------------------
