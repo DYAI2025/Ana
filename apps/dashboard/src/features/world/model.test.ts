@@ -64,6 +64,7 @@ function world(pulseLikes: number, pulseAt = "2026-10-31T20:00:00.000Z", extraPu
     ana_look: resolveLook(null, null),
     release: { sha: null, started_at: pulseAt },
     post_tags: { state: "off", tags: {} },
+    post_topics: { state: "off", version: "t", topics: {}, failing: 0 },
     brain: { state: "off", last_day: null, note: null, reason: null },
     brief: { state: "off", busy: false, latest: null, weekly: null, in_brain: false, brain: false, reason: null },
   };

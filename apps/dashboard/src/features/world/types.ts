@@ -110,6 +110,8 @@ export interface WorldPayload {
   release: WorldRelease;
   /** categories of Ana's posts by media id (read by a model, see postTags.ts); state of the reader */
   post_tags: { state: "on" | "off"; tags: Record<string, PostTags> };
+  /** office topics per post by media id (features/world/office.ts; [] = read, no topic); state of the reader */
+  post_topics: { state: "on" | "off"; version: string; topics: Record<string, string[]>; failing: number };
   /** whether "Was läuft" is written into the ANA Brain (once per Berlin day, see brainWriter.ts) */
   brain: WorldBrainSync;
   /** the brief "Das Wichtigste fürs Geschäft" (features/world/brief.ts); "off" without a model key */

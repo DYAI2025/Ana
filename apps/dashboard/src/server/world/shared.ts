@@ -9,6 +9,7 @@ import { readHistory, recordHistory } from "./audienceHistory";
 import { createWorldService, type WorldService } from "./service";
 import { createVisionReader, visionConfigFromEnv } from "./vision";
 import { createPostTagger } from "./tagger";
+import { createTopicTagger } from "./topicTagger";
 import { brainCaller, brainWriterConfigFromEnv, createBrainWriter } from "./brainWriter";
 import { createBriefService, type BriefService } from "./briefService";
 
@@ -47,6 +48,8 @@ export function worldServiceFromEnv(): WorldService {
         history: { read: () => readHistory(), record: (e) => recordHistory(e) },
         // same key and model as the look reader; Ana agreed to the categories on 2026-11-02
         tagger: vision ? createPostTagger(vision) : null,
+        // the office topics: same model, same agreement (cover + caption in, only topic ids kept)
+        topicTagger: vision ? createTopicTagger(vision) : null,
         // agent:lumen, Ben's approval of 2026-11-03: aggregated numbers only, never CONFIRMED
         brain: brain ? createBrainWriter(brain) : null,
         brief,

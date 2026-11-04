@@ -110,6 +110,7 @@ test.describe("ANA World — 3D view over real dashboard data", () => {
     await expect(page.getByTestId("world-works-theme")).toHaveCount(0);
     const body = await (await page.request.get("/api/world")).json();
     expect(body.world.post_tags).toEqual({ state: "off", tags: {} });
+    expect(body.world.post_topics).toMatchObject({ state: "off", topics: {} });
   });
 
   test("works · top posts and the posts behind a value light up in the orbit and open their numbers", async ({ page }) => {
@@ -341,6 +342,10 @@ test.describe("ANA World — 3D view over real dashboard data", () => {
     const anaLabel = page.locator(".world-label.person", { hasText: /^Ana/ });
     await expect(anaLabel).not.toHaveClass(/is-hidden/);
     await anaLabel.click();
+    // picking Ana opens her office over the world; closing it leads back to her panel
+    await expect(page.getByTestId("office")).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(page.getByTestId("office")).toHaveCount(0);
     const look = page.getByTestId("world-look");
     await expect(look).toBeVisible();
     await expect(page.getByTestId("world-look-now")).toHaveAttribute("data-source", "default");
@@ -374,6 +379,57 @@ test.describe("ANA World — 3D view over real dashboard data", () => {
     await expect(look.getByTestId("world-activity-pick-auto")).toHaveAttribute("aria-checked", "true");
     await expect(canvas).toHaveAttribute("data-ana-look", "everyday");
     await expect(page.getByTestId("world-activity-now")).toHaveAttribute("data-source", "rotation");
+  });
+
+  test("office · picking Ana opens her office: the topic matrix and the topics for Substack with their evidence", async ({ page }) => {
+    test.setTimeout(60_000);
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await openWorld(page);
+    await page.getByTestId("world-view-ana").click();
+    const anaLabel = page.locator(".world-label.person", { hasText: /^Ana/ });
+    await expect(anaLabel).not.toHaveClass(/is-hidden/);
+    await anaLabel.click();
+    const office = page.getByTestId("office");
+    await expect(office).toBeVisible();
+    await expect(office).toHaveAttribute("role", "dialog");
+    await expect(page.getByTestId("office-close")).toBeFocused();
+    // eleven topics from the test run; the e2e server has no model, so none counts as tested by Ana's audience
+    await expect(page.getByTestId("office-matrix").locator("[data-testid^='office-dot-']")).toHaveCount(11);
+    await expect(page.getByTestId("office-matrix").locator("[data-tested='true']")).toHaveCount(0);
+    await expect(page.getByTestId("office-asof")).toContainText(/model|Modell|modello/);
+    // more discussed than the median topic → "try on Instagram"; the rest → "not now"; nothing claims to be a starter
+    await expect(page.getByTestId("office-group-test").locator("li[id^='office-topic-']")).toHaveCount(6);
+    await expect(page.getByTestId("office-group-skip").locator("li[id^='office-topic-']")).toHaveCount(5);
+    await expect(page.getByTestId("office-group-starter")).toHaveCount(0);
+    // a dot opens its topic with the threads behind it
+    await page.getByTestId("office-dot-quit-to-travel").click();
+    const topic = page.getByTestId("office-topic-quit-to-travel");
+    await expect(topic).toHaveAttribute("data-picked", "true");
+    await expect(topic.locator("details")).toHaveAttribute("open", "");
+    await expect(topic.locator("a[href^='https://www.reddit.com/r/solotravel/comments/1xlwo9b/']")).toBeVisible();
+    // keyboard: a dot is a button
+    await page.getByTestId("office-dot-homesick").focus();
+    await page.keyboard.press("Enter");
+    await expect(page.getByTestId("office-topic-homesick")).toHaveAttribute("data-picked", "true");
+    // Escape closes; the button in Ana's panel opens it again; the backdrop closes it too
+    await page.keyboard.press("Escape");
+    await expect(office).toHaveCount(0);
+    await page.getByTestId("office-open").click();
+    await expect(page.getByTestId("office")).toBeVisible();
+    // Tab stays in the room: back from the first control lands on the last one inside it, even from the page body
+    await expect(page.getByTestId("office-close")).toBeFocused();
+    await page.keyboard.press("Shift+Tab");
+    expect(await page.evaluate(() => document.querySelector("[data-testid='office']")?.contains(document.activeElement))).toBe(true);
+    await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
+    await page.keyboard.press("Tab");
+    await expect(page.getByTestId("office-close")).toBeFocused();
+    // closing gives focus back to the button that opened the room
+    await page.keyboard.press("Escape");
+    await expect(page.getByTestId("office-open")).toBeFocused();
+    await page.getByTestId("office-open").click();
+    await expect(page.getByTestId("office")).toBeVisible();
+    await page.getByTestId("office-backdrop").click({ position: { x: 4, y: 4 } });
+    await expect(page.getByTestId("office")).toHaveCount(0);
   });
 
   test("look · the pick endpoint refuses cross-site requests and unknown looks", async ({ page }) => {

@@ -13,6 +13,7 @@ import { postsWith, TAG_FIELDS, TAG_MIN_CONFIDENCE, topPosts, whatWorks, type Po
 import type { SceneData, SceneRef, StationStatus, ViewName, WorldScene } from "./scene/world";
 import { pulseDigest } from "./pulse";
 import { BriefBlock } from "./BriefBlock";
+import { OfficeRoom } from "./OfficeRoom";
 import styles from "./world.module.css";
 
 const TABS = ["now", "hot", "selection", "sources"] as const;
@@ -191,6 +192,9 @@ export function WorldView() {
   const layer: Layer = layerPick ?? (world?.audience.engaged_country_week.state === "ok" ? "week" : "engaged");
   const [tab, setTab] = useState<Tab>("now");
   const [selected, setSelected] = useState<SceneRef | null>(null);
+  // Ana's office: opens over the world when Ana is picked (in the scene or with the button)
+  const [office, setOffice] = useState(false);
+  const closeOffice = useCallback(() => setOffice(false), []);
   // a category value picked in "What works", or the top posts, lit up in the orbit
   const [worksPick, setWorksPick] = useState<{ field: TagField; value: string } | "top" | "fresh" | null>(null);
   // what "What works" ranks by: engagement, or saves + shares (the closer hint for long reads, e.g. Substack)
@@ -318,6 +322,7 @@ export function WorldView() {
           onSelect: (ref) => {
             setSelected(ref);
             setTab("selection");
+            if (ref.type === "person" && ref.id === "ana") setOffice(true);
           },
         });
         ro = new ResizeObserver(() => sceneRef.current?.resize());
@@ -803,6 +808,12 @@ export function WorldView() {
           <h3 className={styles.selTitle} style={{ ["--tint" as string]: p.tint }}>{p.name}</h3>
           <p>{s.id === "ana" ? (place ? place.label : t("world.places.anaUnknown")) : t("world.places.berlin")}</p>
           {s.id !== "ana" || place ? <p className={styles.muted}>{s.id === "ana" && !place?.tz ? t("world.people.localTimeEstimated", { time: local }) : t("world.people.localTime", { time: local })}</p> : null}
+          {s.id === "ana" ? (
+            <button type="button" className={styles.officeOpen} onClick={() => setOffice(true)} data-testid="office-open">
+              <span aria-hidden="true">🗂️ </span>
+              {t("world.office.open")}
+            </button>
+          ) : null}
           {s.id === "ana" ? lookBlock(place ? anaNight(place) : false, local) : null}
           {s.id === "ben" || s.id === "vince"
             ? (() => {
@@ -1066,6 +1077,20 @@ export function WorldView() {
           </div>
         </aside>
       </div>
+      {office && world && ig ? (
+        <OfficeRoom
+          world={world}
+          posts={ig.posts}
+          t={t}
+          locale={locale}
+          onClose={closeOffice}
+          onPost={(id) => {
+            setOffice(false);
+            setSelected({ type: "post", id });
+            setTab("selection");
+          }}
+        />
+      ) : null}
     </div>
   );
 }
