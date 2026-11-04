@@ -111,6 +111,8 @@ test.describe("ANA World — 3D view over real dashboard data", () => {
     const body = await (await page.request.get("/api/world")).json();
     expect(body.world.post_tags).toEqual({ state: "off", tags: {} });
     expect(body.world.post_topics).toMatchObject({ state: "off", topics: {} });
+    // no model key in e2e: the newsletter feeds are not read, and nothing claims they were
+    expect(body.world.newsletters).toMatchObject({ state: "off", read_at: null, posts: 0, topics: {} });
   });
 
   test("works · top posts and the posts behind a value light up in the orbit and open their numbers", async ({ page }) => {
@@ -410,6 +412,8 @@ test.describe("ANA World — 3D view over real dashboard data", () => {
     await expect(page.getByTestId("office-matrix").locator("[data-testid^='office-dot-']")).toHaveCount(11);
     await expect(page.getByTestId("office-matrix").locator("[data-tested='true']")).toHaveCount(0);
     await expect(page.getByTestId("office-asof")).toContainText(/model|Modell|modello/);
+    await expect(page.getByTestId("office-newsletters-asof")).toContainText(/model|Modell|modello/);
+    await expect(page.locator('[data-testid^="office-newsletters-"]:not([data-testid="office-newsletters-asof"])')).toHaveCount(0);
     await expect(page.getByTestId("office-group-test").locator("li[id^='office-topic-']")).toHaveCount(6);
     await expect(page.getByTestId("office-group-skip").locator("li[id^='office-topic-']")).toHaveCount(5);
     await expect(page.getByTestId("office-group-starter")).toHaveCount(0);

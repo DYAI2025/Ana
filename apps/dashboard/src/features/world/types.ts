@@ -96,6 +96,7 @@ export interface WorldRelease {
 
 import type { PostTags } from "./postTags";
 import type { BriefRecord } from "./brief";
+import type { WorldNewsletters } from "./newsletters";
 import type { Locale } from "@/lib/locale";
 
 export interface WorldPayload {
@@ -113,6 +114,8 @@ export interface WorldPayload {
   post_tags: { state: "on" | "off"; tags: Record<string, PostTags> };
   /** office topics per post by media id (features/world/office.ts; [] = read, no topic); state of the reader */
   post_topics: { state: "on" | "off"; version: string; topics: Record<string, string[]>; failing: number };
+  /** what popular Substack newsletters wrote about the office topics (features/world/newsletters.ts); "off" without a model key */
+  newsletters: WorldNewsletters;
   /** whether "Was läuft" is written into the ANA Brain (once per Berlin day, see brainWriter.ts) */
   brain: WorldBrainSync;
   /** the brief "Das Wichtigste fürs Geschäft" (features/world/brief.ts); "off" without a model key */

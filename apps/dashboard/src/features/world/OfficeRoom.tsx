@@ -6,6 +6,7 @@ import type { useI18n } from "@/components/providers/I18nProvider";
 import { useReducedMotion } from "@/lib/hooks/useReducedMotion";
 import type { WorldPost } from "./model";
 import { OFFICE_AS_OF, OFFICE_CONFIRMED, OFFICE_MIN_N, OFFICE_SOURCE, OFFICE_TOPICS, officeView, ROOM_SPOTS, type BoardDot, type OfficePoint, type OfficeQuadrant, type RoomSpot } from "./office";
+import { NEWSLETTER_CHECK_MIN, NEWSLETTER_FEEDS, NEWSLETTERS_PICKED, feedName } from "./newsletters";
 import { PEOPLE } from "./people";
 import type { RoomScene } from "./scene/officeRoom";
 import type { WorldPayload } from "./types";
@@ -333,6 +334,7 @@ export function OfficeBoard({ world, posts, t, locale, onPost }: { world: WorldP
   const nf1 = useMemo(() => new Intl.NumberFormat(locale, { minimumFractionDigits: 1, maximumFractionDigits: 1 }), [locale]);
   const asOf = useMemo(() => new Intl.DateTimeFormat(locale, { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" }).format(new Date(`${OFFICE_AS_OF}T12:00:00Z`)), [locale]);
   const byId = useMemo(() => new Map(posts.map((p) => [p.id, p])), [posts]);
+  const asOfPicked = useMemo(() => new Intl.DateTimeFormat(locale, { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" }).format(new Date(`${NEWSLETTERS_PICKED}T12:00:00Z`)), [locale]);
 
   const pick = (id: string) => {
     setPicked(id);
@@ -351,6 +353,31 @@ export function OfficeBoard({ world, posts, t, locale, onPost }: { world: WorldP
   const snapshot = world.instagram.ok ? world.instagram.snapshot.posts.map((x) => x.media_id) : null;
   const total = snapshot ? snapshot.length : posts.length;
   const read = snapshot ? snapshot.filter((id) => Object.hasOwn(world.post_topics.topics, id)).length : view.read;
+  const nl = world.newsletters;
+  const day = (d: string) => new Intl.DateTimeFormat(locale, { day: "numeric", month: "short", timeZone: "UTC" }).format(new Date(`${d}T12:00:00Z`));
+  const berlinDay = (iso: string) => new Intl.DateTimeFormat(locale, { day: "numeric", month: "short", timeZone: "Europe/Berlin" }).format(new Date(iso));
+  // per topic only once posts were checked; "none" only when every post is checked and no feed is failing
+  const nlTopics = nl.state === "on" && nl.feeds_read > 0 && nl.checked > 0;
+  const span = nl.since ? t("world.office.spanSince", { date: day(nl.since) }) : t("world.office.spanDays");
+  const nlLine = (id: string) => {
+    const topic = nl.topics[id];
+    if (topic && topic.feeds.length > 0) return t("world.office.newsletters", { k: topic.feeds.length, n: nl.feeds_read, span, posts: topic.posts, names: topic.feeds.map(feedName).join(", ") });
+    return nl.complete ? t("world.office.newslettersNone", { n: nl.feeds_read, span }) : t("world.office.newslettersSoFar", { checked: nl.checked, posts: nl.posts });
+  };
+  const nlAsOf = (() => {
+    if (nl.state !== "on") return t("world.office.newslettersOff");
+    if (nl.store_error) return t("world.office.newslettersStoreError");
+    if (nl.read_at === null) return nl.feeds_failing > 0 ? t("world.office.newslettersNeverRead", { n: nl.feeds_failing }) : t("world.office.newslettersWaiting");
+    const parts = [t("world.office.newslettersAsOf", { read: nl.feeds_read, feeds: nl.feeds, date: berlinDay(nl.read_at), checked: nl.checked, posts: nl.posts })];
+    if (nl.feeds_failing > 0) parts.push(t("world.office.newslettersFeedsFailing", { n: nl.feeds_failing }));
+    if (nl.unreadable > 0) parts.push(t("world.office.newslettersUnreadable", { n: nl.unreadable }));
+    return parts.join(" ");
+  })();
+  const pct = (x: { checked: number; matched: number }) => Math.round((100 * x.matched) / x.checked);
+  const nlCheck =
+    nl.state === "on" && nl.check.core.checked >= NEWSLETTER_CHECK_MIN && nl.check.control.checked >= NEWSLETTER_CHECK_MIN
+      ? t("world.office.newsletterCheck", { core: nl.check.core.feeds, control: nl.check.control.feeds, a: pct(nl.check.core), b: pct(nl.check.control) })
+      : null;
 
   return (
     <div className={styles.officeBoard} data-testid="office-board">
@@ -359,6 +386,8 @@ export function OfficeBoard({ world, posts, t, locale, onPost }: { world: WorldP
           {reader ? t("world.office.asOf", { source: OFFICE_SOURCE, date: asOf, read, total }) : t("world.office.readerOff")}
           {reader && world.post_topics.failing > 0 ? ` ${t("world.office.failing", { n: world.post_topics.failing })}` : ""}
         </p>
+        <p className={styles.muted} data-testid="office-newsletters-asof">{nlAsOf}</p>
+        {nlCheck ? <p className={styles.muted} data-testid="office-newsletters-check">{nlCheck}</p> : null}
         <div className={styles.officeBody}>
           <figure className={styles.officeMatrix}>
             <svg viewBox={`0 0 ${W} ${H}`} role="group" aria-label={t("world.office.matrixLabel")} data-testid="office-matrix">
@@ -420,12 +449,14 @@ export function OfficeBoard({ world, posts, t, locale, onPost }: { world: WorldP
                     {items.map((p) => {
                       const topic = OFFICE_TOPICS.find((x) => x.id === p.id);
                       const mine = p.ana.posts.map((id) => byId.get(id)).filter((x): x is WorldPost => x !== undefined);
+                      const hits = nlTopics ? (nl.topics[p.id]?.hits ?? []) : [];
                       return (
                         <li key={p.id} id={`office-topic-${p.id}`} data-picked={picked === p.id} data-testid={`office-topic-${p.id}`}>
                           <span className={styles.officeNum} data-quadrant={p.quadrant} aria-hidden="true">{p.n}</span>
                           <div>
                             <b>{t(`world.office.topics.${p.id}` as never)}</b> <span className={styles.chip}>{t(`world.office.lane.${p.lane}`)}</span>
                             <p>{t("world.office.outside", { reactions: nf.format(p.outside.reactions), threads: p.outside.threads, forums: p.outside.forums.join(", ") })}</p>
+                            {nlTopics ? <p data-testid={`office-newsletters-${p.id}`}>{nlLine(p.id)}</p> : null}
                             <p>{anaLine(p)}</p>
                             {p.ana.state === "weak" ? <p className={styles.muted} data-testid={`office-weak-${p.id}`}>{t("world.office.anaWeak")}</p> : null}
                             <details className={styles.briefFacts} open={picked === p.id ? true : undefined}>
@@ -444,6 +475,22 @@ export function OfficeBoard({ world, posts, t, locale, onPost }: { world: WorldP
                                   </li>
                                 ))}
                               </ul>
+                              {hits.length ? (
+                                <>
+                                  <h5>{t("world.office.newsletterEvidence")}</h5>
+                                  <ul>
+                                    {hits.slice(0, 5).map((h) => (
+                                      <li key={h.url}>
+                                        <a href={h.url} target="_blank" rel="noreferrer noopener">{h.title}</a>
+                                        <br />
+                                        <span className={styles.muted}>
+                                          {feedName(h.feed)} · {day(h.date)}
+                                        </span>
+                                      </li>
+                                    ))}
+                                  </ul>
+                                </>
+                              ) : null}
                               {mine.length ? (
                                 <>
                                   <h5>{t("world.office.posts")}</h5>
@@ -468,6 +515,11 @@ export function OfficeBoard({ world, posts, t, locale, onPost }: { world: WorldP
         <footer className={styles.officeFoot}>
           <p>{t("world.office.hypothesis")}</p>
           <p className={styles.note}>{t("world.office.method")}</p>
+          {nl.state === "on" ? (
+            <p className={styles.note}>
+              {t("world.office.newsletterMethod", { feeds: NEWSLETTER_FEEDS.length, core: nl.feeds, control: NEWSLETTER_FEEDS.length - nl.feeds, date: asOfPicked })}
+            </p>
+          ) : null}
           <p className={styles.note}>{t("world.office.next")}</p>
         </footer>
     </div>
