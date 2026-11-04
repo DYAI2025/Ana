@@ -24,7 +24,7 @@ describe("brief facts", () => {
     expect(text).toContain("Alle Posts mit Insights: Interaktionsrate im Median 6.0 % (n 5)");
     expect(text).toContain("nicht pro Post");
     expect(text).not.toContain("SECRET");
-    expect(facts.some((f) => f.kind === "substack" && f.text.startsWith("H1 Opportunity Drop"))).toBe(true);
+    expect(facts.some((f) => f.kind === "substack" && f.text.startsWith("Substack-Idee „Chancen-Newsletter“ (H1"))).toBe(true);
   });
 
   it("name the best and the worst value of a category only with 3 posts or more on each side", () => {
