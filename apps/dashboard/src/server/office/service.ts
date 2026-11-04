@@ -33,8 +33,8 @@ function obj(input: unknown): Record<string, unknown> {
   return input && typeof input === "object" && !Array.isArray(input) ? (input as Record<string, unknown>) : {};
 }
 
-export function listTickets(store: OfficeStore): Outcome {
-  return ok({ tickets: store.listTickets() });
+export function listTickets(store: OfficeStore, me: OfficePerson): Outcome {
+  return ok({ me, tickets: store.listTickets() });
 }
 
 export function getTicket(store: OfficeStore, id: string): Outcome {

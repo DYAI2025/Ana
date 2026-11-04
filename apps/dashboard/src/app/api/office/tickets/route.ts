@@ -9,7 +9,7 @@ export const runtime = "nodejs";
 export async function GET(request: Request) {
   const who = await readActor(request);
   if (!who.ok) return who.response;
-  return guarded(() => listTickets(officeStore()));
+  return guarded(() => listTickets(officeStore(), who.actor));
 }
 
 /** POST /api/office/tickets `{ title, description?, column?, assignee? }`: Ben and Vince only. */

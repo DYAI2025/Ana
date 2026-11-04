@@ -1,0 +1,32 @@
+import type { officeBoardEn } from "./en";
+
+export const officeBoardIt: typeof officeBoardEn = {
+  title: "Office Berlin",
+  subtitle: "Ciò su cui Ben e Vince stanno lavorando. Apri un ticket per note e immagini, fai una domanda quando vuoi.",
+  columns: { todo: "In arrivo", doing: "In lavorazione", done: "Fatto" },
+  empty: "Ancora niente qui.",
+  loading: "Apro la bacheca …",
+  loadFailed: "Non è stato possibile caricare la bacheca. Riprova tra poco.",
+  retry: "Riprova",
+  saveFailed: "Salvataggio non riuscito – riprova.",
+  newTicket: "Nuovo ticket",
+  form: { title: "Titolo", description: "Di cosa si tratta?", assignee: "Chi ci lavora", create: "Aggiungi alla bacheca", cancel: "Annulla" },
+  nobody: "Ancora nessuno",
+  card: { comments: "{n} note", pictures: "{n} immagini", question: "Domanda aperta per Ben e Vince", moveLeft: "Sposta in {column}", moveRight: "Sposta in {column}", open: "Apri ticket: {title}" },
+  ticket: {
+    created: "Creato il {date}",
+    by: "da {name}",
+    history: "Note e commenti",
+    noHistory: "Ancora nessuna nota.",
+    write: "Scrivi un commento …",
+    isQuestion: "È una domanda",
+    send: "Invia",
+    question: "Domanda",
+    answered: "Risposta data",
+    markAnswered: "Segna come risposta",
+    archive: "Togli dalla bacheca",
+    close: "Chiudi",
+    status: "Colonna",
+  },
+  ago: { now: "proprio ora", min: "{n} min fa", h: "{n} h fa", d: "{n} giorni fa" },
+};

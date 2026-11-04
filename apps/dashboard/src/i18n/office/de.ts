@@ -1,0 +1,32 @@
+import type { officeBoardEn } from "./en";
+
+export const officeBoardDe: typeof officeBoardEn = {
+  title: "Office Berlin",
+  subtitle: "Woran Ben und Vince gerade arbeiten. Öffne ein Ticket für Notizen und Bilder, stell jederzeit eine Frage.",
+  columns: { todo: "Kommt als Nächstes", doing: "In Arbeit", done: "Fertig" },
+  empty: "Hier ist noch nichts.",
+  loading: "Board wird geöffnet …",
+  loadFailed: "Das Board konnte nicht geladen werden. Versuch es gleich noch einmal.",
+  retry: "Nochmal versuchen",
+  saveFailed: "Konnte nicht speichern – bitte nochmal versuchen.",
+  newTicket: "Neues Ticket",
+  form: { title: "Titel", description: "Worum geht es?", assignee: "Wer arbeitet daran", create: "Aufs Board", cancel: "Abbrechen" },
+  nobody: "Noch niemand",
+  card: { comments: "{n} Notizen", pictures: "{n} Bilder", question: "Offene Frage an Ben und Vince", moveLeft: "Nach {column} verschieben", moveRight: "Nach {column} verschieben", open: "Ticket öffnen: {title}" },
+  ticket: {
+    created: "Angelegt am {date}",
+    by: "von {name}",
+    history: "Notizen und Kommentare",
+    noHistory: "Noch keine Notizen.",
+    write: "Kommentar schreiben …",
+    isQuestion: "Das ist eine Frage",
+    send: "Senden",
+    question: "Frage",
+    answered: "Beantwortet",
+    markAnswered: "Als beantwortet markieren",
+    archive: "Vom Board nehmen",
+    close: "Schließen",
+    status: "Spalte",
+  },
+  ago: { now: "gerade eben", min: "vor {n} min", h: "vor {n} h", d: "vor {n} Tagen" },
+};

@@ -72,7 +72,7 @@ describe("tickets", () => {
   it("disappear from the board when archived, but stay in the database", () => {
     const id = (createTicket(store, "ben", { title: "Old" }).body.ticket as { id: string }).id;
     updateTicket(store, "ben", id, { archived: true });
-    expect((listTickets(store).body.tickets as unknown[]).length).toBe(0);
+    expect((listTickets(store, "ben").body.tickets as unknown[]).length).toBe(0);
     expect(store.getTicket(id)?.ticket.archived).toBe(true);
   });
 });
@@ -88,7 +88,7 @@ describe("entries and questions", () => {
     const id = (createTicket(store, "ben", { title: "T" }).body.ticket as { id: string }).id;
     const q = addEntry(store, "ana", id, { body: "When is it ready?", isQuestion: true });
     const entryId = (q.body.entry as { id: string }).id;
-    const open = () => (listTickets(store).body.tickets as { openQuestions: number }[])[0]!.openQuestions;
+    const open = () => (listTickets(store, "ben").body.tickets as { openQuestions: number }[])[0]!.openQuestions;
     expect(open()).toBe(1);
     expect(resolveQuestion(store, "ana", entryId).status).toBe(403);
     expect(resolveQuestion(store, "vince", entryId).status).toBe(200);
