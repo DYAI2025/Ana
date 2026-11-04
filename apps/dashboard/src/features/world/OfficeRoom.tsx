@@ -87,10 +87,13 @@ export function boardDots(points: readonly OfficePoint[], pos: ReadonlyMap<strin
   });
 }
 
+/** Whether WebGL is there; the probe's context is released at once (each open of the office probes again). */
 function supportsWebGL(): boolean {
   try {
     const c = document.createElement("canvas");
-    return Boolean(c.getContext("webgl2") ?? c.getContext("webgl"));
+    const ctx = c.getContext("webgl2") ?? c.getContext("webgl");
+    ctx?.getExtension("WEBGL_lose_context")?.loseContext();
+    return Boolean(ctx);
   } catch {
     return false;
   }
@@ -111,7 +114,10 @@ export function OfficeRoom({ world, posts, t, locale, onClose, onPost }: { world
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const sceneRef = useRef<RoomScene | null>(null);
   const labelRefs = useRef<Partial<Record<RoomSpot, HTMLButtonElement | null>>>({});
-  const [gl, setGl] = useState<"loading" | "ok" | "unsupported">("loading");
+  const [gl, setGl] = useState<"loading" | "ok" | "unsupported" | "failed">("loading");
+  // read once when the room is built: the scene is never rebuilt on the same canvas (its context is released on close)
+  const reducedRef = useRef(reduced);
+  const lastSpot = useRef<RoomSpot>("board");
   const [spot, setSpot] = useState<RoomSpot | null>(null);
   const spotRef = useRef<RoomSpot | null>(null);
   const [lamp, setLamp] = useState(true);
@@ -126,6 +132,7 @@ export function OfficeRoom({ world, posts, t, locale, onClose, onPost }: { world
       return;
     }
     spotRef.current = s;
+    lastSpot.current = s;
     setSpot(s);
     sceneRef.current?.focus(s);
   }, []);
@@ -133,7 +140,8 @@ export function OfficeRoom({ world, posts, t, locale, onClose, onPost }: { world
     spotRef.current = null;
     setSpot(null);
     sceneRef.current?.focus(null);
-    requestAnimationFrame(() => labelRefs.current.board?.focus());
+    // back to the thing you came from, once its button floats again (the follow loop shows it on its next frame)
+    requestAnimationFrame(() => requestAnimationFrame(() => labelRefs.current[lastSpot.current]?.focus()));
   }, []);
 
   // focus moves into the room and back to where it came from (or to the office button when that is gone).
@@ -189,14 +197,19 @@ export function OfficeRoom({ world, posts, t, locale, onClose, onPost }: { world
     let raf = 0;
     let ro: ResizeObserver | null = null;
     // a room that does not load within 8 s gives way to the board, so the office is never an empty box
+    let gaveUp = false;
     const slow = setTimeout(() => {
-      if (!disposed && !sceneRef.current) setGl("unsupported");
+      if (!disposed && !sceneRef.current) {
+        gaveUp = true;
+        setGl("failed");
+      }
     }, 8_000);
     import("./scene/officeRoom")
       .then((mod) => {
-        if (disposed || !canvas.isConnected) return;
+        // too late: the board is already open in its place
+        if (disposed || gaveUp || !canvas.isConnected) return;
         clearTimeout(slow);
-        const scene = mod.createRoomScene(canvas, { reducedMotion: reduced, ana: PEOPLE.ana.avatar, onPick: use, onHover: setHover });
+        const scene = mod.createRoomScene(canvas, { reducedMotion: reducedRef.current, ana: PEOPLE.ana.avatar, onPick: use, onHover: setHover });
         sceneRef.current = scene;
         ro = new ResizeObserver(() => scene.resize());
         ro.observe(canvas);
@@ -216,7 +229,7 @@ export function OfficeRoom({ world, posts, t, locale, onClose, onPost }: { world
         setGl("ok");
       })
       .catch(() => {
-        if (!disposed) setGl("unsupported");
+        if (!disposed) setGl("failed");
       });
     return () => {
       disposed = true;
@@ -226,7 +239,7 @@ export function OfficeRoom({ world, posts, t, locale, onClose, onPost }: { world
       sceneRef.current?.dispose();
       sceneRef.current = null;
     };
-  }, [reduced, use]);
+  }, [use]);
 
   useEffect(() => {
     if (gl === "ok") sceneRef.current?.setBoard(dots);
@@ -240,7 +253,8 @@ export function OfficeRoom({ world, posts, t, locale, onClose, onPost }: { world
   }, [lamp, gl]);
 
   // without WebGL the board is what the room is for: it opens right away
-  const shown: RoomSpot | null = gl === "unsupported" ? "board" : spot;
+  const flat = gl === "unsupported" || gl === "failed";
+  const shown: RoomSpot | null = flat ? "board" : spot;
 
   const room = (
     <div className={styles.officeBackdrop} data-testid="office-backdrop">
@@ -251,7 +265,7 @@ export function OfficeRoom({ world, posts, t, locale, onClose, onPost }: { world
               <span aria-hidden="true">🏠 </span>
               {t("world.office.title")}
             </h2>
-            <p>{gl === "unsupported" ? t("world.office.noWebgl") : t("world.office.hint")}</p>
+            <p>{gl === "unsupported" ? t("world.office.noWebgl") : gl === "failed" ? t("world.office.loadFailed") : t("world.office.hint")}</p>
           </div>
           <button ref={closeRef} type="button" className={styles.officeExit} onClick={onClose} data-testid="office-close">
             <span aria-hidden="true">🌍 </span>
@@ -259,7 +273,7 @@ export function OfficeRoom({ world, posts, t, locale, onClose, onPost }: { world
           </button>
         </header>
         <div className={styles.officeStage}>
-          <canvas ref={canvasRef} className={styles.officeCanvas} role="img" aria-label={t("world.office.roomLabel")} data-testid="office-canvas" hidden={gl === "unsupported"} />
+          <canvas ref={canvasRef} className={styles.officeCanvas} role="img" aria-label={t("world.office.roomLabel")} data-testid="office-canvas" hidden={flat} />
           <div className={styles.officeSpots} hidden={gl !== "ok"}>
             {ROOM_SPOTS.map((s) => (
               <button

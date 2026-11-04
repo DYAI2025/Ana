@@ -98,7 +98,10 @@ function useWorld(sinkRef: { current: (e: PulseEvent[]) => void }) {
 function supportsWebGL(): boolean {
   try {
     const c = document.createElement("canvas");
-    return Boolean(c.getContext("webgl2") ?? c.getContext("webgl"));
+    const ctx = c.getContext("webgl2") ?? c.getContext("webgl");
+    // the probe's context is released at once: browsers keep only a few alive
+    ctx?.getExtension("WEBGL_lose_context")?.loseContext();
+    return Boolean(ctx);
   } catch {
     return false;
   }

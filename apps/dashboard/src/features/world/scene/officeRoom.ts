@@ -503,6 +503,9 @@ export function createRoomScene(canvas: HTMLCanvasElement, options: { reducedMot
       disposeGeometry(scene);
       boardTex.dispose();
       renderer.dispose();
+      // three keeps cached materials (shared with the world) pointing at this renderer: release the GL context itself,
+      // or every visit to the office would hold one more until the browser drops the world's
+      renderer.forceContextLoss();
     },
   };
 }

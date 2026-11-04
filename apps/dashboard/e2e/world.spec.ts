@@ -430,7 +430,16 @@ test.describe("ANA World — 3D view over real dashboard data", () => {
     await expect(page.getByTestId("office-computer")).toBeVisible();
     await page.getByTestId("office-back").click();
     await expect(office).toHaveAttribute("data-spot", "room");
-    // Tab stays in the room, also from the page body
+    // back from the computer lands on the computer
+    await expect(page.getByTestId("office-spot-computer")).toBeFocused();
+    // Tab stays in the room: Shift+Tab from the first control wraps to the last one inside (without the trap it would
+    // leave into the page behind), and Tab from the page body goes back in
+    await page.getByTestId("office-close").focus();
+    await page.keyboard.press("Shift+Tab");
+    expect(await page.evaluate(() => {
+      const a = document.activeElement;
+      return Boolean(a && a !== document.querySelector("[data-testid='office-close']") && document.querySelector("[data-testid='office']")?.contains(a));
+    })).toBe(true);
     await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
     await page.keyboard.press("Tab");
     expect(await page.evaluate(() => document.querySelector("[data-testid='office']")?.contains(document.activeElement))).toBe(true);
@@ -445,6 +454,32 @@ test.describe("ANA World — 3D view over real dashboard data", () => {
     await page.getByTestId("office-close").click();
     await expect(page.getByTestId("office")).toHaveCount(0);
     await expect(page.getByTestId("office-open")).toBeFocused();
+  });
+
+  test("office · twenty visits leave the world's 3D alive (each room releases its WebGL context)", async ({ page }) => {
+    test.setTimeout(120_000);
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    const warnings: string[] = [];
+    page.on("console", (m) => {
+      if (/too many active webgl contexts|context lost/i.test(m.text())) warnings.push(m.text());
+    });
+    await openWorld(page);
+    await page.evaluate(() => {
+      const w = window as unknown as { __lost: number };
+      w.__lost = 0;
+      document.querySelector("[data-testid='world-canvas']")?.addEventListener("webglcontextlost", () => (w.__lost += 1));
+    });
+    await page.getByTestId("world-view-ana").click();
+    const hut = page.locator(".world-label.office");
+    for (let i = 0; i < 20; i++) {
+      await hut.click();
+      await page.locator('[data-testid="office-canvas"][data-ready="true"]').waitFor({ timeout: 20_000 });
+      await page.getByTestId("office-close").click();
+      await expect(page.getByTestId("office")).toHaveCount(0);
+    }
+    expect(await page.evaluate(() => (window as unknown as { __lost: number }).__lost)).toBe(0);
+    expect(warnings).toEqual([]);
+    await expect(page.getByTestId("world-canvas")).toHaveAttribute("data-paused", "false");
   });
 
   test("look · the pick endpoint refuses cross-site requests and unknown looks", async ({ page }) => {

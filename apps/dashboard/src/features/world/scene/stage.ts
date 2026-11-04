@@ -296,7 +296,7 @@ export function buildAnaSpot(lat: number, lon: number): AnaSpot {
   roof.position.y = 0.86;
   hut.add(roof);
   const door = mesh(new THREE.BoxGeometry(0.16, 0.3, 0.02), 0xf2b84b, 1.1);
-  door.position.set(0, 0.34, 0.26);
+  door.position.set(0, 0.34, 0.205);
   hut.add(door);
   const wall = mesh(new THREE.BoxGeometry(0.5, 0.42, 0.4), 0xfbf3e6, 1.04);
   wall.position.y = 0.4;
