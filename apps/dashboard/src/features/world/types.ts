@@ -96,6 +96,7 @@ export interface WorldRelease {
 
 import type { PostTags } from "./postTags";
 import type { BriefRecord } from "./brief";
+import type { Locale } from "@/lib/locale";
 
 export interface WorldPayload {
   version: 1;
@@ -121,11 +122,11 @@ export interface WorldPayload {
 export interface WorldBriefState {
   state: "off" | "on" | "error";
   busy: boolean;
-  /** the newest brief (button or weekly) */
-  latest: BriefRecord | null;
-  /** the newest weekly brief */
-  weekly: BriefRecord | null;
-  /** whether the newest weekly brief is in the ANA Brain */
+  /** the newest brief (button or weekly) per dashboard language */
+  latest: Partial<Record<Locale, BriefRecord>>;
+  /** the newest weekly brief per dashboard language */
+  weekly: Partial<Record<Locale, BriefRecord>>;
+  /** whether the newest week's brief is in the ANA Brain (the German one goes there) */
   in_brain: boolean;
   /** whether a Brain is configured at all */
   brain: boolean;

@@ -60,6 +60,7 @@ export const worldIt: Messages["world"] = {
     off: "Riassumi richiede la chiave Claude sul server (non impostata).",
     failed: "Riassumi non è riuscito ({reason}).",
     none: "Ancora nessun brief. Il pulsante ne scrive uno dai numeri attuali; il brief settimanale nasce da solo all'inizio di ogni settimana.",
+    noneInLocale: "Ancora nessun brief in italiano — quelli esistenti sono in un'altra lingua. Il pulsante ne scrive uno in italiano dai numeri attuali.",
     which: "Quale brief",
     latest: "Più recente",
     weekly: "Brief settimanale {week}",

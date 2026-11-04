@@ -46,6 +46,59 @@ describe("brief facts", () => {
   });
 });
 
+describe("brief facts in every dashboard language", () => {
+  const tokens = (facts: Fact[]) => facts.map((f) => `${f.id}:${(f.text.match(/\d+(?:[.,]\d+)*/g) ?? []).map((n) => n.replace(",", ".")).join(" ")}`); // "2,60 $" = "$2.60"
+
+  it("the same data gives the same ids, kinds and numbers in German, English and Italian; only the words differ", () => {
+    const de = briefFacts(world(), [], NOW, "de");
+    const en = briefFacts(world(), [], NOW, "en");
+    const it = briefFacts(world(), [], NOW, "it");
+    expect(en.map((f) => [f.id, f.kind])).toEqual(de.map((f) => [f.id, f.kind]));
+    expect(it.map((f) => [f.id, f.kind])).toEqual(de.map((f) => [f.id, f.kind]));
+    expect(tokens(en)).toEqual(tokens(de));
+    expect(tokens(it)).toEqual(tokens(de));
+    expect(briefFacts(world(), [], NOW)).toEqual(de);
+  });
+
+  it("English and Italian facts carry no German", () => {
+    const en = briefFacts(world(), [], NOW, "en").map((f) => f.text).join("\n");
+    const it = briefFacts(world(), [], NOW, "it").map((f) => f.text).join("\n");
+    expect(en).toContain("Engagement of the last 7 days by ad market");
+    expect(en).toContain("Rising (7 against 30 days): TH (Tier 2) +15.0 pts");
+    expect(en).toContain("All posts with insights: median interaction rate 6.0 % (n 5)");
+    expect(it).toContain("Engagement degli ultimi 7 giorni per mercato pubblicitario");
+    expect(it).toContain("In crescita (7 contro 30 giorni): TH (Tier 2) +15.0 pti");
+    for (const text of [en, it]) expect(text).not.toMatch(/\b(?:Tage|gegenüber|Anteil|zugeordnete|Werbemarkt|weiblich|nicht)\b|Pkt|„/);
+  });
+
+  it("a brief pattern written in English or Italian passes the same number check as a German one", () => {
+    const en = briefFacts(world(), [], NOW, "en");
+    const it = briefFacts(world(), [], NOW, "it");
+    const f1en = en.find((f) => f.id === "F1")!;
+    const f1it = it.find((f) => f.id === "F1")!;
+    expect(numbersBacked("Top markets bring 55 % of the reactions in the last 7 days.", [f1en])).toBe(true);
+    expect(numbersBacked("I mercati top portano il 55 % delle reazioni negli ultimi 7 giorni.", [f1it])).toBe(true);
+    expect(numbersBacked("I mercati top portano il 56 % delle reazioni.", [f1it])).toBe(false);
+  });
+});
+
+describe("number words are refused in Italian too", () => {
+  const f: Fact = { id: "F1", kind: "market", text: "Tier 1 55 %." };
+  it.each(["Quasi la metà delle reazioni.", "Il doppio delle reazioni.", "Tre post su dieci.", "Le reazioni raddoppiano."])("%s", (text) => {
+    expect(numbersBacked(text, [f])).toBe(false);
+  });
+  it("articles and ordinary words are not number words", () => {
+    expect(numbersBacked("Una tendenza: i mercati top crescono, uno dei segnali più chiari.", [f])).toBe(true);
+    expect(numbersBacked("Ottobre è stato un mese centrale per gli eventi.", [f])).toBe(true);
+  });
+  it("an English or Italian Substack fact gives its group size to the strength cap", () => {
+    const en: Fact = { id: "F2", kind: "substack", text: 'Substack idea "Templates & working files" (H4 Working File): 4 assigned posts, too few for a signal.' };
+    const it2: Fact = { id: "F3", kind: "substack", text: "Idea Substack «Modelli e file di lavoro» (H4 Working File): 4 post associati, troppo pochi per un segnale." };
+    expect(capStrength("strong", [f, en])).toBe("weak");
+    expect(capStrength("strong", [f, it2])).toBe("weak");
+  });
+});
+
 describe("parseBrief — the model may phrase and weigh, not bring figures", () => {
   const facts: Fact[] = [
     { id: "F1", kind: "market", text: "Engagement nach Werbemarkt: Tier 1 55 %, Tier 2 45 %." },
