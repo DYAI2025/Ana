@@ -352,6 +352,7 @@ export const worldDe: Messages["world"] = {
     close: "Büro schließen",
     lead: "Jeder Punkt ist ein Thema, über das gerade online gesprochen wird. Weiter rechts = draußen mehr diskutiert. Weiter oben = Anas Publikum speichert und teilt ihre Posts dazu öfter als sonst.",
     asOf: "Draußen: {source}, gesammelt am {date}. Anas Posts: {read} von {total} auf diese Themen geprüft.",
+    failing: "{n} Post(s) konnten noch nicht gelesen werden; der nächste Versuch folgt in 30 Minuten.",
     readerOff: "Anas Posts werden noch nicht auf Themen geprüft (kein Modell-Schlüssel auf dem Server), daher gilt noch kein Thema als getestet.",
     matrixLabel: "Themen-Matrix: Interesse draußen gegen Speichern und Teilen bei Anas Publikum",
     axisX: "Draußen diskutiert →",

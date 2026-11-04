@@ -46,7 +46,7 @@ export function world(): WorldPayload {
     ana_look: resolveLook(null, null),
     release: { sha: null, started_at: new Date(NOW).toISOString() },
     post_tags: { state: "on", tags: { p1: tag("beach"), p2: tag("beach", true), p3: tag("beach"), p4: tag("food", true), p5: tag("food", false, 0.2) } },
-    post_topics: { state: "on", version: "t", topics: { p1: ["solo-lessons"], p2: ["solo-lessons"], p3: [] } },
+    post_topics: { state: "on", version: "t", topics: { p1: ["solo-lessons"], p2: ["solo-lessons"], p3: [] }, failing: 0 },
     brain: { state: "off", last_day: null, note: null, reason: null },
     brief: { state: "off", busy: false, latest: null, weekly: null, in_brain: false, brain: false, reason: null },
   };

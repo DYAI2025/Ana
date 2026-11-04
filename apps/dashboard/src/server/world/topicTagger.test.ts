@@ -89,9 +89,30 @@ describe("office topics of Ana's posts — ids only, read in the background", ()
     t.schedule([post("p0")]);
     await t.idle();
     expect(t.current()).toEqual({});
+    // the failed post is visible as failing until it is read
+    expect(t.failing()).toBe(1);
     now += 31 * 60_000;
     t.schedule([post("p0")]);
     await t.idle();
     expect(t.current()).toEqual({ p0: [] });
+    expect(t.failing()).toBe(0);
+  });
+
+  it("an unreadable store is never overwritten: nothing is read or written until it loads", async () => {
+    await writeFile(file, "{ not json");
+    const api = fakeApi(() => ({ topics: ["homesick"], confidence: 0.9 }));
+    const t = createTopicTagger(config, file, api.impl);
+    t.schedule([post("p0")]);
+    await t.idle();
+    expect(api.calls.length).toBe(0);
+    expect(await readFile(file, "utf8")).toBe("{ not json");
+    // once the file is readable again the next schedule loads it and continues
+    await writeFile(file, JSON.stringify({ version: OFFICE_VERSION, readings: { p9: { topics: ["solo-lessons"], confidence: 0.9, model: "m", at: "2026-11-04T00:00:00.000Z" } } }));
+    t.schedule([post("p0")]);
+    await t.idle();
+    expect(api.calls.length).toBe(1);
+    const stored = JSON.parse(await readFile(file, "utf8"));
+    expect(Object.keys(stored.readings).sort()).toEqual(["p0", "p9"]);
+    expect(stored.readings.p9).toMatchObject({ model: "m", at: "2026-11-04T00:00:00.000Z" });
   });
 });

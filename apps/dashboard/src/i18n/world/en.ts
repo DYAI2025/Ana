@@ -351,6 +351,7 @@ export const worldEn = {
     close: "Close the office",
     lead: "Each dot is a topic people discuss online right now. Further right = more discussed outside. Higher = Ana's audience saves and shares her posts on it more often than usual.",
     asOf: "Outside: {source}, collected {date}. Ana's posts: {read} of {total} checked for these topics.",
+    failing: "{n} post(s) could not be read yet; the next try is in 30 minutes.",
     readerOff: "Ana's posts are not checked for topics yet (no model key on the server), so no topic counts as tested.",
     matrixLabel: "Topic matrix: outside interest against how Ana's audience saves and shares",
     axisX: "Discussed outside →",

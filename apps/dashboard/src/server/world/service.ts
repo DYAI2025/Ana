@@ -258,7 +258,7 @@ export function createWorldService(deps: WorldDeps): WorldService {
         ana_look: { ...resolveLook(newest, manual, image, imageReader), read_at: readAt },
         release: readRelease(),
         post_tags: { state: deps.tagger ? "on" : "off", tags },
-        post_topics: { state: deps.topicTagger ? "on" : "off", version: OFFICE_VERSION, topics: deps.topicTagger ? deps.topicTagger.current() : {} },
+        post_topics: { state: deps.topicTagger ? "on" : "off", version: OFFICE_VERSION, topics: deps.topicTagger ? deps.topicTagger.current() : {}, failing: deps.topicTagger ? deps.topicTagger.failing() : 0 },
         brain: { state: "off", last_day: null, note: null, reason: null },
         brief: deps.brief ? deps.brief.state() : { state: "off", busy: false, latest: null, weekly: null, in_brain: false, brain: false, reason: null },
       };

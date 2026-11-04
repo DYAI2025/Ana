@@ -59,25 +59,34 @@ const ID_RE = /^[\w-]{1,40}$/;
 
 type Stored = TopicReading & { model: string; at: string };
 
+/**
+ * The stored readings. A missing file or another catalog version is an empty store; any other failure (unreadable,
+ * not JSON) throws, so a later write can never replace a store that was only unreadable for a moment.
+ */
 export async function readTopicStore(file: string, version: string, known: ReadonlySet<string>): Promise<Record<string, Stored>> {
   const out: Record<string, Stored> = Object.create(null);
+  let text: string;
   try {
-    const raw = JSON.parse(await fs.readFile(file, "utf8")) as StoreFile;
-    // another catalog is read again from scratch
-    if (!raw || raw.version !== version || typeof raw.readings !== "object" || raw.readings === null) return out;
-    for (const [id, v] of Object.entries(raw.readings)) {
-      const r = parseTopicAnswer(JSON.stringify(v ?? null), known);
-      if (r && ID_RE.test(id)) out[id] = { ...r, model: typeof v?.model === "string" ? v.model : "", at: typeof v?.at === "string" ? v.at : "" };
-    }
-    return out;
-  } catch {
-    return out;
+    text = await fs.readFile(file, "utf8");
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return out;
+    throw error;
   }
+  const raw = JSON.parse(text) as StoreFile;
+  // another catalog is read again from scratch
+  if (!raw || raw.version !== version || typeof raw.readings !== "object" || raw.readings === null) return out;
+  for (const [id, v] of Object.entries(raw.readings)) {
+    const r = parseTopicAnswer(JSON.stringify(v ?? null), known);
+    if (r && ID_RE.test(id)) out[id] = { ...r, model: typeof v?.model === "string" ? v.model : "", at: typeof v?.at === "string" ? v.at : "" };
+  }
+  return out;
 }
 
 export interface TopicTagger {
   /** topic ids per post the model has read (confident readings only; [] = read, no topic) */
   current(): Record<string, string[]>;
+  /** posts whose last read failed (model, image or answer) and that wait for their retry */
+  failing(): number;
   /** reads a few unread posts in the background (an empty list only loads the store); never throws, never waits */
   schedule(posts: readonly TaggedPost[]): void;
   /** test hook */
@@ -104,10 +113,17 @@ export function createTopicTagger(
   let busy = false;
   const failedAt = new Map<string, number>();
 
+  // a failed load is tried again on the next schedule; until then nothing is read or written
   const load = () =>
-    (loaded ??= readTopicStore(file, version, known).then((r) => {
-      readings = r;
-    }));
+    (loaded ??= readTopicStore(file, version, known).then(
+      (r) => {
+        readings = r;
+      },
+      (error: unknown) => {
+        loaded = null;
+        throw error;
+      },
+    ));
 
   async function readOne(p: TaggedPost): Promise<TopicReading | null | undefined> {
     const content: ModelContent = [];
@@ -136,6 +152,7 @@ export function createTopicTagger(
         continue;
       }
       readings[p.id] = { ...r, model: config.model, at: new Date(now()).toISOString() };
+      failedAt.delete(p.id);
       changed = true;
     }
     if (changed) {
@@ -161,6 +178,7 @@ export function createTopicTagger(
           busy = false;
         });
     },
+    failing: () => [...failedAt.keys()].filter((id) => !Object.hasOwn(readings, id)).length,
     idle: () => running,
   };
 }

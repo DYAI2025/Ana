@@ -161,6 +161,7 @@ export function OfficeRoom({ world, posts, t, locale, onClose, onPost }: { world
         <p className={styles.officeLead}>{t("world.office.lead")}</p>
         <p className={styles.muted} data-testid="office-asof">
           {reader ? t("world.office.asOf", { source: OFFICE_SOURCE, date: asOf, read: Math.min(view.read, total), total }) : t("world.office.readerOff")}
+          {reader && world.post_topics.failing > 0 ? ` ${t("world.office.failing", { n: world.post_topics.failing })}` : ""}
         </p>
         <div className={styles.officeBody}>
           <figure className={styles.officeMatrix}>

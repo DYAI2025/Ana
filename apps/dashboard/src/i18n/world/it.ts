@@ -352,6 +352,7 @@ export const worldIt: Messages["world"] = {
     close: "Chiudi l'ufficio",
     lead: "Ogni punto è un tema di cui si parla online in questo momento. Più a destra = se ne discute di più fuori. Più in alto = il pubblico di Ana salva e condivide i suoi post su quel tema più spesso del solito.",
     asOf: "Fuori: {source}, raccolto il {date}. Post di Ana: {read} su {total} controllati per questi temi.",
+    failing: "{n} post non ancora letti; il prossimo tentativo è tra 30 minuti.",
     readerOff: "I post di Ana non sono ancora controllati per temi (nessuna chiave del modello sul server), quindi nessun tema conta come testato.",
     matrixLabel: "Matrice dei temi: interesse fuori contro quanto il pubblico di Ana salva e condivide",
     axisX: "Discusso fuori →",
