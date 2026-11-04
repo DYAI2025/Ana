@@ -77,12 +77,12 @@ export function Glyph({ format, x, y, size }: { format: PostFormat; x: number; y
 
 export function ContentMap({ analysis, format, onFormat, onSelect, selectedId }: { analysis: Analysis; format: PostFormat | null; onFormat: (f: PostFormat) => void; onSelect: (id: string) => void; selectedId: string | null }) {
   const { t, locale } = useI18n();
-  // the map plots reach index × high-intent index: a format needs a baseline population on both axes
+  // the map plots reach index × content-action index: a format needs a baseline population on both axes
   const eligible = mapGroups(analysis);
   const group = eligible.find((g) => g.format === format) ?? eligible[0];
-  const points = group ? analysis.posts.filter((p) => p.post.format === group.format && p.reachIndex !== null && p.highIntentIndex !== null) : [];
+  const points = group ? analysis.posts.filter((p) => p.post.format === group.format && p.reachIndex !== null && p.contentActionIndex !== null) : [];
   const maxX = Math.max(2.5, ...points.map((p) => p.reachIndex! * 1.08));
-  const maxY = Math.max(2.5, ...points.map((p) => p.highIntentIndex! * 1.08));
+  const maxY = Math.max(2.5, ...points.map((p) => p.contentActionIndex! * 1.08));
   const sx = (v: number) => PAD.l + (v / maxX) * (W - PAD.l - PAD.r);
   const sy = (v: number) => H - PAD.b - (v / maxY) * (H - PAD.t - PAD.b);
   const maxReach = Math.max(...points.map((p) => p.reach ?? 0), 1);
@@ -91,7 +91,7 @@ export function ContentMap({ analysis, format, onFormat, onSelect, selectedId }:
       format: t(`social.formats.${p.post.format}`),
       date: p.post.published_at ? formatDay(p.post.published_at, locale) : "—",
       x: formatIndex(p.reachIndex!, locale),
-      y: formatIndex(p.highIntentIndex!, locale),
+      y: formatIndex(p.contentActionIndex!, locale),
     });
   const ranked = [...points].sort((a, b) => b.reachIndex! - a.reachIndex!);
   return (
@@ -113,7 +113,7 @@ export function ContentMap({ analysis, format, onFormat, onSelect, selectedId }:
       {!group ? (
         <>
           <StateChip state="INSUFFICIENT_EVIDENCE" />
-          <p className={styles.muted}>{t("social.map.insufficient", { n: Math.max(0, ...analysis.groups.map((g) => Math.min(g.n, g.nHighIntent))), min: MIN_GROUP_N })}</p>
+          <p className={styles.muted}>{t("social.map.insufficient", { n: Math.max(0, ...analysis.groups.map((g) => Math.min(g.n, g.nContentAction))), min: MIN_GROUP_N })}</p>
         </>
       ) : (
         <>
@@ -162,7 +162,7 @@ export function ContentMap({ analysis, format, onFormat, onSelect, selectedId }:
                 }}
               >
                 <title>{label(p)}</title>
-                <Glyph format={p.post.format} x={sx(p.reachIndex!)} y={sy(p.highIntentIndex!)} size={4 + 6 * Math.sqrt((p.reach ?? 0) / maxReach)} />
+                <Glyph format={p.post.format} x={sx(p.reachIndex!)} y={sy(p.contentActionIndex!)} size={4 + 6 * Math.sqrt((p.reach ?? 0) / maxReach)} />
               </g>
             ))}
           </svg>

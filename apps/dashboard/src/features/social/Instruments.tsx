@@ -155,9 +155,9 @@ const CLUSTER: Array<{ metric: CanonicalMetric; key: "followers" | "reach28" | "
 export function MetricCluster({ snapshot, analysis }: { snapshot: SocialSnapshot; analysis: Analysis }) {
   const { t, locale } = useI18n();
   const specOf = useObservationSpec();
-  // the largest format whose high-intent median rests on enough posts with verified saves and shares
-  const reels = analysis.groups.filter((g) => g.nHighIntent >= MIN_GROUP_N).sort((a, b) => b.nHighIntent - a.nHighIntent)[0];
-  const rates = reels ? analysis.posts.filter((p) => p.post.format === reels.format && p.excluded === null).map((p) => p.rates.high_intent_rate).filter((v): v is number => v !== null) : [];
+  // the largest format whose content-action median rests on enough posts with verified saves and shares
+  const reels = analysis.groups.filter((g) => g.nContentAction >= MIN_GROUP_N).sort((a, b) => b.nContentAction - a.nContentAction)[0];
+  const rates = reels ? analysis.posts.filter((p) => p.post.format === reels.format && p.excluded === null).map((p) => p.rates.content_action_rate).filter((v): v is number => v !== null) : [];
   const rateMedian = reels ? median(rates) : null;
   const maxRate = Math.max(...rates, 0.0001);
   return (
@@ -184,17 +184,17 @@ export function MetricCluster({ snapshot, analysis }: { snapshot: SocialSnapshot
             </li>
           );
         })}
-        <li className={styles.clusterItem} data-testid="cluster-high-intent" data-availability={rateMedian === null ? "INSUFFICIENT_EVIDENCE" : "DERIVED"}>
+        <li className={styles.clusterItem} data-testid="cluster-content-action" data-availability={rateMedian === null ? "INSUFFICIENT_EVIDENCE" : "DERIVED"}>
           <div className={styles.clusterHead}>
-            <span className={styles.clusterLabel}>{reels ? t("social.cluster.highIntent", { format: t(`social.formats.${reels.format}`), n: rates.length }) : t("social.cluster.highIntentNone")}</span>
+            <span className={styles.clusterLabel}>{reels ? t("social.cluster.contentAction", { format: t(`social.formats.${reels.format}`), n: rates.length }) : t("social.cluster.contentActionNone")}</span>
             {rateMedian !== null && reels ? (
               <InspectButton
-                testId="inspect-high-intent"
+                testId="inspect-content-action"
                 spec={{
-                  label: t("social.metrics.high_intent_rate"),
-                  native: RATE_INPUTS.high_intent_rate,
+                  label: t("social.metrics.content_action_rate"),
+                  native: RATE_INPUTS.content_action_rate,
                   unit: t("social.inspector.units.ratio"),
-                  calculation: t("social.formulas.highIntentMedian", { n: rates.length }),
+                  calculation: t("social.formulas.contentActionMedian", { n: rates.length }),
                   period: t("social.inspector.periods.lifetime"),
                   baseline: t("social.inspector.none"),
                   source: "instagram:media/*/insights#saved,shares,reach",

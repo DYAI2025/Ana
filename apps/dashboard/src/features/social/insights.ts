@@ -5,11 +5,14 @@
  */
 import type { CanonicalMetric, PostFormat, SocialPost, SocialSnapshot } from "./types";
 
-/** Lifetime metrics keep growing after publishing; younger posts are listed but never compared (age disclosure, AC6). */
+/**
+ * Lifetime metrics keep growing after publishing; younger posts are listed but never compared (age disclosure, AC6).
+ * This is a minimum-maturity filter, not age matching: an 8-day-old and a 200-day-old post are still compared.
+ */
 export const MATURE_AGE_DAYS = 7;
 /** Smallest same-format population whose median is used as a baseline — per metric. */
 export const MIN_GROUP_N = 5;
-/** Larger samples needed before a pattern observation or an H1/H4 lean is stated. */
+/** Larger samples needed before a pattern observation or the descriptive H1-only/H4-only comparison is stated. */
 export const MIN_PATTERN_GROUP_N = 8;
 export const MIN_THEME_N = 3;
 
@@ -27,13 +30,17 @@ export function median(values: readonly number[]): number | null {
   return s.length % 2 ? s[mid]! : (s[mid - 1]! + s[mid]!) / 2;
 }
 
-export type RateName = "saves_per_reach" | "shares_per_reach" | "comments_per_reach" | "high_intent_rate";
+/**
+ * content_action_rate = (saves + shares) ÷ reach: action counts per reached account. Not a share of unique people, not a
+ * probability and not purchase intent; one account can save and share, so the ratio can exceed 1.
+ */
+export type RateName = "saves_per_reach" | "shares_per_reach" | "comments_per_reach" | "content_action_rate";
 /** Instagram fields each rate is computed from (inspector provenance). */
 export const RATE_INPUTS: Readonly<Record<RateName, string>> = {
   saves_per_reach: "saved, reach",
   shares_per_reach: "shares, reach",
   comments_per_reach: "comments, reach",
-  high_intent_rate: "saved, shares, reach",
+  content_action_rate: "saved, shares, reach",
 };
 
 export interface PostAnalysis {
@@ -45,8 +52,8 @@ export interface PostAnalysis {
   rates: Readonly<Record<RateName, number | null>>;
   /** post reach ÷ median reach of its same-format group; null outside a usable group. */
   reachIndex: number | null;
-  /** post high-intent rate ÷ group median high-intent rate (needs MIN_GROUP_N posts with that rate). */
-  highIntentIndex: number | null;
+  /** post content-action rate ÷ group median content-action rate (needs MIN_GROUP_N posts with that rate). */
+  contentActionIndex: number | null;
   /** post saves per reach ÷ group median saves per reach. */
   savesIndex: number | null;
   /** post shares per reach ÷ group median shares per reach. */
@@ -60,9 +67,9 @@ export interface FormatGroup {
   /** mature posts of this format with verified reach > 0 */
   n: number;
   medianReach: number | null;
-  /** posts that also have verified saves and shares (the population of the high-intent median) */
-  nHighIntent: number;
-  medianHighIntent: number | null;
+  /** posts that also have verified saves and shares (the population of the content-action median) */
+  nContentAction: number;
+  medianContentAction: number | null;
   nSaves: number;
   medianSaves: number | null;
   nShares: number;
@@ -93,7 +100,7 @@ export function analyze(snapshot: SocialSnapshot): Analysis {
       saves_per_reach: ratio(saves, reach),
       shares_per_reach: ratio(shares, reach),
       comments_per_reach: ratio(comments, reach),
-      high_intent_rate: saves === null || shares === null ? null : ratio(saves + shares, reach),
+      content_action_rate: saves === null || shares === null ? null : ratio(saves + shares, reach),
     };
     const excluded: PostAnalysis["excluded"] =
       reach === null
@@ -113,7 +120,7 @@ export function analyze(snapshot: SocialSnapshot): Analysis {
   const groups: FormatGroup[] = [];
   for (const format of [...new Set(base.map((b) => b.post.format))].filter((f) => f !== "unknown")) {
     const members = base.filter((b) => b.post.format === format && b.excluded === null);
-    const hi = present(members.map((m) => m.rates.high_intent_rate));
+    const hi = present(members.map((m) => m.rates.content_action_rate));
     const sv = present(members.map((m) => m.rates.saves_per_reach));
     const sh = present(members.map((m) => m.rates.shares_per_reach));
     const dates = members.map((m) => m.post.published_at!).sort();
@@ -121,8 +128,8 @@ export function analyze(snapshot: SocialSnapshot): Analysis {
       format,
       n: members.length,
       medianReach: median(members.map((m) => m.reach!)),
-      nHighIntent: hi.length,
-      medianHighIntent: median(hi),
+      nContentAction: hi.length,
+      medianContentAction: median(hi),
       nSaves: sv.length,
       medianSaves: median(sv),
       nShares: sh.length,
@@ -132,7 +139,7 @@ export function analyze(snapshot: SocialSnapshot): Analysis {
   }
 
   const posts = base.map((b): PostAnalysis => {
-    const none = { reachIndex: null, highIntentIndex: null, savesIndex: null, sharesIndex: null };
+    const none = { reachIndex: null, contentActionIndex: null, savesIndex: null, sharesIndex: null };
     const group = groups.find((g) => g.format === b.post.format);
     if (b.excluded !== null) return { ...b, ...none };
     if (!group || group.n < MIN_GROUP_N) return { ...b, ...none, excluded: "small-group" };
@@ -140,7 +147,7 @@ export function analyze(snapshot: SocialSnapshot): Analysis {
     return {
       ...b,
       reachIndex: ratio(b.reach, group.medianReach),
-      highIntentIndex: gated(group.nHighIntent, b.rates.high_intent_rate, group.medianHighIntent),
+      contentActionIndex: gated(group.nContentAction, b.rates.content_action_rate, group.medianContentAction),
       savesIndex: gated(group.nSaves, b.rates.saves_per_reach, group.medianSaves),
       sharesIndex: gated(group.nShares, b.rates.shares_per_reach, group.medianShares),
     };
@@ -148,9 +155,9 @@ export function analyze(snapshot: SocialSnapshot): Analysis {
   return { observedAt: snapshot.observed_at, posts, groups };
 }
 
-/** Formats the content map can plot: a baseline population on both axes (reach and high-intent). */
+/** Formats the content map can plot: a baseline population on both axes (reach and content-action). */
 export function mapGroups(analysis: Analysis): FormatGroup[] {
-  return analysis.groups.filter((g) => g.n >= MIN_GROUP_N && g.nHighIntent >= MIN_GROUP_N).sort((a, b) => b.nHighIntent - a.nHighIntent);
+  return analysis.groups.filter((g) => g.n >= MIN_GROUP_N && g.nContentAction >= MIN_GROUP_N).sort((a, b) => b.nContentAction - a.nContentAction);
 }
 
 export interface HeroReading {
@@ -174,7 +181,7 @@ export type ThemeId = "travel" | "creator" | "money" | "personal" | "opportuniti
 export type ThemeOf = (post: SocialPost) => readonly ThemeId[];
 
 /** Formula identifiers; the UI renders them in the active language. */
-export type FormulaId = "high-intent-index" | "theme-saves-index" | "theme-reach-index";
+export type FormulaId = "content-action-index" | "theme-saves-index" | "theme-reach-index";
 export type Comparator = { kind: "format-median"; n: number; format: PostFormat } | { kind: "within-format-medians"; n: number };
 
 export interface PatternEvidence {
@@ -204,12 +211,12 @@ function windowOf(posts: readonly PostAnalysis[]): { from: string; to: string } 
 export function hiddenWinner(analysis: Analysis): PatternResult {
   // the population is the posts actually compared on both axes, not every post with reach
   const byFormat = analysis.groups
-    .map((g) => ({ g, members: analysis.posts.filter((p) => p.post.format === g.format && p.reachIndex !== null && p.highIntentIndex !== null) }))
+    .map((g) => ({ g, members: analysis.posts.filter((p) => p.post.format === g.format && p.reachIndex !== null && p.contentActionIndex !== null) }))
     .filter((x) => x.members.length >= MIN_PATTERN_GROUP_N)
     .sort((a, b) => b.members.length - a.members.length)[0];
   if (!byFormat) return { state: "INSUFFICIENT_EVIDENCE", kind: "hidden-winner", reason: "no-large-group" };
   const { g, members } = byFormat;
-  const winner = members.filter((p) => p.reachIndex! < 1 && p.highIntentIndex! >= 1.5).sort((a, b) => b.highIntentIndex! - a.highIntentIndex!)[0];
+  const winner = members.filter((p) => p.reachIndex! < 1 && p.contentActionIndex! >= 1.5).sort((a, b) => b.contentActionIndex! - a.contentActionIndex!)[0];
   if (!winner) return { state: "INSUFFICIENT_EVIDENCE", kind: "hidden-winner", reason: "no-candidate" };
   return {
     state: "OBSERVED",
@@ -218,11 +225,11 @@ export function hiddenWinner(analysis: Analysis): PatternResult {
       subject: { type: "post", mediaId: winner.post.media_id },
       sampleN: members.length,
       window: windowOf(members),
-      formula: "high-intent-index",
-      comparator: { kind: "format-median", n: g.nHighIntent, format: g.format },
-      index: winner.highIntentIndex!,
+      formula: "content-action-index",
+      comparator: { kind: "format-median", n: g.nContentAction, format: g.format },
+      index: winner.contentActionIndex!,
       sourcePosts: [winner.post.media_id],
-      counterexamples: members.filter((p) => p.reachIndex! < 1 && p.highIntentIndex! < 1).slice(0, 3).map((p) => p.post.media_id),
+      counterexamples: members.filter((p) => p.reachIndex! < 1 && p.contentActionIndex! < 1).slice(0, 3).map((p) => p.post.media_id),
       limitations: ["lifetime-accrual", "single-snapshot", "no-causality"],
     },
   };

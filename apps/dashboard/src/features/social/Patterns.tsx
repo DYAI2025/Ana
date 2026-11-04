@@ -4,15 +4,18 @@ import { useId, useState } from "react";
 import { useI18n } from "@/components/providers/I18nProvider";
 import { formatDay, formatIndex } from "./format";
 import { StateChip } from "./Instruments";
-import { MIN_PATTERN_GROUP_N, MIN_THEME_N, patternObservations, type Analysis, type Comparator, type PatternResult, type PostAnalysis, type ThemeOf } from "./insights";
-import { COMMERCIAL_SIGNALS, HYPOTHESES, hypothesisSignals, nextTest, themeSignals, type FamilyOf, type HypothesisSignal } from "./offers";
+import { MATURE_AGE_DAYS, MIN_PATTERN_GROUP_N, MIN_THEME_N, patternObservations, type Analysis, type Comparator, type PatternResult, type PostAnalysis, type ThemeOf } from "./insights";
+import { COMMERCIAL_SIGNALS, engagementComparison, HYPOTHESES, hypothesisEvidence, themeSignals, type Decision, type EligiblePost, type HypothesisEvidence, type TopicalFitOf } from "./offers";
+import type { CandidateHypothesis } from "./themes";
 import styles from "./social.module.css";
 
 type Tab = "observations" | "offers";
 
-export function PatternsPanel({ analysis, themeOf, familyOf, onSelect }: { analysis: Analysis; themeOf: ThemeOf; familyOf: FamilyOf; onSelect: (id: string) => void }) {
+export function PatternsPanel({ analysis, themeOf, fitOf, stale, onSelect }: { analysis: Analysis; themeOf: ThemeOf; fitOf: TopicalFitOf; stale: boolean; onSelect: (id: string) => void }) {
   const { t } = useI18n();
   const [tab, setTab] = useState<Tab>("observations");
+  // the analyst's next-evidence choice per hypothesis: this session only, nothing is collected, sent or stored
+  const [decisions, setDecisions] = useState<Partial<Record<CandidateHypothesis, Decision>>>({});
   const base = useId();
   const tabs: Tab[] = ["observations", "offers"];
   return (
@@ -52,7 +55,7 @@ export function PatternsPanel({ analysis, themeOf, familyOf, onSelect }: { analy
         {tab === "observations" ? <Observations analysis={analysis} themeOf={themeOf} onSelect={onSelect} /> : null}
       </div>
       <div role="tabpanel" id={`${base}-panel-offers`} aria-labelledby={`${base}-tab-offers`} hidden={tab !== "offers"}>
-        {tab === "offers" ? <OfferSignals analysis={analysis} themeOf={themeOf} familyOf={familyOf} onSelect={onSelect} /> : null}
+        {tab === "offers" ? <OfferSignals analysis={analysis} themeOf={themeOf} fitOf={fitOf} stale={stale} decisions={decisions} onDecide={(h, d) => setDecisions((x) => ({ ...x, [h]: d }))} onSelect={onSelect} /> : null}
       </div>
     </section>
   );
@@ -64,7 +67,7 @@ function PostLink({ p, onSelect }: { p: PostAnalysis | undefined; onSelect: (id:
   return (
     <button type="button" className={styles.linkButton} onClick={() => onSelect(p.post.media_id)} data-testid="evidence-post">
       {t(`social.formats.${p.post.format}`)} · {p.post.published_at ? formatDay(p.post.published_at, locale) : "—"}
-      {p.highIntentIndex !== null ? ` · ${formatIndex(p.highIntentIndex, locale)}` : ""}
+      {p.contentActionIndex !== null ? ` · ${formatIndex(p.contentActionIndex, locale)}` : ""}
     </button>
   );
 }
@@ -148,66 +151,36 @@ function Observations({ analysis, themeOf, onSelect }: { analysis: Analysis; the
   );
 }
 
-function OfferSignals({ analysis, themeOf, familyOf, onSelect }: { analysis: Analysis; themeOf: ThemeOf; familyOf: FamilyOf; onSelect: (id: string) => void }) {
+function OfferSignals({
+  analysis,
+  themeOf,
+  fitOf,
+  stale,
+  decisions,
+  onDecide,
+  onSelect,
+}: {
+  analysis: Analysis;
+  themeOf: ThemeOf;
+  fitOf: TopicalFitOf;
+  stale: boolean;
+  decisions: Partial<Record<CandidateHypothesis, Decision>>;
+  onDecide: (h: CandidateHypothesis, d: Decision) => void;
+  onSelect: (id: string) => void;
+}) {
   const { t, locale } = useI18n();
-  const signals = hypothesisSignals(analysis, familyOf);
+  const evidence = hypothesisEvidence(analysis, fitOf, { stale });
   const themes = themeSignals(analysis, themeOf);
-  const test = nextTest(signals);
+  const comparison = engagementComparison(evidence);
   const [inspected, setInspected] = useState<string | null>(null);
   const cell = (v: number | null) => (v !== null ? formatIndex(v, locale) : "—");
   return (
     <div className={styles.offers} data-testid="offer-signals">
       <p className={styles.note}>{t("social.offers.intro")}</p>
       <div className={styles.hypotheses}>
-        {signals.map((s: HypothesisSignal) => {
-          const id = s.hypothesis.id as "H1" | "H4";
-          const open = inspected === id;
-          return (
-            <article key={id} className={styles.hypothesis} data-testid={`hypothesis-${id}`} data-state={s.state}>
-              <div className={styles.panelHead}>
-                <h3 className={styles.detailTitle}>{t(`social.offers.${id}`)}</h3>
-                <StateChip state="HYPOTHESIS" />
-              </div>
-              <p className={styles.muted}>{t(`social.offers.${id}Desc`)}</p>
-              <p className={styles.note}>{t("social.offers.mappedFamilies", { families: s.hypothesis.families.map((f) => t(`social.families.${f}`)).join(", ") })}</p>
-              {s.state === "INSUFFICIENT_EVIDENCE" ? (
-                <>
-                  <StateChip state="INSUFFICIENT_EVIDENCE" />
-                  <p className={styles.muted}>{t("social.offers.insufficient", { n: MIN_THEME_N })}</p>
-                </>
-              ) : (
-                <>
-                  <p className={styles.mono}>{t("social.offers.medianIndex", { index: cell(s.medianHighIntentIndex), n: s.mapped.length })}</p>
-                  <p>
-                    {t("social.offers.supporting", { n: s.supporting.length })} · {t("social.offers.contradicting", { n: s.contradicting.length })}
-                  </p>
-                </>
-              )}
-              <button type="button" className={styles.linkButton} aria-expanded={open} aria-controls={`inspect-${id}`} onClick={() => setInspected(open ? null : id)} data-testid={`inspect-hypothesis-${id}`}>
-                {open ? t("social.offers.closeInspect") : t("social.offers.inspect", { id })}
-              </button>
-              {open ? (
-                <div id={`inspect-${id}`} className={styles.inspection} data-testid={`inspection-${id}`}>
-                  <p className={styles.detailTitle}>{t("social.offers.supporting", { n: s.supporting.length })}</p>
-                  <p className={styles.chips} data-testid={`supporting-${id}`}>
-                    {s.supporting.length ? s.supporting.slice(0, 10).map((p) => <PostLink key={p.post.media_id} p={p} onSelect={onSelect} />) : <span className={styles.muted}>{t("social.patterns.noCounter")}</span>}
-                  </p>
-                  <p className={styles.detailTitle}>{t("social.offers.contradicting", { n: s.contradicting.length })}</p>
-                  <p className={styles.chips} data-testid={`contradicting-${id}`}>
-                    {s.contradicting.length ? s.contradicting.slice(0, 10).map((p) => <PostLink key={p.post.media_id} p={p} onSelect={onSelect} />) : <span className={styles.muted}>{t("social.patterns.noCounter")}</span>}
-                  </p>
-                  <p className={styles.detailTitle}>{t("social.patterns.limits")}</p>
-                  <ul className={styles.limits}>
-                    <li>{t("social.patterns.limitations.derived-themes")}</li>
-                    <li>{t("social.patterns.limitations.single-snapshot")}</li>
-                    <li>{t("social.patterns.limitations.no-causality")}</li>
-                    <li>{t("social.offers.commercialNote")}</li>
-                  </ul>
-                </div>
-              ) : null}
-            </article>
-          );
-        })}
+        {evidence.map((e) => (
+          <HypothesisCard key={e.hypothesis.id} e={e} open={inspected === e.hypothesis.id} onToggle={() => setInspected(inspected === e.hypothesis.id ? null : e.hypothesis.id)} decision={decisions[e.hypothesis.id]} onDecide={(d) => onDecide(e.hypothesis.id, d)} onSelect={onSelect} />
+        ))}
       </div>
       <p className={styles.chips}>
         {HYPOTHESES.filter((h) => h.status === "parked").map((h) => (
@@ -216,6 +189,27 @@ function OfferSignals({ analysis, themeOf, familyOf, onSelect }: { analysis: Ana
           </span>
         ))}
       </p>
+      <article className={styles.nextTest} data-testid="engagement-comparison" data-state={comparison.state}>
+        <h3 className={styles.detailTitle}>{t("social.offers.comparisonTitle")}</h3>
+        <p className={styles.note} data-testid="comparison-n">
+          {t("social.offers.comparisonN", { h1: comparison.nH1Only, h4: comparison.nH4Only, both: comparison.nBoth, min: MIN_PATTERN_GROUP_N })}
+        </p>
+        {comparison.state === "DESCRIPTIVE" ? (
+          <p className={styles.mono} data-testid="comparison-values">
+            {t("social.offers.comparisonValues", { h1: cell(comparison.medianH1Only), h4: cell(comparison.medianH4Only), d: formatSigned(comparison.difference!, locale) })}
+          </p>
+        ) : (
+          <StateChip state="INSUFFICIENT_EVIDENCE" />
+        )}
+        <p className={styles.note}>{t("social.offers.comparisonNote")}</p>
+        <ul className={styles.limits} data-testid="comparison-limitations">
+          {comparison.limitations.map((l) => (
+            <li key={l} data-limitation={l}>
+              {t(`social.offers.limitations.${l}`)}
+            </li>
+          ))}
+        </ul>
+      </article>
       <div className={styles.tableWrap}>
         <table className={styles.table}>
           <caption className={styles.detailTitle}>{t("social.offers.themeTable")}</caption>
@@ -241,7 +235,7 @@ function OfferSignals({ analysis, themeOf, familyOf, onSelect }: { analysis: Ana
                   <>
                     <td className={styles.mono}>{cell(th.medianSavesIndex)}</td>
                     <td className={styles.mono}>{cell(th.medianSharesIndex)}</td>
-                    <td className={styles.mono}>{cell(th.medianHighIntentIndex)}</td>
+                    <td className={styles.mono}>{cell(th.medianContentActionIndex)}</td>
                   </>
                 )}
               </tr>
@@ -250,14 +244,6 @@ function OfferSignals({ analysis, themeOf, familyOf, onSelect }: { analysis: Ana
         </table>
         <p className={styles.note}>{t("social.offers.tableNote")}</p>
       </div>
-      <article className={styles.nextTest} data-testid="next-test" data-state={test.state}>
-        <h3 className={styles.detailTitle}>{t("social.offers.nextTestTitle")}</h3>
-        <p>{t("social.offers.nextTestBody")}</p>
-        <p className={styles.note} data-testid="next-test-n">
-          {t("social.offers.nextTestN", { h1: test.nH1, h4: test.nH4, min: MIN_PATTERN_GROUP_N })}
-        </p>
-        <p className={styles.note}>{test.lean ? t("social.offers.lean", { id: test.lean }) : t("social.offers.noLean")}</p>
-      </article>
       <div data-testid="commercial">
         <h3 className={styles.detailTitle}>{t("social.offers.commercialTitle")}</h3>
         <ul className={styles.commercial}>
@@ -271,5 +257,158 @@ function OfferSignals({ analysis, themeOf, familyOf, onSelect }: { analysis: Ana
         <p className={styles.note}>{t("social.offers.commercialNote")}</p>
       </div>
     </div>
+  );
+}
+
+/** Signed difference in index points, e.g. "+0.30" (never a percentage). */
+function formatSigned(v: number, locale: string) {
+  const s = new Intl.NumberFormat(locale, { minimumFractionDigits: 2, maximumFractionDigits: 2, signDisplay: "exceptZero" }).format(v);
+  return s;
+}
+
+function HypothesisCard({ e, open, onToggle, decision, onDecide, onSelect }: { e: HypothesisEvidence; open: boolean; onToggle: () => void; decision: Decision | undefined; onDecide: (d: Decision) => void; onSelect: (id: string) => void }) {
+  const { t, locale } = useI18n();
+  const id = e.hypothesis.id;
+  const base = useId();
+  const tf = e.topicalFit;
+  const res = e.contentResonance;
+  const options: Decision[] = ["ABSTAIN", ...e.nextActions];
+  // a step chosen before the evidence changed (e.g. a session correction) no longer offered → nothing chosen
+  const chosen = decision !== undefined && options.includes(decision) ? decision : undefined;
+  return (
+    <article className={styles.hypothesis} data-testid={`hypothesis-${id}`} data-topical={tf.state} data-resonance={res.state}>
+      <div className={styles.panelHead}>
+        <h3 className={styles.detailTitle}>{t(`social.offers.${id}`)}</h3>
+        <StateChip state="HYPOTHESIS" />
+      </div>
+      <p className={styles.muted}>{t(`social.offers.${id}Desc`)}</p>
+      <p className={styles.note}>{t(`social.offers.${id}Rule`)}</p>
+      <ul className={styles.lanes} aria-label={t("social.offers.lanesLabel", { id })}>
+        <li className={styles.lane} data-testid={`lane-${id}-TOPICAL_FIT`} data-state={tf.state}>
+          <span className={styles.laneHead}>
+            {t("social.offers.lanes.TOPICAL_FIT")}
+            <StateChip state={tf.state} />
+          </span>
+          <span className={styles.note}>
+            {tf.state === "UNCLASSIFIED" ? t("social.offers.topicalNone") : t("social.offers.topicalSummary", { n: tf.eligible.length, derived: tf.nDerived, manual: tf.nManual, overlap: tf.nOverlap })}
+          </span>
+          <span className={styles.note}>{t("social.offers.durableReview")}</span>
+        </li>
+        <li className={styles.lane} data-testid={`lane-${id}-CONTENT_RESONANCE`} data-state={res.state}>
+          <span className={styles.laneHead}>
+            {t("social.offers.lanes.CONTENT_RESONANCE")}
+            <StateChip state={res.state} />
+          </span>
+          <span className={styles.note}>
+            {res.state === "OBSERVED"
+              ? t("social.offers.resonanceSummary", { index: formatIndex(res.medianIndex!, locale), n: res.nIndexed, of: res.nEligible })
+              : t("social.offers.resonanceInsufficient", { n: res.nIndexed, of: res.nEligible, min: MIN_THEME_N })}
+          </span>
+          <span className={styles.note}>{t("social.offers.resonanceNotNeed")}</span>
+        </li>
+        <li className={styles.lane} data-testid={`lane-${id}-AUDIENCE_NEED`} data-state={e.audienceNeed.state}>
+          <span className={styles.laneHead}>
+            {t("social.offers.lanes.AUDIENCE_NEED")}
+            <StateChip state="NOT_CONNECTED" />
+          </span>
+          <span className={styles.note}>{t("social.offers.audienceNote")}</span>
+        </li>
+        <li className={styles.lane} data-testid={`lane-${id}-COMMERCIAL_OUTCOME`} data-state={e.commercialOutcome.state}>
+          <span className={styles.laneHead}>
+            {t("social.offers.lanes.COMMERCIAL_OUTCOME")}
+            <StateChip state="NOT_CONNECTED" />
+          </span>
+          <span className={styles.note}>{t("social.offers.commercialNote")}</span>
+        </li>
+      </ul>
+      <fieldset className={styles.decision} data-testid={`decision-${id}`} data-suggested={e.suggested} data-chosen={chosen ?? ""}>
+        <legend>{t("social.offers.decisionLegend")}</legend>
+        <p className={styles.note} data-testid={`suggested-${id}`}>
+          {t("social.offers.suggested", { action: t(`social.offers.actions.${e.suggested}`) })}
+        </p>
+        {options.map((o) => (
+          <label key={o} className={styles.checkbox}>
+            <input type="radio" name={`${base}-decision`} value={o} checked={chosen === o} onChange={() => onDecide(o)} data-testid={`decide-${id}-${o}`} />
+            {t(`social.offers.actions.${o}`)}
+          </label>
+        ))}
+        <p className={styles.note} role="status" data-testid={`decision-note-${id}`}>
+          {chosen ? t("social.offers.decisionChosen", { action: t(`social.offers.actions.${chosen}`) }) : t("social.offers.decisionNone")}
+        </p>
+      </fieldset>
+      <button type="button" className={styles.linkButton} aria-expanded={open} aria-controls={`${base}-inspect`} onClick={onToggle} data-testid={`inspect-hypothesis-${id}`}>
+        {open ? t("social.offers.closeInspect") : t("social.offers.inspect", { id })}
+      </button>
+      {open ? (
+        <div id={`${base}-inspect`} className={styles.inspection} data-testid={`inspection-${id}`}>
+          <p className={styles.detailTitle}>{t("social.offers.eligibleTitle", { n: tf.eligible.length })}</p>
+          <ul className={styles.limits} data-testid={`eligible-${id}`} data-count={tf.eligible.length} data-derived={tf.nDerived} data-manual={tf.nManual} data-overlap={tf.nOverlap}>
+            {tf.eligible.length ? tf.eligible.slice(0, 12).map((x) => <FitRow key={x.p.post.media_id} x={x} onSelect={onSelect} />) : <li className={styles.muted}>{t("social.offers.topicalNone")}</li>}
+          </ul>
+          {tf.sessionExcluded.length ? (
+            <>
+              <p className={styles.detailTitle}>{t("social.offers.excludedTitle", { n: tf.sessionExcluded.length })}</p>
+              <ul className={styles.limits} data-testid={`session-excluded-${id}`}>
+                {tf.sessionExcluded.map((x) => (
+                  <FitRow key={x.p.post.media_id} x={x} onSelect={onSelect} />
+                ))}
+              </ul>
+            </>
+          ) : null}
+          <p className={styles.detailTitle}>{t("social.offers.aboveTitle", { n: res.aboveMedian.length })}</p>
+          <p className={styles.chips} data-testid={`above-${id}`}>
+            {res.aboveMedian.length ? res.aboveMedian.slice(0, 10).map((x) => <PostLink key={x.p.post.media_id} p={x.p} onSelect={onSelect} />) : <span className={styles.muted}>{t("social.patterns.noCounter")}</span>}
+          </p>
+          <p className={styles.detailTitle}>{t("social.offers.belowTitle", { n: res.belowMedian.length })}</p>
+          <p className={styles.chips} data-testid={`below-${id}`}>
+            {res.belowMedian.length ? res.belowMedian.slice(0, 10).map((x) => <PostLink key={x.p.post.media_id} p={x.p} onSelect={onSelect} />) : <span className={styles.muted}>{t("social.patterns.noCounter")}</span>}
+          </p>
+          <p className={styles.note}>{t("social.offers.belowNote")}</p>
+          <dl className={styles.kv} data-testid={`disclosure-${id}`}>
+            <div>
+              <dt>{t("social.offers.discFormats")}</dt>
+              <dd>{res.formats.length ? res.formats.map((f) => t("social.offers.discFormat", { format: t(`social.formats.${f.format}`), n: f.nIndexed, of: f.nEligible, group: f.groupN })).join(" · ") : "—"}</dd>
+            </div>
+            <div>
+              <dt>{t("social.offers.discUnindexed")}</dt>
+              <dd data-testid={`unindexed-${id}`}>{res.unindexed.length ? res.unindexed.map((u) => `${t(`social.offers.unindexed.${u.reason}`)}: ${u.n}`).join(" · ") : t("social.patterns.noCounter")}</dd>
+            </div>
+            <div>
+              <dt>{t("social.offers.discObserved")}</dt>
+              <dd>{formatDay(res.observedAt, locale)}</dd>
+            </div>
+            <div>
+              <dt>{t("social.offers.discPeriod")}</dt>
+              <dd>{t("social.offers.discPeriodValue", { days: MATURE_AGE_DAYS })}</dd>
+            </div>
+            <div>
+              <dt>{t("social.offers.discAges")}</dt>
+              <dd>{res.ageDays ? t("social.offers.discAgesValue", { min: Math.floor(res.ageDays.min), max: Math.floor(res.ageDays.max) }) : "—"}</dd>
+            </div>
+          </dl>
+          <p className={styles.detailTitle}>{t("social.patterns.limits")}</p>
+          <ul className={styles.limits} data-testid={`limits-${id}`}>
+            {res.limitations.map((l) => (
+              <li key={l} data-limit={l}>
+                {t(`social.offers.limitations.${l}`)}
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+    </article>
+  );
+}
+
+function FitRow({ x, onSelect }: { x: EligiblePost; onSelect: (id: string) => void }) {
+  const { t } = useI18n();
+  return (
+    <li data-testid="fit-row" data-media-id={x.p.post.media_id} data-source={x.fit.source} data-overlap={x.overlap}>
+      <PostLink p={x.p} onSelect={onSelect} />{" "}
+      <span className={styles.note}>
+        {x.fit.source === "manual-session" ? t(x.fit.eligible ? "social.offers.reasonIncluded" : "social.offers.reasonExcluded", { words: x.fit.matched.join(", ") || "—" }) : t("social.offers.reasonDerived", { words: x.fit.matched.join(", ") })}
+        {x.overlap ? ` · ${t("social.offers.overlap")}` : ""}
+      </span>
+    </li>
   );
 }

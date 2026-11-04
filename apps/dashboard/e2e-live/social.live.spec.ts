@@ -70,7 +70,35 @@ test("live: the cockpit renders real Instagram data through the server-side work
   await page.getByTestId("tab-offers").click();
   await page.getByTestId("inspect-hypothesis-H1").click();
   await expect(page.getByTestId("inspection-H1")).toBeVisible();
-  const hypotheses = Object.fromEntries(await page.locator('[data-testid^="hypothesis-"]').evaluateAll((els) => els.map((e) => [e.getAttribute("data-testid"), e.getAttribute("data-state")])));
+  // ANA-39: lane states, suggested next step and eligible counts only (no caption, keyword or post id leaves the page)
+  const hypotheses = Object.fromEntries(
+    await page.locator('[data-testid^="hypothesis-"]').evaluateAll((els) =>
+      els.map((e) => [
+        e.getAttribute("data-testid"),
+        {
+          lanes: Object.fromEntries([...e.querySelectorAll('[data-testid^="lane-"]')].map((l) => [l.getAttribute("data-testid")!.split("-").slice(2).join("-"), l.getAttribute("data-state")])),
+          suggested: e.querySelector('[data-testid^="decision-"]')?.getAttribute("data-suggested") ?? null,
+        },
+      ]),
+    ),
+  );
+  // the model's eligible total (data-count), not the rendered rows: the inspection lists at most 12
+  const eligible = async (id: "H1" | "H4") => {
+    const list = page.getByTestId(`eligible-${id}`);
+    const total = Number(await list.getAttribute("data-count"));
+    const split = { derived: Number(await list.getAttribute("data-derived")), manual_session: Number(await list.getAttribute("data-manual")), overlap: Number(await list.getAttribute("data-overlap")) };
+    expect(split.derived + split.manual_session, "derived + session = eligible total").toBe(total);
+    return { total, split, rendered_rows: await list.getByTestId("fit-row").count() };
+  };
+  const h1 = await eligible("H1");
+  const comparison = await page.getByTestId("engagement-comparison").getAttribute("data-state");
+  await page.getByTestId("inspect-hypothesis-H4").click();
+  await expect(page.getByTestId("inspection-H4")).toBeVisible();
+  const h4 = await eligible("H4");
+  for (const e of [h1, h4]) {
+    expect(Number.isInteger(e.total) && e.total >= 0, "eligible total is a count").toBe(true);
+    expect(e.rendered_rows).toBe(Math.min(e.total, 12));
+  }
   const commercial = tally(await page.locator('[data-testid^="commercial-"][data-state]').evaluateAll((els) => els.map((e) => e.getAttribute("data-state"))));
 
   await page.getByTestId("tab-observations").click();
@@ -116,6 +144,13 @@ test("live: the cockpit renders real Instagram data through the server-side work
         thumbnails_rendered: thumbnails,
         patterns,
         hypotheses,
+        h1_eligible: h1.total,
+        h1_eligible_split: h1.split,
+        h1_eligible_rendered: h1.rendered_rows,
+        h4_eligible: h4.total,
+        h4_eligible_split: h4.split,
+        h4_eligible_rendered: h4.rendered_rows,
+        engagement_comparison: comparison,
         commercial,
       },
       null,
