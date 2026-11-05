@@ -11,6 +11,10 @@ import os from "node:os";
 import path from "node:path";
 import { TAG_VERSION } from "@/features/world/postTags";
 import { createPostTagger } from "./tagger";
+import type { ReelDaily, ReelInput } from "./reelDaily";
+import { REEL_VIEWING_OFF } from "@/features/world/types";
+import { normalizeSnapshot } from "@/server/social/normalize";
+import { buildSnapshot } from "../../../e2e/fake-social/core.mjs";
 
 const KEY = "unit-test-social-key-0123456789";
 const config: SocialConfig = { workerOrigin: "https://worker.example.invalid", key: KEY, timeoutMs: 50, maxPosts: 50, cacheMs: 600_000, minRefreshMs: 60_000 };
@@ -161,14 +165,28 @@ describe("createWorldService — caches, back-off and honest states", () => {
   it("passes the follows of the last 24 h and the Reel medians into the payload; without the store the tiles are off", async () => {
     const follows = { name: "follows_and_unfollows", breakdown: "follow_type", period: "day", since: 1793840000, until: 1793926400, state: "ok", results: [{ key: "FOLLOWER", value: 9 }, { key: "NON_FOLLOWER", value: 4 }] };
     const w = fakeWorker({ [PULSE_PATH]: () => Response.json(pulseBody(10)), [AUDIENCE_PATH]: () => Response.json({ ...audienceBody, follows }) });
-    const seen: Array<unknown[] | null> = [];
-    const reelDaily = { update: async (posts: readonly unknown[] | null) => (seen.push(posts ? [...posts] : null), { state: "on" as const, reels: 1, watch_ms: 20_000, skip_pct: 30, previous: null, store_error: false }) };
+    const seen: Array<ReelInput | null> = [];
+    const reelDaily: ReelDaily = { update: async (input) => (seen.push(input), { state: "on", reels: 1, skip_reels: 1, watch_ms: 20_000, skip_pct: 30, previous: null, store_error: false }) };
     const on = await createWorldService({ social, socialConfig: config, readWork: null, workKeys: [], fetchImpl: w.impl, now: () => 0, reelDaily }).read();
     expect(on.audience.follows).toMatchObject({ state: "ok", gained: 9, lost: 4 });
     expect(on.reel_viewing).toMatchObject({ state: "on", watch_ms: 20_000 });
-    expect(seen).toEqual([null]); // Instagram is down in this fake: the store gets no posts, so it writes nothing
+    expect(seen).toEqual([null]); // Instagram is down in this fake: the store gets nothing, so it stores nothing
     const off = await createWorldService({ social, socialConfig: config, readWork: null, workKeys: [], fetchImpl: w.impl, now: () => 0 }).read();
     expect(off.reel_viewing.state).toBe("off");
+  });
+
+  it("gives the store the snapshot's posts and measuring time, marked stale when the snapshot is a fallback", async () => {
+    const w = fakeWorker({ [PULSE_PATH]: () => Response.json(pulseBody(10)), [AUDIENCE_PATH]: () => Response.json(audienceBody) });
+    const snapshot = normalizeSnapshot(buildSnapshot());
+    for (const stale of [false, true]) {
+      const seen: Array<ReelInput | null> = [];
+      const reelDaily: ReelDaily = { update: async (input) => (seen.push(input), REEL_VIEWING_OFF) };
+      const fresh: SnapshotService = { read: async () => (stale ? { ok: true, stale: true, snapshot, failure: { state: "STALE", code: "upstream" } } : { ok: true, stale: false, snapshot }), reset: () => {} };
+      await createWorldService({ social: fresh, socialConfig: config, readWork: null, workKeys: [], fetchImpl: w.impl, now: () => 0, reelDaily }).read();
+      expect(seen[0]?.posts.length).toBe(snapshot.posts.length);
+      expect(seen[0]?.observedAt).toBe(snapshot.observed_at);
+      expect(seen[0]?.fresh).toBe(!stale);
+    }
   });
 
   it("the Brain digest waits until the stored post categories are read (an append cannot be taken back)", async () => {

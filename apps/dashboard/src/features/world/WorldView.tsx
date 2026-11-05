@@ -661,7 +661,7 @@ export function WorldView() {
         <div data-testid="world-kpi-followers">
           <span>{t("world.kpi.followers")}</span>
           <b>{num(ig?.followers ?? null)}</b>
-          {world ? <FollowsLine follows={world.audience.follows} t={t} locale={locale} /> : null}
+          {world ? <FollowsLine follows={world.audience.follows} current={world.audience.state === "ok"} t={t} locale={locale} /> : null}
         </div>
         <div>
           <span>{t("world.kpi.reach28")}</span>
@@ -677,6 +677,11 @@ export function WorldView() {
         </div>
         {world ? <ViewingTiles viewing={world.reel_viewing} t={t} locale={locale} /> : null}
       </div>
+      {world?.reel_viewing.state === "on" ? (
+        <p className={styles.note} data-testid="world-kpi-note">
+          {t("world.kpi.note")}
+        </p>
+      ) : null}
       <section className={styles.section} aria-labelledby="world-feed">
         <h3 id="world-feed">{t("world.feed.title")}</h3>
         {events.length === 0 ? (

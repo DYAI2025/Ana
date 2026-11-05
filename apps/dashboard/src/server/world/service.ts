@@ -287,7 +287,7 @@ export function createWorldService(deps: WorldDeps): WorldService {
         post_topics: { state: deps.topicTagger ? "on" : "off", version: OFFICE_VERSION, topics: deps.topicTagger ? deps.topicTagger.current() : {}, failing: deps.topicTagger ? deps.topicTagger.failing() : 0 },
         newsletters: deps.newsletters ? deps.newsletters.current() : NEWSLETTERS_OFF,
         post_history: deps.postHistory ? deps.postHistory.current() : POST_HISTORY_OFF,
-        reel_viewing: deps.reelDaily ? await deps.reelDaily.update(instagram.ok ? instagram.snapshot.posts : null).catch(() => REEL_VIEWING_OFF) : REEL_VIEWING_OFF,
+        reel_viewing: deps.reelDaily ? await deps.reelDaily.update(instagram.ok ? { posts: instagram.snapshot.posts, observedAt: instagram.snapshot.observed_at, fresh: !instagram.stale } : null).catch(() => REEL_VIEWING_OFF) : REEL_VIEWING_OFF,
         brain: { state: "off", last_day: null, note: null, reason: null },
         brief: deps.brief ? deps.brief.state() : { state: "off", busy: false, latest: {}, weekly: {}, in_brain: false, brain: false, reason: null },
       };

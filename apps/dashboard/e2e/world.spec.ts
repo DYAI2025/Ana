@@ -66,6 +66,7 @@ test.describe("ANA World — 3D view over real dashboard data", () => {
     await expect(page.getByTestId("world-kpi-watch")).toContainText("26.3 s");
     await expect(page.getByTestId("world-kpi-skip")).toContainText("29.0 %");
     await expect(page.getByTestId("world-kpi-watch-delta")).toHaveText("Comparison from tomorrow");
+    await expect(page.getByTestId("world-kpi-note")).toContainText("up to 48 h late");
     const countries = page.getByTestId("world-audience-country");
     await expect(countries).toContainText("Spain");
     await expect(countries).toContainText("150");

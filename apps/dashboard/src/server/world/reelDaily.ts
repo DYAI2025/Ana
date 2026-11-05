@@ -39,11 +39,11 @@ const measured = (p: SocialPost, metric: "avg_watch_time" | "skip_rate"): number
   return o && typeof o.value === "number" && Number.isFinite(o.value) ? o.value : null;
 };
 
-export function reelMedians(posts: readonly SocialPost[]): { reels: number; watch_ms: number | null; skip_pct: number | null } {
+export function reelMedians(posts: readonly SocialPost[]): { reels: number; skip_reels: number; watch_ms: number | null; skip_pct: number | null } {
   const reels = posts.filter((p) => p.format === "reel");
   const watch = reels.map((p) => measured(p, "avg_watch_time")).filter((v): v is number => v !== null);
   const skip = reels.map((p) => measured(p, "skip_rate")).filter((v): v is number => v !== null);
-  return { reels: watch.length, watch_ms: median(watch), skip_pct: median(skip) };
+  return { reels: watch.length, skip_reels: skip.length, watch_ms: median(watch), skip_pct: median(skip) };
 }
 
 const num = (v: unknown): number | null => (typeof v === "number" && Number.isFinite(v) && v >= 0 ? v : null);
@@ -63,8 +63,15 @@ async function readDays(file: string): Promise<ReelDay[]> {
   }
 }
 
+/** The snapshot to read: `fresh` is false for a stale fallback snapshot (shown, never stored as a new day's value). */
+export interface ReelInput {
+  posts: readonly SocialPost[];
+  observedAt: string;
+  fresh: boolean;
+}
+
 export interface ReelDaily {
-  update: (posts: readonly SocialPost[] | null) => Promise<WorldReelViewing>;
+  update: (input: ReelInput | null) => Promise<WorldReelViewing>;
 }
 
 export function createReelDaily({
@@ -76,9 +83,9 @@ export function createReelDaily({
   let days: ReelDay[] | null = null;
   let storeError = false;
   async function write(all: ReelDay[]) {
+    const tmp = `${file}.${randomUUID()}.tmp`;
     try {
       if (mkdir) await fs.mkdir(path.dirname(file), { recursive: true });
-      const tmp = `${file}.${randomUUID()}.tmp`;
       await fs.writeFile(tmp, JSON.stringify(all), { mode: 0o600 });
       await fs.rename(tmp, file);
       storeError = false;
@@ -86,29 +93,42 @@ export function createReelDaily({
     } catch {
       // the comparison is a convenience: a full disk never breaks the world
       storeError = true;
+      await fs.unlink(tmp).catch(() => undefined);
     }
   }
-  return {
-    async update(posts) {
-      if (days === null) days = await readDays(file);
-      const today = berlinDay(now());
-      const m = posts ? reelMedians(posts) : { reels: 0, watch_ms: null, skip_pct: null };
-      if (m.watch_ms !== null || m.skip_pct !== null) {
-        const stored = days.find((d) => d.day === today);
-        if (!stored || stored.watch_ms !== m.watch_ms || stored.skip_pct !== m.skip_pct) {
-          days = [...days.filter((d) => d.day !== today), { day: today, ...m, at: new Date(now()).toISOString() }].sort((a, b) => a.day.localeCompare(b.day)).slice(-REEL_DAYS_MAX);
-          await write(days);
-        }
+  async function run(input: ReelInput | null): Promise<WorldReelViewing> {
+    if (days === null) days = await readDays(file);
+    const today = berlinDay(now());
+    const m = input ? reelMedians(input.posts) : { reels: 0, skip_reels: 0, watch_ms: null, skip_pct: null };
+    // the day the snapshot was measured, not the day it was read (a snapshot cached before midnight stays yesterday's)
+    const observed = input ? Date.parse(input.observedAt) : Number.NaN;
+    const day = Number.isNaN(observed) ? today : berlinDay(observed);
+    if (input?.fresh && (m.watch_ms !== null || m.skip_pct !== null)) {
+      const stored = days.find((d) => d.day === day);
+      if (day <= today && (!stored || stored.watch_ms !== m.watch_ms || stored.skip_pct !== m.skip_pct)) {
+        days = [...days.filter((d) => d.day !== day), { day, reels: m.reels, watch_ms: m.watch_ms, skip_pct: m.skip_pct, at: new Date(now()).toISOString() }].sort((a, b) => a.day.localeCompare(b.day)).slice(-REEL_DAYS_MAX);
+        await write(days);
       }
-      const before = [...days].filter((d) => d.day < today).sort((a, b) => b.day.localeCompare(a.day))[0] ?? null;
-      return {
-        state: "on",
-        reels: m.reels,
-        watch_ms: m.watch_ms,
-        skip_pct: m.skip_pct,
-        previous: before ? { day: before.day, watch_ms: before.watch_ms, skip_pct: before.skip_pct } : null,
-        store_error: storeError,
-      };
+    }
+    // the values shown are compared with the latest stored day before the day they were measured
+    const before = [...days].filter((d) => d.day < day).sort((a, b) => b.day.localeCompare(a.day))[0] ?? null;
+    return {
+      state: "on",
+      reels: m.reels,
+      skip_reels: m.skip_reels,
+      watch_ms: m.watch_ms,
+      skip_pct: m.skip_pct,
+      previous: before ? { day: before.day, watch_ms: before.watch_ms, skip_pct: before.skip_pct } : null,
+      store_error: storeError,
+    };
+  }
+  // one update at a time: parallel /api/world reads must not write the file out of order
+  let queue: Promise<unknown> = Promise.resolve();
+  return {
+    update(input) {
+      const next = queue.then(() => run(input));
+      queue = next.catch(() => undefined);
+      return next;
     },
   };
 }

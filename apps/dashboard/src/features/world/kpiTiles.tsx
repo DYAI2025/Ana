@@ -12,9 +12,12 @@ const signed = (v: number, f: Intl.NumberFormat) => `${v > 0 ? "+" : v < 0 ? "�
 const dayLabel = (day: string, locale: string) => new Intl.DateTimeFormat(locale, { day: "numeric", month: "short", timeZone: "UTC" }).format(new Date(`${day}T12:00:00Z`));
 const arrow = (d: number) => (d > 0 ? "▲" : d < 0 ? "▼" : "");
 
-/** Under the follower count: gained and lost in the last 24 h (Meta follows_and_unfollows, up to 48 h late). */
-export function FollowsLine({ follows, t, locale }: { follows: WorldFollows; t: T; locale: string }) {
-  if (follows.state !== "ok") {
+/**
+ * Under the follower count: gained and lost in the last 24 h (Meta follows_and_unfollows, up to 48 h late). `current`
+ * is false when the last audience read failed: an older answer is not shown as "the last 24 h".
+ */
+export function FollowsLine({ follows, current, t, locale }: { follows: WorldFollows; current: boolean; t: T; locale: string }) {
+  if (follows.state !== "ok" || !current) {
     return (
       <small className={styles.kpiDelta} data-testid="world-kpi-follows" data-direction="none" title={t("world.kpi.followsNote")}>
         {t("world.kpi.followsNone")}
@@ -49,18 +52,17 @@ function Delta({ id, now, before, day, unit, lowerIsBetter, t, locale }: { id: s
 export function ViewingTiles({ viewing, t, locale }: { viewing: WorldReelViewing; t: T; locale: string }) {
   if (viewing.state !== "on") return null;
   const f = one(locale);
-  const note = t("world.kpi.reelNote", { n: viewing.reels });
   const watchS = viewing.watch_ms === null ? null : viewing.watch_ms / 1000;
   const prev = viewing.previous;
   const tile = (id: "watch" | "skip", label: string, value: number | null, unit: string, before: number | null, lowerIsBetter: boolean) => (
-    <div data-testid={`world-kpi-${id}`} title={note}>
+    <div data-testid={`world-kpi-${id}`} title={t("world.kpi.reelNote", { n: id === "watch" ? viewing.reels : viewing.skip_reels })}>
       <span>{label}</span>
       <b>{value === null ? "—" : `${f.format(value)} ${unit}`}</b>
       {value === null ? null : prev ? (
         <Delta id={id} now={value} before={before} day={prev.day} unit={id === "skip" ? t("world.kpi.points") : unit} lowerIsBetter={lowerIsBetter} t={t} locale={locale} />
       ) : (
         <small className={styles.kpiDelta} data-testid={`world-kpi-${id}-delta`}>
-          {t("world.kpi.fromTomorrow")}
+          {viewing.store_error ? t("world.kpi.storeError") : t("world.kpi.fromTomorrow")}
         </small>
       )}
     </div>

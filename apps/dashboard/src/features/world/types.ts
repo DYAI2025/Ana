@@ -68,8 +68,9 @@ export interface WorldAudience extends WorldSourceStatus {
  */
 export interface WorldReelViewing {
   state: "on" | "off";
-  /** Reels with a measured watch time */
+  /** Reels with a measured watch time, and with a measured skip rate */
   reels: number;
+  skip_reels: number;
   watch_ms: number | null;
   /** percent 0-100 */
   skip_pct: number | null;
@@ -77,7 +78,7 @@ export interface WorldReelViewing {
   store_error: boolean;
 }
 
-export const REEL_VIEWING_OFF: WorldReelViewing = { state: "off", reels: 0, watch_ms: null, skip_pct: null, previous: null, store_error: false };
+export const REEL_VIEWING_OFF: WorldReelViewing = { state: "off", reels: 0, skip_reels: 0, watch_ms: null, skip_pct: null, previous: null, store_error: false };
 
 /** A side Meta did not return is null (unknown), never 0. */
 export interface WorldFollows {

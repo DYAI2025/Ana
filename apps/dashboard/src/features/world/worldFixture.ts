@@ -65,7 +65,7 @@ export function world(): WorldPayload {
       store_error: false,
     },
     post_history: { state: "off", fetched_at: null, total: 0, oldest: null, posts: [], waiting: 0, list_failing: null, numbers_failing: null, store_error: false },
-    reel_viewing: { state: "on", reels: 18, watch_ms: 28130, skip_pct: 34.5, previous: { day: "2026-11-03", watch_ms: 26500, skip_pct: 36.1 }, store_error: false },
+    reel_viewing: { state: "on", reels: 18, skip_reels: 18, watch_ms: 28130, skip_pct: 34.5, previous: { day: "2026-11-03", watch_ms: 26500, skip_pct: 36.1 }, store_error: false },
     brain: { state: "off", last_day: null, note: null, reason: null },
     brief: { state: "off", busy: false, latest: {}, weekly: {}, in_brain: false, brain: false, reason: null },
   };
