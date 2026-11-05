@@ -1,6 +1,7 @@
 import type { Messages } from "./en";
 import { socialIt } from "./social/it";
 import { worldIt } from "./world/it";
+import { officeBoardIt } from "./office/it";
 
 export const it: Messages = {
   app: {
@@ -287,6 +288,7 @@ export const it: Messages = {
   },
   social: socialIt,
   world: worldIt,
+  officeBoard: officeBoardIt,
   pulse: {
     socialTitle: "Social · Instagram",
     socialBody: "Post e metriche Instagram reali, in sola lettura su questo computer.",

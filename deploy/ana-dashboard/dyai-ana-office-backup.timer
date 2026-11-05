@@ -1,0 +1,10 @@
+# /etc/systemd/system/dyai-ana-office-backup.timer
+[Unit]
+Description=Nightly Office Berlin backup
+
+[Timer]
+OnCalendar=*-*-* 03:25:00
+Persistent=true
+
+[Install]
+WantedBy=timers.target

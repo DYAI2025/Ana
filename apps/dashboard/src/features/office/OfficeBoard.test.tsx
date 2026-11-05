@@ -1,0 +1,109 @@
+import { render, screen, waitFor, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { I18nProvider } from "@/components/providers/I18nProvider";
+import { OfficeBoard } from "./OfficeBoard";
+
+const TICKET = {
+  id: "t1",
+  title: "New website draft",
+  description: "First look at the homepage.",
+  column: "doing",
+  assignee: "vince",
+  position: 1,
+  createdAt: "2026-11-01T10:00:00.000Z",
+  updatedAt: "2026-11-01T10:00:00.000Z",
+  createdBy: "ben",
+  archived: false,
+};
+
+function fakeFetch(me: "ana" | "ben", openQuestions = 1) {
+  const calls: Array<{ url: string; method: string; body?: unknown }> = [];
+  const fn = vi.fn(async (url: string, init?: RequestInit) => {
+    const method = init?.method ?? "GET";
+    const raw = init?.body;
+    calls.push({ url, method, body: raw instanceof FormData ? { file: (raw.get("file") as File | null)?.name, entryId: raw.get("entryId") } : raw ? JSON.parse(String(raw)) : undefined });
+    const json = (b: unknown) => new Response(JSON.stringify(b), { status: 200, headers: { "Content-Type": "application/json" } });
+    if (url === "/api/office/tickets" && method === "GET") return json({ ok: true, me, tickets: [{ ...TICKET, entries: 1, attachments: 0, openQuestions }] });
+    if (url === "/api/office/tickets/t1" && method === "GET")
+      return json({
+        ok: true,
+        ticket: TICKET,
+        entries: [{ id: "e1", ticketId: "t1", author: "ana", body: "Can I see it on my phone?", isQuestion: true, questionResolved: false, createdAt: "2026-11-02T10:00:00.000Z" }],
+        attachments: [{ id: "p1", ticketId: "t1", entryId: "e1", uploadedBy: "ana", createdAt: "2026-11-02T10:00:00.000Z", width: 800, height: 600 }],
+      });
+    if (url === "/api/office/tickets/t1/entries") return json({ ok: true, entry: { id: "e2" } });
+    if (url === "/api/office/tickets/t1/attachments") return json({ ok: true, attachment: { id: "a1" } });
+    if (url === "/api/office/tickets/t1" && method === "PATCH") return json({ ok: true, ticket: TICKET });
+    return new Response(JSON.stringify({ ok: false, reason: "nope" }), { status: 500 });
+  });
+  vi.stubGlobal("fetch", fn);
+  return calls;
+}
+
+afterEach(() => vi.unstubAllGlobals());
+
+const show = () => render(<I18nProvider><OfficeBoard /></I18nProvider>);
+
+describe("OfficeBoard", () => {
+  it("shows three columns, the ticket in 'Working on it' and an open question mark", async () => {
+    fakeFetch("ana");
+    show();
+    const doing = await screen.findByTestId("berlin-col-doing");
+    expect(within(doing).getByText("New website draft")).toBeTruthy();
+    expect(within(doing).getByTestId("berlin-question")).toBeTruthy();
+    expect(screen.getByTestId("berlin-col-todo")).toBeTruthy();
+    expect(screen.getByTestId("berlin-col-done")).toBeTruthy();
+  });
+
+  it("gives Ana no buttons to create or move tickets", async () => {
+    fakeFetch("ana");
+    show();
+    await screen.findByText("New website draft");
+    expect(screen.queryByTestId("berlin-new")).toBeNull();
+    expect(screen.queryByRole("button", { name: /Move to/ })).toBeNull();
+  });
+
+  it("lets Ana open a ticket, read the history and send a question", async () => {
+    const calls = fakeFetch("ana");
+    show();
+    await userEvent.click(await screen.findByRole("button", { name: /Open ticket: New website draft/ }));
+    const dialog = await screen.findByTestId("berlin-ticket");
+    expect(within(dialog).getByText("First look at the homepage.")).toBeTruthy();
+    expect(await within(dialog).findByText("Can I see it on my phone?")).toBeTruthy();
+    await userEvent.type(within(dialog).getByRole("textbox"), "Is the colour final?");
+    await userEvent.click(within(dialog).getByRole("button", { name: "Send" }));
+    await waitFor(() => expect(calls.some((c) => c.url === "/api/office/tickets/t1/entries")).toBe(true));
+    const sent = calls.find((c) => c.url === "/api/office/tickets/t1/entries")!.body as { body: string; isQuestion: boolean };
+    expect(sent).toEqual({ body: "Is the colour final?", isQuestion: true });
+  });
+
+  it("shows pictures in the history and sends new ones after the comment, linked to it", async () => {
+    const calls = fakeFetch("ana");
+    show();
+    await userEvent.click(await screen.findByRole("button", { name: /Open ticket: New website draft/ }));
+    const dialog = await screen.findByTestId("berlin-ticket");
+    expect(await within(dialog).findByTestId("berlin-thumb")).toBeTruthy();
+    const file = new File([new Uint8Array([137, 80, 78, 71])], "screen.png", { type: "image/png" });
+    await userEvent.upload(within(dialog).getByTestId("berlin-file"), file);
+    expect(within(dialog).getByText("1 pictures ready to send")).toBeTruthy();
+    await userEvent.type(within(dialog).getByRole("textbox"), "Like this");
+    await userEvent.click(within(dialog).getByRole("button", { name: "Send" }));
+    await waitFor(() => expect(calls.some((c) => c.url === "/api/office/tickets/t1/attachments")).toBe(true));
+    expect(calls.find((c) => c.url === "/api/office/tickets/t1/attachments")!.body).toEqual({ file: "screen.png", entryId: "e2" });
+  });
+
+  it("lets Ben move a ticket with the arrow buttons", async () => {
+    const calls = fakeFetch("ben", 0);
+    show();
+    await userEvent.click(await screen.findByRole("button", { name: "Move to Done" }));
+    await waitFor(() => expect(calls.some((c) => c.method === "PATCH")).toBe(true));
+    expect(calls.find((c) => c.method === "PATCH")!.body).toEqual({ column: "done" });
+  });
+
+  it("says so honestly when the board cannot load", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => new Response("{}", { status: 503 })));
+    show();
+    expect(await screen.findByText(/could not be loaded/)).toBeTruthy();
+  });
+});
