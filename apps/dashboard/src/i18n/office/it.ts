@@ -27,6 +27,13 @@ export const officeBoardIt: typeof officeBoardEn = {
     archive: "Togli dalla bacheca",
     close: "Chiudi",
     status: "Colonna",
+    addPictures: "Aggiungi immagini",
+    dropHint: "PNG, JPEG o WebP, fino a 10 MB ciascuna. Puoi anche trascinarle qui.",
+    selected: "{n} immagini pronte da inviare",
+    tooBig: "{name} supera i 10 MB.",
+    pictures: "Immagini",
+    pictureAlt: "Immagine aggiunta da {name}",
+    closePicture: "Chiudi immagine",
   },
   ago: { now: "proprio ora", min: "{n} min fa", h: "{n} h fa", d: "{n} giorni fa" },
 };

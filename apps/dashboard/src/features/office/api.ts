@@ -36,12 +36,27 @@ export interface Entry {
   createdAt: string;
 }
 
+export interface Attachment {
+  id: string;
+  ticketId: string;
+  entryId: string | null;
+  uploadedBy: Person;
+  createdAt: string;
+  width: number;
+  height: number;
+}
+
+export const MAX_PICTURE_BYTES = 10 * 1024 * 1024;
+export const PICTURE_TYPES = "image/png,image/jpeg,image/webp";
+export const pictureUrl = (id: string, size: "full" | "thumb") => `/api/office/attachments/${encodeURIComponent(id)}${size === "thumb" ? "?size=thumb" : ""}`;
+
 export class OfficeError extends Error {}
 
 async function call<T>(url: string, init?: RequestInit): Promise<T> {
   let res: Response;
   try {
-    res = await fetch(url, { ...init, cache: "no-store", headers: init?.body ? { "Content-Type": "application/json" } : undefined });
+    const json = typeof init?.body === "string";
+    res = await fetch(url, { ...init, cache: "no-store", headers: json ? { "Content-Type": "application/json" } : undefined });
   } catch {
     throw new OfficeError("network");
   }
@@ -52,13 +67,19 @@ async function call<T>(url: string, init?: RequestInit): Promise<T> {
 
 export const officeApi = {
   list: () => call<{ me: Person; tickets: TicketSummary[] }>("/api/office/tickets"),
-  get: (id: string) => call<{ ticket: Ticket; entries: Entry[] }>(`/api/office/tickets/${encodeURIComponent(id)}`),
+  get: (id: string) => call<{ ticket: Ticket; entries: Entry[]; attachments: Attachment[] }>(`/api/office/tickets/${encodeURIComponent(id)}`),
   create: (input: { title: string; description: string; assignee: Assignee }) =>
     call<{ ticket: Ticket }>("/api/office/tickets", { method: "POST", body: JSON.stringify(input) }),
   update: (id: string, patch: Partial<Pick<Ticket, "title" | "description" | "column" | "assignee" | "position" | "archived">>) =>
     call<{ ticket: Ticket }>(`/api/office/tickets/${encodeURIComponent(id)}`, { method: "PATCH", body: JSON.stringify(patch) }),
   comment: (id: string, body: string, isQuestion: boolean) =>
     call<{ entry: Entry }>(`/api/office/tickets/${encodeURIComponent(id)}/entries`, { method: "POST", body: JSON.stringify({ body, isQuestion }) }),
+  upload: (ticketId: string, file: File, entryId: string | null) => {
+    const form = new FormData();
+    form.append("file", file);
+    if (entryId) form.append("entryId", entryId);
+    return call<{ attachment: Attachment }>(`/api/office/tickets/${encodeURIComponent(ticketId)}/attachments`, { method: "POST", body: form });
+  },
   resolve: (entryId: string) => call<{ entry: Entry }>(`/api/office/entries/${encodeURIComponent(entryId)}/resolve`, { method: "PATCH", body: "{}" }),
 };
 

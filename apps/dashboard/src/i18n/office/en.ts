@@ -26,6 +26,13 @@ export const officeBoardEn = {
     archive: "Remove from the board",
     close: "Close",
     status: "Column",
+    addPictures: "Add pictures",
+    dropHint: "PNG, JPEG or WebP, up to 10 MB each. You can also drop them here.",
+    selected: "{n} pictures ready to send",
+    tooBig: "{name} is larger than 10 MB.",
+    pictures: "Pictures",
+    pictureAlt: "Picture added by {name}",
+    closePicture: "Close picture",
   },
   ago: { now: "just now", min: "{n} min ago", h: "{n} h ago", d: "{n} days ago" },
 };

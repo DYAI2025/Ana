@@ -27,6 +27,13 @@ export const officeBoardDe: typeof officeBoardEn = {
     archive: "Vom Board nehmen",
     close: "Schließen",
     status: "Spalte",
+    addPictures: "Bilder hinzufügen",
+    dropHint: "PNG, JPEG oder WebP, je bis 10 MB. Du kannst sie auch hierher ziehen.",
+    selected: "{n} Bilder bereit zum Senden",
+    tooBig: "{name} ist größer als 10 MB.",
+    pictures: "Bilder",
+    pictureAlt: "Bild von {name}",
+    closePicture: "Bild schließen",
   },
   ago: { now: "gerade eben", min: "vor {n} min", h: "vor {n} h", d: "vor {n} Tagen" },
 };

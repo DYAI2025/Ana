@@ -21,12 +21,19 @@ function fakeFetch(me: "ana" | "ben", openQuestions = 1) {
   const calls: Array<{ url: string; method: string; body?: unknown }> = [];
   const fn = vi.fn(async (url: string, init?: RequestInit) => {
     const method = init?.method ?? "GET";
-    calls.push({ url, method, body: init?.body ? JSON.parse(String(init.body)) : undefined });
+    const raw = init?.body;
+    calls.push({ url, method, body: raw instanceof FormData ? { file: (raw.get("file") as File | null)?.name, entryId: raw.get("entryId") } : raw ? JSON.parse(String(raw)) : undefined });
     const json = (b: unknown) => new Response(JSON.stringify(b), { status: 200, headers: { "Content-Type": "application/json" } });
     if (url === "/api/office/tickets" && method === "GET") return json({ ok: true, me, tickets: [{ ...TICKET, entries: 1, attachments: 0, openQuestions }] });
     if (url === "/api/office/tickets/t1" && method === "GET")
-      return json({ ok: true, ticket: TICKET, entries: [{ id: "e1", ticketId: "t1", author: "ana", body: "Can I see it on my phone?", isQuestion: true, questionResolved: false, createdAt: "2026-11-02T10:00:00.000Z" }] });
-    if (url === "/api/office/tickets/t1/entries") return json({ ok: true, entry: {} });
+      return json({
+        ok: true,
+        ticket: TICKET,
+        entries: [{ id: "e1", ticketId: "t1", author: "ana", body: "Can I see it on my phone?", isQuestion: true, questionResolved: false, createdAt: "2026-11-02T10:00:00.000Z" }],
+        attachments: [{ id: "p1", ticketId: "t1", entryId: "e1", uploadedBy: "ana", createdAt: "2026-11-02T10:00:00.000Z", width: 800, height: 600 }],
+      });
+    if (url === "/api/office/tickets/t1/entries") return json({ ok: true, entry: { id: "e2" } });
+    if (url === "/api/office/tickets/t1/attachments") return json({ ok: true, attachment: { id: "a1" } });
     if (url === "/api/office/tickets/t1" && method === "PATCH") return json({ ok: true, ticket: TICKET });
     return new Response(JSON.stringify({ ok: false, reason: "nope" }), { status: 500 });
   });
@@ -69,6 +76,21 @@ describe("OfficeBoard", () => {
     await waitFor(() => expect(calls.some((c) => c.url === "/api/office/tickets/t1/entries")).toBe(true));
     const sent = calls.find((c) => c.url === "/api/office/tickets/t1/entries")!.body as { body: string; isQuestion: boolean };
     expect(sent).toEqual({ body: "Is the colour final?", isQuestion: true });
+  });
+
+  it("shows pictures in the history and sends new ones after the comment, linked to it", async () => {
+    const calls = fakeFetch("ana");
+    show();
+    await userEvent.click(await screen.findByRole("button", { name: /Open ticket: New website draft/ }));
+    const dialog = await screen.findByTestId("office-ticket");
+    expect(await within(dialog).findByTestId("office-thumb")).toBeTruthy();
+    const file = new File([new Uint8Array([137, 80, 78, 71])], "screen.png", { type: "image/png" });
+    await userEvent.upload(within(dialog).getByTestId("office-file"), file);
+    expect(within(dialog).getByText("1 pictures ready to send")).toBeTruthy();
+    await userEvent.type(within(dialog).getByRole("textbox"), "Like this");
+    await userEvent.click(within(dialog).getByRole("button", { name: "Send" }));
+    await waitFor(() => expect(calls.some((c) => c.url === "/api/office/tickets/t1/attachments")).toBe(true));
+    expect(calls.find((c) => c.url === "/api/office/tickets/t1/attachments")!.body).toEqual({ file: "screen.png", entryId: "e2" });
   });
 
   it("lets Ben move a ticket with the arrow buttons", async () => {

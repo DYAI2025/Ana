@@ -1,6 +1,6 @@
 import "server-only";
 import { isTeam, type OfficePerson } from "./people";
-import { ASSIGNEES, COLUMNS, type OfficeAssignee, type OfficeColumn, type OfficeStore, type TicketPatch } from "./store";
+import { ASSIGNEES, COLUMNS, type OfficeAssignee, type OfficeAttachment, type OfficeColumn, type OfficeStore, type TicketPatch } from "./store";
 
 /**
  * The board's rules, independent of HTTP so they can be tested directly. Every function takes the acting person,
@@ -33,6 +33,11 @@ function obj(input: unknown): Record<string, unknown> {
   return input && typeof input === "object" && !Array.isArray(input) ? (input as Record<string, unknown>) : {};
 }
 
+/** What the browser gets to know about a picture: no file paths. */
+export function publicAttachment(a: OfficeAttachment) {
+  return { id: a.id, ticketId: a.ticketId, entryId: a.entryId, uploadedBy: a.uploadedBy, createdAt: a.createdAt, width: a.width, height: a.height };
+}
+
 export function listTickets(store: OfficeStore, me: OfficePerson): Outcome {
   return ok({ me, tickets: store.listTickets() });
 }
@@ -40,7 +45,7 @@ export function listTickets(store: OfficeStore, me: OfficePerson): Outcome {
 export function getTicket(store: OfficeStore, id: string): Outcome {
   const found = store.getTicket(id);
   if (!found || found.ticket.archived) return no(404, "ticket not found");
-  return ok({ ticket: found.ticket, entries: found.entries });
+  return ok({ ticket: found.ticket, entries: found.entries, attachments: found.attachments.map(publicAttachment) });
 }
 
 export function createTicket(store: OfficeStore, actor: OfficePerson, input: unknown): Outcome {

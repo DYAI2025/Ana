@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useId, useRef, useState, type DragEvent, type FormEvent } from "react";
 import { useI18n } from "@/components/providers/I18nProvider";
-import { ago, byColumn, COLUMNS, isTeam, NAMES, officeApi, type Assignee, type Column, type Entry, type Person, type Ticket, type TicketSummary } from "./api";
+import { ago, byColumn, COLUMNS, isTeam, MAX_PICTURE_BYTES, NAMES, officeApi, PICTURE_TYPES, pictureUrl, type Assignee, type Attachment, type Column, type Entry, type Person, type Ticket, type TicketSummary } from "./api";
 import styles from "./office.module.css";
 
 type T = ReturnType<typeof useI18n>["t"];
@@ -25,6 +25,42 @@ function When({ iso, t, locale }: { iso: string; t: T; locale: string }) {
     <time dateTime={iso} title={exact} className={styles.when}>
       {t(`officeBoard.ago.${a.key}`, { n: a.n })}
     </time>
+  );
+}
+
+function Pictures({ items, t, onOpen }: { items: readonly Attachment[]; t: T; onOpen: (a: Attachment) => void }) {
+  if (items.length === 0) return null;
+  return (
+    <ul className={styles.pictures}>
+      {items.map((a) => (
+        <li key={a.id}>
+          <button type="button" className={styles.thumb} onClick={() => onOpen(a)} data-testid="office-thumb">
+            {/* a private picture behind the login: plain img, no Next image optimisation */}
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={pictureUrl(a.id, "thumb")} alt={t("officeBoard.ticket.pictureAlt", { name: NAMES[a.uploadedBy] })} loading="lazy" width={Math.min(a.width, 200)} height={Math.round((Math.min(a.width, 200) / a.width) * a.height)} />
+          </button>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function Lightbox({ picture, t, onClose }: { picture: Attachment; t: T; onClose: () => void }) {
+  const ref = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    ref.current?.focus();
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+  return (
+    <div className={styles.lightbox} role="dialog" aria-modal="true" aria-label={t("officeBoard.ticket.pictureAlt", { name: NAMES[picture.uploadedBy] })} onClick={onClose}>
+      <button ref={ref} type="button" className={styles.close} onClick={onClose} aria-label={t("officeBoard.ticket.closePicture")}>
+        ×
+      </button>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src={pictureUrl(picture.id, "full")} alt={t("officeBoard.ticket.pictureAlt", { name: NAMES[picture.uploadedBy] })} onClick={(e) => e.stopPropagation()} />
+    </div>
   );
 }
 
@@ -71,7 +107,12 @@ function NewTicket({ t, onDone, onError }: { t: T; onDone: () => void; onError: 
 }
 
 function TicketDialog({ id, me, t, locale, onClose, onChanged }: { id: string; me: Person; t: T; locale: string; onClose: () => void; onChanged: () => void }) {
-  const [data, setData] = useState<{ ticket: Ticket; entries: Entry[] } | null>(null);
+  const [data, setData] = useState<{ ticket: Ticket; entries: Entry[]; attachments: Attachment[] } | null>(null);
+  const [files, setFiles] = useState<File[]>([]);
+  const [tooBig, setTooBig] = useState<string | null>(null);
+  const [lightbox, setLightbox] = useState<Attachment | null>(null);
+  const [dropping, setDropping] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
   const [failed, setFailed] = useState(false);
   const [saveFailed, setSaveFailed] = useState(false);
   const [text, setText] = useState("");
@@ -97,7 +138,12 @@ function TicketDialog({ id, me, t, locale, onClose, onChanged }: { id: string; m
       () => alive && setFailed(true),
     );
     closeRef.current?.focus();
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      // the picture closes first, then the ticket
+      if (document.querySelector("[data-office-lightbox]")) return;
+      onClose();
+    };
     window.addEventListener("keydown", onKey);
     return () => {
       alive = false;
@@ -121,11 +167,29 @@ function TicketDialog({ id, me, t, locale, onClose, onChanged }: { id: string; m
     }
   };
 
+  const pick = (list: FileList | null) => {
+    if (!list) return;
+    const picked = [...list].filter((f) => PICTURE_TYPES.split(",").includes(f.type));
+    const big = picked.find((f) => f.size > MAX_PICTURE_BYTES);
+    setTooBig(big ? big.name : null);
+    setFiles((prev) => [...prev, ...picked.filter((f) => f.size <= MAX_PICTURE_BYTES)].slice(0, 6));
+  };
+
   const send = async (e: FormEvent) => {
     e.preventDefault();
-    if (!text.trim()) return;
-    if (await act(() => officeApi.comment(id, text.trim(), question))) setText("");
+    if (!text.trim() && files.length === 0) return;
+    const ok = await act(async () => {
+      const entryId = text.trim() ? (await officeApi.comment(id, text.trim(), question)).entry.id : null;
+      for (const f of files) await officeApi.upload(id, f, entryId);
+    });
+    if (ok) {
+      setText("");
+      setFiles([]);
+      if (fileRef.current) fileRef.current.value = "";
+    }
   };
+
+  const picturesOf = (entryId: string | null) => (data ? data.attachments.filter((a) => a.entryId === entryId) : []);
 
   return (
     <div className={styles.backdrop} onClick={onClose}>
@@ -177,6 +241,7 @@ function TicketDialog({ id, me, t, locale, onClose, onChanged }: { id: string; m
               </div>
             )}
             {data.ticket.description && <p className={styles.description}>{data.ticket.description}</p>}
+            <Pictures items={picturesOf(null)} t={t} onOpen={setLightbox} />
             <h3 className={styles.sub}>{t("officeBoard.ticket.history")}</h3>
             {data.entries.length === 0 && <p className={styles.muted}>{t("officeBoard.ticket.noHistory")}</p>}
             <ol className={styles.history}>
@@ -188,6 +253,7 @@ function TicketDialog({ id, me, t, locale, onClose, onChanged }: { id: string; m
                     {e.isQuestion && <span className={e.questionResolved ? styles.tagDone : styles.tagQ}>{e.questionResolved ? t("officeBoard.ticket.answered") : t("officeBoard.ticket.question")}</span>}
                   </div>
                   <p className={styles.entryBody}>{e.body}</p>
+                  <Pictures items={picturesOf(e.id)} t={t} onOpen={setLightbox} />
                   {team && e.isQuestion && !e.questionResolved && (
                     <button type="button" className={styles.small} disabled={busy} onClick={() => void act(() => officeApi.resolve(e.id))}>
                       {t("officeBoard.ticket.markAnswered")}
@@ -196,16 +262,41 @@ function TicketDialog({ id, me, t, locale, onClose, onChanged }: { id: string; m
                 </li>
               ))}
             </ol>
-            <form className={styles.comment} onSubmit={send}>
+            <form
+              className={`${styles.comment} ${dropping ? styles.dropping : ""}`}
+              onSubmit={send}
+              onDragOver={(e) => {
+                if (e.dataTransfer.types.includes("Files")) {
+                  e.preventDefault();
+                  setDropping(true);
+                }
+              }}
+              onDragLeave={() => setDropping(false)}
+              onDrop={(e) => {
+                e.preventDefault();
+                setDropping(false);
+                pick(e.dataTransfer.files);
+              }}
+            >
               <textarea value={text} rows={3} maxLength={5000} placeholder={t("officeBoard.ticket.write")} aria-label={t("officeBoard.ticket.write")} onChange={(e) => setText(e.target.value)} />
               <div className={styles.row}>
                 <label className={styles.inline}>
                   <input type="checkbox" checked={question} onChange={(e) => setQuestion(e.target.checked)} /> {t("officeBoard.ticket.isQuestion")}
                 </label>
-                <button type="submit" className={styles.primary} disabled={busy || !text.trim()}>
+                <label className={styles.ghost}>
+                  {t("officeBoard.ticket.addPictures")}
+                  <input ref={fileRef} type="file" accept={PICTURE_TYPES} multiple className={styles.visuallyHidden} onChange={(e) => pick(e.target.files)} data-testid="office-file" />
+                </label>
+                <button type="submit" className={styles.primary} disabled={busy || (!text.trim() && files.length === 0)}>
                   {t("officeBoard.ticket.send")}
                 </button>
               </div>
+              <p className={styles.muted}>{files.length > 0 ? t("officeBoard.ticket.selected", { n: files.length }) : t("officeBoard.ticket.dropHint")}</p>
+              {tooBig && (
+                <p className={styles.error} role="alert">
+                  {t("officeBoard.ticket.tooBig", { name: tooBig })}
+                </p>
+              )}
             </form>
             {saveFailed && (
               <p className={styles.error} role="alert">
@@ -215,6 +306,15 @@ function TicketDialog({ id, me, t, locale, onClose, onChanged }: { id: string; m
           </>
         )}
       </div>
+      {lightbox && (
+        <div data-office-lightbox="">
+          <Lightbox
+            picture={lightbox}
+            t={t}
+            onClose={() => setLightbox(null)}
+          />
+        </div>
+      )}
     </div>
   );
 }

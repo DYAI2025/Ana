@@ -47,6 +47,20 @@ export interface OfficeEntry {
   createdAt: string;
 }
 
+export interface OfficeAttachment {
+  id: string;
+  ticketId: string;
+  entryId: string | null;
+  uploadedBy: OfficePerson;
+  createdAt: string;
+  /** relative to the uploads directory; never sent to the browser */
+  filePath: string;
+  mimeType: string;
+  width: number;
+  height: number;
+  sizeBytes: number;
+}
+
 export interface TicketPatch {
   title?: string;
   description?: string;
@@ -60,6 +74,10 @@ type Env = Readonly<Record<string, string | undefined>>;
 
 export function officeDir(env: Env = process.env): string {
   return env.OFFICE_STATE_DIR || env.STATE_DIRECTORY?.split(":")[0] || path.join(os.tmpdir(), "ana-office");
+}
+
+export function officeUploadsDir(env: Env = process.env): string {
+  return path.join(officeDir(env), "uploads");
 }
 
 export function officeDbFile(env: Env = process.env): string {
@@ -133,14 +151,31 @@ function entryOf(r: Row): OfficeEntry {
   };
 }
 
+function attachmentOf(r: Row): OfficeAttachment {
+  return {
+    id: String(r.id),
+    ticketId: String(r.ticket_id),
+    entryId: r.entry_id === null || r.entry_id === undefined ? null : String(r.entry_id),
+    uploadedBy: r.uploaded_by as OfficePerson,
+    createdAt: String(r.created_at),
+    filePath: String(r.file_path),
+    mimeType: String(r.mime_type),
+    width: Number(r.width),
+    height: Number(r.height),
+    sizeBytes: Number(r.size_bytes),
+  };
+}
+
 export interface OfficeStore {
   listTickets(): OfficeTicketSummary[];
-  getTicket(id: string): { ticket: OfficeTicket; entries: OfficeEntry[] } | null;
+  getTicket(id: string): { ticket: OfficeTicket; entries: OfficeEntry[]; attachments: OfficeAttachment[] } | null;
   createTicket(input: { title: string; description: string; column: OfficeColumn; assignee: OfficeAssignee; createdBy: OfficePerson }): OfficeTicket;
   updateTicket(id: string, patch: TicketPatch): OfficeTicket | null;
   addEntry(input: { ticketId: string; author: OfficePerson; body: string; isQuestion: boolean }): OfficeEntry | null;
   getEntry(id: string): OfficeEntry | null;
   resolveQuestion(entryId: string): OfficeEntry | null;
+  addAttachment(input: Omit<OfficeAttachment, "createdAt">): OfficeAttachment;
+  getAttachment(id: string): OfficeAttachment | null;
   close(): void;
 }
 
@@ -178,7 +213,8 @@ export function openOfficeStore(file: string = officeDbFile(), now: () => Date =
       const row = getTicketRow(id);
       if (!row) return null;
       const entries = (db.prepare("SELECT * FROM entries WHERE ticket_id = ? ORDER BY created_at, rowid").all(id) as Row[]).map(entryOf);
-      return { ticket: ticketOf(row), entries };
+      const attachments = (db.prepare("SELECT * FROM attachments WHERE ticket_id = ? ORDER BY created_at, rowid").all(id) as Row[]).map(attachmentOf);
+      return { ticket: ticketOf(row), entries, attachments };
     },
 
     createTicket({ title, description, column, assignee, createdBy }) {
@@ -235,6 +271,20 @@ export function openOfficeStore(file: string = officeDbFile(), now: () => Date =
       if (!row) return null;
       db.prepare("UPDATE entries SET question_resolved = 1 WHERE id = ? AND is_question = 1").run(entryId);
       return entryOf(getEntryRow(entryId)!);
+    },
+
+    addAttachment(a) {
+      const at = iso();
+      db.prepare(
+        "INSERT INTO attachments (id, ticket_id, entry_id, uploaded_by, created_at, file_path, mime_type, width, height, size_bytes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+      ).run(a.id, a.ticketId, a.entryId, a.uploadedBy, at, a.filePath, a.mimeType, a.width, a.height, a.sizeBytes);
+      db.prepare("UPDATE tickets SET updated_at = ? WHERE id = ?").run(at, a.ticketId);
+      return attachmentOf(db.prepare("SELECT * FROM attachments WHERE id = ?").get(a.id) as Row);
+    },
+
+    getAttachment(id) {
+      const row = db.prepare("SELECT * FROM attachments WHERE id = ?").get(id) as Row | undefined;
+      return row ? attachmentOf(row) : null;
     },
 
     close() {

@@ -48,11 +48,10 @@ export async function refuseUnauthorized(request: Request): Promise<Response | n
  * Writes act with the server's Jira credential, so they accept only same-origin JSON requests from the dashboard
  * itself: a cross-site page cannot submit a form or a "simple" request that creates or moves Jira work.
  */
-export async function readWriteRequest(request: Request): Promise<{ ok: true; body: unknown } | { ok: false; response: Response }> {
-  const refused = await refuseUnauthorized(request);
-  if (refused) return { ok: false, response: refused };
+/** Refuses a write that comes from another site (a form or script on a foreign page). */
+export function refuseCrossSite(request: Request): Response | null {
   const fetchSite = request.headers.get("sec-fetch-site");
-  if (fetchSite && fetchSite !== "same-origin") return { ok: false, response: invalid("cross-site request refused", 403) };
+  if (fetchSite && fetchSite !== "same-origin") return invalid("cross-site request refused", 403);
   const origin = request.headers.get("origin");
   if (origin) {
     let originHost: string | null = null;
@@ -61,8 +60,16 @@ export async function readWriteRequest(request: Request): Promise<{ ok: true; bo
     } catch {
       /* unparsable origin */
     }
-    if (originHost !== request.headers.get("host")) return { ok: false, response: invalid("cross-origin request refused", 403) };
+    if (originHost !== request.headers.get("host")) return invalid("cross-origin request refused", 403);
   }
+  return null;
+}
+
+export async function readWriteRequest(request: Request): Promise<{ ok: true; body: unknown } | { ok: false; response: Response }> {
+  const refused = await refuseUnauthorized(request);
+  if (refused) return { ok: false, response: refused };
+  const crossSite = refuseCrossSite(request);
+  if (crossSite) return { ok: false, response: crossSite };
   if (!(request.headers.get("content-type") ?? "").toLowerCase().startsWith("application/json")) {
     return { ok: false, response: invalid("expected application/json", 415) };
   }
