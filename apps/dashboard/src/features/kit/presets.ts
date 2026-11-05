@@ -24,6 +24,8 @@ export interface KitPreset {
   tiles: KitTileId[];
   /** media ids of the example Reels in this order; empty = the Reels with the most views */
   reels: string[];
+  /** ids of the case studies in this order; empty = all of them */
+  cases: string[];
 }
 
 /** a preset as written in media-kit.json: every field optional, on top of `base` (default: the built-in of the same id, else "default") */
@@ -36,6 +38,7 @@ export interface KitPresetInput {
   sections?: KitSectionId[];
   tiles?: KitTileId[];
   reels?: string[];
+  cases?: string[];
 }
 
 const ASIA = ["IN", "TH", "ID", "VN", "PH", "MY", "SG", "JP", "KR", "AU", "NZ", "LK", "NP", "BD", "KH", "LA", "MM", "HK", "TW", "CN", "MV"];
@@ -51,6 +54,7 @@ export const BUILT_IN_PRESETS: Readonly<Record<string, KitPreset>> = {
     sections: ["proof", "numbers", "audience", "reels", "packages"],
     tiles: ["followers", "reach", "views", "engagement", "watch", "hold"],
     reels: [],
+    cases: [],
   },
   asia: {
     id: "asia",
@@ -61,6 +65,7 @@ export const BUILT_IN_PRESETS: Readonly<Record<string, KitPreset>> = {
     sections: ["audience", "numbers", "reels", "proof", "packages"],
     tiles: ["reach", "engaged", "views", "engagement", "watch", "hold", "followers"],
     reels: [],
+    cases: [],
   },
   west: {
     id: "west",
@@ -71,6 +76,7 @@ export const BUILT_IN_PRESETS: Readonly<Record<string, KitPreset>> = {
     sections: ["audience", "numbers", "proof", "reels", "packages"],
     tiles: ["followers", "reach", "engagement", "watch", "hold", "views"],
     reels: [],
+    cases: [],
   },
 };
 
@@ -92,6 +98,7 @@ export function resolvePreset(id: string | null | undefined, custom: Readonly<Re
       sections: own.sections ?? base.sections,
       tiles: own.tiles ?? base.tiles,
       reels: own.reels ?? base.reels,
+      cases: own.cases ?? base.cases,
     };
   }
   return Object.hasOwn(BUILT_IN_PRESETS, key) ? BUILT_IN_PRESETS[key]! : BUILT_IN_PRESETS.default!;

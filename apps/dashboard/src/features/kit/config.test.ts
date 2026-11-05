@@ -24,7 +24,7 @@ describe("parseKitConfig — Ana's content, lenient, nothing invented", () => {
     expect(c.name).toBe("Ana");
     expect(c.tagline).toBeNull();
     expect(c.contact).toEqual({ email: "hello@example.com", label: "Work with me", subject: "Collab" });
-    expect(c.cases).toEqual([{ brand: "Hotel A", title: "Stay", summary: "s", results: [{ label: "Bookings", value: "+40%" }], link: null }]);
+    expect(c.cases).toEqual([{ id: "hotel-a", brand: "Hotel A", title: "Stay", summary: "s", role: null, deliverables: [], period: null, source: null, results: [{ label: "Bookings", value: "+40%" }], link: null }]);
     expect(c.packages).toEqual([{ name: "Reel", price: "from €1,500", includes: ["1 Reel"], note: null }]);
     expect(c.addons).toEqual([{ name: "Usage rights", price: "+20–50 %", note: null }]);
   });
@@ -69,5 +69,31 @@ describe("resolvePreset — what a brand sees first", () => {
     // the config may adjust a built-in under the same id
     expect(resolvePreset("asia", custom)).toMatchObject({ label: "Asia (Ana's)", focus: BUILT_IN_PRESETS.asia!.focus, focus_label: "Asia-Pacific & India" });
     expect(presetList(custom).map((p) => p.id)).toEqual(["default", "asia", "west", "brand", "mine"]);
+  });
+});
+
+describe("parseKitConfig — partners, Reel labels, case fields (ANA-54)", () => {
+  it("partners: names with a known kind; no kind is a plain partnership; an unknown kind is dropped", () => {
+    const c = parseKitConfig({ partners: [{ name: "Fiverr", kind: "paid" }, { name: " ClassPass ", kind: "affiliate" }, { name: "Nomad" }, { name: "X", kind: "sponsor" }, { kind: "paid" }] });
+    expect(c.partners).toEqual([
+      { name: "Fiverr", kind: "paid" },
+      { name: "ClassPass", kind: "affiliate" },
+      { name: "Nomad", kind: "partnership" },
+    ]);
+  });
+
+  it("Reel labels: by media id, known kinds only; organic and concept carry no brand", () => {
+    const c = parseKitConfig({ reels: { "123": { kind: "partnership", brand: "BAGSMART" }, "456": { kind: "organic", brand: "ignored" }, "bad id!": { kind: "ugc" }, "789": { kind: "viral" }, "999": "ugc" } });
+    expect(c.reels).toEqual({ "123": { kind: "partnership", brand: "BAGSMART" }, "456": { kind: "organic", brand: null } });
+  });
+
+  it("cases: own id or a slug of the brand; role, deliverables, period and source; presets pick cases by id", () => {
+    const c = parseKitConfig({
+      cases: [{ brand: "Nomad eSIM", role: "Concept and filming", deliverables: ["1 Reel", 5, "3 Stories"], period: "30 days", source: "Instagram Insights" }, { id: "Own-ID!", brand: "Ünïcode Brand" }],
+      presets: { b: { cases: ["nomad-esim", "BAD ID", "unicode-brand"] } },
+    });
+    expect(c.cases.map((x) => x.id)).toEqual(["nomad-esim", "unicode-brand"]);
+    expect(c.cases[0]).toMatchObject({ role: "Concept and filming", deliverables: ["1 Reel", "3 Stories"], period: "30 days", source: "Instagram Insights" });
+    expect(c.presets.b!.cases).toEqual(["nomad-esim", "unicode-brand"]);
   });
 });

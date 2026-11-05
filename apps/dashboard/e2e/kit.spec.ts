@@ -40,6 +40,9 @@ test.describe("ANA-53 · media kit", () => {
     await expect(page.getByRole("heading", { level: 1 })).toHaveText("Ana Savu");
     // the fake reports 48,200 accounts reached; accounts engaged is unavailable and must not appear at all
     await expect(page.getByTestId("kit-tile-reach")).toContainText("48.2K");
+    // the typical Reel comes before the best ones, with how many Reels it counts
+    await expect(page.getByTestId("kit-typical")).toContainText(/median per Reel over \d+ Reels/);
+    for (const id of ["kit-partners", "kit-hero-cta", "kit-reel-label"]) await expect(page.getByTestId(id)).toHaveCount(0);
     await expect(page.getByTestId("kit-tile-engaged")).toHaveCount(0);
     await expect(page.getByTestId("kit-audience")).toBeVisible();
     await expect(page.getByTestId("kit-countries")).toContainText("Germany");
@@ -62,6 +65,7 @@ test.describe("ANA-53 · media kit", () => {
       JSON.stringify({
         tagline: "A test line",
         contact: { email: "e2e@example.invalid", label: "Work with Ana" },
+        partners: [{ name: "Test Partner", kind: "paid" }, { name: "Test Affiliate", kind: "affiliate" }],
         cases: [{ brand: "Test Brand", results: [{ label: "Bookings", value: "+40%" }] }],
         packages: [{ name: "One Reel", price: "from €1" }],
         addons: [{ name: "Usage rights", price: "+20–50 %" }],
@@ -72,7 +76,14 @@ test.describe("ANA-53 · media kit", () => {
     await expect(page.getByTestId("kit-proof")).toContainText("Test Brand");
     await expect(page.getByTestId("kit-packages")).toContainText("from €1");
     await expect(page.getByTestId("kit-addons")).toContainText("Usage rights");
-    await expect(page.getByTestId("kit-cta").getByRole("link")).toHaveAttribute("href", "mailto:e2e@example.invalid");
+    const mailto = await page.getByTestId("kit-cta").getByRole("link").getAttribute("href");
+    expect(mailto).toMatch(/^mailto:e2e@example\.invalid\?body=Brand%3A/);
+    await expect(page.getByTestId("kit-hero-cta")).toHaveAttribute("href", mailto!);
+    await expect(page.getByTestId("kit-partners")).toContainText("Test Partner");
+    await expect(page.getByTestId("kit-partners")).toContainText("Paid partnership");
+    await expect(page.getByTestId("kit-partners")).toContainText("Affiliate");
+    // a case without results says so
+    await expect(page.getByTestId("kit-proof")).not.toContainText("no published results");
   });
 
   test("AC3 · presets: asia highlights its markets, west leads with followers, unknown falls back", async ({ page }) => {

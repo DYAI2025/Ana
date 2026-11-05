@@ -28,12 +28,20 @@ The app in this folder is **ASADA** — Ana Savu Dashboard (Jira ANA-4 visual sh
     "name": "Ana Savu",
     "tagline": "a line in Ana's own words",
     "contact": { "email": "…", "label": "Work with Ana", "subject": "Collaboration" },
-    "cases": [{ "brand": "…", "title": "…", "summary": "…", "results": [{ "label": "…", "value": "…" }], "link": "https://…" }],
+    "partners": [{ "name": "…", "kind": "paid | gifted | ugc | affiliate | partnership" }],
+    "reels": { "<media id>": { "kind": "organic | partnership | ugc | concept", "brand": "…" } },
+    "cases": [{ "id": "…", "brand": "…", "title": "…", "summary": "…", "role": "…", "deliverables": ["…"], "period": "…", "source": "…", "results": [{ "label": "…", "value": "…" }], "link": "https://…" }],
     "packages": [{ "name": "…", "price": "from …", "includes": ["…"], "note": "…" }],
     "addons": [{ "name": "Usage rights", "price": "…", "note": "…" }],
-    "presets": { "insurer-us": { "base": "west", "label": "…", "focus": ["US", "GB"], "focus_label": "US & UK", "sections": ["audience", "numbers", "reels", "proof", "packages"], "tiles": ["followers", "reach", "engagement", "watch", "hold"], "reels": ["<media id>"] } }
+    "presets": { "insurer-us": { "base": "west", "label": "…", "focus": ["US", "GB"], "focus_label": "US & UK", "sections": ["audience", "numbers", "reels", "proof", "packages"], "tiles": ["followers", "reach", "engagement", "watch", "hold"], "reels": ["<media id>"], "cases": ["<case id>"] } }
   }
   ```
+
+  ANA-54 adds: partners (names and kind, no logos) under the hero numbers; Reel labels on the cards; a "Typical
+  Reel" (medians over Reels at least 7 days old, with n and dates) before the best Reels; case role, deliverables,
+  measurement window and source, and "no published results" for a case without results; the button as a hero link
+  too, opening an e-mail with a short briefing; the preset's market share in the hero; "live" only for a reading of
+  at most 26 h. A case's id defaults to its brand as a slug ("Nomad eSIM" → `nomad-esim`).
 
   Public per-brand links without the dashboard login, open tracking and revocation are a later slice.
 - **Everything else is local prototype data**: Sessions, Whiteboard, Calendar, Pulse, Vault and Toolbox are not

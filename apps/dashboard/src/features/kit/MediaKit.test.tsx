@@ -12,7 +12,7 @@ const finalOf = (testid: string) => screen.getByTestId(testid).querySelector("[d
 describe("MediaKit", () => {
   it("an empty config shows no case studies, packages, add-ons, line or button — not even as placeholders", () => {
     render(<MediaKit model={buildKit({ world: world(), config: EMPTY_KIT_CONFIG })} preview />);
-    for (const id of ["kit-proof", "kit-packages", "kit-addons", "kit-cta", "kit-tagline"]) expect(screen.queryByTestId(id)).toBeNull();
+    for (const id of ["kit-proof", "kit-packages", "kit-addons", "kit-cta", "kit-tagline", "kit-partners", "kit-hero-cta", "kit-reel-label", "kit-hero-signal"]) expect(screen.queryByTestId(id)).toBeNull();
     expect(screen.getByRole("heading", { level: 1 }).textContent).toBe("Ana Savu");
     expect(screen.getByTestId("kit-numbers")).toBeTruthy();
     const text = screen.getByTestId("kit").textContent ?? "";
@@ -36,8 +36,10 @@ describe("MediaKit", () => {
     expect(screen.getByTestId("kit-package-list").textContent).toContain("from €1,500");
     expect(screen.getByTestId("kit-addons").textContent).toContain("+20–50 % of the fee");
     const button = within(screen.getByTestId("kit-cta")).getByRole("link");
-    expect(button.getAttribute("href")).toBe("mailto:hi@example.com");
+    expect(button.getAttribute("href")).toMatch(/^mailto:hi@example\.com\?body=Brand%3A/);
     expect(button.textContent).toBe("Let's talk");
+    // the same action in the hero, as a quieter link
+    expect(screen.getByTestId("kit-hero-cta").getAttribute("href")).toBe(button.getAttribute("href"));
     expect(screen.queryByTestId("kit-preview")).toBeNull();
     // other brands' presets are not on a brand's page
     expect(document.body.textContent).not.toContain("Secret Brand Pitch");
@@ -67,6 +69,45 @@ describe("MediaKit", () => {
     expect(formatValue(1_250_000, "count")).toBe("1.3M");
     expect(formatValue(4.04, "percent")).toBe("4.0%");
     expect(formatValue(0.404, "share")).toBe("40%");
+  });
+});
+
+describe("MediaKit — ANA-54", () => {
+  it("partners, Reel labels, a case without results, case facts and the market signal", () => {
+    const config = parseKitConfig({
+      partners: [{ name: "Fiverr", kind: "paid" }, { name: "ClassPass", kind: "affiliate" }],
+      reels: { p1: { kind: "partnership", brand: "Fiverr" } },
+      cases: [
+        { brand: "Fiverr", role: "Concept and filming", deliverables: ["1 Reel", "3 Stories"] },
+        { brand: "Proven", results: [{ label: "Views", value: "1.2M" }], period: "30 days after posting", source: "Instagram Insights" },
+      ],
+    });
+    const w = world();
+    if (w.instagram.ok) w.instagram.snapshot.posts = w.instagram.snapshot.posts.map((p) => ({ ...p, observations: [...p.observations, { ...p.observations[0]!, metric_name: "views" as const, value: 1000 }] }));
+    render(<MediaKit model={buildKit({ world: w, config, presetId: "asia" })} />);
+    const partners = screen.getByTestId("kit-partners");
+    expect(partners.textContent).toContain("Fiverr");
+    expect(partners.textContent).toContain("Paid partnership");
+    expect(partners.textContent).toContain("Affiliate");
+    expect(screen.getByTestId("kit-reel-label").textContent).toBe("Brand partnership · Fiverr");
+    const proof = screen.getByTestId("kit-proof");
+    expect(screen.getAllByTestId("kit-case-no-results").map((e) => e.textContent)).toEqual(["Collaboration · no published results"]);
+    expect(proof.textContent).toContain("Concept and filming");
+    expect(proof.textContent).toContain("1 Reel · 3 Stories");
+    expect(proof.textContent).toContain("Measured · 30 days after posting · source: Instagram Insights");
+    expect(screen.getByTestId("kit-hero-signal").textContent).toContain("Asia-Pacific & India");
+    // every number names its source
+    expect(screen.getByTestId("kit-tile-reach").textContent).toContain("Instagram ·");
+  });
+
+  it("an old reading is not called live", () => {
+    const w = world();
+    const at = Date.parse(w.instagram.ok ? w.instagram.snapshot.observed_at : "");
+    const { unmount } = render(<MediaKit model={buildKit({ world: w, config: EMPTY_KIT_CONFIG, now: at + 1000 })} />);
+    expect(screen.getByTestId("kit-as-of").textContent).toMatch(/^Numbers live from Instagram/);
+    unmount();
+    render(<MediaKit model={buildKit({ world: w, config: EMPTY_KIT_CONFIG, now: at + 30 * 3_600_000 })} />);
+    expect(screen.getByTestId("kit-as-of").textContent).toMatch(/^Numbers from Instagram.*latest available reading/);
   });
 });
 
