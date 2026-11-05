@@ -72,10 +72,22 @@ describe("MediaKit", () => {
 
 describe("CountUp", () => {
   let fire: (visible: boolean) => void = () => undefined;
+  let frames: FrameRequestCallback[] = [];
+  const flush = () => {
+    const f = frames;
+    frames = [];
+    f.forEach((cb) => cb(performance.now() + 10_000));
+  };
   afterEach(() => {
     vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+    fire = () => undefined;
+    frames = [];
   });
-  function motion(reduce: boolean) {
+  const scroll = () => act(() => {
+    window.dispatchEvent(new Event("scroll"));
+  });
+  function motion(reduce: boolean, below = true) {
     vi.stubGlobal("matchMedia", (q: string) => ({ matches: reduce && q.includes("reduce"), media: q, addEventListener() {}, removeEventListener() {} }));
     vi.stubGlobal(
       "IntersectionObserver",
@@ -87,28 +99,37 @@ describe("CountUp", () => {
         disconnect() {}
       },
     );
-    // every frame is the last one: the count lands on the final value at once
     vi.stubGlobal("requestAnimationFrame", (f: FrameRequestCallback) => {
-      f(performance.now() + 10_000);
-      return 1;
+      frames.push(f);
+      return frames.length;
     });
-    vi.stubGlobal("cancelAnimationFrame", () => undefined);
+    vi.stubGlobal("cancelAnimationFrame", () => {
+      frames = [];
+    });
+    vi.spyOn(Element.prototype, "getBoundingClientRect").mockReturnValue({ top: below ? 5_000 : 10 } as DOMRect);
   }
 
-  it("starts at 0 until seen, then lands on the final value; assistive technology always reads the final value", () => {
+  it("shows its final value until it is about to scroll in, then counts from 0 to it", () => {
     motion(false);
     const { container } = render(<CountUp value={48_200} kind="count" />);
     const shown = container.querySelector("[data-final]")!;
-    expect(shown.textContent).toBe("0");
-    expect(container.textContent).toContain("48.2K");
+    // never scrolled: a full-page screenshot or PDF shows the real number, never 0, even near the fold
     act(() => fire(true));
     expect(shown.textContent).toBe("48.2K");
+    scroll();
+    act(() => fire(true));
+    expect(shown.textContent).toBe("0");
+    act(() => flush());
+    expect(shown.textContent).toBe("48.2K");
+    expect(container.textContent).toContain("48.2K");
   });
 
-  it("printing or saving as PDF shows the final value even when it was never seen", () => {
+  it("printing in the middle of the count shows the final value", () => {
     motion(false);
     const { container } = render(<CountUp value={131_000} kind="count" />);
     const shown = container.querySelector("[data-final]")!;
+    scroll();
+    act(() => fire(true));
     expect(shown.textContent).toBe("0");
     act(() => {
       window.dispatchEvent(new Event("beforeprint"));
@@ -116,16 +137,28 @@ describe("CountUp", () => {
     expect(shown.textContent).toBe("131K");
   });
 
-  it("a new value is shown, never the old one; reduced motion never animates", () => {
+  it("a new value is shown, never the old one; on screen at load or with reduced motion it never animates", () => {
     motion(false);
     const { container, rerender } = render(<CountUp value={10} kind="count" />);
+    scroll();
     act(() => fire(true));
     rerender(<CountUp value={20} kind="count" />);
-    act(() => fire(true));
     expect(container.querySelector("[data-final]")!.textContent).toBe("20");
+    scroll();
+    act(() => fire(true));
+    act(() => flush());
+    expect(container.querySelector("[data-final]")!.textContent).toBe("20");
+    vi.restoreAllMocks();
+    motion(false, false);
+    const onScreen = render(<CountUp value={40} kind="count" />);
+    scroll();
+    act(() => fire(true));
+    expect(onScreen.container.querySelector("[data-final]")!.textContent).toBe("40");
     vi.unstubAllGlobals();
     motion(true);
     const reduced = render(<CountUp value={30} kind="count" />);
+    scroll();
+    act(() => fire(true));
     expect(reduced.container.querySelector("[data-final]")!.textContent).toBe("30");
   });
 });

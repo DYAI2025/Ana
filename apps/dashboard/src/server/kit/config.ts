@@ -1,5 +1,6 @@
 import "server-only";
 import { promises as fs } from "node:fs";
+import { cache } from "react";
 import path from "node:path";
 import { EMPTY_KIT_CONFIG, parseKitConfig, type KitConfig } from "@/features/kit/config";
 import { landDots, type KitGeo } from "@/features/kit/map";
@@ -15,6 +16,9 @@ import { historyFile } from "@/server/world/audienceHistory";
 export function kitConfigFile(env: Readonly<Record<string, string | undefined>> = process.env): string {
   return path.join(path.dirname(historyFile(env)), "media-kit.json");
 }
+
+/** one read per request: the page and its metadata share it */
+export const readKitConfigOnce = cache(() => readKitConfig());
 
 export async function readKitConfig(file = kitConfigFile()): Promise<{ config: KitConfig; error: boolean }> {
   let text: string;

@@ -5,14 +5,14 @@ import "@fontsource-variable/playfair-display";
 import { MediaKit } from "@/features/kit/MediaKit";
 import { buildKit } from "@/features/kit/model";
 import { checkAccess } from "@/server/access";
-import { kitGeo, readKitConfig } from "@/server/kit/config";
+import { kitGeo, readKitConfigOnce } from "@/server/kit/config";
 import { worldServiceFromEnv } from "@/server/world/shared";
 
 // live numbers on every view: never a build-time copy
 export const dynamic = "force-dynamic";
 
 export async function generateMetadata(): Promise<Metadata> {
-  const { config } = await readKitConfig();
+  const { config } = await readKitConfigOnce();
   return { title: `${config.name ?? "Ana Savu"} · Media Kit`, robots: { index: false, follow: false } };
 }
 
@@ -27,7 +27,7 @@ export default async function KitPage({ searchParams }: { searchParams: Promise<
   const params = await searchParams;
   const raw = params.for;
   const presetId = Array.isArray(raw) ? raw[0] : raw;
-  const [world, { config, error }, geo] = await Promise.all([worldServiceFromEnv().read(), readKitConfig(), kitGeo()]);
+  const [world, { config, error }, geo] = await Promise.all([worldServiceFromEnv().read(), readKitConfigOnce(), kitGeo()]);
   const model = buildKit({ world, config, presetId, geo, configError: error });
   return <MediaKit model={model} preview />;
 }

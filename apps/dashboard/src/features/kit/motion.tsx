@@ -8,30 +8,58 @@ import styles from "./kit.module.css";
 /**
  * The media kit's only client parts (ANA-53): sections that rise in, numbers that count up, covers that fall back when
  * Meta's CDN link fails. The page itself renders on the server, so only these props travel to the browser.
- * With reduced motion (or without JavaScript) everything is simply there with its final numbers; printing a page
- * (or saving it as PDF) shows every number and section in full, scrolled to or not.
+ * With reduced motion (or without JavaScript) everything is simply there with its final numbers; a print, PDF or
+ * full-page screenshot shows every number and section in full, scrolled to or not.
  */
 
 const reducedMotion = () => typeof window === "undefined" || !window.matchMedia || window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 const belowFold = (el: Element) => el.getBoundingClientRect().top > window.innerHeight * 0.92;
+/**
+ * Nothing is hidden or set to 0 before someone scrolls, and then only what is about to scroll in (this far below the
+ * viewport): a full-page screenshot, a PDF or a print of a page that was never scrolled shows every section and every
+ * final number.
+ */
+const NEAR = "0px 0px 35% 0px";
+
+/** runs `arm` on the first scroll; returns the cleanup of whatever `arm` set up */
+function onFirstScroll(arm: () => () => void): () => void {
+  let disarm: (() => void) | null = null;
+  const go = () => {
+    window.removeEventListener("scroll", go);
+    disarm = arm();
+  };
+  window.addEventListener("scroll", go, { passive: true });
+  return () => {
+    window.removeEventListener("scroll", go);
+    disarm?.();
+  };
+}
 
 export function Reveal({ children, className, as: Tag = "section", ...rest }: { children: ReactNode; className?: string; as?: "section" | "div" } & Partial<Record<`data-${string}` | "aria-labelledby" | "id", string>>) {
   const ref = useRef<HTMLElement>(null);
   useEffect(() => {
     const el = ref.current;
     if (!el || reducedMotion() || !("IntersectionObserver" in window) || !belowFold(el)) return;
-    el.dataset.reveal = "wait";
-    const show = () => {
-      el.dataset.reveal = "in";
-      io.disconnect();
-    };
-    const io = new IntersectionObserver((entries) => entries.some((e) => e.isIntersecting) && show(), { rootMargin: "0px 0px -8% 0px" });
-    io.observe(el);
-    window.addEventListener("beforeprint", show);
-    return () => {
-      io.disconnect();
-      window.removeEventListener("beforeprint", show);
-    };
+    return onFirstScroll(() => {
+      const show = () => {
+        el.dataset.reveal = "in";
+        near.disconnect();
+        seen.disconnect();
+      };
+      // approaching: hide it so it can rise in; seen: let it rise in
+      const near = new IntersectionObserver((entries) => {
+        if (entries.some((e) => e.isIntersecting) && !el.dataset.reveal) el.dataset.reveal = "wait";
+      }, { rootMargin: NEAR });
+      const seen = new IntersectionObserver((entries) => entries.some((e) => e.isIntersecting) && show(), { rootMargin: "0px 0px -8% 0px" });
+      near.observe(el);
+      seen.observe(el);
+      window.addEventListener("beforeprint", show);
+      return () => {
+        near.disconnect();
+        seen.disconnect();
+        window.removeEventListener("beforeprint", show);
+      };
+    });
   }, []);
   return (
     <Tag ref={ref as never} className={`${styles.reveal} ${className ?? ""}`} {...rest}>
@@ -41,23 +69,25 @@ export function Reveal({ children, className, as: Tag = "section", ...rest }: { 
 }
 
 /**
- * A number that counts up from 0 once it is seen. The server renders the final value; assistive technology reads a
- * separate copy of it. The animation writes the text node React rendered (never replaces it), and every way out —
- * printing, unmounting, a new value — puts back the final value from data-final, which React keeps current.
+ * A number that counts up from 0 when it is about to scroll in after someone scrolled. Until then it shows its final value (so does the
+ * server, and assistive technology reads a separate copy of it). The animation writes the text node React rendered
+ * (never replaces it), and every way out — printing, unmounting, a new value — puts back the final value from
+ * data-final, which React keeps current.
  */
 export function CountUp({ value, kind }: { value: number; kind: KitValueKind }) {
   const ref = useRef<HTMLSpanElement>(null);
   useEffect(() => {
     const el = ref.current;
     const node = el?.firstChild;
-    if (!el || !node || node.nodeType !== Node.TEXT_NODE || reducedMotion() || !("IntersectionObserver" in window)) return;
+    if (!el || !node || node.nodeType !== Node.TEXT_NODE || reducedMotion() || !("IntersectionObserver" in window) || !belowFold(el)) return;
     let frame = 0;
     const final = () => {
       cancelAnimationFrame(frame);
-      io.disconnect();
+      io?.disconnect();
       node.nodeValue = el.dataset.final ?? node.nodeValue;
     };
     const run = () => {
+      node.nodeValue = formatValue(0, kind);
       const start = performance.now();
       const step = (t: number) => {
         const k = Math.min(1, Math.max(0, t - start) / 1400);
@@ -66,17 +96,21 @@ export function CountUp({ value, kind }: { value: number; kind: KitValueKind }) 
       };
       frame = requestAnimationFrame(step);
     };
-    node.nodeValue = formatValue(0, kind);
-    const io = new IntersectionObserver((entries) => {
-      if (entries.some((e) => e.isIntersecting)) {
-        io.disconnect();
-        run();
-      }
+    let io: IntersectionObserver | null = null;
+    const disarm = onFirstScroll(() => {
+      io = new IntersectionObserver((entries) => {
+        if (entries.some((e) => e.isIntersecting)) {
+          io?.disconnect();
+          run();
+        }
+      }, { rootMargin: NEAR });
+      io.observe(el);
+      return () => io?.disconnect();
     });
-    io.observe(el);
     window.addEventListener("beforeprint", final);
     return () => {
       window.removeEventListener("beforeprint", final);
+      disarm();
       final();
     };
   }, [value, kind]);

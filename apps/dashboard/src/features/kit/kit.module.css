@@ -1,4 +1,7 @@
 /* Media kit (ANA-53): bright and calm. Warm paper, ink, sand and sea blue; serif headings, light large numbers. */
+.page :where(h1, h2, h3, p, li, dd, dt, a, span, small) {
+  overflow-wrap: anywhere;
+}
 .page {
   --paper: #fbf8f3;
   --paper-2: #f3ede3;
@@ -679,6 +682,7 @@ a.reel:focus-visible {
   .reveal[data-reveal] {
     opacity: 1;
     transform: none;
+    transition: none;
   }
   .preview,
   .ring {

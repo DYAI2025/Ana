@@ -98,7 +98,20 @@ test.describe("ANA-53 · media kit", () => {
     await expect(page.getByTestId("kit")).toHaveAttribute("data-preset", "default");
   });
 
-  test("AC5 · 390 px: no horizontal overflow; reduced motion shows the final numbers", async ({ page }) => {
+  test("AC5 · 390 px: no horizontal overflow, even with long free text; reduced motion shows the final numbers", async ({ page }) => {
+    const long = "Supercalifragilisticexpialidocious".repeat(4);
+    await mkdir(STATE_DIR, { recursive: true });
+    await writeFile(
+      KIT_FILE,
+      JSON.stringify({
+        name: `Ana ${long}`,
+        tagline: `A line ${long}`,
+        contact: { email: "e2e@example.invalid", label: `Write ${long}` },
+        cases: [{ brand: long, title: long, summary: long, results: [{ label: long, value: long.slice(0, 30) }] }],
+        packages: [{ name: long, price: long.slice(0, 40), includes: [long], note: long }],
+        addons: [{ name: long, price: long, note: long }],
+      }),
+    );
     await page.setViewportSize({ width: 390, height: 844 });
     await page.emulateMedia({ reducedMotion: "reduce" });
     await page.goto("/kit?for=asia");
@@ -109,7 +122,9 @@ test.describe("ANA-53 · media kit", () => {
       Array.from(document.querySelectorAll('[data-testid="kit"] *'))
         .filter((el) => {
           const r = el.getBoundingClientRect();
-          return r.width > 0 && (r.right > window.innerWidth + 0.5 || r.left < -0.5) && !el.closest("[class*=srOnly]");
+          // a box past the edge, or text running out of its own box
+          const clipped = getComputedStyle(el).overflowX !== "visible" && getComputedStyle(el).textOverflow === "ellipsis";
+          return r.width > 0 && !el.closest("[class*=srOnly]") && (r.right > window.innerWidth + 0.5 || r.left < -0.5 || (!clipped && el.scrollWidth > el.clientWidth + 1 && el.clientWidth > 0));
         })
         .map((el) => `${el.tagName}.${el.className}`.slice(0, 60)),
     );
@@ -124,6 +139,11 @@ test.describe("ANA-53 · media kit", () => {
     await page.emulateMedia({ reducedMotion: "no-preference" });
     await page.goto("/kit");
     await page.locator('html[data-ready="true"]').waitFor();
+    // never scrolled: a full-page screenshot or PDF shows every final number and no hidden section
+    await page.waitForTimeout(300);
+    const unscrolled = await page.locator("[data-final]").evaluateAll((els) => els.filter((e) => e.textContent !== e.getAttribute("data-final")).length);
+    expect(unscrolled).toBe(0);
+    await expect(page.locator('[data-reveal="wait"]')).toHaveCount(0);
     const tile = page.getByTestId("kit-tile-reach").locator("[data-final]");
     await tile.scrollIntoViewIfNeeded();
     await expect(tile).toHaveText("48.2K", { timeout: 5_000 });
