@@ -267,7 +267,9 @@ export function WorldView() {
   }, [world, layer, country, t]);
   const who = useMemo(() => (world ? whoView(whoOf(world, layer)) : null), [world, layer]);
   const whoTitle = t(layer === "week" ? "world.who.week" : layer === "engaged" ? "world.who.month" : "world.who.followers");
-  const anaPlaceLabel = world?.places.ana?.label ?? null;
+  // a two-letter country code (WORLD_ANA_PLACE=TH;...) is shown as the country's name in the dashboard language
+  const anaPlaceRaw = world?.places.ana?.label ?? null;
+  const anaPlaceLabel = anaPlaceRaw && /^[A-Z]{2}$/.test(anaPlaceRaw) ? country(anaPlaceRaw) : anaPlaceRaw;
 
   // the look as the panel last saved it (until a world read from after the save arrives)
   const effectiveLook = useMemo(() => {
@@ -831,7 +833,7 @@ export function WorldView() {
       return (
         <div className={styles.pane}>
           <h3 className={styles.selTitle} style={{ ["--tint" as string]: p.tint }}>{p.name}</h3>
-          <p>{s.id === "ana" ? (place ? place.label : t("world.places.anaUnknown")) : t("world.places.berlin")}</p>
+          <p>{s.id === "ana" ? (place ? anaPlaceLabel ?? place.label : t("world.places.anaUnknown")) : t("world.places.berlin")}</p>
           {s.id !== "ana" || place ? <p className={styles.muted}>{s.id === "ana" && !place?.tz ? t("world.people.localTimeEstimated", { time: local }) : t("world.people.localTime", { time: local })}</p> : null}
           {s.id === "ana" ? (
             <button type="button" className={styles.officeOpen} onClick={() => setOffice(true)} data-testid="office-open">
