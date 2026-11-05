@@ -504,6 +504,7 @@ async function isolated(b, read) {
 }
 // base + extras in one call; on Meta error 100 the base alone (its own fallback), the extras marked refused
 async function withExtras(b, id, extras) {
+  if (!extras.length) return baseInsights(b, id);
   const all = [...MEDIA_INSIGHT_METRICS, ...extras];
   if (b.remaining() < 1) return skipped(b, all);
   try {
@@ -512,6 +513,8 @@ async function withExtras(b, id, extras) {
     if (notSent(e)) return skipped(b, all);
     if (!(e instanceof MetaError) || e.metaCode !== 100) return {state:'error', metrics:all.map(n => metricState(n, 'error', errorClass(e)))};
     const base = await baseInsights(b, id);
+    // a throttle or budget stop keeps its own reason (summarize would report the budget)
+    if (base.state === 'not_fetched') return {...base, metrics:[...base.metrics, ...extras.map(n => metricState(n, 'not_fetched'))]};
     return summarize([...base.metrics, ...extras.map(refusedMetric)]);
   }
 }
@@ -540,21 +543,27 @@ async function learnExtras(b, id, wanted) {
         extras.push(metricState(name, err instanceof MetaError && err.metaCode === 100 ? 'unavailable' : 'error', errorClass(err)));
       }
     }
-    return {insights:summarize([...base.metrics, ...extras]), accepted};
+    // a probe that failed for another reason (error, budget, throttle) teaches nothing: the next post learns again
+    const settled = extras.every(m => m.state === 'ok' || m.state === 'unavailable');
+    return {insights:summarize([...base.metrics, ...extras]), accepted:settled ? accepted : null};
   }
 }
 async function mediaInsights(b, id, productType = null) {
-  const wanted = EXTRA_METRICS[productType] ?? [];
+  const wanted = Object.hasOwn(EXTRA_METRICS, productType ?? '') ? EXTRA_METRICS[productType] : [];
   if (!wanted.length) return baseInsights(b, id);
   b.extras ??= new Map();
   if (!b.extras.has(productType)) {
-    let settle;
+    let settle, accepted = null;
     b.extras.set(productType, new Promise(r => { settle = r; }));
-    const learned = await learnExtras(b, id, wanted);
-    // not learned (budget, throttle, another error): the next post of this type tries again
-    if (learned.accepted === null) b.extras.delete(productType);
-    settle(learned.accepted);
-    return learned.insights;
+    try {
+      const learned = await learnExtras(b, id, wanted);
+      accepted = learned.accepted;
+      return learned.insights;
+    } finally {
+      // not learned (budget, throttle, another error): the next post of this type tries again
+      if (accepted === null) b.extras.delete(productType);
+      settle(accepted);
+    }
   }
   const accepted = await b.extras.get(productType);
   if (accepted === null) return mediaInsights(b, id, productType);
