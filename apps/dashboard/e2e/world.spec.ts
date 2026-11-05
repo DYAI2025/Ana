@@ -441,7 +441,28 @@ test.describe("ANA World — 3D view over real dashboard data", () => {
     await page.keyboard.press("Escape");
     await expect(office).toHaveAttribute("data-spot", "room");
     await expect(page.getByTestId("office-drawer")).toHaveCount(0);
-    // the computer says honestly that it comes later
+    // the computer shows Ana's media kit (ANA-59): the kit page itself, inside the room, and full size in a new tab
+    await page.getByTestId("office-spot-computer").click();
+    await expect(page.getByTestId("office-computer")).toBeVisible();
+    await expect(page.getByTestId("office-kit")).toHaveAttribute("src", "/kit");
+    await expect(page.frameLocator("[data-testid='office-kit']").getByTestId("kit")).toBeVisible({ timeout: 20_000 });
+    await expect(page.frameLocator("[data-testid='office-kit']").getByRole("heading", { level: 1 })).toHaveText("Ana Savu");
+    await expect(page.getByTestId("office-kit-open")).toHaveAttribute("href", "/kit");
+    const kitFrame = page.frameLocator("[data-testid='office-kit']");
+    // Tab from the link goes into the kit (the frame is a stop of the room's Tab order)
+    await page.getByTestId("office-kit-open").focus();
+    await page.keyboard.press("Tab");
+    expect(await page.evaluate(() => document.activeElement?.getAttribute("data-testid"))).toBe("office-kit");
+    // a preset picked inside the frame goes along to "Open full size"
+    await kitFrame.getByTestId("kit-preset-asia").click();
+    await expect(kitFrame.getByTestId("kit")).toHaveAttribute("data-preset", "asia");
+    await page.getByTestId("office-kit-open").dispatchEvent("click");
+    await expect(page.getByTestId("office-kit-open")).toHaveAttribute("href", "/kit?for=asia");
+    // Escape inside the kit steps back into the room, like everywhere in the office
+    await kitFrame.getByTestId("kit-preset-west").focus();
+    await page.keyboard.press("Escape");
+    await expect(office).toHaveAttribute("data-spot", "room");
+    await expect(page.getByTestId("office-spot-computer")).toBeFocused();
     await page.getByTestId("office-spot-computer").click();
     await expect(page.getByTestId("office-computer")).toBeVisible();
     await page.getByTestId("office-back").click();

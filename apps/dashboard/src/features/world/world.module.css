@@ -1583,9 +1583,41 @@ button.barLabel {
   position: static;
 }
 
+.officeComputer {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 10px;
+  min-height: 0;
+}
+
+.focusGuard {
+  width: 0;
+  height: 0;
+  overflow: hidden;
+}
+
 .officeComputer p {
-  font-size: 15px;
+  margin: 0;
+  font-size: 14px;
   line-height: 1.5;
+}
+
+/* the media kit fills the drawer: a wider drawer for the computer, the kit's own page inside */
+.officeDrawerWide {
+  display: flex;
+  flex-direction: column;
+  width: min(820px, calc(100% - 24px));
+  overflow: hidden;
+}
+
+.officeKit {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  border: 1px solid var(--glass-edge);
+  border-radius: 12px;
+  background: #fbf8f3;
 }
 
 @media (max-width: 700px) {

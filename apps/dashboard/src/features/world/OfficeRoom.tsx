@@ -113,7 +113,7 @@ const SPOT_ICON: Record<RoomSpot, string> = { board: "📋", computer: "💻", l
 
 /**
  * Ana's office: a small 3D room you walk into from the world (the hut at Ana's place, or the button in her panel).
- * The board on the wall holds the topics for Substack, the computer is where Claude will answer later, the lamp just
+ * The board on the wall holds the topics for Substack, the computer shows Ana's media kit (ANA-59), the lamp just
  * switches. Everything is reachable with the buttons that float over the things too (keyboard, screen readers), and
  * without WebGL the board opens directly.
  */
@@ -173,7 +173,8 @@ export function OfficeRoom({ world, posts, t, locale, onClose, onPost }: { world
         return;
       }
       if (e.key !== "Tab") return;
-      const items = [...room.querySelectorAll<HTMLElement>("button, a[href], summary, [tabindex='0']")].filter((el) => el.getClientRects().length > 0);
+      // the media kit's frame counts as one stop; the guard after it is not a stop (it sends focus back to the start)
+      const items = [...room.querySelectorAll<HTMLElement>("button, a[href], summary, iframe, [tabindex='0']")].filter((el) => el.getClientRects().length > 0 && !el.hasAttribute("data-focus-guard"));
       const first = items[0];
       const last = items[items.length - 1];
       if (!first || !last) return;
@@ -305,7 +306,7 @@ export function OfficeRoom({ world, posts, t, locale, onClose, onPost }: { world
             ))}
           </div>
           {shown === "board" || shown === "computer" ? (
-            <aside className={styles.officeDrawer} aria-labelledby="office-drawer-title" data-testid="office-drawer">
+            <aside className={`${styles.officeDrawer} ${shown === "computer" ? styles.officeDrawerWide : ""}`} aria-labelledby="office-drawer-title" data-testid="office-drawer">
               <div className={styles.officeDrawerHead}>
                 <h3 id="office-drawer-title" tabIndex={-1}>
                   <span aria-hidden="true">{SPOT_ICON[shown]} </span>
@@ -320,10 +321,8 @@ export function OfficeRoom({ world, posts, t, locale, onClose, onPost }: { world
               {shown === "board" ? (
                 <OfficeBoard world={world} posts={posts} t={t} locale={locale} onPost={onPost} />
               ) : (
-                <div className={styles.officeComputer} data-testid="office-computer">
-                  <p>{t("world.office.computerBody")}</p>
-                  <p className={styles.note}>{t("world.office.computerNote")}</p>
-                </div>
+                // Ana's media kit on her screen (ANA-59): the same page brands will see, with its preview bar
+                <OfficeKit t={t} onEscape={back} firstFocus={() => closeRef.current?.focus()} />
               )}
             </aside>
           ) : null}
@@ -332,6 +331,48 @@ export function OfficeRoom({ world, posts, t, locale, onClose, onPost }: { world
     </div>
   );
   return typeof document === "undefined" ? null : createPortal(room, document.body);
+}
+
+/**
+ * The computer's screen: the media kit page in a frame (same origin, behind the same access gate). Escape inside the
+ * kit steps back to the room like everywhere else in the office, Tab past the kit's last link comes back to the start
+ * of the room (the guard), and "Open full size" opens the kit with the preset picked in the frame.
+ */
+function OfficeKit({ t, onEscape, firstFocus }: { t: T; onEscape: () => void; firstFocus: () => void }) {
+  const frameRef = useRef<HTMLIFrameElement>(null);
+  const escRef = useRef(onEscape);
+  useEffect(() => {
+    escRef.current = onEscape;
+  }, [onEscape]);
+  const onLoad = useCallback(() => {
+    try {
+      frameRef.current?.contentDocument?.addEventListener("keydown", (e) => {
+        if (e.key === "Escape") escRef.current();
+      });
+    } catch {
+      // not the same origin (e.g. a login page in the frame): its own keys stay its own
+    }
+  }, []);
+  const openFull = (e: React.MouseEvent<HTMLAnchorElement>) => {
+    try {
+      const loc = frameRef.current?.contentWindow?.location;
+      if (loc && loc.pathname === "/kit") e.currentTarget.href = `/kit${loc.search}`;
+    } catch {
+      // keep the plain link
+    }
+  };
+  return (
+    <div className={styles.officeComputer} data-testid="office-computer">
+      <p className={styles.note}>
+        {t("world.office.computerBody")}{" "}
+        <a href="/kit" target="_blank" rel="noopener" onClick={openFull} data-testid="office-kit-open">
+          {t("world.office.computerOpen")} ↗
+        </a>
+      </p>
+      <iframe ref={frameRef} className={styles.officeKit} src="/kit" title={t("world.office.computerFrame")} onLoad={onLoad} data-testid="office-kit" />
+      <span tabIndex={0} data-focus-guard="" onFocus={firstFocus} className={styles.focusGuard} aria-hidden="true" />
+    </div>
+  );
 }
 
 /** The topic board: the matrix and the topics for Substack with their evidence (what the board in the room opens). */

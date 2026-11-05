@@ -117,23 +117,33 @@ function windowView(): THREE.CanvasTexture {
 
 function screenTexture(): THREE.CanvasTexture {
   return canvasTexture(256, (ctx, s) => {
-    ctx.fillStyle = "#1f2a44";
+    // the media kit on the screen (ANA-59): warm paper, a title line, three numbers, two Reel covers
+    ctx.fillStyle = "#fbf8f3";
     ctx.fillRect(0, 0, s, s);
-    // two chat bubbles: the computer will become the place to ask Claude
-    ctx.fillStyle = "#5b8def";
-    ctx.beginPath();
-    ctx.roundRect(s * 0.12, s * 0.2, s * 0.56, s * 0.18, 18);
-    ctx.fill();
-    ctx.fillStyle = "#f6c6d0";
-    ctx.beginPath();
-    ctx.roundRect(s * 0.32, s * 0.48, s * 0.56, s * 0.18, 18);
-    ctx.fill();
-    ctx.fillStyle = "#ffd66b";
+    ctx.fillStyle = "#1d2226";
+    ctx.fillRect(s * 0.08, s * 0.14, s * 0.4, s * 0.07);
+    ctx.fillStyle = "#85592a";
+    ctx.fillRect(s * 0.08, s * 0.07, s * 0.18, s * 0.025);
     for (let k = 0; k < 3; k++) {
+      ctx.fillStyle = "#1d2226";
+      ctx.fillRect(s * (0.08 + k * 0.15), s * 0.32, s * 0.11, s * 0.06);
+      ctx.fillStyle = "#9aa1a6";
+      ctx.fillRect(s * (0.08 + k * 0.15), s * 0.41, s * 0.11, s * 0.02);
+    }
+    ctx.fillStyle = "#2c6e8a";
+    for (const [x, y, r] of [[0.14, 0.7, 0.03], [0.24, 0.66, 0.022], [0.36, 0.74, 0.04], [0.3, 0.8, 0.018]] as const) {
       ctx.beginPath();
-      ctx.arc(s * (0.4 + k * 0.1), s * 0.82, s * 0.03, 0, Math.PI * 2);
+      ctx.arc(s * x, s * y, s * r, 0, Math.PI * 2);
       ctx.fill();
     }
+    ctx.fillStyle = "#d8bb8f";
+    ctx.beginPath();
+    ctx.roundRect(s * 0.58, s * 0.1, s * 0.16, s * 0.42, 10);
+    ctx.fill();
+    ctx.fillStyle = "#cfe1e8";
+    ctx.beginPath();
+    ctx.roundRect(s * 0.77, s * 0.18, s * 0.16, s * 0.42, 10);
+    ctx.fill();
   });
 }
 
