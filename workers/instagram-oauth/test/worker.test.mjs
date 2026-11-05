@@ -808,6 +808,46 @@ test('social snapshot: when Meta refuses every extra, a post without insights co
   assert.equal(calls.filter(c => c.url.pathname.endsWith('/m4/insights')).length, 2, 'base call + reach only');
 });
 
+test('social snapshot: an extra whose probe keeps failing is learned at most twice, so the other posts keep their budget', async () => {
+  const env = mockEnv();
+  await connect(env);
+  const calls = installMeta({media: pagedMedia(25), mediaInsights: u => {
+    const metrics = u.searchParams.get('metric').split(',');
+    if (metrics.includes('reposts') || (metrics.length > 1 && metrics.includes('reels_skip_rate'))) return Response.json({error: {message: 'synthetic', type: 'OAuthException', code: 100}}, {status: 400});
+    if (metrics.length === 1 && metrics[0] === 'reels_skip_rate') return Response.json({error: {message: 'synthetic', type: 'OAuthException', code: 2}}, {status: 500});
+    return Response.json({data: metrics.map((name, i) => ({name, period: 'lifetime', values: [{value: 10 + i}]}))});
+  }});
+  const body = await (await snapshot(env, '?max=25')).json();
+  assert.equal(calls.filter(c => c.url.searchParams.get('metric') === 'reels_skip_rate').length, 2, 'two learning rounds, then no more probes');
+  assert.equal(body.insights.posts_with_insights, 25, 'every post still gets its insights');
+  const reels = body.media.items.filter(i => i.media_product_type === 'REELS');
+  assert.ok(reels.filter(r => r.insights.metrics.find(m => m.name === 'reels_skip_rate').error_class === 'extra-not-learned').length >= 10, 'after the cap: not asked, marked as such');
+  for (const r of reels) {
+    const skip = r.insights.metrics.find(m => m.name === 'reels_skip_rate');
+    assert.equal(skip.state, 'error', 'never labelled as refused by Meta');
+    assert.equal(r.insights.metrics.find(m => m.name === 'ig_reels_avg_watch_time').state, 'ok', 'the settled extra keeps coming');
+  }
+});
+
+test('social snapshot: a throttle that lands while a fallback call is in flight is the reason, not the budget', async () => {
+  const env = mockEnv();
+  await connect(env);
+  const wait = ms => new Promise(r => setTimeout(r, ms));
+  const refuse = () => Response.json({error: {message: 'synthetic', type: 'OAuthException', code: 100}}, {status: 400});
+  installMeta({media: pagedMedia(20), mediaInsights: async u => {
+    const metrics = u.searchParams.get('metric').split(',');
+    if (u.pathname.endsWith('/m19/insights') && metrics.length > 7) { await wait(10); return refuse(); }
+    if (u.pathname.endsWith('/m19/insights') && metrics.length === 7) { await wait(60); return refuse(); }
+    if (u.pathname.endsWith('/m0/insights')) { await wait(30); return Response.json({error: {message: 'synthetic', type: 'OAuthException', code: 17}}, {status: 400}); }
+    return Response.json({data: metrics.map((name, i) => ({name, period: 'lifetime', values: [{value: 10 + i}]}))});
+  }});
+  const body = await (await snapshot(env)).json();
+  assert.equal(body.insights.halted, 'meta-17');
+  const m19 = body.media.items.find(i => i.id === 'm19').insights;
+  assert.equal(m19.state, 'not_fetched');
+  assert.equal(m19.reason, 'meta-throttled');
+});
+
 test('media insights endpoint: older posts keep the base metrics only', async () => {
   const env = mockEnv();
   await connect(env);

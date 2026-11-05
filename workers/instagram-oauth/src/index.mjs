@@ -478,7 +478,7 @@ async function baseInsights(b, id) {
   const read = insightReader(b, id);
   if (b.remaining() < 1) return skipped(b);
   try {
-    return summarize(fromEntries(MEDIA_INSIGHT_METRICS, await read(MEDIA_INSIGHT_METRICS)));
+    return summarize(fromEntries(MEDIA_INSIGHT_METRICS, await read(MEDIA_INSIGHT_METRICS)), b);
   } catch (e) {
     if (notSent(e)) return skipped(b);
     if (!(e instanceof MetaError) || e.metaCode !== 100) return {state:'error', metrics:MEDIA_INSIGHT_METRICS.map(n => metricState(n, 'error', errorClass(e)))};
@@ -500,7 +500,7 @@ async function isolated(b, read) {
       }
     }
   }
-  return summarize(metrics);
+  return summarize(metrics, b);
 }
 // base + extras in one call; on Meta error 100 the base alone (its own fallback), the extras marked refused
 async function withExtras(b, id, extras) {
@@ -508,76 +508,84 @@ async function withExtras(b, id, extras) {
   const all = [...MEDIA_INSIGHT_METRICS, ...extras];
   if (b.remaining() < 1) return skipped(b, all);
   try {
-    return summarize(fromEntries(all, await insightReader(b, id)(all)));
+    return summarize(fromEntries(all, await insightReader(b, id)(all)), b);
   } catch (e) {
     if (notSent(e)) return skipped(b, all);
     if (!(e instanceof MetaError) || e.metaCode !== 100) return {state:'error', metrics:all.map(n => metricState(n, 'error', errorClass(e)))};
     const base = await baseInsights(b, id);
     // a throttle or budget stop keeps its own reason (summarize would report the budget)
     if (base.state === 'not_fetched') return {...base, metrics:[...base.metrics, ...extras.map(n => metricState(n, 'not_fetched'))]};
-    return summarize([...base.metrics, ...extras.map(refusedMetric)]);
+    return summarize([...base.metrics, ...extras.map(refusedMetric)], b);
   }
 }
-// first post of a type: learn which extras Meta accepts (each refused one read alone once)
+// first post of a type: learn which extras Meta accepts (each one read alone once if the call with all is refused);
+// knowledge = accepted (answered), refused (Meta error 100), unsettled (failed for another reason or not asked)
+const LEARN_TRIES = 2;
 async function learnExtras(b, id, wanted) {
   const all = [...MEDIA_INSIGHT_METRICS, ...wanted];
-  if (b.remaining() < 1) return {insights:skipped(b, all), accepted:null};
+  const unknown = {accepted:[], refused:[], unsettled:wanted};
+  if (b.remaining() < 1) return {insights:skipped(b, all), knowledge:unknown};
   try {
-    return {insights:summarize(fromEntries(all, await insightReader(b, id)(all))), accepted:wanted};
+    return {insights:summarize(fromEntries(all, await insightReader(b, id)(all)), b), knowledge:{accepted:wanted, refused:[], unsettled:[]}};
   } catch (e) {
-    if (notSent(e)) return {insights:skipped(b, all), accepted:null};
-    if (!(e instanceof MetaError) || e.metaCode !== 100) return {insights:{state:'error', metrics:all.map(n => metricState(n, 'error', errorClass(e)))}, accepted:null};
+    if (notSent(e)) return {insights:skipped(b, all), knowledge:unknown};
+    if (!(e instanceof MetaError) || e.metaCode !== 100) return {insights:{state:'error', metrics:all.map(n => metricState(n, 'error', errorClass(e)))}, knowledge:unknown};
     const base = await baseInsights(b, id);
-    // a post without insights (even reach refused) says nothing about the extras: the next post learns them
+    // a post without insights (even reach refused) says nothing about the extras
     if (base.state !== 'ok' && base.state !== 'partial') {
       const metrics = [...base.metrics, ...wanted.map(n => base.state === 'not_fetched' ? metricState(n, 'not_fetched') : refusedMetric(n))];
-      return {insights:base.state === 'not_fetched' ? {...base, metrics} : summarize(metrics), accepted:null};
+      return {insights:base.state === 'not_fetched' ? {...base, metrics} : summarize(metrics, b), knowledge:unknown};
     }
     const read = insightReader(b, id);
-    const extras = [], accepted = [];
+    const extras = [], knowledge = {accepted:[], refused:[], unsettled:[]};
     for (const name of wanted) {
-      if (b.remaining() < 1) { extras.push(metricState(name, 'not_fetched')); continue; }
-      try { extras.push(...fromEntries([name], await read([name]))); accepted.push(name); }
+      if (b.remaining() < 1) { extras.push(metricState(name, 'not_fetched')); knowledge.unsettled.push(name); continue; }
+      try { extras.push(...fromEntries([name], await read([name]))); knowledge.accepted.push(name); }
       catch (err) {
-        if (notSent(err)) { extras.push(metricState(name, 'not_fetched')); continue; }
-        extras.push(metricState(name, err instanceof MetaError && err.metaCode === 100 ? 'unavailable' : 'error', errorClass(err)));
+        if (notSent(err)) { extras.push(metricState(name, 'not_fetched')); knowledge.unsettled.push(name); continue; }
+        const refused = err instanceof MetaError && err.metaCode === 100;
+        extras.push(metricState(name, refused ? 'unavailable' : 'error', errorClass(err)));
+        knowledge[refused ? 'refused' : 'unsettled'].push(name);
       }
     }
-    // a probe that failed for another reason (error, budget, throttle) teaches nothing: the next post learns again
-    const settled = extras.every(m => m.state === 'ok' || m.state === 'unavailable');
-    return {insights:summarize([...base.metrics, ...extras]), accepted:settled ? accepted : null};
+    return {insights:summarize([...base.metrics, ...extras], b), knowledge};
   }
 }
 async function mediaInsights(b, id, productType = null) {
   const wanted = Object.hasOwn(EXTRA_METRICS, productType ?? '') ? EXTRA_METRICS[productType] : [];
   if (!wanted.length) return baseInsights(b, id);
   b.extras ??= new Map();
+  b.learnTries ??= new Map();
   if (!b.extras.has(productType)) {
-    let settle, accepted = null;
+    const tries = (b.learnTries.get(productType) ?? 0) + 1;
+    b.learnTries.set(productType, tries);
+    let settle, known = null;
     b.extras.set(productType, new Promise(r => { settle = r; }));
     try {
       const learned = await learnExtras(b, id, wanted);
-      accepted = learned.accepted;
+      // an extra that failed for another reason is learned again on the next post, at most LEARN_TRIES times in all:
+      // a probe that keeps failing must not eat the budget of the other posts
+      if (!learned.knowledge.unsettled.length || tries >= LEARN_TRIES) known = learned.knowledge;
       return learned.insights;
     } finally {
-      // not learned (budget, throttle, another error): the next post of this type tries again
-      if (accepted === null) b.extras.delete(productType);
-      settle(accepted);
+      if (known === null) b.extras.delete(productType);
+      settle(known);
     }
   }
-  const accepted = await b.extras.get(productType);
-  if (accepted === null) return mediaInsights(b, id, productType);
-  const r = await withExtras(b, id, accepted);
-  const metrics = [...r.metrics.filter(m => MEDIA_INSIGHT_METRICS.includes(m.name)), ...wanted.map(n => r.metrics.find(m => m.name === n) ?? refusedMetric(n))];
-  return r.state === 'not_fetched' ? {...r, metrics} : summarize(metrics);
+  const known = await b.extras.get(productType);
+  if (known === null) return mediaInsights(b, id, productType);
+  const r = await withExtras(b, id, known.accepted);
+  const absent = n => r.state === 'not_fetched' ? metricState(n, 'not_fetched') : known.unsettled.includes(n) ? metricState(n, 'error', 'extra-not-learned') : refusedMetric(n);
+  const metrics = [...r.metrics.filter(m => MEDIA_INSIGHT_METRICS.includes(m.name)), ...wanted.map(n => r.metrics.find(m => m.name === n) ?? absent(n))];
+  return r.state === 'not_fetched' ? {...r, metrics} : summarize(metrics, b);
 }
 // A budget shortfall is never an error: only a Meta error is.
-function summarize(metrics) {
+function summarize(metrics, b = null) {
   const count = s => metrics.filter(m => m.state === s).length;
   if (count('ok') === metrics.length) return {state:'ok', metrics};
   if (count('ok') > 0) return {state:'partial', metrics};
   if (count('error') > 0) return {state:'error', metrics};
-  if (count('not_fetched') > 0) return {state:'not_fetched', reason:'subrequest-budget', metrics};
+  if (count('not_fetched') > 0) return {state:'not_fetched', reason:b?.halted ? 'meta-throttled' : 'subrequest-budget', metrics};
   return {state:'unavailable', metrics};
 }
 async function accountMetrics(b, userId) {
