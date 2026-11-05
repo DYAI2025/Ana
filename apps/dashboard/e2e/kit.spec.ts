@@ -66,7 +66,7 @@ test.describe("ANA-53 · media kit", () => {
         tagline: "A test line",
         contact: { email: "e2e@example.invalid", label: "Work with Ana" },
         partners: [{ name: "Test Partner", kind: "paid" }, { name: "Test Affiliate", kind: "affiliate" }],
-        cases: [{ brand: "Test Brand", results: [{ label: "Bookings", value: "+40%" }] }],
+        cases: [{ brand: "Test Brand", results: [{ label: "Bookings", value: "+40%" }] }, { brand: "Test Unproven", role: "Filming" }],
         packages: [{ name: "One Reel", price: "from €1" }],
         addons: [{ name: "Usage rights", price: "+20–50 %" }],
       }),
@@ -78,12 +78,15 @@ test.describe("ANA-53 · media kit", () => {
     await expect(page.getByTestId("kit-addons")).toContainText("Usage rights");
     const mailto = await page.getByTestId("kit-cta").getByRole("link").getAttribute("href");
     expect(mailto).toMatch(/^mailto:e2e@example\.invalid\?body=Brand%3A/);
-    await expect(page.getByTestId("kit-hero-cta")).toHaveAttribute("href", mailto!);
+    // one way to write, one button: the hero link leads down to it
+    await expect(page.getByTestId("kit-hero-cta")).toHaveAttribute("href", "#kit-cta");
+    await expect(page.locator('a[href^="mailto:"]')).toHaveCount(1);
     await expect(page.getByTestId("kit-partners")).toContainText("Test Partner");
     await expect(page.getByTestId("kit-partners")).toContainText("Paid partnership");
     await expect(page.getByTestId("kit-partners")).toContainText("Affiliate");
-    // a case without results says so
-    await expect(page.getByTestId("kit-proof")).not.toContainText("no published results");
+    // the case with results shows them; the one without says so
+    await expect(page.getByTestId("kit-proof")).toContainText("+40%");
+    await expect(page.getByTestId("kit-case-no-results")).toHaveText(["Collaboration · no published results"]);
   });
 
   test("AC3 · presets: asia highlights its markets, west leads with followers, unknown falls back", async ({ page }) => {

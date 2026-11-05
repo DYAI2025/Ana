@@ -70,15 +70,17 @@ export interface KitReel {
 
 /** the typical Reel: medians over Reels old enough for their lifetime values to have settled */
 export interface KitTypicalReel {
-  views: number | null;
-  reach: number | null;
-  /** Reels with a measured value: for views and for reach */
-  n_views: number;
-  n_reach: number;
+  views: number;
+  reach: number;
+  /** both medians are over the same Reels: those with a measured value for both */
+  n: number;
   /** publishing dates of the Reels counted */
   from: string;
   to: string;
 }
+
+/** fewer Reels than this are no "typical" Reel */
+export const MIN_TYPICAL = 5;
 
 export type KitSection =
   | { id: "proof"; cases: KitCase[] }
@@ -97,10 +99,11 @@ export interface KitModel {
     covers: Array<{ id: string; src: string }>;
     tiles: KitTile[];
     /** the preset's markets as a share of the listed audience, e.g. 58 % in Asia-Pacific & India */
-    signal: { share: number; label: string; basis: "engaged" | "followers" } | null;
+    /** basis: whose countries and when, e.g. "Engaged accounts · last 30 days" */
+    signal: { share: number; label: string; basis: string } | null;
   };
   /** brands Ana has worked with and how, names only */
-  partners: Array<{ name: string; kind: string }>;
+  partners: Array<{ name: string; kind: string | null }>;
   sections: KitSection[];
   contact: { href: string; label: string } | null;
   /** when Instagram measured the numbers; null without a snapshot */
@@ -111,6 +114,8 @@ export interface KitModel {
   fresh: boolean;
   /** what the internal preview says is not shown, and why */
   hidden: string[];
+  /** ids of all case studies, for writing presets (internal preview only) */
+  case_ids: string[];
   config_error: boolean;
 }
 
@@ -121,7 +126,7 @@ export const SETTLED_DAYS = 7;
 const DAY_MS = 86_400_000;
 
 /** the briefing a brand fills in, in the e-mail the button opens */
-export const BRIEF_TEMPLATE = ["Brand:", "Campaign goal:", "Markets:", "Timing:", "Budget range:", "Deliverables you have in mind:"].join("\n");
+export const BRIEF_TEMPLATE = ["Brand:", "Campaign goal:", "Markets:", "Timing:", "Budget range:", "Deliverables you have in mind:"].join("\r\n");
 
 const MAX_COUNTRIES = 8;
 /** at most 6 of the brand's markets, so at least 2 countries elsewhere stay in the list of 8 */
@@ -275,12 +280,13 @@ export function typicalReel(snapshot: SocialSnapshot | null): KitTypicalReel | n
     const at = p.published_at ? Date.parse(p.published_at) : Number.NaN;
     return p.format === "reel" && !Number.isNaN(at) && measuredAt - at >= SETTLED_DAYS * DAY_MS;
   });
-  const views = settled.map((p) => verified(p.observations, "views")).filter((v): v is number => v !== null);
-  const reach = settled.map((p) => verified(p.observations, "reach")).filter((v): v is number => v !== null);
-  const counted = settled.filter((p) => verified(p.observations, "views") !== null || verified(p.observations, "reach") !== null);
-  if (!counted.length) return null;
-  const dates = counted.map((p) => p.published_at!).sort();
-  return { views: median(views), reach: median(reach), n_views: views.length, n_reach: reach.length, from: dates[0]!, to: dates.at(-1)! };
+  // one set of Reels for both numbers, so one n and one date range describe both
+  const counted = settled
+    .map((p) => ({ at: p.published_at!, views: verified(p.observations, "views"), reach: verified(p.observations, "reach") }))
+    .filter((x): x is { at: string; views: number; reach: number } => x.views !== null && x.reach !== null);
+  if (counted.length < MIN_TYPICAL) return null;
+  const dates = counted.map((x) => x.at).sort();
+  return { views: median(counted.map((x) => x.views))!, reach: median(counted.map((x) => x.reach))!, n: counted.length, from: dates[0]!, to: dates.at(-1)! };
 }
 
 function toReel(p: SocialPost, labels: Readonly<Record<string, KitReelLabel>>): KitReel {
@@ -357,13 +363,14 @@ export function buildKit({
         if (!cases.length) hidden.push(config.cases.length ? "Case studies: none of the preset's cases are in media-kit.json" : "Case studies: none in media-kit.json yet");
         return cases.length ? { id, cases } : null;
       case "numbers":
-        if (!shownTiles.length) hidden.push("Live numbers: Instagram returned none");
+        if (!shownTiles.length) hidden.push("Numbers: Instagram returned none");
         return shownTiles.length ? { id, tiles: shownTiles } : null;
       case "audience":
         if (!kitAudience) hidden.push("Audience: Instagram returned no audience data");
         return kitAudience ? { id, audience: kitAudience } : null;
       case "reels":
         if (!kitReels.length) hidden.push(preset.reels.length ? "Top Reels: the preset's Reels are not in the current snapshot" : "Top Reels: no Reel with measured views");
+        if (snapshot && !typical) hidden.push(`Typical Reel: fewer than ${MIN_TYPICAL} Reels at least ${SETTLED_DAYS} days old with measured views and reach`);
         return kitReels.length || typical ? { id, reels: kitReels, typical } : null;
       case "packages":
         if (!config.packages.length) hidden.push("Packages: none in media-kit.json yet");
@@ -374,7 +381,8 @@ export function buildKit({
   if (!config.tagline) hidden.push("Ana's line under her name: none in media-kit.json yet");
   if (!config.contact) hidden.push("The button: no contact e-mail in media-kit.json yet");
   if (!config.partners.length) hidden.push("Partners: none in media-kit.json yet");
-  if (!snapshot) hidden.push("Instagram is not reachable right now: live numbers and Reels are hidden");
+  if (!snapshot) hidden.push("Instagram is not reachable right now: its numbers and Reels are hidden");
+
 
   const contact = config.contact
     ? {
@@ -395,15 +403,16 @@ export function buildKit({
         .slice(0, HERO_COVERS),
       // with a market signal the hero keeps two numbers, so it stays three short facts
       tiles: shownTiles.slice(0, kitAudience?.focus ? 2 : 3),
-      signal: kitAudience?.focus ? { share: kitAudience.focus.share, label: kitAudience.focus.label, basis: kitAudience.basis } : null,
+      signal: kitAudience?.focus ? { share: kitAudience.focus.share, label: kitAudience.focus.label, basis: kitAudience.basis_label } : null,
     },
-    partners: config.partners.map((p) => ({ name: p.name, kind: PARTNER_KINDS[p.kind] })),
+    partners: config.partners.map((p) => ({ name: p.name, kind: p.kind ? PARTNER_KINDS[p.kind] : null })),
     sections,
     contact,
     as_of: snapshot?.observed_at ?? null,
     stale: world.instagram.ok ? world.instagram.stale : false,
     fresh: Boolean(snapshot) && !(world.instagram.ok && world.instagram.stale) && now - Date.parse(snapshot!.observed_at) <= FRESH_MS,
     hidden,
+    case_ids: config.cases.map((c) => c.id),
     config_error: configError,
   };
 }

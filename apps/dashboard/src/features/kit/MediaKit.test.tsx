@@ -38,8 +38,10 @@ describe("MediaKit", () => {
     const button = within(screen.getByTestId("kit-cta")).getByRole("link");
     expect(button.getAttribute("href")).toMatch(/^mailto:hi@example\.com\?body=Brand%3A/);
     expect(button.textContent).toBe("Let's talk");
-    // the same action in the hero, as a quieter link
-    expect(screen.getByTestId("kit-hero-cta").getAttribute("href")).toBe(button.getAttribute("href"));
+    // one way to write, one button: the hero link leads down to it
+    expect(screen.getByTestId("kit-hero-cta").getAttribute("href")).toBe("#kit-cta");
+    expect(screen.getByTestId("kit-cta").id).toBe("kit-cta");
+    expect(document.querySelectorAll('a[href^="mailto:"]')).toHaveLength(1);
     expect(screen.queryByTestId("kit-preview")).toBeNull();
     // other brands' presets are not on a brand's page
     expect(document.body.textContent).not.toContain("Secret Brand Pitch");
@@ -75,7 +77,7 @@ describe("MediaKit", () => {
 describe("MediaKit — ANA-54", () => {
   it("partners, Reel labels, a case without results, case facts and the market signal", () => {
     const config = parseKitConfig({
-      partners: [{ name: "Fiverr", kind: "paid" }, { name: "ClassPass", kind: "affiliate" }],
+      partners: [{ name: "Fiverr", kind: "paid" }, { name: "ClassPass", kind: "affiliate" }, { name: "Named Only" }],
       reels: { p1: { kind: "partnership", brand: "Fiverr" } },
       cases: [
         { brand: "Fiverr", role: "Concept and filming", deliverables: ["1 Reel", "3 Stories"] },
@@ -89,6 +91,8 @@ describe("MediaKit — ANA-54", () => {
     expect(partners.textContent).toContain("Fiverr");
     expect(partners.textContent).toContain("Paid partnership");
     expect(partners.textContent).toContain("Affiliate");
+    // a brand named without a kind: the name alone, no claim about how they worked together
+    expect(within(partners).getByText("Named Only").parentElement!.textContent).toBe("Named Only");
     expect(screen.getByTestId("kit-reel-label").textContent).toBe("Brand partnership · Fiverr");
     const proof = screen.getByTestId("kit-proof");
     expect(screen.getAllByTestId("kit-case-no-results").map((e) => e.textContent)).toEqual(["Collaboration · no published results"]);
@@ -108,6 +112,8 @@ describe("MediaKit — ANA-54", () => {
     unmount();
     render(<MediaKit model={buildKit({ world: w, config: EMPTY_KIT_CONFIG, now: at + 30 * 3_600_000 })} />);
     expect(screen.getByTestId("kit-as-of").textContent).toMatch(/^Numbers from Instagram.*latest available reading/);
+    // nowhere on the page: not in the heading, not in the footer
+    expect(screen.getByTestId("kit").textContent).not.toMatch(/live/i);
   });
 });
 

@@ -73,12 +73,12 @@ describe("resolvePreset — what a brand sees first", () => {
 });
 
 describe("parseKitConfig — partners, Reel labels, case fields (ANA-54)", () => {
-  it("partners: names with a known kind; no kind is a plain partnership; an unknown kind is dropped", () => {
+  it("partners: names with a known kind; no kind is the name alone; an unknown kind is dropped", () => {
     const c = parseKitConfig({ partners: [{ name: "Fiverr", kind: "paid" }, { name: " ClassPass ", kind: "affiliate" }, { name: "Nomad" }, { name: "X", kind: "sponsor" }, { kind: "paid" }] });
     expect(c.partners).toEqual([
       { name: "Fiverr", kind: "paid" },
       { name: "ClassPass", kind: "affiliate" },
-      { name: "Nomad", kind: "partnership" },
+      { name: "Nomad", kind: null },
     ]);
   });
 
@@ -95,5 +95,11 @@ describe("parseKitConfig — partners, Reel labels, case fields (ANA-54)", () =>
     expect(c.cases.map((x) => x.id)).toEqual(["nomad-esim", "unicode-brand"]);
     expect(c.cases[0]).toMatchObject({ role: "Concept and filming", deliverables: ["1 Reel", "3 Stories"], period: "30 days", source: "Instagram Insights" });
     expect(c.presets.b!.cases).toEqual(["nomad-esim", "unicode-brand"]);
+    // two cases of one brand both stay pickable
+    expect(parseKitConfig({ cases: [{ brand: "Hotel A" }, { brand: "Hotel A" }, { brand: "Hotel A" }] }).cases.map((x) => x.id)).toEqual(["hotel-a", "hotel-a-2", "hotel-a-3"]);
+    // a media id like __proto__ is an ordinary key, never the prototype
+    const labels = parseKitConfig({ reels: JSON.parse('{"__proto__": {"kind": "ugc"}}') }).reels;
+    expect(Object.getPrototypeOf(labels)).toBeNull();
+    expect(Object.hasOwn(labels, "__proto__")).toBe(true);
   });
 });

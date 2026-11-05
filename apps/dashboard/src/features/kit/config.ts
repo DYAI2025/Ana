@@ -39,7 +39,8 @@ export type KitPartnerKind = keyof typeof PARTNER_KINDS;
 
 export interface KitPartner {
   name: string;
-  kind: KitPartnerKind;
+  /** null: Ana named the brand without saying how they worked together; then only the name is shown */
+  kind: KitPartnerKind | null;
 }
 
 /** what a Reel is, for brands: organic content, a brand partnership (with the brand), UGC made for a brand, or a concept */
@@ -117,17 +118,29 @@ const slug = (s: string) =>
     .slice(0, 40) || "case";
 const MEDIA_ID = /^[0-9A-Za-z_]{1,40}$/;
 
+/** two cases of one brand get "brand" and "brand-2": every case stays pickable by a preset */
+function uniqueIds(cases: KitCase[]): KitCase[] {
+  const seen = new Set<string>();
+  return cases.map((c) => {
+    let id = c.id;
+    for (let i = 2; seen.has(id); i++) id = `${c.id.slice(0, 36)}-${i}`;
+    seen.add(id);
+    return id === c.id ? c : { ...c, id };
+  });
+}
+
 function parsePartner(v: unknown): KitPartner | null {
   const o = obj(v);
   const name = str(o?.name, 60);
   if (!o || !name) return null;
-  const kind = typeof o.kind === "string" && Object.hasOwn(PARTNER_KINDS, o.kind) ? (o.kind as KitPartnerKind) : o.kind === undefined ? "partnership" : null;
-  return kind ? { name, kind } : null;
+  if (o.kind === undefined || o.kind === null) return { name, kind: null };
+  return typeof o.kind === "string" && Object.hasOwn(PARTNER_KINDS, o.kind) ? { name, kind: o.kind as KitPartnerKind } : null;
 }
 
 function parseReelLabels(v: unknown): Record<string, KitReelLabel> {
   const o = obj(v);
-  const out: Record<string, KitReelLabel> = {};
+  // no prototype: a media id like "__proto__" stays an ordinary key
+  const out = Object.create(null) as Record<string, KitReelLabel>;
   if (!o) return out;
   for (const [id, raw] of Object.entries(o).slice(0, 60)) {
     const x = obj(raw);
@@ -226,7 +239,7 @@ export function parseKitConfig(raw: unknown): KitConfig {
     contact: parseContact(o.contact),
     partners: list(o.partners, parsePartner, 12),
     reels: parseReelLabels(o.reels),
-    cases: list(o.cases, parseCase, 6),
+    cases: uniqueIds(list(o.cases, parseCase, 6)),
     packages: list(o.packages, parsePackage, 6),
     addons: list(o.addons, parseAddon, 8),
     presets,

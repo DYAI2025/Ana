@@ -80,6 +80,9 @@
 .hidden {
   margin-left: auto;
 }
+.previewIds {
+  opacity: 0.8;
+}
 .hidden summary {
   cursor: pointer;
 }
