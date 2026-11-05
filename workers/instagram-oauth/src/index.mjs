@@ -457,47 +457,142 @@ function insightValue(entry) {
 const metricState = (name, state, error_class) => ({name, value:null, state, period:null, ...(error_class ? {error_class} : {})});
 const skipped = (b, metrics = MEDIA_INSIGHT_METRICS) => ({state:'not_fetched', reason:b.halted ? 'meta-throttled' : 'subrequest-budget', metrics:metrics.map(n => metricState(n, 'not_fetched'))});
 const notSent = e => e?.message === 'subrequest-budget' || e?.message === 'meta-throttled';
-async function mediaInsights(b, id) {
-  const read = async metrics => {
-    const data = await b.fetch(`/${id}/insights`, {metric:metrics.join(',')});
-    return Array.isArray(data?.data) ? data.data : [];
-  };
-  const fromEntries = (metrics, entries) => metrics.map(name => {
+// Reel-only and newer metrics (Meta IG Media insights): requested in the same call as the base metrics, by product type.
+// Which of them Meta accepts is learned once per Worker call on the first post of that type, so a refused one costs a
+// few calls once instead of the per-metric loop on every post.
+const EXTRA_METRICS = {REELS:['ig_reels_avg_watch_time','reels_skip_rate','reposts'], FEED:['reposts']};
+const refusedMetric = name => metricState(name, 'unavailable', 'meta-100');
+const insightReader = (b, id) => async metrics => {
+  const data = await b.fetch(`/${id}/insights`, {metric:metrics.join(',')});
+  return Array.isArray(data?.data) ? data.data : [];
+};
+function fromEntries(metrics, entries) {
+  return metrics.map(name => {
     const e = entries.find(x => x?.name === name);
     const value = insightValue(e);
     return value === null ? metricState(name, 'unavailable', 'empty-response') : {name, value, state:'ok', period:e.period ?? null};
   });
+}
+// The base metrics of one post in one call; on Meta error 100 (a metric does not apply to this media) per metric.
+async function baseInsights(b, id) {
+  const read = insightReader(b, id);
   if (b.remaining() < 1) return skipped(b);
   try {
-    return summarize(fromEntries(MEDIA_INSIGHT_METRICS, await read(MEDIA_INSIGHT_METRICS)));
+    return summarize(fromEntries(MEDIA_INSIGHT_METRICS, await read(MEDIA_INSIGHT_METRICS)), b);
   } catch (e) {
     if (notSent(e)) return skipped(b);
-    // Meta rejects the whole request when one metric does not apply to this media (code 100): isolate per metric.
     if (!(e instanceof MetaError) || e.metaCode !== 100) return {state:'error', metrics:MEDIA_INSIGHT_METRICS.map(n => metricState(n, 'error', errorClass(e)))};
-    const metrics = [];
-    for (const name of MEDIA_INSIGHT_METRICS) {
-      if (b.remaining() < 1) { metrics.push(metricState(name, 'not_fetched')); continue; }
-      try { metrics.push(...fromEntries([name], await read([name]))); }
-      catch (err) {
-        if (notSent(err)) { metrics.push(metricState(name, 'not_fetched')); continue; }
-        metrics.push(metricState(name, err instanceof MetaError && err.metaCode === 100 ? 'unavailable' : 'error', errorClass(err)));
-        // reach applies to every insight-capable media: if even reach is refused, the post has no insights at all
-        if (name === MEDIA_INSIGHT_METRICS[0] && err instanceof MetaError && err.metaCode === 100) {
-          for (const rest of MEDIA_INSIGHT_METRICS.slice(1)) metrics.push(metricState(rest, 'unavailable', 'meta-100'));
-          break;
-        }
-      }
-    }
-    return summarize(metrics);
+    return isolated(b, read);
   }
 }
+async function isolated(b, read) {
+  const metrics = [];
+  for (const name of MEDIA_INSIGHT_METRICS) {
+    if (b.remaining() < 1) { metrics.push(metricState(name, 'not_fetched')); continue; }
+    try { metrics.push(...fromEntries([name], await read([name]))); }
+    catch (err) {
+      if (notSent(err)) { metrics.push(metricState(name, 'not_fetched')); continue; }
+      metrics.push(metricState(name, err instanceof MetaError && err.metaCode === 100 ? 'unavailable' : 'error', errorClass(err)));
+      // reach applies to every insight-capable media: if even reach is refused, the post has no insights at all
+      if (name === MEDIA_INSIGHT_METRICS[0] && err instanceof MetaError && err.metaCode === 100) {
+        for (const rest of MEDIA_INSIGHT_METRICS.slice(1)) metrics.push(metricState(rest, 'unavailable', 'meta-100'));
+        break;
+      }
+    }
+  }
+  return summarize(metrics, b);
+}
+// base + extras in one call; on Meta error 100 the base alone (its own fallback), the extras marked refused
+async function withExtras(b, id, extras) {
+  if (!extras.length) return baseInsights(b, id);
+  const all = [...MEDIA_INSIGHT_METRICS, ...extras];
+  if (b.remaining() < 1) return skipped(b, all);
+  try {
+    return summarize(fromEntries(all, await insightReader(b, id)(all)), b);
+  } catch (e) {
+    if (notSent(e)) return skipped(b, all);
+    if (!(e instanceof MetaError) || e.metaCode !== 100) return {state:'error', metrics:all.map(n => metricState(n, 'error', errorClass(e)))};
+    const base = await baseInsights(b, id);
+    // a throttle or budget stop keeps its own reason (summarize would report the budget)
+    if (base.state === 'not_fetched') return {...base, metrics:[...base.metrics, ...extras.map(n => metricState(n, 'not_fetched'))]};
+    return summarize([...base.metrics, ...extras.map(refusedMetric)], b);
+  }
+}
+// What Meta does with each extra, learned per snapshot and type from the posts read so far: accepted (answered),
+// refused (Meta error 100 on the extra alone), given up (its probe failed for another reason PROBE_TRIES times). Extras
+// in none of these are still open; while some are open, posts of that type are read one at a time so the knowledge
+// grows from each before the next. Only a probe of one extra counts: a post that fails or has no insights says
+// nothing about its extras.
+const PROBE_TRIES = 2;
+function extraKnowledge(b, type) {
+  b.extraKnowledge ??= new Map();
+  if (!b.extraKnowledge.has(type)) b.extraKnowledge.set(type, {accepted:new Set(), refused:new Set(), givenUp:new Set(), failures:new Map(), lock:null});
+  return b.extraKnowledge.get(type);
+}
+const openExtras = (k, wanted) => wanted.filter(n => !k.accepted.has(n) && !k.refused.has(n) && !k.givenUp.has(n));
+async function readWithExtras(b, id, wanted, k) {
+  const accepted = wanted.filter(n => k.accepted.has(n));
+  const open = openExtras(k, wanted);
+  if (!open.length) return withExtras(b, id, accepted);
+  const all = [...MEDIA_INSIGHT_METRICS, ...accepted, ...open];
+  if (b.remaining() < 1) return skipped(b, all);
+  try {
+    const r = summarize(fromEntries(all, await insightReader(b, id)(all)), b);
+    for (const n of open) k.accepted.add(n);
+    return r;
+  } catch (e) {
+    if (notSent(e)) return skipped(b, all);
+    const failed = () => ({state:'error', metrics:all.map(n => metricState(n, 'error', errorClass(e)))});
+    // this post's own throttle or token error stops everything; anything else that is not Meta's answer is its error
+    // (a halt caused by another post meanwhile shows up below as not_fetched with reason meta-throttled)
+    if (!(e instanceof MetaError) || HALT_CODES.has(e.metaCode)) return failed();
+    // Meta refused or failed the call with the open extras: the known part first, then each open extra alone, so only
+    // the extra that fails counts (a persistent error on the extras must not cost every post its base metrics)
+    const known = await withExtras(b, id, accepted);
+    if (known.state === 'error' && e.metaCode !== 100) return failed();
+    if (known.state !== 'ok' && known.state !== 'partial') return known;
+    const read = insightReader(b, id);
+    const probed = [];
+    for (const name of open) {
+      if (b.remaining() < 1) { probed.push(metricState(name, 'not_fetched')); continue; }
+      try { probed.push(...fromEntries([name], await read([name]))); k.accepted.add(name); }
+      catch (err) {
+        if (notSent(err)) { probed.push(metricState(name, 'not_fetched')); continue; }
+        if (err instanceof MetaError && err.metaCode === 100) { probed.push(refusedMetric(name)); k.refused.add(name); continue; }
+        probed.push(metricState(name, 'error', errorClass(err)));
+        const tries = (k.failures.get(name) ?? 0) + 1;
+        k.failures.set(name, tries);
+        if (tries >= PROBE_TRIES) k.givenUp.add(name);
+      }
+    }
+    return summarize([...known.metrics, ...probed], b);
+  }
+}
+async function mediaInsights(b, id, productType = null) {
+  const wanted = Object.hasOwn(EXTRA_METRICS, productType ?? '') ? EXTRA_METRICS[productType] : [];
+  if (!wanted.length) return baseInsights(b, id);
+  const k = extraKnowledge(b, productType);
+  let release = null;
+  while (openExtras(k, wanted).length && k.lock) await k.lock;
+  if (openExtras(k, wanted).length) k.lock = new Promise(r => { release = () => { k.lock = null; r(); }; });
+  let r;
+  try { r = await readWithExtras(b, id, wanted, k); }
+  finally { release?.(); }
+  // extras this post did not get back: cut with the post, refused with a post that has no insights, or as known
+  const absent = n => r.state === 'not_fetched' ? metricState(n, 'not_fetched')
+    : r.state === 'unavailable' || k.refused.has(n) ? refusedMetric(n)
+    : k.givenUp.has(n) ? metricState(n, 'error', 'extra-not-learned')
+    : metricState(n, r.state === 'error' ? 'error' : 'not_fetched', r.state === 'error' ? 'post-error' : undefined);
+  const metrics = [...r.metrics.filter(m => MEDIA_INSIGHT_METRICS.includes(m.name)), ...wanted.map(n => r.metrics.find(m => m.name === n) ?? absent(n))];
+  return r.state === 'not_fetched' ? {...r, metrics} : summarize(metrics, b);
+}
 // A budget shortfall is never an error: only a Meta error is.
-function summarize(metrics) {
+function summarize(metrics, b = null) {
   const count = s => metrics.filter(m => m.state === s).length;
   if (count('ok') === metrics.length) return {state:'ok', metrics};
   if (count('ok') > 0) return {state:'partial', metrics};
   if (count('error') > 0) return {state:'error', metrics};
-  if (count('not_fetched') > 0) return {state:'not_fetched', reason:'subrequest-budget', metrics};
+  if (count('not_fetched') > 0) return {state:'not_fetched', reason:b?.halted ? 'meta-throttled' : 'subrequest-budget', metrics};
   return {state:'unavailable', metrics};
 }
 async function accountMetrics(b, userId) {
@@ -543,7 +638,7 @@ async function readSocialSnapshot(req,env,url) {
   const insights=new Array(media.items.length);
   for (let i=0;i<order.length;i+=SNAPSHOT_INSIGHT_CONCURRENCY) {
     const chunk=order.slice(i,i+SNAPSHOT_INSIGHT_CONCURRENCY);
-    const results=await Promise.all(chunk.map(k=>mediaInsights(b,media.items[k].id)));
+    const results=await Promise.all(chunk.map(k=>mediaInsights(b,media.items[k].id,media.items[k].media_product_type)));
     results.forEach((r,j)=>{insights[chunk[j]]=r;});
   }
   const followers=identity.extras?countOrNull(identity.me.followers_count):null;
@@ -555,7 +650,7 @@ async function readSocialSnapshot(req,env,url) {
       metrics:account_metrics},
     media:{requested_max:+maxRaw, returned:media.items.length, pages_fetched:media.pages, has_more:media.hasMore, optional_fields_state:media.optional, picture_field_state:media.picture,
       items:media.items.map((m,i)=>({...m, insights:insights[i]}))},
-    insights:{requested_metrics:MEDIA_INSIGHT_METRICS, priority:'mature-first', mature_days:SNAPSHOT_MATURE_DAYS, halted:b.halted,
+    insights:{requested_metrics:MEDIA_INSIGHT_METRICS, extra_metrics:EXTRA_METRICS, priority:'mature-first', mature_days:SNAPSHOT_MATURE_DAYS, halted:b.halted,
       posts_with_insights:insights.filter(x=>x.state==='ok'||x.state==='partial').length, budget:{limit:b.limit, used:b.used}}
   });
 }
