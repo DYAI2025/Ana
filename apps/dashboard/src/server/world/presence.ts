@@ -3,7 +3,8 @@ import type { WorldPlace, WorldRelease } from "@/features/world/types";
 
 /**
  * Ana's current region, set by the operator on the server (`WORLD_ANA_PLACE=label;lat;lon[;time zone]`, e.g.
- * "Region;-1.29;36.82;Africa/Nairobi"). Region level only, never committed to Git. Anything malformed means
+ * "Region;-1.29;36.82;Africa/Nairobi"; a two-letter country code as the label, e.g. "TH", is shown as the country name
+ * in each dashboard language). Region level only, never committed to Git. Anything malformed means
  * "unknown"; an unknown time zone is dropped (local time is then estimated from the longitude).
  */
 export function readAnaPlace(env: Readonly<Record<string, string | undefined>> = process.env): WorldPlace | null {
