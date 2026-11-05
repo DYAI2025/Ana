@@ -2,7 +2,7 @@
 import { mkdtemp, rm } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { WorldPayload } from "@/features/world/types";
 import { NEWSLETTERS_OFF } from "@/features/world/newsletters";
 import { brainWriterConfigFromEnv, createBrainWriter, isoWeek, SOURCE_ID, TOPICS, weekNoteId } from "./brainWriter";
@@ -69,6 +69,10 @@ describe("Brain writer — Was läuft, once per Berlin day as agent:lumen", () =
     expect(brainWriterConfigFromEnv({ ANA_BRAIN_MCP_URL: "https://mcp.ana.dyai.cloud/mcp", ANA_BRAIN_WRITE_KEY: KEY })).toBeNull();
     expect(brainWriterConfigFromEnv({ ANA_BRAIN_MCP_URL: "http://127.0.0.1.evil.example/mcp", ANA_BRAIN_WRITE_KEY: KEY })).toBeNull();
     expect(brainWriterConfigFromEnv({ ANA_BRAIN_MCP_URL: "http://127.0.0.1:8790/mcp" })).toBeNull();
+    expect(brainWriterConfigFromEnv({ ANA_BRAIN_MCP_URL: "http://10.0.0.1:8790/mcp", ANA_BRAIN_WRITE_KEY: KEY })).toBeNull();
+    expect(brainWriterConfigFromEnv({ ANA_BRAIN_MCP_URL: "nonsense", ANA_BRAIN_WRITE_KEY: KEY })).toBeNull();
+    expect(brainWriterConfigFromEnv({ ANA_BRAIN_MCP_URL: "http://127.0.0.1:8790/mcp", ANA_BRAIN_WRITE_KEY: "short" })).toBeNull();
+    expect(brainWriterConfigFromEnv({})).toBeNull();
   });
 
   it("sets up source and topics once, a week note, then one DERIVED observation per day", async () => {
@@ -89,7 +93,7 @@ describe("Brain writer — Was läuft, once per Berlin day as agent:lumen", () =
     expect(obs.text).toContain("Steigend: TH +20.0 Pkt");
     // nothing asks for CONFIRMED, nothing supersedes
     expect(JSON.stringify(b.calls)).not.toMatch(/CONFIRMED|supersedes|confirm/);
-    expect(w.status()).toEqual({ state: "on", last_day: "2026-11-03", note: "kn-world-pulse-2026-w45", reason: null });
+    expect(w.status()).toMatchObject({ state: "on", last_day: "2026-11-03", note: "kn-world-pulse-2026-w45", reason: null });
     // the same day again: nothing; a new process reads the day from the file
     w.schedule(world(), NOW + 3_600_000);
     await w.idle();
@@ -148,6 +152,124 @@ describe("Brain writer — Was läuft, once per Berlin day as agent:lumen", () =
     w3.schedule(world(), NOW);
     await w3.idle();
     expect(w3.status()).toMatchObject({ state: "error", reason: "brain_register_source: forbidden: nope" });
+  });
+
+  describe("the Instagram insights run in the same daily run", () => {
+    const DIGEST = "kn-world-pulse-2026-w45";
+    const INSIGHT = "kn-ig-resonanz-reel-beach";
+    const post = (id: string, saves: number) => ({
+      media_id: id, media_type: "VIDEO", media_product_type: "REELS", format: "reel", caption: "CAPTION-CANARY", permalink: null, thumbnail_url: null,
+      published_at: "2026-10-01T00:00:00Z", insights_state: "ok",
+      observations: [["reach", 1000], ["saves", saves], ["shares", 10]].map(([m, value]) => ({ media_id: id, metric_name: m, value, availability_state: "VERIFIED" })),
+    });
+    const tag = (theme: string) => ({ theme, ana: "face", shot: "action", hook: "place", cta: "none", mood: "calm", country: null, brand: false, confidence: 0.9 });
+    const withInstagram = (stale = false): WorldPayload => {
+      const snapshot = { observed_at: "2026-11-03T09:50:00Z", account: [], posts: [post("101", 90), post("102", 100), post("103", 80), post("201", 10), post("202", 20), post("203", 30)] };
+      return {
+        ...world(),
+        instagram: (stale ? { ok: true, snapshot, stale: true, failure: { state: "STALE", code: "upstream" } } : { ok: true, snapshot, stale: false }) as unknown as WorldPayload["instagram"],
+        post_tags: { state: "on", tags: { "101": tag("beach"), "102": tag("beach"), "103": tag("beach"), "201": tag("city"), "202": tag("city"), "203": tag("city") } } as unknown as WorldPayload["post_tags"],
+      };
+    };
+    /** Keeps the appended lines per note, so the note can be asked what it already holds. */
+    const memoryBrain = (refuse: (name: string, id: string) => boolean = () => false) => {
+      const bodies = new Map<string, string>();
+      const b = fakeBrain((name, args) => {
+        const id = String(args.id);
+        if (refuse(name, id)) return { isError: true, text: "forbidden: synthetic refusal" };
+        if (name === "brain_create_note") {
+          if (bodies.has(id)) return { isError: true, text: `exists: ${id}` };
+          bodies.set(id, "");
+        }
+        if (name === "brain_get") return { text: JSON.stringify({ body: bodies.get(id) ?? "" }) };
+        if (name === "brain_append_observation") {
+          bodies.set(id, `${bodies.get(id) ?? ""}\n- 2026-11-03T10:00:00Z · agent:lumen · ${String(args.status)} · ${String(args.text)} ^obs-${b.calls.length}-agent-lumen`);
+          return { text: "{}" };
+        }
+        return {};
+      });
+      const appended = (id: string) => b.calls.filter((c) => c.name === "brain_append_observation" && c.args.id === id).length;
+      return { ...b, appended };
+    };
+
+    it("one schedule writes the digest, then the insights; polling the same day adds nothing", async () => {
+      const b = memoryBrain();
+      const w = createBrainWriter(config, file, b.impl, () => NOW);
+      w.schedule(withInstagram(), NOW);
+      await w.idle();
+      const order = b.calls.filter((c) => c.name === "brain_append_observation").map((c) => c.args.id);
+      expect(order[0]).toBe(DIGEST);
+      expect(order).toContain(INSIGHT);
+      expect(w.status()).toMatchObject({ state: "on", last_day: "2026-11-03", insights: { state: "on", last_day: "2026-11-03", reason: null } });
+      expect(JSON.stringify(b.calls)).not.toContain("CAPTION-CANARY");
+      const n = b.calls.length;
+      w.schedule(withInstagram(), NOW + 60_000);
+      await w.idle();
+      expect(b.calls.length).toBe(n);
+    });
+
+    it("a digest already written today (a restart, today's deploy) does not keep the insights from running, and repeats add no block", async () => {
+      const b = memoryBrain();
+      const first = createBrainWriter(config, file, b.impl, () => NOW);
+      first.schedule(world(), NOW);
+      await first.idle();
+      expect(b.appended(DIGEST)).toBe(1);
+      const restarted = createBrainWriter(config, file, b.impl, () => NOW);
+      restarted.schedule(withInstagram(), NOW);
+      await restarted.idle();
+      expect(b.appended(DIGEST)).toBe(1);
+      expect(b.appended(INSIGHT)).toBe(1);
+      const again = createBrainWriter(config, file, b.impl, () => NOW);
+      again.schedule(withInstagram(), NOW);
+      await again.idle();
+      expect(b.appended(INSIGHT)).toBe(1);
+    });
+
+    it("a stale snapshot still gets its digest, the insights wait and say so", async () => {
+      const b = memoryBrain();
+      const w = createBrainWriter(config, file, b.impl, () => NOW);
+      w.schedule(withInstagram(true), NOW);
+      await w.idle();
+      expect(b.appended(DIGEST)).toBe(1);
+      expect(b.appended(INSIGHT)).toBe(0);
+      expect(w.status().insights).toMatchObject({ state: "skipped", reason: "stale-snapshot" });
+      w.schedule(withInstagram(), NOW + 60_000);
+      await w.idle();
+      expect(b.appended(INSIGHT)).toBe(1);
+    });
+
+    it("insights that fail leave the digest's status alone, back off 30 minutes, and retry without a second digest", async () => {
+      let t = NOW;
+      let refusing = true;
+      const b = memoryBrain((name, id) => refusing && name === "brain_append_observation" && id === INSIGHT);
+      const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
+      const w = createBrainWriter(config, file, b.impl, () => t);
+      w.schedule(withInstagram(), t);
+      await w.idle();
+      expect(w.status()).toMatchObject({ state: "on", last_day: "2026-11-03", reason: null, insights: { state: "error", last_day: null, reason: "brain_append_observation refused" } });
+      expect(JSON.stringify(w.status())).not.toContain("synthetic refusal");
+      const n = b.calls.length;
+      refusing = false;
+      w.schedule(withInstagram(), t);
+      await w.idle();
+      expect(b.calls.length).toBe(n);
+      t += 31 * 60_000;
+      w.schedule(withInstagram(), t);
+      await w.idle();
+      expect(b.appended(DIGEST)).toBe(1);
+      expect(b.appended(INSIGHT)).toBeGreaterThanOrEqual(1);
+      expect(w.status().insights).toMatchObject({ state: "on", reason: null });
+      consoleError.mockRestore();
+    });
+
+    it("a refused digest does not stop the insights", async () => {
+      const b = memoryBrain((name, id) => name === "brain_append_observation" && id === DIGEST);
+      const w = createBrainWriter(config, file, b.impl, () => NOW);
+      w.schedule(withInstagram(), NOW);
+      await w.idle();
+      expect(w.status()).toMatchObject({ state: "error", last_day: null, insights: { state: "on" } });
+      expect(b.appended(INSIGHT)).toBe(1);
+    });
   });
 
   it("ISO weeks across a year end", () => {
