@@ -55,6 +55,9 @@ export interface WorldPost {
    * long-form reading (Substack) than a like
    */
   ssr: number | null;
+  /** Reels only: average watch time in seconds and the share of views skipped in the first 3 s (0-1), when measured */
+  watchSeconds?: number | null;
+  skipRate?: number | null;
   /** true when the post is in the pulse but not yet in the snapshot (no insights yet) */
   fresh: boolean;
   /** cover picture on Meta's CDN (video thumbnail or photo), null when unknown */
@@ -139,6 +142,8 @@ export function instagramView(world: WorldPayload): ChannelView {
       ssr: reach && value(p, "saves") !== null && value(p, "shares") !== null ? ((value(p, "saves") as number) + (value(p, "shares") as number)) / reach : null,
       fresh: false,
       cover: p.thumbnail_url ?? p.image_url ?? null,
+      watchSeconds: value(p, "avg_watch_time") === null ? null : (value(p, "avg_watch_time") as number) / 1000,
+      skipRate: value(p, "skip_rate") === null ? null : (value(p, "skip_rate") as number) / 100,
     };
   });
   const known = new Set(posts.map((p) => p.id));

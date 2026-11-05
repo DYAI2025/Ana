@@ -17,7 +17,8 @@ export interface Observation {
   /** The field or insight name Instagram used. */
   native_metric_name: string;
   value: number | null;
-  unit: "accounts" | "count";
+  /** "ms" for a Reel's average watch time, "percent" (0-100) for its skip rate */
+  unit: "accounts" | "count" | "ms" | "percent";
   /** "lifetime" for per-post insights, "28d" for account totals, "snapshot" for counts read at observed_at. */
   period: "lifetime" | "28d" | "snapshot";
   availability_state: Availability;
@@ -37,6 +38,9 @@ export type CanonicalMetric =
   | "likes"
   | "comments"
   | "total_interactions"
+  /** Reels only (ANA-51): average watch time in ms, share of views skipped in the first 3 s in percent */
+  | "avg_watch_time"
+  | "skip_rate"
   | "accounts_engaged"
   | "followers"
   | "media_count"

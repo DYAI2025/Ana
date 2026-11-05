@@ -133,9 +133,11 @@ test.describe("ANA World — 3D view over real dashboard data", () => {
     const n = await list.locator("li").count();
     expect(n).toBeGreaterThan(0);
     await expect(canvas).not.toHaveAttribute("data-highlight", "none");
-    // a post in the list opens its numbers
+    // a post in the list opens its numbers; a Reel also how it is watched (ANA-51)
     await list.locator("li").first().locator("button").first().click();
     await expect(page.getByTestId("world-post")).toBeVisible();
+    await expect(page.getByTestId("world-post-viewing")).toContainText(/Avg\. watch time\s*\d+(\.\d)? s/);
+    await expect(page.getByTestId("world-post-viewing")).toContainText(/Skipped in the first 3 s\s*\d+(\.\d)? %/);
   });
 
   test("works · ranking by saves + shares (the Substack hint) relabels the top posts, the counts and the note", async ({ page }) => {

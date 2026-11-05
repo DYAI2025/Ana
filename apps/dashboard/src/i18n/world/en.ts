@@ -277,6 +277,8 @@ export const worldEn = {
     comments: "Comments",
     saves: "Saves",
     shares: "Shares",
+    watchTime: "Avg. watch time",
+    skipRate: "Skipped in the first 3 s",
     er: "Interactions per reach {value} · median {median}",
     erNone: "No interaction rate (reach or interactions not measured).",
     countersAt: "Likes and comments as of {time}",

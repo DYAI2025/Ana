@@ -125,6 +125,21 @@ test.describe("Instagram cockpit — real-data shape, honest states", () => {
     await expect(detail.getByTestId("theme-provenance")).toHaveAttribute("data-source", "manual-session");
     await detail.getByTestId("inspect-saves").click();
     await expect(page.getByTestId("metric-inspector")).toContainText("instagram:media/syn004/insights#saved");
+    await page.keyboard.press("Escape");
+    // a Reel also shows how it is watched (ANA-51): watch time in seconds, skips in the first 3 s in percent
+    await expect(detail.getByTestId("reel-avg_watch_time")).toContainText("18.0 s");
+    await expect(detail.getByTestId("reel-skip_rate")).toContainText("38.0%");
+    await detail.getByTestId("inspect-avg_watch_time").click();
+    await expect(page.getByTestId("metric-inspector")).toContainText("ig_reels_avg_watch_time");
+    await expect(page.getByTestId("metric-inspector")).toContainText("Milliseconds (shown in seconds)");
+  });
+
+  test("row detail: a carousel has no Reel viewing values", async ({ page }) => {
+    await openCockpit(page);
+    const r = row(page, "syn020");
+    await r.getByTestId("row-toggle").click();
+    await expect(r.getByTestId("row-detail")).toBeVisible();
+    await expect(r.getByTestId("reel-viewing")).toHaveCount(0);
   });
 
   test("pattern observations carry sample, formula, comparator, sources, counterexamples and limits", async ({ page }) => {

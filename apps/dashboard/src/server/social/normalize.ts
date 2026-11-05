@@ -10,6 +10,9 @@ const MEDIA_METRICS: Readonly<Record<string, CanonicalMetric>> = {
   likes: "likes",
   comments: "comments",
   total_interactions: "total_interactions",
+  // Reels only (ANA-51); units read off the live values: watch time in ms, skip rate in percent 0-100
+  ig_reels_avg_watch_time: "avg_watch_time",
+  reels_skip_rate: "skip_rate",
 };
 const ACCOUNT_METRICS: Readonly<Record<string, CanonicalMetric>> = {
   reach: "reach",
@@ -17,7 +20,7 @@ const ACCOUNT_METRICS: Readonly<Record<string, CanonicalMetric>> = {
   accounts_engaged: "accounts_engaged",
   total_interactions: "total_interactions",
 };
-const UNITS: Readonly<Partial<Record<CanonicalMetric, Observation["unit"]>>> = { reach: "accounts", accounts_engaged: "accounts", followers: "accounts" };
+const UNITS: Readonly<Partial<Record<CanonicalMetric, Observation["unit"]>>> = { reach: "accounts", accounts_engaged: "accounts", followers: "accounts", avg_watch_time: "ms", skip_rate: "percent" };
 
 const STATE: Readonly<Record<string, Availability>> = { ok: "VERIFIED", unavailable: "UNAVAILABLE", error: "ERROR", not_fetched: "NOT_FETCHED" };
 
