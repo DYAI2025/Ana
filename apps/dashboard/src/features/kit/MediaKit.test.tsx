@@ -100,6 +100,7 @@ describe("MediaKit — ANA-54", () => {
     expect(proof.textContent).toContain("1 Reel · 3 Stories");
     expect(proof.textContent).toContain("Measured · 30 days after posting · source: Instagram Insights");
     expect(screen.getByTestId("kit-hero-signal").textContent).toContain("Asia-Pacific & India");
+    expect(screen.getByTestId("kit-hero-signal").textContent).toContain("Engaged accounts, last 30 days, by country");
     // every number names its source
     expect(screen.getByTestId("kit-tile-reach").textContent).toContain("Instagram ·");
   });

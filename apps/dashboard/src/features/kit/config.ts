@@ -120,8 +120,12 @@ const MEDIA_ID = /^[0-9A-Za-z_]{1,40}$/;
 
 /** two cases of one brand get "brand" and "brand-2": every case stays pickable by a preset */
 function uniqueIds(cases: KitCase[]): KitCase[] {
+  // an id Ana wrote herself is claimed first: a generated id never takes it
+  const explicit = (c: KitCase) => c.id !== slug(c.brand);
   const seen = new Set<string>();
-  return cases.map((c) => {
+  const claimed = cases.map((c) => (explicit(c) && !seen.has(c.id) ? (seen.add(c.id), true) : false));
+  return cases.map((c, k) => {
+    if (claimed[k]) return c;
     let id = c.id;
     for (let i = 2; seen.has(id); i++) id = `${c.id.slice(0, 36)}-${i}`;
     seen.add(id);

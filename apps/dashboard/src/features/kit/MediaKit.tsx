@@ -403,7 +403,7 @@ export function MediaKit({ model, preview = false }: { model: KitModel; preview?
                     <CountUp value={model.hero.signal.share} kind="share" />
                   </b>
                   <span className={styles.tileLabel}>In {model.hero.signal.label}</span>
-                  <small className={styles.tileNote}>Of {model.hero.signal.basis.charAt(0).toLowerCase() + model.hero.signal.basis.slice(1)}, by country</small>
+                  <small className={styles.tileNote}>{model.hero.signal.basis.replace(" · ", ", ")}, by country</small>
                 </div>
               ) : null}
             </div>

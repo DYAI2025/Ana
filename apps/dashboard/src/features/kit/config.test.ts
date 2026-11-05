@@ -97,6 +97,8 @@ describe("parseKitConfig — partners, Reel labels, case fields (ANA-54)", () =>
     expect(c.presets.b!.cases).toEqual(["nomad-esim", "unicode-brand"]);
     // two cases of one brand both stay pickable
     expect(parseKitConfig({ cases: [{ brand: "Hotel A" }, { brand: "Hotel A" }, { brand: "Hotel A" }] }).cases.map((x) => x.id)).toEqual(["hotel-a", "hotel-a-2", "hotel-a-3"]);
+    // an id written in the file is never renamed by a generated one
+    expect(parseKitConfig({ cases: [{ brand: "Hotel A" }, { brand: "Hotel A" }, { brand: "Other", id: "hotel-a-2" }] }).cases.map((x) => x.id)).toEqual(["hotel-a", "hotel-a-3", "hotel-a-2"]);
     // a media id like __proto__ is an ordinary key, never the prototype
     const labels = parseKitConfig({ reels: JSON.parse('{"__proto__": {"kind": "ugc"}}') }).reels;
     expect(Object.getPrototypeOf(labels)).toBeNull();
