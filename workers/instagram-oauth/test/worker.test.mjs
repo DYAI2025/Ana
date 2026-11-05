@@ -1337,7 +1337,7 @@ test('social audience: documented demographic reads, aggregated results, per-met
   assert.deepEqual(ecity.results, [{key: 'Berlin, Berlin', value: 30}]);
   assert.deepEqual([fc.state, fc.error_class], ['unavailable', 'empty-response']);
   assert.deepEqual([fcity.state, fcity.error_class], ['unavailable', 'meta-100']);
-  const reads = calls.filter(c => c.url.pathname === `/v26.0/${IG_USER_ID}/insights` && c.url.searchParams.get('metric') !== 'follows_and_unfollows');
+  const reads = calls.filter(c => c.url.pathname === `/v26.0/${IG_USER_ID}/insights` && /_demographics$/.test(c.url.searchParams.get('metric')));
   assert.equal(reads.length, 13);
   for (const c of reads) {
     assert.equal(c.url.searchParams.get('period'), 'lifetime');
@@ -1395,6 +1395,107 @@ test('social audience: a throttle stops further reads and is reported as error /
   assert.deepEqual(body.metrics.map(m => m.state), ['error', ...Array(12).fill('not_fetched')]);
   assert.ok(body.metrics.every(m => m.results.length === 0));
   assert.equal((await internalGet(env, '/internal/social-audience', null)).status, 401);
+});
+
+// ANA-56 account signals: reach by follow type, contact-button taps, online followers
+const signalAnswer = (name, total, rows) => Response.json({data: [{name, period: 'day', total_value: {...(total === undefined ? {} : {value: total}),
+  ...(rows ? {breakdowns: [{dimension_keys: ['x'], results: rows.map(([k, v]) => ({dimension_values: [k], value: v}))}]} : {})}}]});
+const onlineDay = (end, hours) => ({value: hours, end_time: end});
+const hoursOf = f => Object.fromEntries(Array.from({length: 24}, (_, h) => [String(h), f(h)]));
+
+test('social audience: account signals read reach by follow type and contact-button taps over 28 days, additively', async () => {
+  const env = mockEnv();
+  await connect(env);
+  const calls = installMeta({insights: u => {
+    const m = u.searchParams.get('metric');
+    if (m === 'reach') return signalAnswer('reach', 900, [['FOLLOWER', 300], ['NON_FOLLOWER', 600]]);
+    if (m === 'profile_links_taps') return signalAnswer('profile_links_taps', 4, [['EMAIL', 3], ['CALL', 1]]);
+    return Response.json({data: []});
+  }});
+  const before = Math.floor(Date.now() / 1000);
+  const body = await (await internalGet(env, '/internal/social-audience')).json();
+  assert.equal(body.metrics.length, 13, 'the demographic list is unchanged');
+  assert.ok('follows' in body, 'the follows contract is unchanged');
+  const [reach, taps] = body.signals;
+  assert.deepEqual([reach.name, reach.breakdown, reach.state, reach.total], ['reach', 'follow_type', 'ok', 900]);
+  assert.deepEqual(reach.results, [{key: 'FOLLOWER', value: 300}, {key: 'NON_FOLLOWER', value: 600}]);
+  assert.deepEqual([taps.name, taps.breakdown, taps.state, taps.total], ['profile_links_taps', 'contact_button_type', 'ok', 4]);
+  assert.deepEqual(taps.results, [{key: 'EMAIL', value: 3}, {key: 'CALL', value: 1}]);
+  for (const s of body.signals) {
+    assert.equal(s.window_days, 28);
+    assert.equal(s.until - s.since, 28 * 86400);
+    assert.ok(s.until >= before);
+  }
+  for (const name of ['reach', 'profile_links_taps']) {
+    const c = calls.filter(x => x.url.searchParams.get('metric') === name);
+    assert.equal(c.length, 1, `${name} is read once`);
+    assert.deepEqual(['period', 'metric_type'].map(k => c[0].url.searchParams.get(k)), ['day', 'total_value']);
+    assert.equal(Number(c[0].url.searchParams.get('until')) - Number(c[0].url.searchParams.get('since')), 28 * 86400);
+  }
+  assert.equal(calls.find(x => x.url.searchParams.get('metric') === 'reach').url.searchParams.get('breakdown'), 'follow_type');
+  assert.equal(calls.find(x => x.url.searchParams.get('metric') === 'profile_links_taps').url.searchParams.get('breakdown'), 'contact_button_type');
+});
+
+test('social audience: a signal of 0 from Meta is a real 0; an empty answer or a refusal is a state, never 0', async () => {
+  const env = mockEnv();
+  await connect(env);
+  installMeta({insights: u => u.searchParams.get('metric') === 'profile_links_taps' ? signalAnswer('profile_links_taps', 0) : Response.json({data: []})});
+  const [reach, taps] = (await (await internalGet(env, '/internal/social-audience')).json()).signals;
+  assert.deepEqual([taps.state, taps.total, taps.results], ['ok', 0, []]);
+  assert.deepEqual([reach.state, reach.error_class, reach.total, reach.results], ['unavailable', 'empty-response', null, []]);
+  installMeta({insights: u => u.searchParams.get('metric') === 'reach' ? metaError(100)() : Response.json({data: []})});
+  const refused = (await (await internalGet(env, '/internal/social-audience')).json()).signals[0];
+  assert.deepEqual([refused.state, refused.error_class, refused.total], ['unavailable', 'meta-100', null]);
+});
+
+test('social audience: online followers are kept per day as 24 hour values; malformed days and values are dropped', async () => {
+  const env = mockEnv();
+  await connect(env);
+  const calls = installMeta({insights: u => u.searchParams.get('metric') === 'online_followers'
+    ? Response.json({data: [{name: 'online_followers', period: 'lifetime', values: [
+        onlineDay('2026-11-03T08:00:00+0000', hoursOf(h => 100 + h)),
+        onlineDay('2026-11-04T08:00:00+0000', {}),
+        onlineDay('2026-11-05T08:00:00+0000', hoursOf(h => (h === 5 ? -1 : h === 6 ? 'x' : 50))),
+        {value: [1, 2, 3], end_time: '2026-11-06T08:00:00+0000'},
+        onlineDay('not a date', hoursOf(() => 7)),
+      ]}]})
+    : Response.json({data: []})});
+  const online = (await (await internalGet(env, '/internal/social-audience')).json()).online_followers;
+  assert.equal(online.state, 'ok');
+  assert.equal(online.hours_timezone, 'unverified', 'the hour time zone must be read off live data first');
+  assert.equal(online.days.length, 3);
+  assert.deepEqual(online.days[0], {end_time: '2026-11-03T08:00:00+0000', hours: Array.from({length: 24}, (_, h) => 100 + h)});
+  assert.equal(online.days[1].hours[5], null, 'a negative value is not a count');
+  assert.equal(online.days[1].hours[6], null, 'a non-number is not a count');
+  assert.equal(online.days[1].hours[7], 50);
+  assert.equal(online.days[2].end_time, null, 'an unreadable time is dropped, the hours are kept');
+  const c = calls.filter(x => x.url.searchParams.get('metric') === 'online_followers');
+  assert.equal(c.length, 1);
+  assert.equal(c[0].url.searchParams.get('period'), 'lifetime');
+  assert.equal(Number(c[0].url.searchParams.get('until')) - Number(c[0].url.searchParams.get('since')), 28 * 86400);
+});
+
+test('social audience: online followers refused by Meta are tried once and reported as unavailable', async () => {
+  const env = mockEnv();
+  await connect(env);
+  const calls = installMeta({insights: u => u.searchParams.get('metric') === 'online_followers' ? metaError(100)() : Response.json({data: []})});
+  const online = (await (await internalGet(env, '/internal/social-audience')).json()).online_followers;
+  assert.deepEqual([online.state, online.error_class, online.days], ['unavailable', 'meta-100', []]);
+  assert.equal(calls.filter(x => x.url.searchParams.get('metric') === 'online_followers').length, 1, 'no retry in the same call');
+});
+
+test('social audience: every read fits the budget; a throttle leaves the signals not fetched, never 0', async () => {
+  const env = mockEnv();
+  await connect(env);
+  const calls = installMeta({insights: () => Response.json({data: []})});
+  const body = await (await internalGet(env, '/internal/social-audience')).json();
+  assert.equal(calls.filter(c => c.url.pathname === `/v26.0/${IG_USER_ID}/insights`).length, 13 + 1 + 2 + 1, 'demographics, follows, two signals, online followers');
+  assert.ok(body.signals.every(s => s.state === 'unavailable'));
+  assert.equal(body.online_followers.state, 'unavailable');
+  installMeta({insights: metaError(4, 400)});
+  const cut = await (await internalGet(env, '/internal/social-audience')).json();
+  assert.deepEqual(cut.signals.map(s => [s.state, s.total]), [['not_fetched', null], ['not_fetched', null]]);
+  assert.deepEqual([cut.online_followers.state, cut.online_followers.days], ['not_fetched', []]);
 });
 
 const history = (env, q = '', key = INTERNAL_KEY) => worker.fetch(new Request(origin + '/internal/media-history' + q, {headers: {Authorization: `Bearer ${key}`}}), env);
