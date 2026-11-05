@@ -44,8 +44,8 @@ The app in this folder is **ASADA** — Ana Savu Dashboard (Jira ANA-4 visual sh
   that leads down to the one button, whose e-mail opens with a short briefing; the preset's market share in the hero;
   "live" only for a reading of at most 26 h. A case's id defaults to its brand as a slug ("Nomad eSIM" →
   `nomad-esim`, a second case of the same brand `nomad-esim-2`); the preview bar lists the ids.
-  ANA-55: a partner with `"current": true` is listed under "Currently working with", the others under "Previously"
-  (or "Worked with" when none is current).
+  ANA-55: a partner with `"current": true` is listed under "Currently working with", the others under "Also worked with"
+  (no claim that those ended; "Worked with" when none is current).
 
   Public per-brand links without the dashboard login, open tracking and revocation are a later slice.
 - **Everything else is local prototype data**: Sessions, Whiteboard, Calendar, Pulse, Vault and Toolbox are not

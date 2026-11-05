@@ -346,7 +346,7 @@ function PreviewBar({ model }: { model: KitModel }) {
 
 const asOf = new Intl.DateTimeFormat(LOCALE, { day: "numeric", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit", timeZone: "UTC", timeZoneName: "short" });
 
-/** running partnerships first ("Currently working with"), then the earlier ones; one "Worked with" list when none runs */
+/** running partnerships first ("Currently working with"), then "Also worked with" (no claim that those ended); one "Worked with" list when none runs */
 function Partners({ partners }: { partners: KitModel["partners"] }) {
   const current = partners.filter((p) => p.current);
   const past = partners.filter((p) => !p.current);
@@ -370,7 +370,7 @@ function Partners({ partners }: { partners: KitModel["partners"] }) {
       ) : null}
       {past.length ? (
         <>
-          <p className={`${styles.group} ${current.length ? styles.groupNext : ""}`}>{current.length ? "Previously" : "Worked with"}</p>
+          <p className={`${styles.group} ${current.length ? styles.groupNext : ""}`}>{current.length ? "Also worked with" : "Worked with"}</p>
           {list(past, "kit-partners-past")}
         </>
       ) : null}
