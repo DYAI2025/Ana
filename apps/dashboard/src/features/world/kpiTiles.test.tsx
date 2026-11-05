@@ -1,8 +1,8 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { I18nProvider, useI18n } from "@/components/providers/I18nProvider";
-import { FollowsLine, ViewingTiles } from "./kpiTiles";
-import type { WorldFollows, WorldReelViewing } from "./types";
+import { ContactTapsTile, FollowsLine, OnlineTile, ReachSplitTile, ViewingTiles, hourIn, peakUtcHour } from "./kpiTiles";
+import type { WorldContactTaps, WorldFollows, WorldOnlineHours, WorldPlace, WorldReachSplit, WorldReelViewing } from "./types";
 
 function Tiles({ follows, viewing, current = true }: { follows: WorldFollows; viewing: WorldReelViewing; current?: boolean }) {
   const { t, locale } = useI18n();
@@ -84,5 +84,85 @@ describe("KPI tiles — what changed (ANA-52)", () => {
   it("off: no tiles at all", () => {
     show(F, { ...V, state: "off" });
     expect(screen.queryByTestId("world-kpi-watch")).toBeNull();
+  });
+});
+
+// ---- ANA-56: new people reached, followers online, contact-button taps ----
+
+const SPLIT: WorldReachSplit = { state: "ok", reason: null, since: "2026-10-08T00:00:00.000Z", until: "2026-11-05T00:00:00.000Z", followers: 32302, non_followers: 1051492 };
+const ONLINE: WorldOnlineHours = { state: "ok", reason: null, days: 26, utc_hours: Array.from({ length: 24 }, (_, h) => (h === 14 ? 33010 : 18000)) };
+const CHIANG_MAI: WorldPlace = { label: "Chiang Mai", lat: 18.79, lon: 98.98, tz: "Asia/Bangkok" };
+const NOW = new Date("2026-11-05T12:00:00Z");
+
+function Signals({ split, online, taps, place, current = true }: { split: WorldReachSplit; online: WorldOnlineHours; taps: WorldContactTaps; place: WorldPlace | null; current?: boolean }) {
+  const { t, locale } = useI18n();
+  return (
+    <div>
+      <ReachSplitTile split={split} current={current} t={t} locale={locale} />
+      <OnlineTile online={online} current={current} place={place} t={t} locale={locale} now={NOW} />
+      <ContactTapsTile taps={taps} current={current} t={t} locale={locale} />
+    </div>
+  );
+}
+const signals = (p: Partial<{ split: WorldReachSplit; online: WorldOnlineHours; taps: WorldContactTaps; place: WorldPlace | null; current: boolean }> = {}) =>
+  render(
+    <I18nProvider>
+      <Signals split={p.split ?? SPLIT} online={p.online ?? ONLINE} taps={p.taps ?? { state: "ok", reason: null, total: 0 }} place={p.place === undefined ? CHIANG_MAI : p.place} current={p.current ?? true} />
+    </I18nProvider>,
+  );
+
+describe("KPI tiles — who Ana reaches and when her followers are online (ANA-56)", () => {
+  it("new people: the share of non-followers from the two groups Meta reports, with both counts", () => {
+    signals();
+    const tile = screen.getByTestId("world-kpi-new-people");
+    expect(tile.textContent).toContain("New people reached (28 d)");
+    expect(tile.textContent).toContain("97 %");
+    expect(screen.getByTestId("world-kpi-new-people-split").textContent).toBe("1.1M new · 32.3K followers");
+    expect(tile.getAttribute("title")).toContain("a little more than the total reach");
+  });
+
+  it("new people: no data, a refusal or a failed read show a dash and say so, never 0 %", () => {
+    const a = signals({ split: { ...SPLIT, state: "unavailable", reason: "meta-100", followers: null, non_followers: null } });
+    expect(screen.getByTestId("world-kpi-new-people").textContent).toContain("—");
+    expect(screen.getByTestId("world-kpi-new-people-split").textContent).toBe("Not available");
+    expect(screen.getByTestId("world-kpi-new-people").textContent).not.toContain("0 %");
+    a.unmount();
+    signals({ current: false });
+    expect(screen.getByTestId("world-kpi-new-people").textContent).toContain("—");
+  });
+
+  it("online: the peak hour in the time of Ana's place, named, with about how many are online", () => {
+    signals();
+    const tile = screen.getByTestId("world-kpi-online");
+    expect(tile.textContent).toContain("Followers online most");
+    expect(tile.textContent).toContain("21:00");
+    expect(screen.getByTestId("world-kpi-online-where").textContent).toBe("Chiang Mai time · about 33,010 online");
+    expect(tile.getAttribute("title")).toContain("26 days");
+    expect(tile.getAttribute("title")).toContain("US Pacific time");
+  });
+
+  it("online: without a place time zone it says it is the viewer's own time; without data a dash", () => {
+    const a = signals({ place: null });
+    expect(screen.getByTestId("world-kpi-online-where").textContent).toBe("your time · about 33,010 online");
+    a.unmount();
+    signals({ online: { state: "unavailable", reason: "meta-100", days: 0, utc_hours: Array(24).fill(null) } });
+    expect(screen.getByTestId("world-kpi-online").textContent).toContain("—");
+    expect(screen.getByTestId("world-kpi-online-where").textContent).toBe("Not available");
+  });
+
+  it("contact-button taps appear only when there were any", () => {
+    const a = signals();
+    expect(screen.queryByTestId("world-kpi-contact-taps")).toBeNull();
+    a.unmount();
+    signals({ taps: { state: "ok", reason: null, total: 5 } });
+    expect(screen.getByTestId("world-kpi-contact-taps").textContent).toContain("5");
+    expect(screen.getByTestId("world-kpi-contact-taps").getAttribute("title")).toContain("Not the link in bio");
+  });
+
+  it("peakUtcHour skips missing hours; hourIn converts a UTC hour into a time zone", () => {
+    expect(peakUtcHour([null, 5, null, 9, 9])).toBe(3);
+    expect(peakUtcHour(Array(24).fill(null))).toBeNull();
+    expect(hourIn(14, "Asia/Bangkok", "en", NOW)).toBe("21:00");
+    expect(hourIn(14, "Europe/Berlin", "de", NOW)).toBe("15:00");
   });
 });

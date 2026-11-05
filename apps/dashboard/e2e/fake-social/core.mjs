@@ -131,6 +131,16 @@ export function buildAudience({ unavailable = false } = {}) {
     follows: unavailable
       ? { name: "follows_and_unfollows", breakdown: "follow_type", period: "day", since: 0, until: 0, state: "unavailable", error_class: "meta-100", results: [] }
       : { name: "follows_and_unfollows", breakdown: "follow_type", period: "day", since: Math.floor(Date.now() / 1000) - 86400, until: Math.floor(Date.now() / 1000), state: "ok", results: [{ key: "FOLLOWER", value: 120 }, { key: "NON_FOLLOWER", value: 45 }] },
+    // ANA-56: reach by follow type, contact-button taps, online followers (synthetic; Meta's hours run on US Pacific time)
+    signals: unavailable
+      ? [{ name: "reach", breakdown: "follow_type", period: "day", state: "unavailable", error_class: "meta-100", total: null, results: [] }]
+      : [
+          { name: "reach", breakdown: "follow_type", period: "day", since: Math.floor(Date.now() / 1000) - 28 * 86400, until: Math.floor(Date.now() / 1000), state: "ok", total: 9000, results: [{ key: "FOLLOWER", value: 1000 }, { key: "NON_FOLLOWER", value: 9000 }] },
+          { name: "profile_links_taps", breakdown: "contact_button_type", period: "day", state: "ok", total: 0, results: [] },
+        ],
+    online_followers: unavailable
+      ? { name: "online_followers", period: "lifetime", state: "unavailable", error_class: "meta-100", days: [] }
+      : { name: "online_followers", period: "lifetime", state: "ok", hours_timezone: "unverified", days: [{ end_time: "2026-11-04T08:00:00+0000", hours: Array.from({ length: 24 }, (_, h) => (h === 7 ? 3300 : 1800)) }] },
   };
 }
 

@@ -5,7 +5,7 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { useI18n } from "@/components/providers/I18nProvider";
 import { useReducedMotion } from "@/lib/hooks/useReducedMotion";
 import { channelStatuses, ORBIT_MAX, instagramView, orbitCount, pulseEvents, shares, trends, TREND_POINTS, whoView, type ChannelView, type PulseEvent, type ShareEntry, type WhoView } from "./model";
-import { FollowsLine, ViewingTiles } from "./kpiTiles";
+import { ContactTapsTile, FollowsLine, OnlineTile, ReachSplitTile, ViewingTiles } from "./kpiTiles";
 import { BEN_ACTIVITIES, berlinDay, VINCE_ACTIVITIES, type BenActivity, type VinceActivity } from "./berlinDay";
 import { ANA_ACTIVITIES, ANA_OUTFITS, colorHex, currentActivity, SWATCHES, type AnaActivity, type AnaLookId, type ManualLook } from "./looks";
 import { PEOPLE, PROJECTS, type WorldPersonId } from "./people";
@@ -671,6 +671,9 @@ export function WorldView() {
           <span>{t("world.kpi.interactions28")}</span>
           <b>{num(ig?.interactions28 ?? null)}</b>
         </div>
+        {world ? <ReachSplitTile split={world.audience.reach_split} current={world.audience.state === "ok"} t={t} locale={locale} /> : null}
+        {world ? <OnlineTile online={world.audience.online} current={world.audience.state === "ok"} place={world.places.ana} t={t} locale={locale} /> : null}
+        {world ? <ContactTapsTile taps={world.audience.contact_taps} current={world.audience.state === "ok"} t={t} locale={locale} /> : null}
         <div data-testid="world-kpi-posts">
           <span>{t("world.kpi.posts")}</span>
           <b>{num(ig ? orbitCount(ig.posts) : null)}</b>

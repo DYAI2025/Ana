@@ -1,7 +1,7 @@
 "use client";
 
 import type { useI18n } from "@/components/providers/I18nProvider";
-import type { WorldFollows, WorldReelViewing } from "./types";
+import type { WorldContactTaps, WorldFollows, WorldOnlineHours, WorldPlace, WorldReachSplit, WorldReelViewing } from "./types";
 import styles from "./world.module.css";
 
 type T = ReturnType<typeof useI18n>["t"];
@@ -45,6 +45,77 @@ function Delta({ id, now, before, day, unit, lowerIsBetter, t, locale }: { id: s
       {d !== 0 ? <span aria-hidden="true">{arrow(d)}</span> : null}
       {t("world.kpi.vsDay", { delta: `${signed(d, one(locale))} ${unit}`, day: dayLabel(day, locale) })}
     </small>
+  );
+}
+
+const compact = (locale: string) => new Intl.NumberFormat(locale, { notation: "compact", maximumFractionDigits: 1 });
+
+/**
+ * Share of the 28-day reach that does not follow Ana (Meta reach by follow_type; ANA-56). The share comes from the two
+ * groups Meta reports, never from the deduplicated total. `current` is false when the last audience read failed.
+ */
+export function ReachSplitTile({ split, current, t, locale }: { split: WorldReachSplit; current: boolean; t: T; locale: string }) {
+  const ok = current && split.state === "ok" && split.followers !== null && split.non_followers !== null && split.followers + split.non_followers > 0;
+  const sum = ok ? (split.followers as number) + (split.non_followers as number) : 0;
+  const share = ok ? Math.round(((split.non_followers as number) / sum) * 100) : null;
+  return (
+    <div data-testid="world-kpi-new-people" data-state={ok ? "ok" : split.state} title={t("world.kpi.newPeopleNote")}>
+      <span>{t("world.kpi.newPeople")}</span>
+      <b>{share === null ? "—" : `${share} %`}</b>
+      <small className={styles.kpiDelta} data-testid="world-kpi-new-people-split">
+        {share === null
+          ? t("world.kpi.newPeopleNone")
+          : t("world.kpi.newPeopleSplit", { fresh: compact(locale).format(split.non_followers as number), followers: compact(locale).format(split.followers as number) })}
+      </small>
+    </div>
+  );
+}
+
+/** the UTC hour with the most followers online on average; null when no hour has a value */
+export function peakUtcHour(utcHours: readonly (number | null)[]): number | null {
+  let best: number | null = null;
+  utcHours.forEach((v, h) => {
+    if (v !== null && (best === null || v > (utcHours[best] as number))) best = h;
+  });
+  return best;
+}
+
+/** "21:00" for a UTC hour in the given time zone (Ana's place, else the viewer's own), on the date `at` */
+export function hourIn(utcHour: number, timeZone: string | null, locale: string, at: Date): string {
+  const d = new Date(Date.UTC(at.getUTCFullYear(), at.getUTCMonth(), at.getUTCDate(), utcHour));
+  return new Intl.DateTimeFormat(locale, { hour: "2-digit", minute: "2-digit", hourCycle: "h23", ...(timeZone ? { timeZone } : {}) }).format(d);
+}
+
+/**
+ * When Ana's followers are online most (Meta online_followers, mean per hour; ANA-56), in the time of Ana's place when
+ * it is set, otherwise in the viewer's own time, and said which one it is.
+ */
+export function OnlineTile({ online, current, place, t, locale, now = new Date() }: { online: WorldOnlineHours; current: boolean; place: WorldPlace | null; t: T; locale: string; now?: Date }) {
+  const peak = current && online.state === "ok" ? peakUtcHour(online.utc_hours) : null;
+  const tz = place?.tz ?? null;
+  return (
+    <div data-testid="world-kpi-online" data-state={peak === null ? online.state : "ok"} title={t("world.kpi.onlineNote", { days: online.days })}>
+      <span>{t("world.kpi.onlinePeak")}</span>
+      <b>{peak === null ? "—" : hourIn(peak, tz, locale, now)}</b>
+      <small className={styles.kpiDelta} data-testid="world-kpi-online-where">
+        {peak === null
+          ? t("world.kpi.onlineNone")
+          : tz && place
+            ? t("world.kpi.onlineAt", { place: place.label, n: whole(locale).format(online.utc_hours[peak] as number) })
+            : t("world.kpi.onlineAtLocal", { n: whole(locale).format(online.utc_hours[peak] as number) })}
+      </small>
+    </div>
+  );
+}
+
+/** Contact-button taps (Meta profile_links_taps; not the bio link). Shown only when there were any (ANA-56 R1.5). */
+export function ContactTapsTile({ taps, current, t, locale }: { taps: WorldContactTaps; current: boolean; t: T; locale: string }) {
+  if (!current || taps.state !== "ok" || !taps.total) return null;
+  return (
+    <div data-testid="world-kpi-contact-taps" title={t("world.kpi.contactTapsNote")}>
+      <span>{t("world.kpi.contactTaps")}</span>
+      <b>{whole(locale).format(taps.total)}</b>
+    </div>
   );
 }
 

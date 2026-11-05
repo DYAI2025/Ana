@@ -25,7 +25,7 @@ function world(): WorldPayload {
       engaged_city: N, engaged_city_week: N, follower_country: N, follower_city: N,
       who: { engaged_week: { age: N, gender: N, age_gender: N }, engaged_month: { age: N, gender: N, age_gender: N }, follower: { age: N, gender: N, age_gender: N } },
       history: { days: 0, since: null },
-      follows: { state: "not_fetched", reason: "not-returned", since: null, until: null, gained: null, lost: null },
+      follows: { state: "not_fetched", reason: "not-returned", since: null, until: null, gained: null, lost: null }, reach_split: { state: "not_fetched", reason: "not-returned", since: null, until: null, followers: null, non_followers: null }, contact_taps: { state: "not_fetched", reason: "not-returned", total: null }, online: { state: "not_fetched", reason: "not-returned", days: 0, utc_hours: Array(24).fill(null) },
     },
     work: { state: "not-configured", reason: null, fetched_at: null, issues: [] },
     places: { ana: null },

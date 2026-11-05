@@ -120,6 +120,67 @@ describe("normalizeAudience · follows and unfollows of the last 24 hours (ANA-5
   });
 });
 
+describe("normalizeAudience · account signals and online followers (ANA-56)", () => {
+  const reach = (over: Record<string, unknown> = {}) => ({ name: "reach", breakdown: "follow_type", period: "day", since: 1791936000, until: 1794355200, state: "ok", total: 1075011, results: [{ key: "FOLLOWER", value: 32302 }, { key: "NON_FOLLOWER", value: 1051492 }], ...over });
+  const taps = (over: Record<string, unknown> = {}) => ({ name: "profile_links_taps", breakdown: "contact_button_type", period: "day", state: "ok", total: 0, results: [], ...over });
+  const day = (end: string, f: (h: number) => unknown) => ({ end_time: end, hours: Array.from({ length: 24 }, (_, h) => f(h)) });
+  const online = (days: unknown[], over: Record<string, unknown> = {}) => ({ name: "online_followers", period: "lifetime", state: "ok", hours_timezone: "unverified", days, ...over });
+  const body = (extra: Record<string, unknown>) => normalizeAudience({ ...audienceBody, ...extra });
+
+  it("reach by follow type keeps both groups as Meta reports them; the window is the one Meta was asked for", () => {
+    const a = body({ signals: [reach(), taps()] });
+    expect(a.reach_split).toEqual({ state: "ok", reason: null, since: "2026-10-14T00:00:00.000Z", until: "2026-11-11T00:00:00.000Z", followers: 32302, non_followers: 1051492 });
+    expect(a.contact_taps).toEqual({ state: "ok", reason: null, total: 0 });
+  });
+
+  it("an older worker, a refusal, a missing group or a bad total stay a state, never 0", () => {
+    const old = normalizeAudience(audienceBody);
+    expect([old.reach_split.state, old.contact_taps.state, old.online.state]).toEqual(["not_fetched", "not_fetched", "not_fetched"]);
+    expect(old.online.utc_hours).toHaveLength(24);
+    expect(body({ signals: [reach({ state: "unavailable", error_class: "meta-100", results: [] })] }).reach_split).toMatchObject({ state: "unavailable", reason: "meta-100", followers: null, non_followers: null });
+    expect(body({ signals: [reach({ results: [{ key: "FOLLOWER", value: 5 }] })] }).reach_split).toMatchObject({ state: "unavailable", reason: "missing-follow-type", followers: null });
+    expect(body({ signals: [reach({ breakdown: "media_product_type" })] }).reach_split.state).toBe("not_fetched");
+    expect(body({ signals: [taps({ total: -1 })] }).contact_taps).toEqual({ state: "unavailable", reason: "no-total", total: null });
+    expect(body({ signals: "nonsense" }).contact_taps.state).toBe("not_fetched");
+  });
+
+  it("online followers: Meta's Pacific hours land on their UTC hour (PDT: hour 7 → 14 UTC; PST: hour 7 → 15 UTC)", () => {
+    const peak7 = (h: number) => (h === 7 ? 33000 : 18000);
+    const pdt = body({ online_followers: online([day("2026-10-10T07:00:00+0000", peak7)]) }).online;
+    expect(pdt.state).toBe("ok");
+    expect(pdt.days).toBe(1);
+    expect(pdt.utc_hours[14]).toBe(33000);
+    expect(pdt.utc_hours.filter((v) => v === 33000)).toHaveLength(1);
+    const pst = body({ online_followers: online([day("2026-11-04T08:00:00+0000", peak7)]) }).online;
+    expect(pst.utc_hours[15]).toBe(33000);
+  });
+
+  it("the day daylight saving time ends is 25 h long: its start is end_time minus 25 h", () => {
+    // ends 2 Nov 08:00 UTC = midnight PST; started 1 Nov 07:00 UTC = midnight PDT, so hour 0 is 07 UTC
+    const a = body({ online_followers: online([day("2026-11-02T08:00:00+0000", (h) => (h === 0 ? 999 : 1))]) }).online;
+    expect(a.utc_hours[7]).toBe(999);
+  });
+
+  it("online followers: the mean per UTC hour over the days; broken days and values are left out, not counted as 0", () => {
+    const a = body({
+      online_followers: online([
+        day("2026-10-10T07:00:00+0000", () => 100),
+        day("2026-10-11T07:00:00+0000", (h) => (h === 0 ? null : 200)),
+        { end_time: "not a time", hours: Array(24).fill(5000) },
+        { end_time: "2026-10-12T07:00:00+0000", hours: [1, 2, 3] },
+      ]),
+    }).online;
+    expect(a.days).toBe(2);
+    expect(a.utc_hours[7]).toBe(100); // hour 0 Pacific: only the first day had a value
+    expect(a.utc_hours[8]).toBe(150);
+  });
+
+  it("online followers refused by Meta or with no usable day are a state", () => {
+    expect(body({ online_followers: online([], { state: "unavailable", error_class: "meta-100" }) }).online).toMatchObject({ state: "unavailable", reason: "meta-100", days: 0 });
+    expect(body({ online_followers: online([{ end_time: null, hours: Array(24).fill(1) }]) }).online).toMatchObject({ state: "unavailable", reason: "no-usable-day", days: 0 });
+  });
+});
+
 describe("readAnaPlace / readRelease", () => {
   it("accepts a region label with coordinates and refuses anything else", () => {
     expect(readAnaPlace({ WORLD_ANA_PLACE: "Regionstest;-1.29;36.82" })).toEqual({ label: "Regionstest", lat: -1.29, lon: 36.82, tz: null });

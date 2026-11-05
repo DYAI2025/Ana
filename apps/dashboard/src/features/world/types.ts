@@ -60,6 +60,12 @@ export interface WorldAudience extends WorldSourceStatus {
   history: { days: number; since: string | null };
   /** follows and unfollows of the last 24 hours (Meta follows_and_unfollows, up to 48 h delayed; ANA-52) */
   follows: WorldFollows;
+  /** reach of the last 28 days split into followers and people who do not follow (ANA-56) */
+  reach_split: WorldReachSplit;
+  /** taps on the profile's contact buttons (address, call, email, text), not the bio link (ANA-56) */
+  contact_taps: WorldContactTaps;
+  /** when Ana's followers are online (ANA-56) */
+  online: WorldOnlineHours;
 }
 
 /**
@@ -89,6 +95,39 @@ export interface WorldFollows {
   until: string | null;
   gained: number | null;
   lost: number | null;
+}
+
+/**
+ * Meta reach by follow_type over 28 days. The two groups are what Meta reports for each; their sum can exceed Meta's
+ * deduplicated total (live 2026-11-05: +0.8 %), so a share is taken from the two groups, never against the total.
+ */
+export interface WorldReachSplit {
+  state: AudienceSeriesState;
+  reason: string | null;
+  since: string | null;
+  until: string | null;
+  followers: number | null;
+  non_followers: number | null;
+}
+
+/** Meta profile_links_taps over 28 days; an explicit 0 from Meta is a real 0. */
+export interface WorldContactTaps {
+  state: AudienceSeriesState;
+  reason: string | null;
+  total: number | null;
+}
+
+/**
+ * Meta online_followers: the mean number of followers online per hour over the days Meta returned. Meta counts its
+ * days and hours in US Pacific time (live 2026-11-05: the day boundary moved from 07:00 to 08:00 UTC when US daylight
+ * saving time ended on 1 Nov 2026); here every hour is already moved to its UTC hour, index 0-23.
+ */
+export interface WorldOnlineHours {
+  state: AudienceSeriesState;
+  reason: string | null;
+  days: number;
+  /** 24 entries, index = UTC hour; null where no day had a value for that hour */
+  utc_hours: (number | null)[];
 }
 
 /** age band ("25-34", "65+"), gender ("F", "M", "U" = not stated) and both ("25-34|F") */
