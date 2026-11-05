@@ -58,6 +58,7 @@ jobs:
       # ANA-5 AC9: the browser bundle must not contain a Jira credential, its variable names or a Basic auth header
       # ANA-38 AC9: nor the Instagram worker key, SOCIAL_IG_* names, a Bearer header or the worker internal path
       # ANA-35 AC13: nor the Brain token, its variable name or a Brain token shape
+      # ANAK-3: nor the analyst's variable names, provider keys or provider hosts
       - run: npm run scan:bundle
       - run: npx playwright install --with-deps chromium
       - run: npm run e2e
@@ -67,6 +68,7 @@ jobs:
           JIRA_API_TOKEN: e2e-fake-token
           SOCIAL_IG_INTERNAL_READ_KEY: e2e-fake-social-key
           BRAIN_API_TOKEN: e2e-fake-brain-token
+          WORLD_ANALYST_OPENAI_API_KEY: e2e-fake-analyst-key
       - if: failure()
         uses: actions/upload-artifact@v4
         with:

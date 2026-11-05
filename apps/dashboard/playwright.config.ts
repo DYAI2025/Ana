@@ -4,12 +4,14 @@ const PORT = Number(process.env.E2E_PORT ?? 3100);
 const FAKE_JIRA_PORT = Number(process.env.FAKE_JIRA_PORT ?? 3199);
 const FAKE_SOCIAL_PORT = Number(process.env.FAKE_SOCIAL_PORT ?? 3198);
 const FAKE_BRAIN_PORT = Number(process.env.FAKE_BRAIN_PORT ?? 3197);
+const FAKE_LLM_PORT = Number(process.env.FAKE_LLM_PORT ?? 3196);
 // E2E_BASE_URL=http://localhost:3200 reuses an already running server (fast local iteration); CI builds its own
 const external = process.env.E2E_BASE_URL;
 
 /**
  * The browser tests run the production build against a local fake Jira (e2e/fake-jira), a local fake Instagram
- * worker (e2e/fake-social) and a local fake Brain service (e2e/fake-brain) — never against real services. The
+ * worker (e2e/fake-social), a local fake Brain service (e2e/fake-brain) and a local fake model provider
+ * (e2e/fake-llm) — never against real services. The
  * credentials below are test values for those fakes only.
  */
 export default defineConfig({
@@ -51,6 +53,13 @@ export default defineConfig({
           timeout: 20_000,
         },
         {
+          command: `node e2e/fake-llm/server.mjs`,
+          url: `http://127.0.0.1:${FAKE_LLM_PORT}/__fake/health`,
+          env: { FAKE_LLM_PORT: String(FAKE_LLM_PORT), FAKE_LLM_KEY: "e2e-fake-analyst-key" },
+          reuseExistingServer: false,
+          timeout: 20_000,
+        },
+        {
           command: `npm run build && ANA_ACCESS_MODE=loopback npx next start --hostname 127.0.0.1 --port ${PORT}`,
           url: `http://127.0.0.1:${PORT}`,
           env: {
@@ -74,6 +83,13 @@ export default defineConfig({
             // the "Was läuft" writer talks MCP to the same fake Brain with a synthetic agent key
             ANA_BRAIN_MCP_URL: `http://127.0.0.1:${FAKE_BRAIN_PORT}/mcp`,
             ANA_BRAIN_WRITE_KEY: "anab_e2e-fake-agent-key-000000",
+            // the World analyst talks to the fake provider only: the test base URL counts only with the e2e controls and on loopback
+            WORLD_ANALYST_PROVIDER: "openai",
+            WORLD_ANALYST_MODEL: "fake-model",
+            WORLD_ANALYST_OPENAI_API_KEY: "e2e-fake-analyst-key",
+            WORLD_ANALYST_TEST_BASE_URL: `http://127.0.0.1:${FAKE_LLM_PORT}`,
+            WORLD_ANALYST_BRAIN_SOURCES_OPENAI: "src-ana-world-pulse",
+            WORLD_ANALYST_DAILY_CAP: "1000",
           },
           reuseExistingServer: false,
           timeout: 240_000,
