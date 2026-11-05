@@ -543,8 +543,9 @@ async function readWithExtras(b, id, wanted, k) {
   } catch (e) {
     if (notSent(e)) return skipped(b, all);
     const failed = () => ({state:'error', metrics:all.map(n => metricState(n, 'error', errorClass(e)))});
-    // a throttle or token error stops everything; anything else that is not Meta's answer is the post's error
-    if (!(e instanceof MetaError) || b.halted) return failed();
+    // this post's own throttle or token error stops everything; anything else that is not Meta's answer is its error
+    // (a halt caused by another post meanwhile shows up below as not_fetched with reason meta-throttled)
+    if (!(e instanceof MetaError) || HALT_CODES.has(e.metaCode)) return failed();
     // Meta refused or failed the call with the open extras: the known part first, then each open extra alone, so only
     // the extra that fails counts (a persistent error on the extras must not cost every post its base metrics)
     const known = await withExtras(b, id, accepted);

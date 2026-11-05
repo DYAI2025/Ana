@@ -928,6 +928,24 @@ test('social snapshot: a persistent error on every call with an extra costs no p
   assert.ok(late.every(r => Object.values(reelExtras(r)).every(m => m.state === 'error' && m.error_class === 'extra-not-learned')));
 });
 
+test('social snapshot: a throttle on another post while a Reel learns its extras leaves that Reel not_fetched, not error', async () => {
+  const env = mockEnv();
+  await connect(env);
+  // first chunk: m14 (feed) is throttled at once; m15 (the first Reel, extras open) is refused with 100 a moment later
+  installMeta({media: pagedMedia(20), mediaInsights: async u => {
+    const metrics = u.searchParams.get('metric').split(',');
+    if (u.pathname.endsWith('/m14/insights')) return metaErr(17);
+    if (u.pathname.endsWith('/m15/insights') && metrics.length > 7) { await new Promise(r => setTimeout(r, 20)); return metaErr(100); }
+    return okInsights(metrics);
+  }});
+  const body = await (await snapshot(env)).json();
+  assert.equal(body.insights.halted, 'meta-17');
+  const m15 = body.media.items.find(i => i.id === 'm15').insights;
+  assert.equal(m15.state, 'not_fetched');
+  assert.equal(m15.reason, 'meta-throttled');
+  assert.ok(m15.metrics.every(m => m.state === 'not_fetched'));
+});
+
 test('media insights endpoint: older posts keep the base metrics only', async () => {
   const env = mockEnv();
   await connect(env);
