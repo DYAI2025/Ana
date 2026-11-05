@@ -54,6 +54,17 @@ test.describe("ANA-53 · media kit", () => {
     expect(html).not.toContain("airport tips");
     expect(html).not.toContain("Island trip vlog");
     await expect(page.getByTestId("nav-world")).toHaveCount(0);
+    // a page for brands loads nothing of the dashboard: no Jira, no Brain, no world API (ANA-59)
+    const calls: string[] = [];
+    page.on("request", (r) => {
+      if (/\/api\/(work|brain|world|social)/.test(new URL(r.url()).pathname)) calls.push(r.url());
+    });
+    await page.reload();
+    await page.locator('html[data-ready="true"]').waitFor();
+    await page.waitForTimeout(1500);
+    expect(calls).toEqual([]);
+    // only the dashboard itself may frame its pages
+    expect((await page.request.get("/kit")).headers()["content-security-policy"]).toBe("frame-ancestors 'self'");
     await page.getByTestId("kit-hidden").locator("..").locator("summary").click();
     await expect(page.getByTestId("kit-hidden")).toContainText("Case studies");
   });
@@ -114,7 +125,7 @@ test.describe("ANA-53 · media kit", () => {
     await expect(page.getByTestId("kit")).toHaveAttribute("data-preset", "default");
   });
 
-  test("AC5 · 390 px: no horizontal overflow, even with long free text; reduced motion shows the final numbers", async ({ page }) => {
+  test("AC5 · 350 px (phone, and the office frame on a phone): no horizontal overflow, even with long free text; reduced motion shows the final numbers", async ({ page }) => {
     const long = "Supercalifragilisticexpialidocious".repeat(4);
     await mkdir(STATE_DIR, { recursive: true });
     await writeFile(
@@ -128,7 +139,8 @@ test.describe("ANA-53 · media kit", () => {
         addons: [{ name: long, price: long, note: long }],
       }),
     );
-    await page.setViewportSize({ width: 390, height: 844 });
+    // 350 px: the kit inside the office computer's frame on a phone is narrower than the phone
+    await page.setViewportSize({ width: 350, height: 844 });
     await page.emulateMedia({ reducedMotion: "reduce" });
     await page.goto("/kit?for=asia");
     await page.locator('html[data-ready="true"]').waitFor();

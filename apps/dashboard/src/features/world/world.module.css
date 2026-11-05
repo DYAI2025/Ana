@@ -1585,9 +1585,16 @@ button.barLabel {
 
 .officeComputer {
   display: flex;
+  flex: 1;
   flex-direction: column;
   gap: 10px;
-  height: calc(100% - 44px);
+  min-height: 0;
+}
+
+.focusGuard {
+  width: 0;
+  height: 0;
+  overflow: hidden;
 }
 
 .officeComputer p {
@@ -1598,7 +1605,10 @@ button.barLabel {
 
 /* the media kit fills the drawer: a wider drawer for the computer, the kit's own page inside */
 .officeDrawerWide {
+  display: flex;
+  flex-direction: column;
   width: min(820px, calc(100% - 24px));
+  overflow: hidden;
 }
 
 .officeKit {

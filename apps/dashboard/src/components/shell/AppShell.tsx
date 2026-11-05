@@ -3,6 +3,7 @@
 import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { useI18n } from "@/components/providers/I18nProvider";
+import { isKitPath } from "@/components/providers/Providers";
 import { NavRail } from "./NavRail";
 import { isEditableTarget, SearchPalette } from "./SearchPalette";
 import { Topbar } from "./Topbar";
@@ -12,7 +13,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const { t } = useI18n();
   const pathname = usePathname();
   // the media kit is a page for brands: no dashboard navigation, search or atmosphere around it (ANA-53)
-  const bare = pathname === "/kit" || Boolean(pathname?.startsWith("/kit/"));
+  const bare = isKitPath(pathname);
   const [searchOpen, setSearchOpen] = useState(false);
   // a fresh palette per opening: query and selection never leak from a previous search
   const [searchSession, setSearchSession] = useState(0);
