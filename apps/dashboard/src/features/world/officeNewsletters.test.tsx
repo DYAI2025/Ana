@@ -91,3 +91,21 @@ describe("the office board — what paid newsletters write about each topic", ()
     expect(screen.getByTestId("office-newsletters-asof").textContent).toBe("Newsletters: the saved readings could not be loaded, so nothing is read until that is fixed.");
   });
 });
+
+describe("the office board — Ana's older posts", () => {
+  it("says how far back the board reads and what is still being read; nothing when off", () => {
+    const w = world();
+    const hp = (id: string, day: string) => ({ id, published_at: `${day}T10:00:00.000Z`, format: "reel" as const, cover: null, reach: 1000, saves: 10, shares: 5, ssr: 0.015 });
+    const on = { ...w, post_history: { state: "on" as const, fetched_at: "2026-11-05T00:00:00.000Z", posts: [hp("h1", "2026-10-01"), hp("h2", "2026-07-03")], waiting: 12, failing: null, store_error: false } };
+    const first = show(on);
+    expect(screen.getByTestId("office-history").textContent).toBe("Ana's posts on the board: her last 2, back to Jul 3, 2026. Saves & shares of 12 older post(s) are still being read.");
+    // the history's posts count in "checked for these topics"
+    expect(screen.getByTestId("office-asof").textContent).toContain("of 7 checked");
+    first.unmount();
+    const second = show({ ...on, post_history: { ...on.post_history, posts: [], failing: "http-502" } });
+    expect(screen.getByTestId("office-history").textContent).toBe("The list of her older posts could not be read at the last try.");
+    second.unmount();
+    show(w);
+    expect(screen.queryByTestId("office-history")).toBeNull();
+  });
+});

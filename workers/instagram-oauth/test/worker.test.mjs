@@ -1148,3 +1148,59 @@ test('media history: default 100, fewer posts reported honestly', async () => {
   const body = await (await history(env)).json();
   assert.deepEqual({requested: body.media.requested_max, returned: body.media.returned, more: body.media.has_more}, {requested: 100, returned: 7, more: false});
 });
+
+const insightsOf = (env, q = '', key = INTERNAL_KEY) => worker.fetch(new Request(origin + '/internal/media-insights' + q, {headers: {Authorization: `Bearer ${key}`}}), env);
+
+test('media insights: internal key only, id validation, reauth and account checks', async () => {
+  const env = mockEnv();
+  assert.equal((await worker.fetch(new Request(origin + '/internal/media-insights?ids=1'), env)).status, 401);
+  assert.equal((await insightsOf(env, '?ids=1', ADMIN_KEY)).status, 401, 'admin key is not the internal read key');
+  assert.equal((await insightsOf(env, '?ids=1')).status, 409, 'no token -> reauth-required');
+  await connect(env);
+  const many = Array.from({length: 41}, (_, i) => String(1000 + i)).join(',');
+  for (const q of ['', '?ids=', '?ids=abc', '?ids=1,,2', '?ids=1,1', '?ids=1%2F..%2Fme', '?ids=' + many, '?ids=' + '9'.repeat(31)]) assert.equal((await insightsOf(env, q)).status, 400, q);
+  const mismatch = installMeta({me: () => Response.json({user_id: IG_USER_ID, username: 'someoneelse'})});
+  assert.equal((await insightsOf(env, '?ids=1')).status, 409, 'account mismatch');
+  assert.ok(mismatch.every(c => !c.url.pathname.endsWith('/insights')), 'no insights read for another account');
+});
+
+test('media insights: one call per post within 45, same per-metric isolation as the snapshot, no token in the output', async () => {
+  const env = mockEnv();
+  await connect(env);
+  const ids = Array.from({length: 40}, (_, i) => String(9000 + i));
+  const calls = installMeta({
+    mediaInsights: u => {
+      const id = u.pathname.split('/')[2];
+      const metrics = u.searchParams.get('metric').split(',');
+      if (id === '9001' && metrics.length > 1) return Response.json({error: {message: 'synthetic', type: 'OAuthException', code: 100}}, {status: 400});
+      if (id === '9001' && metrics[0] === 'views') return Response.json({error: {message: 'synthetic', type: 'OAuthException', code: 100}}, {status: 400});
+      return Response.json({data: metrics.map((name, i) => ({name, period: 'lifetime', values: [{value: 10 + i}]}))});
+    }
+  });
+  const r = await insightsOf(env, '?ids=' + ids.join(','));
+  assert.equal(r.status, 200);
+  const text = await r.text();
+  assert.ok(!text.includes(LONG_TOKEN) && !text.includes('access_token') && !text.includes('graph.instagram.com'));
+  const body = JSON.parse(text);
+  assert.deepEqual(body.items.map(x => x.id), ids, 'same order as asked');
+  assert.equal(body.items[0].insights.state, 'ok');
+  assert.deepEqual(body.items[0].insights.metrics.find(m => m.name === 'saved'), {name: 'saved', value: 12, state: 'ok', period: 'lifetime'});
+  assert.equal(body.items[1].insights.state, 'partial');
+  assert.equal(body.budget.limit, 45);
+  assert.equal(body.budget.used, calls.length);
+  assert.ok(calls.length <= 45);
+  // posts the budget did not reach are not_fetched, never errors
+  const skipped = body.items.filter(x => x.insights.state === 'not_fetched');
+  assert.ok(skipped.every(x => x.insights.reason === 'subrequest-budget'));
+  assert.equal(body.items.filter(x => x.insights.state === 'ok' || x.insights.state === 'partial').length + skipped.length, 40);
+});
+
+test('media insights: a throttle halts the rest and is named', async () => {
+  const env = mockEnv();
+  await connect(env);
+  installMeta({mediaInsights: () => Response.json({error: {message: 'synthetic', type: 'OAuthException', code: 4}}, {status: 400})});
+  const body = await (await insightsOf(env, '?ids=1,2,3,4,5,6,7')).json();
+  assert.equal(body.halted, 'meta-4');
+  assert.ok(body.items.every(x => x.insights.state === 'error' || x.insights.state === 'not_fetched'));
+  assert.ok(body.items.slice(5).every(x => x.insights.state === 'not_fetched'));
+});

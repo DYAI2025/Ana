@@ -8,6 +8,9 @@
  * it is a later step. Every number here comes from that run and was spot-checked against an independent Reddit archive.
  */
 
+import type { WorldPost } from "./model";
+import type { WorldPostHistory } from "./types";
+
 export type OfficeLane = "opportunities" | "templates" | "stories";
 export type OfficeQuadrant = "starter" | "test" | "niche" | "skip";
 
@@ -203,6 +206,21 @@ export function reactionsOf(t: OfficeTopic): number {
  * Places every topic in the matrix. postTopics = topic ids per post as read by the model (null when the reader is off);
  * posts without a measured save+share rate never count.
  */
+/**
+ * The posts the office reads: the snapshot's (live numbers) and Ana's older posts from the history list (Ben,
+ * 2026-11-05: her last 200), each post once; the snapshot wins where both have it.
+ */
+export function officePosts(posts: readonly WorldPost[], history: Pick<WorldPostHistory, "posts"> | null): WorldPost[] {
+  const out = [...posts];
+  const known = new Set(posts.map((p) => p.id));
+  for (const h of history?.posts ?? []) {
+    if (known.has(h.id)) continue;
+    known.add(h.id);
+    out.push({ id: h.id, format: h.format, caption: null, permalink: null, published_at: h.published_at, reach: h.reach, views: null, saves: h.saves, shares: h.shares, interactions: null, likes: null, comments: null, counters_at: null, er: null, ssr: h.ssr, fresh: false, cover: h.cover });
+  }
+  return out;
+}
+
 export function officeView(topics: readonly OfficeTopic[], posts: ReadonlyArray<{ id: string; ssr: number | null }>, postTopics: Readonly<Record<string, readonly string[]>> | null): OfficeView {
   const threshold = medianOf(topics.map(reactionsOf)) ?? 0;
   const rated = posts.filter((p) => p.ssr !== null && Number.isFinite(p.ssr));

@@ -11,6 +11,7 @@ import { createVisionReader, visionConfigFromEnv } from "./vision";
 import { createPostTagger } from "./tagger";
 import { createTopicTagger } from "./topicTagger";
 import { createNewsletterReader, type NewsletterReader } from "./newsletterReader";
+import { createPostHistory } from "./postHistory";
 import { brainCaller, brainWriterConfigFromEnv, createBrainWriter } from "./brainWriter";
 import { createBriefService, type BriefService } from "./briefService";
 
@@ -70,6 +71,8 @@ export function worldServiceFromEnv(): WorldService {
         // the office topics: same model, same agreement (cover + caption in, only topic ids kept)
         topicTagger: vision ? createTopicTagger(vision) : null,
         newsletters,
+        // Ana's last 200 posts for the office board (Ben, 2026-11-05): same worker and key as the snapshot
+        postHistory: config ? createPostHistory(config) : null,
         // agent:lumen, Ben's approval of 2026-11-03: aggregated numbers only, never CONFIRMED
         brain: brain ? createBrainWriter(brain) : null,
         brief,

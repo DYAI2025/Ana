@@ -39,6 +39,10 @@ const SNAPSHOT_INSIGHT_CONCURRENCY = 5;
 const HISTORY_DEFAULT_MAX = 100;
 const HISTORY_MAX = 200;
 const HISTORY_SUBREQUEST_BUDGET = 14;
+// Insights of given posts (the older ones the snapshot does not reach): up to 40 per call, one Meta call per post
+// normally, within the snapshot's budget of 45.
+const INSIGHTS_MAX_IDS = 40;
+const INSIGHTS_SUBREQUEST_BUDGET = 45;
 const MEDIA_INSIGHT_METRICS = ['reach','views','saved','shares','likes','comments','total_interactions'];
 const ACCOUNT_METRICS = ['reach','views','accounts_engaged','total_interactions'];
 const ACCOUNT_WINDOW_DAYS = 28;
@@ -578,6 +582,32 @@ async function readMediaHistory(req,env,url) {
     budget:{limit:b.limit, used:b.used}
   });
 }
+// Lifetime insights of the given posts (ids from /internal/media-history), same metrics, per-metric isolation, throttle
+// halt and budget rule as the snapshot. The account is checked first; Meta answers only for media of the token's account.
+async function readMediaInsights(req,env,url) {
+  if(!(await authorizeAdmin(req,env,'INTERNAL_READ_KEY')))return json({error:'unauthorized'},401);
+  const raw=url.searchParams.get('ids')||'';
+  const ids=raw.split(',');
+  if(raw.length>INSIGHTS_MAX_IDS*31 || ids.length<1 || ids.length>INSIGHTS_MAX_IDS || ids.some(id=>!/^\d{1,30}$/.test(id)) || new Set(ids).size!==ids.length)return json({error:'invalid-ids'},400);
+  const token=await usableToken(env);
+  if(!token)return json({error:'reauth-required'},409);
+  const b=metaBudget(token,INSIGHTS_SUBREQUEST_BUDGET);
+  try {
+    const identity=await snapshotIdentity(b);
+    if(!isExpectedAccount(identity.me,env))return json({error:'account-mismatch'},409);
+  } catch(e) { return json({error:'instagram-media-fetch-failed',reason:errorClass(e)},502); }
+  const insights=new Array(ids.length);
+  for (let i=0;i<ids.length;i+=SNAPSHOT_INSIGHT_CONCURRENCY) {
+    const chunk=ids.slice(i,i+SNAPSHOT_INSIGHT_CONCURRENCY);
+    const results=await Promise.all(chunk.map(id=>mediaInsights(b,id)));
+    results.forEach((r,j)=>{insights[i+j]=r;});
+  }
+  return json({
+    insights_version:1, fetched_at:new Date().toISOString(), provider:'instagram', api_version:GRAPH_VERSION, account:{id:String(env.EXPECTED_IG_USER_ID)},
+    requested_metrics:MEDIA_INSIGHT_METRICS, halted:b.halted, budget:{limit:b.limit, used:b.used},
+    items:ids.map((id,i)=>({id, insights:insights[i]}))
+  });
+}
 // ---- World pulse and audience (ANA World, additive internal read contracts) ----
 // Pulse: one cheap read of the newest posts' public counters so the dashboard can show real like/comment deltas
 // within a minute. Audience: Meta's aggregated demographics (top 45, up to 48 h delayed). Neither carries per-like or
@@ -722,6 +752,7 @@ async function route(req,env,url) {
   if(req.method==='GET' && url.pathname==='/internal/media')return readMedia(req,env,url);
   if(req.method==='GET' && url.pathname==='/internal/social-snapshot')return readSocialSnapshot(req,env,url);
   if(req.method==='GET' && url.pathname==='/internal/media-history')return readMediaHistory(req,env,url);
+  if(req.method==='GET' && url.pathname==='/internal/media-insights')return readMediaInsights(req,env,url);
   if(req.method==='GET' && url.pathname==='/internal/social-pulse')return readSocialPulse(req,env,url);
   if(req.method==='GET' && url.pathname==='/internal/social-audience')return readSocialAudience(req,env);
   if(req.method==='GET' && url.pathname==='/instagram/start')return startPage(req,env,url);
