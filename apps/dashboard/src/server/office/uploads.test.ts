@@ -1,5 +1,4 @@
 // @vitest-environment node
-import { randomBytes } from "node:crypto";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -27,10 +26,13 @@ afterEach(() => {
   fs.rmSync(dir, { recursive: true, force: true });
 });
 
-/** An ~8.7 MB PNG of random pixels (nothing compresses noise), 1700 x 1700. */
+/**
+ * An ~8.7 MB PNG, 1700 x 1700, stored without compression: as large as a phone screenshot gets, but a plain colour,
+ * so encoding it is cheap and the test does not slow down the rest of the suite on a busy CI runner.
+ */
 async function bigPng(): Promise<Buffer> {
   const w = 1700;
-  return sharp(randomBytes(w * w * 3), { raw: { width: w, height: w, channels: 3 } }).png({ compressionLevel: 0 }).toBuffer();
+  return sharp({ create: { width: w, height: w, channels: 3, background: "#e8a598" } }).png({ compressionLevel: 0 }).toBuffer();
 }
 
 describe("picture uploads", () => {
