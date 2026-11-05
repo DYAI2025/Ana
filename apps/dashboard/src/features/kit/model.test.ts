@@ -73,6 +73,9 @@ describe("buildKit — numbers", () => {
     expect(t.watch).toMatchObject({ value: 28.13, kind: "seconds" });
     expect(t.hold).toMatchObject({ value: 65.5, kind: "percent" });
     expect(m.hero.tiles.map((x) => x.id)).toEqual(["followers", "reach", "views"]);
+    // the hero says the period: 28-day totals never read as all-time; the rate says it is by reach
+    expect(m.hero.tiles.map((x) => x.short)).toEqual([null, "Last 28 days", "Last 28 days"]);
+    expect(t.engagement).toMatchObject({ label: "Engagement rate (by reach)", short: "Interactions ÷ reach, 28 days" });
   });
 
   it("without a pulse the snapshot's followers count; without reach there is no engagement rate", () => {
@@ -155,6 +158,15 @@ describe("buildKit — audience per preset", () => {
     expect(fallback.basis_label).toBe("Engaged accounts · last 30 days");
   });
 
+  it("each country group is capped on its own: the biggest market elsewhere never drops out", () => {
+    const rows: Array<[string, number]> = [["DE", 30], ["IN", 9], ["TH", 8], ["ID", 7], ["VN", 6], ["PH", 5], ["MY", 4], ["SG", 3], ["JP", 2], ["US", 20], ["GB", 6]];
+    const a = sectionOf(buildKit({ world: world((w) => { w.audience.engaged_country = series(rows); }), config: EMPTY_KIT_CONFIG, presetId: "asia" }), "audience")!.audience;
+    expect(a.countries.filter((c) => c.focus).map((c) => c.code)).toEqual(["IN", "TH", "ID", "VN", "PH", "MY"]);
+    expect(a.countries.filter((c) => !c.focus).map((c) => c.code)).toEqual(["DE", "US"]);
+    // the focus share counts every listed market, not only the ones shown
+    expect(a.focus!.share).toBeCloseTo(44 / 100, 9);
+  });
+
   it("the default has no focus; ages in band order, genders labelled, unknown keys dropped", () => {
     const a = sectionOf(buildKit({ world: world(), config: EMPTY_KIT_CONFIG }), "audience")!.audience;
     expect(a.focus).toBeNull();
@@ -177,15 +189,25 @@ describe("buildKit — Reels", () => {
     expect(r.map((x) => x.id)).toEqual(["r2", "r4", "r1", "r3"]);
     expect(r[0]).toMatchObject({ link: "https://www.instagram.com/reel/r2/", cover: "https://scontent.cdninstagram.com/r2.jpg", views: 90_000, watch_s: 15 });
     expect(r[1]).toMatchObject({ link: null, cover: null, watch_s: null });
-    // a Reel without views is ranked by its reach
+    // a Reel without views comes after every Reel with views, however large its reach
     expect(r[3]).toMatchObject({ views: null, reach: 900 });
+  });
+
+  it("Reels with measured views always rank before Reels with only a reach", () => {
+    const big = reel("big", null);
+    big.observations = big.observations.map((x) => (x.metric_name === "reach" ? { ...x, value: 5_000_000 } : x));
+    const r = sectionOf(buildKit({ world: world((w) => { if (w.instagram.ok) w.instagram.snapshot.posts.push(big); }), config: EMPTY_KIT_CONFIG }), "reels")!.reels;
+    expect(r.map((x) => x.id)).toEqual(["r2", "r4", "r1", "big", "r3"]);
   });
 
   it("a preset's Reels in its order; ids not in the snapshot are skipped", () => {
     const config = parseKitConfig({ presets: { b: { reels: ["r1", "gone", "r3"] } } });
     const m = buildKit({ world: world(), config, presetId: "b" });
     expect(sectionOf(m, "reels")!.reels.map((x) => x.id)).toEqual(["r1", "r3"]);
-    expect(m.hero.covers).toEqual(["https://scontent.cdninstagram.com/r1.jpg", "https://scontent.cdninstagram.com/r3.jpg"]);
+    expect(m.hero.covers).toEqual([
+      { id: "r1", src: "https://scontent.cdninstagram.com/r1.jpg" },
+      { id: "r3", src: "https://scontent.cdninstagram.com/r3.jpg" },
+    ]);
   });
 });
 

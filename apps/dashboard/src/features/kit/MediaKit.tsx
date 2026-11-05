@@ -1,106 +1,16 @@
-"use client";
-
-import { useEffect, useRef, useState, type ReactNode } from "react";
-import type { KitAudience, KitModel, KitReel, KitSection, KitTile, KitValueKind } from "./model";
+import { formatValue, KIT_LOCALE } from "./format";
+import type { KitAudience, KitModel, KitReel, KitSection, KitTile } from "./model";
+import { CountUp, Cover, Reveal } from "./motion";
 import styles from "./kit.module.css";
 
 /**
  * The media kit page (ANA-53). Bright and calm: Ana's covers large, serif headings, clean large numbers, sand and sea
  * blue as the only accents, sections that rise in gently and numbers that count up once when they come into view.
- * With reduced motion (or without JavaScript) everything is simply there, with its final numbers.
+ * A server component: the model stays on the server; only the small client parts in motion.tsx get props.
  */
 
-const LOCALE = "en";
-const compact = new Intl.NumberFormat(LOCALE, { notation: "compact", maximumFractionDigits: 1 });
-const grouped = new Intl.NumberFormat(LOCALE, { maximumFractionDigits: 0 });
-const oneDecimal = new Intl.NumberFormat(LOCALE, { minimumFractionDigits: 1, maximumFractionDigits: 1 });
-const pct = new Intl.NumberFormat(LOCALE, { style: "percent", maximumFractionDigits: 0 });
-
-export function formatValue(value: number, kind: KitValueKind): string {
-  if (kind === "percent") return `${oneDecimal.format(value)}%`;
-  if (kind === "seconds") return `${oneDecimal.format(value)} s`;
-  return value >= 10_000 ? compact.format(value) : grouped.format(value);
-}
-const share = (s: number) => pct.format(s);
-
-const reducedMotion = () => typeof window === "undefined" || !window.matchMedia || window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-const belowFold = (el: Element) => el.getBoundingClientRect().top > window.innerHeight * 0.92;
-
-/** A section that rises in when it scrolls into view; one already on screen stays as it is. */
-function Reveal({ children, className, as: Tag = "section", ...rest }: { children: ReactNode; className?: string; as?: "section" | "div" } & Partial<Record<`data-${string}` | "aria-labelledby" | "id", string>>) {
-  const ref = useRef<HTMLElement>(null);
-  useEffect(() => {
-    const el = ref.current;
-    if (!el || reducedMotion() || !("IntersectionObserver" in window) || !belowFold(el)) return;
-    el.dataset.reveal = "wait";
-    const io = new IntersectionObserver(
-      (entries) => {
-        if (entries.some((e) => e.isIntersecting)) {
-          el.dataset.reveal = "in";
-          io.disconnect();
-        }
-      },
-      { rootMargin: "0px 0px -8% 0px" },
-    );
-    io.observe(el);
-    return () => io.disconnect();
-  }, []);
-  return (
-    <Tag ref={ref as never} className={`${styles.reveal} ${className ?? ""}`} {...rest}>
-      {children}
-    </Tag>
-  );
-}
-
-/** A number that counts up from 0 once it is seen. The final value is what the server rendered and what assistive technology reads. */
-function CountUp({ value, kind }: { value: number; kind: KitValueKind }) {
-  const ref = useRef<HTMLSpanElement>(null);
-  useEffect(() => {
-    const el = ref.current;
-    if (!el || reducedMotion() || !("IntersectionObserver" in window)) return;
-    let frame = 0;
-    const run = () => {
-      const start = performance.now();
-      const step = (t: number) => {
-        const k = Math.min(1, (t - start) / 1400);
-        const eased = 1 - Math.pow(1 - k, 3);
-        el.textContent = formatValue(k === 1 ? value : value * eased, kind);
-        if (k < 1) frame = requestAnimationFrame(step);
-      };
-      frame = requestAnimationFrame(step);
-    };
-    el.textContent = formatValue(0, kind);
-    const io = new IntersectionObserver((entries) => {
-      if (entries.some((e) => e.isIntersecting)) {
-        io.disconnect();
-        run();
-      }
-    });
-    io.observe(el);
-    return () => {
-      io.disconnect();
-      cancelAnimationFrame(frame);
-      el.textContent = formatValue(value, kind);
-    };
-  }, [value, kind]);
-  const final = formatValue(value, kind);
-  return (
-    <>
-      <span ref={ref} aria-hidden="true" data-final={final}>
-        {final}
-      </span>
-      <span className={styles.srOnly}>{final}</span>
-    </>
-  );
-}
-
-function Cover({ src, className }: { src: string | null; className?: string }) {
-  const [broken, setBroken] = useState(false);
-  if (!src || broken) return <span className={`${styles.coverEmpty} ${className ?? ""}`} aria-hidden="true" />;
-  // Meta's CDN picture as it is (no Next image optimisation of a third-party URL)
-  // eslint-disable-next-line @next/next/no-img-element
-  return <img className={className} src={src} alt="" referrerPolicy="no-referrer" loading="lazy" onError={() => setBroken(true)} />;
-}
+const LOCALE = KIT_LOCALE;
+const share = (s: number) => formatValue(s, "share");
 
 function Tile({ tile, big = false }: { tile: KitTile; big?: boolean }) {
   return (
@@ -109,7 +19,7 @@ function Tile({ tile, big = false }: { tile: KitTile; big?: boolean }) {
         <CountUp value={tile.value} kind={tile.kind} />
       </b>
       <span className={styles.tileLabel}>{tile.label}</span>
-      {big ? null : <small className={styles.tileNote}>{tile.note}</small>}
+      {big ? tile.short ? <small className={styles.tileNote}>{tile.short}</small> : null : <small className={styles.tileNote}>{tile.note}</small>}
     </div>
   );
 }
@@ -139,7 +49,7 @@ function WorldMap({ audience }: { audience: KitAudience }) {
       <svg viewBox={`0 0 ${map.land.width} ${map.land.height}`} role="img" aria-label={`World map of the audience. Largest: ${top}.`}>
         <path d={map.land.path} className={styles.land} />
         {markers.map((m) => (
-          <g key={m.code} className={m.focus ? styles.markerFocus : styles.marker} data-code={m.code}>
+          <g key={m.code} className={m.focus ? styles.markerFocus : styles.marker} data-code={m.code} data-focus={m.focus ? "true" : undefined}>
             {pulsing.has(m.code) ? <circle cx={m.x} cy={m.y} r={m.r} className={styles.ring} /> : null}
             <circle cx={m.x} cy={m.y} r={m.r} />
           </g>
@@ -149,15 +59,16 @@ function WorldMap({ audience }: { audience: KitAudience }) {
   );
 }
 
-function Bars({ rows, testid }: { rows: Array<{ key: string; label: string; share: number; focus?: boolean }>; testid: string }) {
-  const max = Math.max(...rows.map((r) => r.share), 0.0001);
+/** `scale` is the share drawn at full width: shared by lists that are compared (the two country groups) */
+function Bars({ rows, testid, scale }: { rows: Array<{ key: string; label: string; share: number; focus?: boolean }>; testid: string; scale?: number }) {
+  const max = Math.max(scale ?? 0, ...rows.map((r) => r.share), 0.0001);
   return (
     <ul className={styles.bars} data-testid={testid}>
       {rows.map((r) => (
         <li key={r.key} data-focus={r.focus ? "true" : undefined}>
           <span className={styles.barLabel}>{r.label}</span>
           <span className={styles.barTrack} aria-hidden="true">
-            <span className={styles.barFill} style={{ width: `${(r.share / max) * 100}%` }} />
+            <span className={styles.barFill} data-width={Math.round((r.share / max) * 1000) / 10} style={{ width: `${(r.share / max) * 100}%` }} />
           </span>
           <span className={styles.barValue}>{share(r.share)}</span>
         </li>
@@ -170,6 +81,8 @@ function AudienceSection({ audience, n }: { audience: KitAudience; n: number }) 
   const focus = audience.countries.filter((c) => c.focus);
   const rest = audience.countries.filter((c) => !c.focus);
   const row = (c: KitAudience["countries"][number]) => ({ key: c.code, label: c.name, share: c.share, focus: c.focus });
+  // one scale for both groups: a bar's length compares with every other country, not only its own group
+  const scale = Math.max(0, ...audience.countries.map((c) => c.share));
   return (
     <Reveal className={styles.section} aria-labelledby="kit-audience" data-testid="kit-audience">
       <Heading n={n} overline="Audience" title="Who watches" id="kit-audience" />
@@ -177,7 +90,7 @@ function AudienceSection({ audience, n }: { audience: KitAudience; n: number }) 
       {audience.focus ? (
         <p className={styles.focusLine} data-testid="kit-focus">
           <b className={styles.focusValue}>
-            <CountUp value={audience.focus.share * 100} kind="percent" />
+            <CountUp value={audience.focus.share} kind="share" />
           </b>
           <span>
             of the {audience.basis === "followers" ? "followers" : "engaged accounts"} Instagram lists by country are in {audience.focus.label}
@@ -192,11 +105,11 @@ function AudienceSection({ audience, n }: { audience: KitAudience; n: number }) 
             {focus.length ? (
               <>
                 <p className={styles.group}>Your markets</p>
-                <Bars rows={focus.map(row)} testid="kit-countries-focus" />
+                <Bars rows={focus.map(row)} testid="kit-countries-focus" scale={scale} />
                 {rest.length ? <p className={styles.group}>Elsewhere</p> : null}
               </>
             ) : null}
-            {rest.length ? <Bars rows={rest.map(row)} testid="kit-countries" /> : null}
+            {rest.length ? <Bars rows={rest.map(row)} testid="kit-countries" scale={scale} /> : null}
           </div>
         ) : null}
         {audience.age.length ? (
@@ -237,6 +150,7 @@ function ReelCard({ reel }: { reel: KitReel }) {
       <Cover src={reel.cover} className={styles.reelCover} />
       <span className={styles.reelShade} aria-hidden="true" />
       <span className={styles.reelMeta}>
+        {reel.link ? <span className={styles.srOnly}>Reel on Instagram:</span> : null}
         {reel.views !== null ? (
           <span>
             <b>{formatValue(reel.views, "count")}</b> views
@@ -256,7 +170,7 @@ function ReelCard({ reel }: { reel: KitReel }) {
     </>
   );
   return reel.link ? (
-    <a className={styles.reel} href={reel.link} target="_blank" rel="noreferrer noopener" data-testid="kit-reel" aria-label={`Reel on Instagram${reel.views !== null ? `, ${formatValue(reel.views, "count")} views` : ""}`}>
+    <a className={styles.reel} href={reel.link} target="_blank" rel="noreferrer noopener" data-testid="kit-reel">
       {body}
     </a>
   ) : (
@@ -418,7 +332,7 @@ export function MediaKit({ model, preview = false }: { model: KitModel; preview?
           ) : null}
         </div>
         <div className={styles.mosaic} data-count={model.hero.covers.length} aria-hidden="true">
-          {model.hero.covers.length ? model.hero.covers.map((c, i) => <Cover key={c} src={c} className={styles[`m${i}`]} />) : <span className={styles.mosaicEmpty} />}
+          {model.hero.covers.length ? model.hero.covers.map((c, i) => <Cover key={c.id} src={c.src} className={styles[`m${i}`]} />) : <span className={styles.mosaicEmpty} />}
         </div>
       </header>
       <main id="main" className={styles.main} tabIndex={-1}>

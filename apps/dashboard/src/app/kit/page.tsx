@@ -11,10 +11,10 @@ import { worldServiceFromEnv } from "@/server/world/shared";
 // live numbers on every view: never a build-time copy
 export const dynamic = "force-dynamic";
 
-export const metadata: Metadata = {
-  title: "Ana Savu · Media Kit",
-  robots: { index: false, follow: false },
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const { config } = await readKitConfig();
+  return { title: `${config.name ?? "Ana Savu"} · Media Kit`, robots: { index: false, follow: false } };
+}
 
 /**
  * The media kit (ANA-53), slice 1: an internal preview behind the dashboard's access gate. Rendered on the server

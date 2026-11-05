@@ -673,3 +673,15 @@ a.reel:focus-visible {
     display: none;
   }
 }
+
+/* printed or saved as PDF: every section in full, whether it was scrolled to or not */
+@media print {
+  .reveal[data-reveal] {
+    opacity: 1;
+    transform: none;
+  }
+  .preview,
+  .ring {
+    display: none;
+  }
+}

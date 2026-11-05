@@ -46,6 +46,10 @@ test.describe("ANA-53 · media kit", () => {
     expect(await page.getByTestId("kit-reel").count()).toBeGreaterThan(0);
     for (const id of ["kit-proof", "kit-packages", "kit-cta", "kit-tagline"]) await expect(page.getByTestId(id)).toHaveCount(0);
     await expect(page.getByTestId("kit")).not.toContainText("—");
+    // captions never reach the page, not even in the serialized data of the HTML
+    const html = await (await page.request.get("/kit")).text();
+    expect(html).not.toContain("airport tips");
+    expect(html).not.toContain("Island trip vlog");
     await expect(page.getByTestId("nav-world")).toHaveCount(0);
     await page.getByTestId("kit-hidden").locator("..").locator("summary").click();
     await expect(page.getByTestId("kit-hidden")).toContainText("Case studies");
@@ -76,6 +80,11 @@ test.describe("ANA-53 · media kit", () => {
     await expect(page.getByTestId("kit")).toHaveAttribute("data-preset", "west");
     await expect(page.getByTestId("kit-audience")).toContainText("Followers");
     await expect(page.getByTestId("kit-focus")).toContainText("US, UK & Europe");
+    // the fake's followers: Germany, the US and Spain, all in the preset's markets, by share and highlighted
+    const focusRows = page.getByTestId("kit-countries-focus").locator("li");
+    await expect(focusRows).toHaveText([/Germany/, /United States/, /Spain/]);
+    await expect(page.getByTestId("kit-countries-focus").locator('li[data-focus="true"]')).toHaveCount(3);
+    expect(await page.locator('[data-testid="kit-map"] g[data-focus="true"]').count()).toBeGreaterThan(0);
     await expect(page.getByTestId("kit-preset-west")).toHaveAttribute("aria-current", "page");
     // the audience comes before the numbers for a brand preset
     const order = await page.locator("main > section").evaluateAll((els) => els.map((e) => e.getAttribute("data-testid")));
@@ -95,6 +104,16 @@ test.describe("ANA-53 · media kit", () => {
     await page.goto("/kit?for=asia");
     await page.locator('html[data-ready="true"]').waitFor();
     expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(0);
+    // the page clips sideways overflow, so check that nothing is cut off at the edge either
+    const cut = await page.evaluate(() =>
+      Array.from(document.querySelectorAll('[data-testid="kit"] *'))
+        .filter((el) => {
+          const r = el.getBoundingClientRect();
+          return r.width > 0 && (r.right > window.innerWidth + 0.5 || r.left < -0.5) && !el.closest("[class*=srOnly]");
+        })
+        .map((el) => `${el.tagName}.${el.className}`.slice(0, 60)),
+    );
+    expect(cut).toEqual([]);
     await page.getByTestId("kit-reels").scrollIntoViewIfNeeded();
     const shown = await page.locator("[data-final]").evaluateAll((els) => els.map((e) => [e.textContent, e.getAttribute("data-final")]));
     expect(shown.length).toBeGreaterThan(3);

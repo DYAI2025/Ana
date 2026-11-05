@@ -73,7 +73,8 @@ const https = (v: unknown): string | null => {
     return null;
   }
 };
-const EMAIL = /^[^\s@<>"]+@[^\s@<>"]+\.[^\s@<>"]+$/;
+// plain addresses only: no "?", "&", "#", "%" or "," that would add mailto headers (a hidden bcc) or more recipients
+const EMAIL = /^[A-Za-z0-9._+-]+@[A-Za-z0-9-]+(\.[A-Za-z0-9-]+)*\.[A-Za-z]{2,}$/;
 export const PRESET_ID = /^[a-z0-9][a-z0-9-]{0,39}$/;
 const CODE = /^[A-Z]{2}$/;
 

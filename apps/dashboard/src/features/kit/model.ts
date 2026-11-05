@@ -12,7 +12,8 @@ import type { KitAddon, KitCase, KitConfig, KitPackage } from "./config";
 import { project, type KitGeo, type KitLand } from "./map";
 import { presetList, resolvePreset, type KitPreset, type KitSectionId, type KitTileId } from "./presets";
 
-export type KitValueKind = "count" | "percent" | "seconds";
+/** "percent" is 0..100 with one decimal, "share" a 0..1 share shown as a whole percent */
+export type KitValueKind = "count" | "percent" | "seconds" | "share";
 
 export interface KitTile {
   id: KitTileId;
@@ -21,6 +22,8 @@ export interface KitTile {
   kind: KitValueKind;
   /** how the number is defined, shown small under it */
   note: string;
+  /** the period or basis in a few words, for the hero where the full note does not fit; null when the label says it all */
+  short: string | null;
 }
 
 export interface KitCountry {
@@ -76,7 +79,7 @@ export interface KitModel {
   name: string;
   handle: string | null;
   tagline: string | null;
-  hero: { covers: string[]; tiles: KitTile[] };
+  hero: { covers: Array<{ id: string; src: string }>; tiles: KitTile[] };
   sections: KitSection[];
   contact: { href: string; label: string } | null;
   /** when Instagram measured the numbers; null without a snapshot */
@@ -89,6 +92,8 @@ export interface KitModel {
 }
 
 const MAX_COUNTRIES = 8;
+/** at most 6 of the brand's markets, so at least 2 countries elsewhere stay in the list of 8 */
+const MAX_FOCUS = 6;
 const MAX_REELS = 6;
 const HERO_COVERS = 5;
 const AGE_ORDER = ["13-17", "18-24", "25-34", "35-44", "45-54", "55-64", "65+"];
@@ -101,23 +106,24 @@ const verified = (list: readonly Observation[], metric: CanonicalMetric): number
 
 function tiles(world: WorldPayload, snapshot: SocialSnapshot | null): Map<KitTileId, KitTile> {
   const out = new Map<KitTileId, KitTile>();
-  const add = (id: KitTileId, label: string, value: number | null, kind: KitValueKind, note: string) => {
-    if (value !== null && Number.isFinite(value)) out.set(id, { id, label, value, kind, note });
+  const add = (id: KitTileId, label: string, value: number | null, kind: KitValueKind, note: string, short: string | null) => {
+    if (value !== null && Number.isFinite(value) && value >= 0) out.set(id, { id, label, value, kind, note, short });
   };
   const account = snapshot?.account ?? [];
   const pulseFollowers = world.pulse.state === "ok" && typeof world.pulse.followers === "number" ? world.pulse.followers : null;
-  add("followers", "Followers", pulseFollowers ?? verified(account, "followers"), "count", "Instagram followers");
+  add("followers", "Followers", pulseFollowers ?? verified(account, "followers"), "count", "Instagram followers", null);
   const reach = verified(account, "reach");
   const interactions = verified(account, "total_interactions");
-  add("reach", "Accounts reached", reach, "count", "Unique accounts, last 28 days");
-  add("views", "Views", verified(account, "views"), "count", "All content, last 28 days");
-  add("engaged", "Accounts engaged", verified(account, "accounts_engaged"), "count", "Accounts that interacted, last 28 days");
-  add("interactions", "Interactions", interactions, "count", "Likes, comments, saves and shares, last 28 days");
-  add("engagement", "Engagement rate", reach && interactions !== null ? (interactions / reach) * 100 : null, "percent", "Interactions per account reached, last 28 days");
+  add("reach", "Accounts reached", reach, "count", "Unique accounts, last 28 days", "Last 28 days");
+  add("views", "Views", verified(account, "views"), "count", "All content, last 28 days", "Last 28 days");
+  add("engaged", "Accounts engaged", verified(account, "accounts_engaged"), "count", "Accounts that interacted, last 28 days", "Last 28 days");
+  add("interactions", "Interactions", interactions, "count", "Likes, comments, saves and shares, last 28 days", "Last 28 days");
+  // by reach, not by followers: the label says so, because brands often compare follower-based rates
+  add("engagement", "Engagement rate (by reach)", reach && interactions !== null ? (interactions / reach) * 100 : null, "percent", "Interactions ÷ accounts reached, last 28 days", "Interactions ÷ reach, 28 days");
   const v = world.reel_viewing;
   if (v.state === "on") {
-    add("watch", "Watch time per Reel", v.watch_ms === null ? null : v.watch_ms / 1000, "seconds", `Median of the average watch time, ${v.reels} recent Reels`);
-    add("hold", "Stay past 3 seconds", v.skip_pct === null ? null : 100 - v.skip_pct, "percent", `Share of Reel views not skipped in the first 3 s, median of ${v.skip_reels} Reels`);
+    add("watch", "Watch time per Reel", v.watch_ms === null ? null : v.watch_ms / 1000, "seconds", `Median of the average watch time, ${v.reels} recent Reels`, "Median, recent Reels");
+    add("hold", "Stay past 3 seconds", v.skip_pct === null ? null : 100 - v.skip_pct, "percent", `Share of Reel views not skipped in the first 3 s, median of ${v.skip_reels} Reels`, "Median, recent Reels");
   }
   return out;
 }
@@ -164,8 +170,11 @@ function audience(world: WorldPayload, preset: KitPreset, geo: KitGeo | null): K
         .map((r) => ({ code: r.key.toUpperCase(), name: name(r.key.toUpperCase()), share: r.share, focus: focusSet.has(r.key.toUpperCase()) }))
         .sort((x, y) => y.share - x.share)
     : [];
-  // the brand's markets first (still by share), then the rest: two labelled groups, never a re-ranked list
-  const countries = [...all.filter((c) => c.focus), ...all.filter((c) => !c.focus)].slice(0, MAX_COUNTRIES);
+  // the brand's markets first (still by share), then the rest: two labelled groups, never a re-ranked list. Each group
+  // is capped on its own, so the biggest countries elsewhere never drop out behind a long list of markets.
+  const inFocus = all.filter((c) => c.focus).slice(0, MAX_FOCUS);
+  const elsewhere = all.filter((c) => !c.focus);
+  const countries = [...inFocus, ...elsewhere.slice(0, MAX_COUNTRIES - inFocus.length)];
   const focusShare = all.filter((c) => c.focus).reduce((s, c) => s + c.share, 0);
   const who = pickWho(world, chosen?.basis ?? preset.lead);
   const age = who
@@ -235,10 +244,18 @@ function reels(snapshot: SocialSnapshot | null, preset: KitPreset): KitReel[] {
     const byId = new Map(all.map((p) => [p.media_id, p]));
     return preset.reels.map((id) => byId.get(id)).filter((p): p is SocialPost => Boolean(p)).slice(0, MAX_REELS).map(reel);
   }
-  const score = (p: SocialPost) => verified(p.observations, "views") ?? verified(p.observations, "reach") ?? -1;
+  // Reels with measured views first, by views; Reels with only a reach after them, by reach (never one mixed ranking)
+  const views = (p: SocialPost) => verified(p.observations, "views");
+  const reach = (p: SocialPost) => verified(p.observations, "reach");
   return all
-    .filter((p) => score(p) >= 0)
-    .sort((x, y) => score(y) - score(x))
+    .filter((p) => views(p) !== null || reach(p) !== null)
+    .sort((x, y) => {
+      const vx = views(x);
+      const vy = views(y);
+      if (vx !== null && vy !== null) return vy - vx;
+      if (vx !== null || vy !== null) return vx !== null ? -1 : 1;
+      return (reach(y) ?? 0) - (reach(x) ?? 0);
+    })
     .slice(0, MAX_REELS)
     .map(reel);
 }
@@ -295,8 +312,8 @@ export function buildKit({ world, config, presetId, geo = null, configError = fa
     tagline: config.tagline,
     hero: {
       covers: kitReels
-        .map((r) => r.cover)
-        .filter((c): c is string => c !== null)
+        .filter((r): r is KitReel & { cover: string } => r.cover !== null)
+        .map((r) => ({ id: r.id, src: r.cover }))
         .slice(0, HERO_COVERS),
       tiles: shownTiles.slice(0, 3),
     },

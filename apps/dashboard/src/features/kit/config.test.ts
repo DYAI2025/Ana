@@ -32,6 +32,9 @@ describe("parseKitConfig — Ana's content, lenient, nothing invented", () => {
   it("a contact without a valid e-mail is no contact; an https link is kept", () => {
     expect(parseKitConfig({ contact: { email: "not an email" } }).contact).toBeNull();
     expect(parseKitConfig({ contact: { email: "a@b.c<script>" } }).contact).toBeNull();
+    // nothing that would add mailto headers or recipients
+    for (const email of ["a@b.co?bcc=x@y.z", "a@b.co&cc=x@y.z", "a@b.co,x@y.z", "a%3F@b.co", "a@b.co#x"]) expect(parseKitConfig({ contact: { email } }).contact, email).toBeNull();
+    expect(parseKitConfig({ contact: { email: "ana.savu+brands@mail.example.com" } }).contact?.email).toBe("ana.savu+brands@mail.example.com");
     expect(parseKitConfig({ cases: [{ brand: "B", link: "https://example.com/work" }] }).cases[0]?.link).toBe("https://example.com/work");
   });
 
