@@ -338,12 +338,19 @@ test('concurrent callbacks of one invitation: only the callback that claims the 
   let release;
   const bothArrived = new Promise(r => { release = r; });
   let arrived = 0;
-  let longTokens = 0;
+  // each callback's tokens follow from its own code, never from the order the calls arrive in (that order can flip)
+  const codes = [uniqueCode(), uniqueCode()];
+  const shortOf = i => track(`RACE_SHORT_${i + 1}_${'y'.repeat(8)}`);
   installMeta({
-    exchange: async () => { if (++arrived === 2) release(); await bothArrived; return Response.json({data: [{access_token: SHORT_TOKEN, user_id: APP_SCOPED_ID, permissions: 'instagram_business_basic,instagram_business_manage_insights'}]}); },
-    long: () => Response.json({access_token: track(`RACE_TOKEN_${++longTokens}_${'z'.repeat(8)}`), token_type: 'bearer', expires_in: 5183944})
+    exchange: async (u, opts) => {
+      const i = codes.indexOf(new URLSearchParams(String(opts.body)).get('code'));
+      if (++arrived === 2) release();
+      await bothArrived;
+      return Response.json({data: [{access_token: shortOf(i), user_id: APP_SCOPED_ID, permissions: 'instagram_business_basic,instagram_business_manage_insights'}]});
+    },
+    long: u => Response.json({access_token: track(`RACE_TOKEN_${[0, 1].find(i => shortOf(i) === u.searchParams.get('access_token')) + 1}_${'z'.repeat(8)}`), token_type: 'bearer', expires_in: 5183944})
   });
-  const results = await Promise.all([first, second].map(a => worker.fetch(callbackReq(`state=${a.state}&code=${uniqueCode()}`, a.cookie), env)));
+  const results = await Promise.all([first, second].map((a, i) => worker.fetch(callbackReq(`state=${a.state}&code=${codes[i]}`, a.cookie), env)));
   const statuses = results.map(r => r.status).sort();
   assert.deepEqual(statuses, [200, 410], 'exactly one callback reports success');
   const loser = results.find(r => r.status === 410);
@@ -903,6 +910,22 @@ test('social snapshot: a Reel without insights stays unavailable, even when an e
   const m3 = body.media.items.find(i => i.id === 'm3').insights;
   assert.equal(m3.state, 'unavailable');
   assert.ok(m3.metrics.every(m => m.state === 'unavailable'));
+});
+
+test('social snapshot: a persistent error on every call with an extra costs no post its base metrics', async () => {
+  const env = mockEnv();
+  await connect(env);
+  const extras = ['ig_reels_avg_watch_time', 'reels_skip_rate', 'reposts'];
+  const calls = installMeta({media: pagedMedia(25), mediaInsights: u => {
+    const metrics = u.searchParams.get('metric').split(',');
+    return metrics.some(m => extras.includes(m)) ? metaErr(10, 403) : okInsights(metrics);
+  }});
+  const body = await (await snapshot(env, '?max=25')).json();
+  assert.equal(body.insights.posts_with_insights, 25, 'every post keeps its base metrics');
+  // learned per type: reposts twice on Reels and twice on feed posts
+  for (const [name, n] of [['ig_reels_avg_watch_time', 2], ['reels_skip_rate', 2], ['reposts', 4]]) assert.equal(calls.filter(c => c.url.searchParams.get('metric') === name).length, n, `${name}: probed twice per type, then given up`);
+  const late = body.media.items.filter(i => i.media_product_type === 'REELS').slice(-5);
+  assert.ok(late.every(r => Object.values(reelExtras(r)).every(m => m.state === 'error' && m.error_class === 'extra-not-learned')));
 });
 
 test('media insights endpoint: older posts keep the base metrics only', async () => {

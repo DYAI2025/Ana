@@ -542,9 +542,13 @@ async function readWithExtras(b, id, wanted, k) {
     return r;
   } catch (e) {
     if (notSent(e)) return skipped(b, all);
-    if (!(e instanceof MetaError) || e.metaCode !== 100) return {state:'error', metrics:all.map(n => metricState(n, 'error', errorClass(e)))};
-    // one of the open extras (or the post itself) is refused: the known part first, then each open extra alone
+    const failed = () => ({state:'error', metrics:all.map(n => metricState(n, 'error', errorClass(e)))});
+    // a throttle or token error stops everything; anything else that is not Meta's answer is the post's error
+    if (!(e instanceof MetaError) || b.halted) return failed();
+    // Meta refused or failed the call with the open extras: the known part first, then each open extra alone, so only
+    // the extra that fails counts (a persistent error on the extras must not cost every post its base metrics)
     const known = await withExtras(b, id, accepted);
+    if (known.state === 'error' && e.metaCode !== 100) return failed();
     if (known.state !== 'ok' && known.state !== 'partial') return known;
     const read = insightReader(b, id);
     const probed = [];
