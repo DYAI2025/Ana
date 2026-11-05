@@ -26,8 +26,10 @@ export const INSIGHTS_BATCH = 40;
 export const INSIGHTS_GAP_MS = 2 * 60_000;
 /** younger posts are still growing: their numbers come from the live snapshot, not from here */
 export const MATURE_DAYS = 7;
-/** a post without a final answer is asked again after this, at most INSIGHTS_TRIES times; a failed call pauses all */
+/** a post Meta refused is asked again after this, at most INSIGHTS_TRIES times; one the worker did not reach after the
+ * shorter pause; a failed or throttled call pauses all */
 const INSIGHTS_RETRY_MS = 6 * 3_600_000;
+const INSIGHTS_SKIPPED_MS = 20 * 60_000;
 export const INSIGHTS_TRIES = 4;
 const INSIGHTS_BLOCK_MS = 3_600_000;
 const TIMEOUT_MS = 60_000;
@@ -44,6 +46,8 @@ interface StoredPost {
   insights_at: string | null;
   /** answers so far that failed for this post (kept across restarts) */
   tries?: number;
+  /** not asked again before this time (ISO; kept across restarts) */
+  retry_at?: string;
 }
 
 interface StoreFile {
@@ -78,7 +82,8 @@ export async function readPostHistory(file: string): Promise<StoreFile> {
     const format = typeof v.format === "string" && FORMATS.has(v.format as PostFormat) ? (v.format as PostFormat) : "unknown";
     const at = typeof v.insights_at === "string" && Number.isFinite(Date.parse(v.insights_at)) ? v.insights_at : null;
     const tries = typeof v.tries === "number" && Number.isInteger(v.tries) && v.tries > 0 ? v.tries : undefined;
-    out.posts[id] = { published_at: v.published_at, format, reach: num(v.reach), saves: num(v.saves), shares: num(v.shares), insights_at: at, ...(tries ? { tries } : {}) };
+    const retryAt = typeof v.retry_at === "string" && Number.isFinite(Date.parse(v.retry_at)) ? v.retry_at : undefined;
+    out.posts[id] = { published_at: v.published_at, format, reach: num(v.reach), saves: num(v.saves), shares: num(v.shares), insights_at: at, ...(tries ? { tries } : {}), ...(retryAt ? { retry_at: retryAt } : {}) };
   }
   return out;
 }
@@ -155,6 +160,10 @@ export function parseInsights(data: unknown): Map<string, PostNumbers> {
       out.set(it.id, { reach: null, saves: null, shares: null, final: false, failed: true });
       continue;
     }
+    if (state === "not_fetched") {
+      out.set(it.id, { reach: null, saves: null, shares: null, final: false, failed: false });
+      continue;
+    }
     if (state !== "ok" && state !== "partial" && state !== "unavailable") continue;
     const metrics = Array.isArray(it.insights.metrics) ? it.insights.metrics : [];
     const find = (name: string) => metrics.find((x) => isObject(x) && x.name === name) as Record<string, unknown> | undefined;
@@ -200,7 +209,6 @@ export function createPostHistory(config: SocialConfig, file: string = postHisto
   let listFailedAt = -Infinity;
   let lastInsightsAt = -Infinity;
   let insightsBlockedUntil = -Infinity;
-  const insightsFailedAt = new Map<string, number>();
   let listFailing: string | null = null;
   let numbersFailing: string | null = null;
   /** the snapshot posts the snapshot itself measured: their numbers are live there, so they are not read or sent here */
@@ -231,6 +239,11 @@ export function createPostHistory(config: SocialConfig, file: string = postHisto
     }
   }
 
+  /** her newest 200 posts in the store (a partial list can add new ones before the next full list prunes the oldest) */
+  const newest = () =>
+    Object.entries(store.posts)
+      .sort((a, b) => (a[1].published_at < b[1].published_at ? 1 : a[1].published_at > b[1].published_at ? -1 : 0))
+      .slice(0, HISTORY_MAX);
   const mature = (p: StoredPost) => now() - Date.parse(p.published_at) >= MATURE_DAYS * 86_400_000;
 
   async function readList(): Promise<boolean> {
@@ -272,12 +285,15 @@ export function createPostHistory(config: SocialConfig, file: string = postHisto
 
   async function readInsights(snapshot: ReadonlySet<string>): Promise<boolean> {
     if (now() - lastInsightsAt < INSIGHTS_GAP_MS || now() < insightsBlockedUntil) return false;
-    const due = Object.entries(store.posts)
-      .filter(([id, p]) => !snapshot.has(id) && p.insights_at === null && mature(p) && now() - (insightsFailedAt.get(id) ?? -Infinity) >= INSIGHTS_RETRY_MS)
-      .sort((a, b) => (a[1].published_at < b[1].published_at ? 1 : -1))
+    const due = newest()
+      .filter(([id, p]) => !snapshot.has(id) && p.insights_at === null && mature(p) && (!p.retry_at || now() >= Date.parse(p.retry_at)))
       .slice(0, INSIGHTS_BATCH)
       .map(([id]) => id);
-    if (due.length === 0) return false;
+    if (due.length === 0) {
+      // nothing left to ask: an old failure is no longer news
+      if (now() >= insightsBlockedUntil) numbersFailing = null;
+      return false;
+    }
     lastInsightsAt = now();
     const r = await fetchWorkerJson(worker, `/internal/media-insights?ids=${due.join(",")}`, fetchImpl);
     if (!r.ok) {
@@ -287,10 +303,16 @@ export function createPostHistory(config: SocialConfig, file: string = postHisto
       return false;
     }
     const halted = isObject(r.data) && typeof r.data.halted === "string" ? r.data.halted : null;
-    // Meta throttled the worker part way: the rest of the posts came back not fetched; a pause for everyone
+    const got = parseInsights(r.data);
+    if (!due.some((id) => got.has(id))) {
+      // an answer without any of the asked posts: treated like a failed call
+      numbersFailing = "invalid";
+      insightsBlockedUntil = now() + INSIGHTS_BLOCK_MS;
+      return false;
+    }
+    // Meta throttled the worker part way (rate limit or token): a pause for everyone, and the posts it hit count no try
     numbersFailing = halted;
     if (halted) insightsBlockedUntil = now() + INSIGHTS_BLOCK_MS;
-    const got = parseInsights(r.data);
     let changed = false;
     for (const id of due) {
       const v = got.get(id);
@@ -301,17 +323,21 @@ export function createPostHistory(config: SocialConfig, file: string = postHisto
       if (v?.final) {
         const settled: StoredPost = { ...p, ...merged, insights_at: new Date(now()).toISOString() };
         delete settled.tries;
+        delete settled.retry_at;
         store.posts[id] = settled;
-        insightsFailedAt.delete(id);
         changed = true;
         continue;
       }
-      // not final: only a refusal by Meta counts as a try; a post the worker did not reach is simply asked again
-      const tries = (p.tries ?? 0) + (v?.failed ? 1 : 0);
-      const settle = tries >= INSIGHTS_TRIES;
-      store.posts[id] = { ...p, ...merged, ...(tries ? { tries } : {}), ...(settle ? { insights_at: new Date(now()).toISOString() } : {}) };
-      if (v?.failed) insightsFailedAt.set(id, now());
-      if (settle) insightsFailedAt.delete(id);
+      // not final: only a refusal by Meta counts as a try (not one caused by a throttle); a post the worker did not
+      // reach is asked again after a short pause
+      const refused = Boolean(v?.failed) && !halted;
+      const tries = (p.tries ?? 0) + (refused ? 1 : 0);
+      const next: StoredPost = { ...p, ...merged, ...(tries ? { tries } : {}), retry_at: new Date(now() + (refused ? INSIGHTS_RETRY_MS : INSIGHTS_SKIPPED_MS)).toISOString() };
+      if (tries >= INSIGHTS_TRIES) {
+        next.insights_at = new Date(now()).toISOString();
+        delete next.retry_at;
+      }
+      store.posts[id] = next;
       changed = true;
     }
     return changed;
@@ -327,11 +353,8 @@ export function createPostHistory(config: SocialConfig, file: string = postHisto
   return {
     current() {
       const covers = new Map(listed.map((i) => [i.id, i.cover]));
-      // her newest 200 (a partial list can add new posts before the next full list prunes the oldest)
-      const newest = Object.entries(store.posts)
-        .sort((a, b) => (a[1].published_at < b[1].published_at ? 1 : a[1].published_at > b[1].published_at ? -1 : 0))
-        .slice(0, HISTORY_MAX);
-      const posts: WorldHistoryPost[] = newest
+      const top = newest();
+      const posts: WorldHistoryPost[] = top
         .filter(([id]) => !lastSnapshot.has(id))
         .map(([id, p]) => ({
           id,
@@ -344,10 +367,10 @@ export function createPostHistory(config: SocialConfig, file: string = postHisto
           ssr: p.reach && p.saves !== null && p.shares !== null ? (p.saves + p.shares) / p.reach : null,
         }))
         .sort((a, b) => (a.published_at < b.published_at ? 1 : a.published_at > b.published_at ? -1 : 0));
-      const waiting = newest.filter(([id, p]) => !lastSnapshot.has(id) && p.insights_at === null && mature(p)).length;
-      return { state: "on", fetched_at: store.fetched_at, total: newest.length, oldest: newest.at(-1)?.[1].published_at ?? null, posts, waiting, list_failing: listFailing, numbers_failing: numbersFailing, store_error: loadError };
+      const waiting = top.filter(([id, p]) => !lastSnapshot.has(id) && p.insights_at === null && mature(p)).length;
+      return { state: "on", fetched_at: store.fetched_at, total: top.length, oldest: top.at(-1)?.[1].published_at ?? null, posts, waiting, list_failing: listFailing, numbers_failing: numbersFailing, store_error: loadError };
     },
-    tagged: () => listed.map((i) => ({ id: i.id, cover: i.cover, caption: i.caption })),
+    tagged: () => listed.slice(0, HISTORY_MAX).map((i) => ({ id: i.id, cover: i.cover, caption: i.caption })),
     schedule(snapshotIds) {
       const snapshot = new Set(snapshotIds);
       lastSnapshot = snapshot;

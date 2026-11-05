@@ -81,6 +81,7 @@ describe("Ana's last 200 posts — parsing", () => {
       ["2", { reach: 50, saves: null, shares: null, final: true, failed: false }],
       ["3", { reach: 50, saves: 1, shares: null, final: false, failed: false }],
       ["4", { reach: null, saves: null, shares: null, final: true, failed: false }],
+      ["5", { reach: null, saves: null, shares: null, final: false, failed: false }],
       ["6", { reach: null, saves: null, shares: null, final: false, failed: true }],
     ]);
   });
@@ -280,36 +281,95 @@ describe("Ana's last 200 posts — reading and storing", () => {
       },
     });
     const h = createPostHistory(config, file, w.impl, () => now);
-    for (let i = 0; i < 2; i += 1) {
-      h.schedule([]);
-      await h.idle();
-      now += INSIGHTS_GAP_MS;
-    }
+    h.schedule([]);
+    await h.idle();
+    // a post the worker did not reach waits its 20 minutes (not just the 2-minute gap)
+    const before = w.calls.length;
+    now += INSIGHTS_GAP_MS;
+    h.schedule([]);
+    await h.idle();
+    expect(w.calls.length).toBe(before);
+    now += 20 * 60_000;
+    h.schedule([]);
+    await h.idle();
+    expect(w.calls.length).toBe(before + 1);
     // all three came back across the two answers: the rate is there although no single answer had all three
     expect(h.current().posts.find((p) => p.id === "1007")).toMatchObject({ reach: 100, saves: 4, shares: 2, ssr: 0.06 });
     expect(JSON.parse(await readFile(file, "utf8")).posts["1007"].tries).toBeUndefined();
   });
 
-  it("a throttled answer pauses all numbers for an hour and says so; the posts it did not reach count no try", async () => {
-    const w = fakeWorker({ history: () => list(10), insights: (ids) => ({ halted: "meta-throttled", items: ids.map((id) => ({ id, insights: { state: "not_fetched", reason: "meta-throttled", metrics: [] } })) }) });
+  it("a throttled answer (as the worker sends it) pauses all numbers for an hour, says so, and burns no try", async () => {
+    // the worker: the calls running when Meta throttled come back as errors with that class, the rest not fetched
+    const throttled = (ids: string[]) => ({
+      halted: "meta-17",
+      items: ids.map((id, i) =>
+        i < 5
+          ? { id, insights: { state: "error", metrics: ["reach", "saved", "shares"].map((name) => ({ name, value: null, state: "error", error_class: "meta-17" })) } }
+          : { id, insights: { state: "not_fetched", reason: "meta-throttled", metrics: [] } },
+      ),
+    });
+    const w = fakeWorker({ history: () => list(60), insights: throttled });
     const h = createPostHistory(config, file, w.impl, () => now);
-    for (let i = 0; i < 2 * INSIGHTS_TRIES; i += 1) {
+    for (let i = 0; i < 4 * INSIGHTS_TRIES; i += 1) {
       h.schedule([]);
       await h.idle();
       now += 61 * 60_000;
     }
-    const numbers = w.calls.filter((c) => c.startsWith("/internal/media-insights")).length;
-    expect(numbers).toBe(2 * INSIGHTS_TRIES);
-    expect(h.current()).toMatchObject({ waiting: 3, numbers_failing: "meta-throttled" });
-    const stored = JSON.parse(await readFile(file, "utf8")).posts;
-    expect(["1007", "1008", "1009"].map((id) => [stored[id].insights_at, stored[id].tries])).toEqual([[null, undefined], [null, undefined], [null, undefined]]);
+    expect(h.current()).toMatchObject({ waiting: 53, numbers_failing: "meta-17" });
+    const stored = Object.values(JSON.parse(await readFile(file, "utf8")).posts) as Array<{ insights_at: string | null; tries?: number }>;
+    expect(stored.filter((p) => p.insights_at !== null || p.tries !== undefined)).toEqual([]);
     // the pause: 3 minutes after a throttled answer (past the usual 2-minute gap) nothing is asked
     const at = w.calls.length;
-    now -= 61 * 60_000;
-    now += 3 * 60_000;
+    now -= 58 * 60_000;
     h.schedule([]);
     await h.idle();
     expect(w.calls.length).toBe(at);
+  });
+
+  it("an answer without any asked post counts as a failed call (pause, named); an old failure clears once nothing is left to ask", async () => {
+    let body: unknown = { items: [] };
+    const w = fakeWorker({ history: () => list(10), insights: (ids) => (body === null ? insightsFor(ids) : body) });
+    const h = createPostHistory(config, file, w.impl, () => now);
+    h.schedule([]);
+    await h.idle();
+    expect(h.current()).toMatchObject({ numbers_failing: "invalid", waiting: 3 });
+    now += 30 * 60_000;
+    h.schedule([]);
+    await h.idle();
+    expect(w.calls.filter((c) => c.startsWith("/internal/media-insights"))).toHaveLength(1);
+    body = null;
+    now += 31 * 60_000;
+    h.schedule([]);
+    await h.idle();
+    expect(h.current()).toMatchObject({ numbers_failing: null, waiting: 0 });
+    // a throttle after which nothing is due any more is cleared once its pause is over
+    const h2 = createPostHistory(config, path.join(dir, "other.json"), fakeWorker({ history: () => list(8), insights: (ids) => ({ ...insightsFor(ids), halted: "meta-4" }) }).impl, () => now);
+    h2.schedule([]);
+    await h2.idle();
+    expect(h2.current()).toMatchObject({ numbers_failing: "meta-4", waiting: 0 });
+    now += 30 * 60_000;
+    h2.schedule([]);
+    await h2.idle();
+    expect(h2.current().numbers_failing).toBe("meta-4");
+    now += 31 * 60_000;
+    h2.schedule([]);
+    await h2.idle();
+    expect(h2.current().numbers_failing).toBeNull();
+  });
+
+  it("a refused post's pause survives a restart", async () => {
+    const refuse = (ids: string[]) => ({ items: ids.map((id) => ({ id, insights: { state: "error", metrics: [] } })) });
+    const w = fakeWorker({ history: () => list(8), insights: refuse });
+    const h = createPostHistory(config, file, w.impl, () => now);
+    h.schedule([]);
+    await h.idle();
+    now += INSIGHTS_GAP_MS + 1;
+    const again = fakeWorker({ history: () => list(8), insights: refuse });
+    const h2 = createPostHistory(config, file, again.impl, () => now);
+    h2.schedule([]);
+    await h2.idle();
+    expect(again.calls.filter((c) => c.startsWith("/internal/media-insights"))).toHaveLength(0);
+    expect(JSON.parse(await readFile(file, "utf8")).posts["1007"].tries).toBe(1);
   });
 
   it("a partial list keeps the covers it had and shows at most her newest 200", async () => {
@@ -330,7 +390,8 @@ describe("Ana's last 200 posts — reading and storing", () => {
     const cur = h.current();
     expect(cur.total).toBe(200);
     expect(cur.posts[0]?.id).toBe("5000");
-    expect(h.tagged()).toHaveLength(205);
+    // the topic reader gets her newest 200 too
+    expect(h.tagged()).toHaveLength(200);
     expect(cur.posts.find((p) => p.id === "1100")?.cover).toBe("https://scontent.cdninstagram.com/t/100.jpg");
   });
 
