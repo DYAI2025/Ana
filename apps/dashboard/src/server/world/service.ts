@@ -6,7 +6,8 @@ import { fetchWorkerJson, type WorkerResponse } from "@/server/social/client";
 import type { SocialConfig } from "@/server/social/config";
 import { InvalidWorkerResponse } from "@/server/social/normalize";
 import { NOT_CONFIGURED, workerFailure, type SnapshotService } from "@/server/social/service";
-import { MISSING_SERIES, MISSING_WHO, normalizeAudience, normalizePulse, type NormalizedAudience, type NormalizedPulse } from "./normalize";
+import { type ReelDaily } from "./reelDaily";
+import { MISSING_FOLLOWS, MISSING_SERIES, MISSING_WHO, normalizeAudience, normalizePulse, type NormalizedAudience, type NormalizedPulse } from "./normalize";
 import { resolveLook, type ImageLook, type ManualLook, type NewestPost } from "@/features/world/looks";
 import type { VisionReader } from "./vision";
 import { readAnaPlace, readRelease } from "./presence";
@@ -15,7 +16,7 @@ import type { PostTagger } from "./tagger";
 import type { TopicTagger } from "./topicTagger";
 import type { NewsletterReader } from "./newsletterReader";
 import { measuredIds, type PostHistory } from "./postHistory";
-import { POST_HISTORY_OFF } from "@/features/world/types";
+import { POST_HISTORY_OFF, REEL_VIEWING_OFF } from "@/features/world/types";
 import { NEWSLETTERS_OFF } from "@/features/world/newsletters";
 import { OFFICE_VERSION } from "@/features/world/office";
 import type { BrainWriter } from "./brainWriter";
@@ -63,6 +64,8 @@ export interface WorldDeps {
   topicTagger?: TopicTagger | null;
   /** popular newsletters' RSS feeds matched to the office topics, read in the background; absent = off */
   newsletters?: NewsletterReader | null;
+  /** the daily median watch time and skip rate of Ana's Reels; absent = off */
+  reelDaily?: ReelDaily | null;
   /** Ana's last 200 posts with saves, shares and reach, for the office board; absent = off */
   postHistory?: PostHistory | null;
   /** writes the daily "Was läuft" digest into the Brain; null when no Brain key is configured */
@@ -252,6 +255,7 @@ export function createWorldService(deps: WorldDeps): WorldService {
             engaged_city_week: a.value.engaged_city_week,
             who: a.value.who,
             history,
+            follows: a.value.follows,
           }
         : {
             state: a.failure?.state ?? "unavailable",
@@ -266,6 +270,7 @@ export function createWorldService(deps: WorldDeps): WorldService {
             engaged_city_week: MISSING_SERIES,
             who: { engaged_week: MISSING_WHO, engaged_month: MISSING_WHO, follower: MISSING_WHO },
             history,
+            follows: MISSING_FOLLOWS,
           };
       const workOut: WorldWork = { state: w.value ? (w.failure ? w.failure.state : "ok") : (w.failure?.state ?? "unavailable"), reason: w.failure?.reason ?? null, fetched_at: iso(w.at), issues: w.value ?? [] };
       const payload: WorldPayload = {
@@ -282,6 +287,7 @@ export function createWorldService(deps: WorldDeps): WorldService {
         post_topics: { state: deps.topicTagger ? "on" : "off", version: OFFICE_VERSION, topics: deps.topicTagger ? deps.topicTagger.current() : {}, failing: deps.topicTagger ? deps.topicTagger.failing() : 0 },
         newsletters: deps.newsletters ? deps.newsletters.current() : NEWSLETTERS_OFF,
         post_history: deps.postHistory ? deps.postHistory.current() : POST_HISTORY_OFF,
+        reel_viewing: deps.reelDaily ? await deps.reelDaily.update(instagram.ok ? instagram.snapshot.posts : null).catch(() => REEL_VIEWING_OFF) : REEL_VIEWING_OFF,
         brain: { state: "off", last_day: null, note: null, reason: null },
         brief: deps.brief ? deps.brief.state() : { state: "off", busy: false, latest: {}, weekly: {}, in_brain: false, brain: false, reason: null },
       };

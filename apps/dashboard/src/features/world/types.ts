@@ -58,6 +58,36 @@ export interface WorldAudience extends WorldSourceStatus {
   who: { engaged_week: WhoSeries; engaged_month: WhoSeries; follower: WhoSeries };
   /** days of stored audience snapshots, the base for later comparisons of posts and audience shifts */
   history: { days: number; since: string | null };
+  /** follows and unfollows of the last 24 hours (Meta follows_and_unfollows, up to 48 h delayed; ANA-52) */
+  follows: WorldFollows;
+}
+
+/**
+ * How long people watch Ana's Reels and how many skip in the first 3 s (ANA-52): medians over the measured Reels of
+ * the snapshot, and the stored value of the day before (null on the first day). Missing values are null, never 0.
+ */
+export interface WorldReelViewing {
+  state: "on" | "off";
+  /** Reels with a measured watch time */
+  reels: number;
+  watch_ms: number | null;
+  /** percent 0-100 */
+  skip_pct: number | null;
+  previous: { day: string; watch_ms: number | null; skip_pct: number | null } | null;
+  store_error: boolean;
+}
+
+export const REEL_VIEWING_OFF: WorldReelViewing = { state: "off", reels: 0, watch_ms: null, skip_pct: null, previous: null, store_error: false };
+
+/** A side Meta did not return is null (unknown), never 0. */
+export interface WorldFollows {
+  state: AudienceSeriesState;
+  reason: string | null;
+  /** the window Meta was asked for */
+  since: string | null;
+  until: string | null;
+  gained: number | null;
+  lost: number | null;
 }
 
 /** age band ("25-34", "65+"), gender ("F", "M", "U" = not stated) and both ("25-34|F") */
@@ -118,6 +148,8 @@ export interface WorldPayload {
   newsletters: WorldNewsletters;
   /** Ana's last 200 posts with their lifetime saves, shares and reach, for the office board (older than the snapshot) */
   post_history: WorldPostHistory;
+  /** median watch time and skip rate of Ana's Reels, with the day before (ANA-52) */
+  reel_viewing: WorldReelViewing;
   /** whether "Was läuft" is written into the ANA Brain (once per Berlin day, see brainWriter.ts) */
   brain: WorldBrainSync;
   /** the brief "Das Wichtigste fürs Geschäft" (features/world/brief.ts); "off" without a model key */

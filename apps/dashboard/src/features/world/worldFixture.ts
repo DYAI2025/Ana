@@ -40,6 +40,7 @@ export function world(): WorldPayload {
       engaged_city: N, engaged_city_week: N, follower_country: N, follower_city: N,
       who: { engaged_week: { age: series([["18-24", 30], ["25-34", 50], ["35-44", 20]]), gender: series([["F", 70], ["M", 30]]), age_gender: N }, engaged_month: { age: N, gender: N, age_gender: N }, follower: { age: N, gender: N, age_gender: N } },
       history: { days: 3, since: "2026-11-01" },
+      follows: { state: "ok", reason: null, since: "2026-11-03T12:00:00.000Z", until: "2026-11-04T12:00:00.000Z", gained: 120, lost: 45 },
     },
     work: { state: "not-configured", reason: "not-configured", fetched_at: null, issues: [] },
     places: { ana: null },
@@ -64,6 +65,7 @@ export function world(): WorldPayload {
       store_error: false,
     },
     post_history: { state: "off", fetched_at: null, total: 0, oldest: null, posts: [], waiting: 0, list_failing: null, numbers_failing: null, store_error: false },
+    reel_viewing: { state: "on", reels: 18, watch_ms: 28130, skip_pct: 34.5, previous: { day: "2026-11-03", watch_ms: 26500, skip_pct: 36.1 }, store_error: false },
     brain: { state: "off", last_day: null, note: null, reason: null },
     brief: { state: "off", busy: false, latest: {}, weekly: {}, in_brain: false, brain: false, reason: null },
   };

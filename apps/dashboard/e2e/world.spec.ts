@@ -61,6 +61,11 @@ test.describe("ANA World — 3D view over real dashboard data", () => {
     await expect(page.getByTestId("world-canvas")).toHaveAttribute("data-arcs", "4");
     await expect(page.getByTestId("world-canvas")).toHaveAttribute("data-rising", "1");
     await expect(page.getByTestId("world-kpi-followers")).toContainText("12,400");
+    // ANA-52: followed / unfollowed in 24 h, and the Reel medians (20 measured synthetic Reels), first day without a comparison
+    await expect(page.getByTestId("world-kpi-follows")).toHaveText("▲+120 / −45 in 24 h");
+    await expect(page.getByTestId("world-kpi-watch")).toContainText("26.3 s");
+    await expect(page.getByTestId("world-kpi-skip")).toContainText("29.0 %");
+    await expect(page.getByTestId("world-kpi-watch-delta")).toHaveText("Comparison from tomorrow");
     const countries = page.getByTestId("world-audience-country");
     await expect(countries).toContainText("Spain");
     await expect(countries).toContainText("150");

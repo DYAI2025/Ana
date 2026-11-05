@@ -94,6 +94,28 @@ describe("normalizePulse / normalizeAudience — worker answers are checked, nev
   });
 });
 
+describe("normalizeAudience · follows and unfollows of the last 24 hours (ANA-52)", () => {
+  const withFollows = (follows: unknown) => ({ ...audienceBody, follows });
+  const ok = (results: Array<{ key: string; value: number }>) => ({ name: "follows_and_unfollows", breakdown: "follow_type", period: "day", since: 1793840000, until: 1793926400, state: "ok", results });
+
+  it("FOLLOWER is gained, NON_FOLLOWER is lost, with the window Meta was asked for", () => {
+    const f = normalizeAudience(withFollows(ok([{ key: "FOLLOWER", value: 120 }, { key: "NON_FOLLOWER", value: 50 }]))).follows;
+    expect(f).toEqual({ state: "ok", reason: null, since: "2026-11-05T00:53:20.000Z", until: "2026-11-06T00:53:20.000Z", gained: 120, lost: 50 });
+  });
+
+  it("a side Meta did not return is unknown (null), never 0; neither side known is unavailable", () => {
+    expect(normalizeAudience(withFollows(ok([{ key: "FOLLOWER", value: 7 }]))).follows).toMatchObject({ state: "ok", gained: 7, lost: null });
+    expect(normalizeAudience(withFollows(ok([{ key: "SOMETHING_ELSE", value: 7 }]))).follows).toMatchObject({ state: "unavailable", reason: "unknown-follow-types", gained: null, lost: null });
+  });
+
+  it("an older worker without follows, a refusal or a bad answer stays a state", () => {
+    expect(normalizeAudience(audienceBody).follows).toMatchObject({ state: "not_fetched", reason: "not-returned", gained: null, lost: null });
+    expect(normalizeAudience(withFollows({ ...ok([]), state: "unavailable", error_class: "meta-100" })).follows).toMatchObject({ state: "unavailable", reason: "meta-100", gained: null, lost: null });
+    expect(normalizeAudience(withFollows({ ...ok([{ key: "FOLLOWER", value: -3 }]) })).follows).toMatchObject({ state: "unavailable", gained: null });
+    expect(normalizeAudience(withFollows("nonsense")).follows.state).toBe("not_fetched");
+  });
+});
+
 describe("readAnaPlace / readRelease", () => {
   it("accepts a region label with coordinates and refuses anything else", () => {
     expect(readAnaPlace({ WORLD_ANA_PLACE: "Regionstest;-1.29;36.82" })).toEqual({ label: "Regionstest", lat: -1.29, lon: 36.82, tz: null });
@@ -134,6 +156,19 @@ describe("createWorldService — caches, back-off and honest states", () => {
     expect((await service.read()).pulse.items[0]?.like_count).toBe(13);
     expect(w.calls.filter((c) => c.startsWith(PULSE_PATH))).toEqual([`${PULSE_PATH}?max=12`, `${PULSE_PATH}?max=12`]);
     expect(w.calls.filter((c) => c === AUDIENCE_PATH)).toHaveLength(1);
+  });
+
+  it("passes the follows of the last 24 h and the Reel medians into the payload; without the store the tiles are off", async () => {
+    const follows = { name: "follows_and_unfollows", breakdown: "follow_type", period: "day", since: 1793840000, until: 1793926400, state: "ok", results: [{ key: "FOLLOWER", value: 9 }, { key: "NON_FOLLOWER", value: 4 }] };
+    const w = fakeWorker({ [PULSE_PATH]: () => Response.json(pulseBody(10)), [AUDIENCE_PATH]: () => Response.json({ ...audienceBody, follows }) });
+    const seen: Array<unknown[] | null> = [];
+    const reelDaily = { update: async (posts: readonly unknown[] | null) => (seen.push(posts ? [...posts] : null), { state: "on" as const, reels: 1, watch_ms: 20_000, skip_pct: 30, previous: null, store_error: false }) };
+    const on = await createWorldService({ social, socialConfig: config, readWork: null, workKeys: [], fetchImpl: w.impl, now: () => 0, reelDaily }).read();
+    expect(on.audience.follows).toMatchObject({ state: "ok", gained: 9, lost: 4 });
+    expect(on.reel_viewing).toMatchObject({ state: "on", watch_ms: 20_000 });
+    expect(seen).toEqual([null]); // Instagram is down in this fake: the store gets no posts, so it writes nothing
+    const off = await createWorldService({ social, socialConfig: config, readWork: null, workKeys: [], fetchImpl: w.impl, now: () => 0 }).read();
+    expect(off.reel_viewing.state).toBe("off");
   });
 
   it("the Brain digest waits until the stored post categories are read (an append cannot be taken back)", async () => {

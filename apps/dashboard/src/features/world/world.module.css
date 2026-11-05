@@ -465,6 +465,25 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* ANA-52: what changed since yesterday or in the last 24 h */
+.kpis .kpiDelta {
+  font: 500 11px/1.3 var(--font);
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.kpis .kpiDelta[data-good="true"] > span {
+  color: #1f7a4a;
+}
+
+.kpis .kpiDelta[data-good="false"] > span {
+  color: #b3362c;
+}
+
+.kpis .kpiDelta > span {
+  margin-right: 3px;
+}
+
 .feed {
   list-style: none;
   margin: 0;

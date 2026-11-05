@@ -1337,7 +1337,7 @@ test('social audience: documented demographic reads, aggregated results, per-met
   assert.deepEqual(ecity.results, [{key: 'Berlin, Berlin', value: 30}]);
   assert.deepEqual([fc.state, fc.error_class], ['unavailable', 'empty-response']);
   assert.deepEqual([fcity.state, fcity.error_class], ['unavailable', 'meta-100']);
-  const reads = calls.filter(c => c.url.pathname === `/v26.0/${IG_USER_ID}/insights`);
+  const reads = calls.filter(c => c.url.pathname === `/v26.0/${IG_USER_ID}/insights` && c.url.searchParams.get('metric') !== 'follows_and_unfollows');
   assert.equal(reads.length, 13);
   for (const c of reads) {
     assert.equal(c.url.searchParams.get('period'), 'lifetime');
@@ -1355,6 +1355,36 @@ test('social audience: documented demographic reads, aggregated results, per-met
   assert.deepEqual(genderWeek.results, [{key: 'F', value: 60}, {key: 'M', value: 30}, {key: 'U', value: 2}]);
   assert.deepEqual(combo.results, [{key: '25-34|F', value: 50}, {key: '18-24|M', value: 11}], 'a combined breakdown joins both values');
   assert.equal(combo.state, 'ok');
+});
+
+test('social audience: follows and unfollows of the last 24 hours, by follow type, outside the demographic list', async () => {
+  const env = mockEnv();
+  await connect(env);
+  const calls = installMeta({insights: u => u.searchParams.get('metric') === 'follows_and_unfollows'
+    ? Response.json({data: [{name: 'follows_and_unfollows', period: 'day', total_value: {value: 170, breakdowns: [{dimension_keys: ['follow_type'], results: [{dimension_values: ['FOLLOWER'], value: 120}, {dimension_values: ['NON_FOLLOWER'], value: 50}]}]}}]})
+    : Response.json({data: []})});
+  const before = Math.floor(Date.now() / 1000);
+  const body = await (await internalGet(env, '/internal/social-audience')).json();
+  assert.equal(body.metrics.length, 13, 'the demographic list is unchanged');
+  assert.equal(body.follows.state, 'ok');
+  assert.deepEqual(body.follows.results, [{key: 'FOLLOWER', value: 120}, {key: 'NON_FOLLOWER', value: 50}]);
+  assert.equal(body.follows.until - body.follows.since, 86400);
+  assert.ok(body.follows.until >= before);
+  const c = calls.find(x => x.url.searchParams.get('metric') === 'follows_and_unfollows');
+  assert.deepEqual(['period', 'metric_type', 'breakdown'].map(k => c.url.searchParams.get(k)), ['day', 'total_value', 'follow_type']);
+  assert.equal(Number(c.url.searchParams.get('until')) - Number(c.url.searchParams.get('since')), 86400);
+});
+
+test('social audience: follows refused by Meta or cut by a throttle are a state, never zero', async () => {
+  const env = mockEnv();
+  await connect(env);
+  installMeta({insights: u => u.searchParams.get('metric') === 'follows_and_unfollows' ? metaError(100)() : Response.json({data: []})});
+  const refused = await (await internalGet(env, '/internal/social-audience')).json();
+  assert.deepEqual([refused.follows.state, refused.follows.error_class, refused.follows.results], ['unavailable', 'meta-100', []]);
+  installMeta({insights: metaError(4, 400)});
+  const cut = await (await internalGet(env, '/internal/social-audience')).json();
+  assert.equal(cut.follows.state, 'not_fetched');
+  assert.deepEqual(cut.follows.results, []);
 });
 
 test('social audience: a throttle stops further reads and is reported as error / not_fetched, never as data', async () => {

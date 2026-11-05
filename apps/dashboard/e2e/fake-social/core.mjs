@@ -127,6 +127,10 @@ export function buildAudience({ unavailable = false } = {}) {
       series("follower_demographics", "age", [["25-34", 4000]]),
       series("follower_demographics", "gender", [["F", 3000], ["M", 2000]]),
     ],
+    // ANA-52: followed and unfollowed in the last 24 hours
+    follows: unavailable
+      ? { name: "follows_and_unfollows", breakdown: "follow_type", period: "day", since: 0, until: 0, state: "unavailable", error_class: "meta-100", results: [] }
+      : { name: "follows_and_unfollows", breakdown: "follow_type", period: "day", since: Math.floor(Date.now() / 1000) - 86400, until: Math.floor(Date.now() / 1000), state: "ok", results: [{ key: "FOLLOWER", value: 120 }, { key: "NON_FOLLOWER", value: 45 }] },
   };
 }
 
