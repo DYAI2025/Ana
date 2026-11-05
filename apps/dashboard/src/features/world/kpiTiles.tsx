@@ -88,11 +88,14 @@ export function hourIn(utcHour: number, timeZone: string | null, locale: string,
 
 /**
  * When Ana's followers are online most (Meta online_followers, mean per hour; ANA-56), in the time of Ana's place when
- * it is set, otherwise in the viewer's own time, and said which one it is.
+ * it has a time zone, otherwise in the viewer's own time, and said which one it is. `placeLabel` is the place name as
+ * the world view shows it.
  */
-export function OnlineTile({ online, current, place, t, locale, now = new Date() }: { online: WorldOnlineHours; current: boolean; place: WorldPlace | null; t: T; locale: string; now?: Date }) {
+export function OnlineTile({ online, current, place, placeLabel, t, locale, now = new Date() }: { online: WorldOnlineHours; current: boolean; place: WorldPlace | null; placeLabel: string | null; t: T; locale: string; now?: Date }) {
   const peak = current && online.state === "ok" ? peakUtcHour(online.utc_hours) : null;
   const tz = place?.tz ?? null;
+  // a country code label ("TH") is shown as the country name, as everywhere else in the world view
+  const where = placeLabel ?? place?.label ?? null;
   return (
     <div data-testid="world-kpi-online" data-state={peak === null ? online.state : "ok"} title={t("world.kpi.onlineNote", { days: online.days })}>
       <span>{t("world.kpi.onlinePeak")}</span>
@@ -100,8 +103,8 @@ export function OnlineTile({ online, current, place, t, locale, now = new Date()
       <small className={styles.kpiDelta} data-testid="world-kpi-online-where">
         {peak === null
           ? t("world.kpi.onlineNone")
-          : tz && place
-            ? t("world.kpi.onlineAt", { place: place.label, n: whole(locale).format(online.utc_hours[peak] as number) })
+          : tz && where
+            ? t("world.kpi.onlineAt", { place: where, n: whole(locale).format(online.utc_hours[peak] as number) })
             : t("world.kpi.onlineAtLocal", { n: whole(locale).format(online.utc_hours[peak] as number) })}
       </small>
     </div>

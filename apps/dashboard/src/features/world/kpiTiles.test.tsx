@@ -99,7 +99,7 @@ function Signals({ split, online, taps, place, current = true }: { split: WorldR
   return (
     <div>
       <ReachSplitTile split={split} current={current} t={t} locale={locale} />
-      <OnlineTile online={online} current={current} place={place} t={t} locale={locale} now={NOW} />
+      <OnlineTile online={online} current={current} place={place} placeLabel={place?.label === "TH" ? "Thailand" : null} t={t} locale={locale} now={NOW} />
       <ContactTapsTile taps={taps} current={current} t={t} locale={locale} />
     </div>
   );
@@ -139,6 +139,11 @@ describe("KPI tiles — who Ana reaches and when her followers are online (ANA-5
     expect(screen.getByTestId("world-kpi-online-where").textContent).toBe("Chiang Mai time · about 33,010 online");
     expect(tile.getAttribute("title")).toContain("26 days");
     expect(tile.getAttribute("title")).toContain("US Pacific time");
+  });
+
+  it("online: a country-code place is named as the world view names it", () => {
+    signals({ place: { ...CHIANG_MAI, label: "TH" } });
+    expect(screen.getByTestId("world-kpi-online-where").textContent).toBe("Thailand time · about 33,010 online");
   });
 
   it("online: without a place time zone it says it is the viewer's own time; without data a dash", () => {

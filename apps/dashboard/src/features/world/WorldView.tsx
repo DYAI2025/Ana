@@ -674,7 +674,7 @@ export function WorldView() {
           <b>{num(ig?.interactions28 ?? null)}</b>
         </div>
         {world ? <ReachSplitTile split={world.audience.reach_split} current={world.audience.state === "ok"} t={t} locale={locale} /> : null}
-        {world ? <OnlineTile online={world.audience.online} current={world.audience.state === "ok"} place={world.places.ana} t={t} locale={locale} /> : null}
+        {world ? <OnlineTile online={world.audience.online} current={world.audience.state === "ok"} place={world.places.ana} placeLabel={anaPlaceLabel} t={t} locale={locale} /> : null}
         {world ? <ContactTapsTile taps={world.audience.contact_taps} current={world.audience.state === "ok"} t={t} locale={locale} /> : null}
         <div data-testid="world-kpi-posts">
           <span>{t("world.kpi.posts")}</span>
