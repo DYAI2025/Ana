@@ -103,7 +103,7 @@ export interface KitModel {
     signal: { share: number; label: string; basis: string } | null;
   };
   /** brands Ana has worked with and how, names only */
-  partners: Array<{ name: string; kind: string | null }>;
+  partners: Array<{ name: string; kind: string | null; current: boolean }>;
   sections: KitSection[];
   contact: { href: string; label: string } | null;
   /** when Instagram measured the numbers; null without a snapshot */
@@ -405,7 +405,7 @@ export function buildKit({
       tiles: shownTiles.slice(0, kitAudience?.focus ? 2 : 3),
       signal: kitAudience?.focus ? { share: kitAudience.focus.share, label: kitAudience.focus.label, basis: kitAudience.basis_label } : null,
     },
-    partners: config.partners.map((p) => ({ name: p.name, kind: p.kind ? PARTNER_KINDS[p.kind] : null })),
+    partners: config.partners.map((p) => ({ name: p.name, kind: p.kind ? PARTNER_KINDS[p.kind] : null, current: p.current })),
     sections,
     contact,
     as_of: snapshot?.observed_at ?? null,

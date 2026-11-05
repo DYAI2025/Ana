@@ -41,6 +41,8 @@ export interface KitPartner {
   name: string;
   /** null: Ana named the brand without saying how they worked together; then only the name is shown */
   kind: KitPartnerKind | null;
+  /** the partnership is still running (only when the file says `"current": true`) */
+  current: boolean;
 }
 
 /** what a Reel is, for brands: organic content, a brand partnership (with the brand), UGC made for a brand, or a concept */
@@ -137,8 +139,9 @@ function parsePartner(v: unknown): KitPartner | null {
   const o = obj(v);
   const name = str(o?.name, 60);
   if (!o || !name) return null;
-  if (o.kind === undefined || o.kind === null) return { name, kind: null };
-  return typeof o.kind === "string" && Object.hasOwn(PARTNER_KINDS, o.kind) ? { name, kind: o.kind as KitPartnerKind } : null;
+  const current = o.current === true;
+  if (o.kind === undefined || o.kind === null) return { name, kind: null, current };
+  return typeof o.kind === "string" && Object.hasOwn(PARTNER_KINDS, o.kind) ? { name, kind: o.kind as KitPartnerKind, current } : null;
 }
 
 function parseReelLabels(v: unknown): Record<string, KitReelLabel> {

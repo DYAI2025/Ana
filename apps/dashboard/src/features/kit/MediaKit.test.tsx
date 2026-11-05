@@ -105,6 +105,19 @@ describe("MediaKit — ANA-54", () => {
     expect(screen.getByTestId("kit-tile-reach").textContent).toContain("Instagram ·");
   });
 
+  it("running partnerships first, then the earlier ones; only earlier ones: one 'Worked with' list", () => {
+    const both = parseKitConfig({ partners: [{ name: "Old Co", kind: "partnership" }, { name: "Now Co", kind: "partnership", current: true }, { name: "Aff Co", kind: "affiliate", current: true }] });
+    const { unmount } = render(<MediaKit model={buildKit({ world: world(), config: both })} />);
+    const partners = screen.getByTestId("kit-partners");
+    expect(Array.from(partners.querySelectorAll("p")).map((p) => p.textContent)).toEqual(["Currently working with", "Previously"]);
+    expect(screen.getByTestId("kit-partners-current").textContent).toBe("Now CoBrand partnershipAff CoAffiliate");
+    expect(screen.getByTestId("kit-partners-past").textContent).toBe("Old CoBrand partnership");
+    unmount();
+    render(<MediaKit model={buildKit({ world: world(), config: parseKitConfig({ partners: [{ name: "Old Co" }] }) })} />);
+    expect(Array.from(screen.getByTestId("kit-partners").querySelectorAll("p")).map((p) => p.textContent)).toEqual(["Worked with"]);
+    expect(screen.queryByTestId("kit-partners-current")).toBeNull();
+  });
+
   it("an old reading is not called live", () => {
     const w = world();
     const at = Date.parse(w.instagram.ok ? w.instagram.snapshot.observed_at : "");

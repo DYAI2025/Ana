@@ -258,7 +258,7 @@ describe("buildKit — ANA-54: partners, labels, typical Reel, cases, hero signa
   it("partners and Reel labels render as configured", () => {
     const config = parseKitConfig({ partners: [{ name: "Fiverr", kind: "paid" }, { name: "ClassPass", kind: "affiliate" }], reels: { r2: { kind: "partnership", brand: "Fiverr" }, r1: { kind: "organic" } } });
     const m = buildKit({ world: world(), config });
-    expect(m.partners).toEqual([{ name: "Fiverr", kind: "Paid partnership" }, { name: "ClassPass", kind: "Affiliate" }]);
+    expect(m.partners).toEqual([{ name: "Fiverr", kind: "Paid partnership", current: false }, { name: "ClassPass", kind: "Affiliate", current: false }]);
     const labels = Object.fromEntries(sectionOf(m, "reels")!.reels.map((r) => [r.id, r.label]));
     expect(labels).toMatchObject({ r2: "Brand partnership · Fiverr", r1: "Organic", r4: null });
   });
