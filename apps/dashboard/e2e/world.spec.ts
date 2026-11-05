@@ -441,7 +441,7 @@ test.describe("ANA World — 3D view over real dashboard data", () => {
     await page.keyboard.press("Escape");
     await expect(office).toHaveAttribute("data-spot", "room");
     await expect(page.getByTestId("office-drawer")).toHaveCount(0);
-    // the computer shows Ana's media kit (ANA-56): the kit page itself, inside the room, and full size in a new tab
+    // the computer shows Ana's media kit (ANA-59): the kit page itself, inside the room, and full size in a new tab
     await page.getByTestId("office-spot-computer").click();
     await expect(page.getByTestId("office-computer")).toBeVisible();
     await expect(page.getByTestId("office-kit")).toHaveAttribute("src", "/kit");

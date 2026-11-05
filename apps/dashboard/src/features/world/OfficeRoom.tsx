@@ -113,7 +113,7 @@ const SPOT_ICON: Record<RoomSpot, string> = { board: "📋", computer: "💻", l
 
 /**
  * Ana's office: a small 3D room you walk into from the world (the hut at Ana's place, or the button in her panel).
- * The board on the wall holds the topics for Substack, the computer shows Ana's media kit (ANA-56), the lamp just
+ * The board on the wall holds the topics for Substack, the computer shows Ana's media kit (ANA-59), the lamp just
  * switches. Everything is reachable with the buttons that float over the things too (keyboard, screen readers), and
  * without WebGL the board opens directly.
  */
@@ -320,7 +320,7 @@ export function OfficeRoom({ world, posts, t, locale, onClose, onPost }: { world
               {shown === "board" ? (
                 <OfficeBoard world={world} posts={posts} t={t} locale={locale} onPost={onPost} />
               ) : (
-                // Ana's media kit on her screen (ANA-56): the same page brands will see, with its preview bar
+                // Ana's media kit on her screen (ANA-59): the same page brands will see, with its preview bar
                 <div className={styles.officeComputer} data-testid="office-computer">
                   <p className={styles.note}>
                     {t("world.office.computerBody")}{" "}

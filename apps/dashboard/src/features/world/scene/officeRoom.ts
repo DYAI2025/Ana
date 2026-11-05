@@ -117,7 +117,7 @@ function windowView(): THREE.CanvasTexture {
 
 function screenTexture(): THREE.CanvasTexture {
   return canvasTexture(256, (ctx, s) => {
-    // the media kit on the screen (ANA-56): warm paper, a title line, three numbers, two Reel covers
+    // the media kit on the screen (ANA-59): warm paper, a title line, three numbers, two Reel covers
     ctx.fillStyle = "#fbf8f3";
     ctx.fillRect(0, 0, s, s);
     ctx.fillStyle = "#1d2226";
