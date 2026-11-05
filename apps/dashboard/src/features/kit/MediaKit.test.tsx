@@ -72,8 +72,10 @@ describe("MediaKit", () => {
 
 describe("CountUp", () => {
   let observers: Record<string, (e: Array<{ isIntersecting: boolean }>) => void> = {};
-  // the observer that starts the count ("seen") unless a margin is named ("near" = 35% below the viewport)
-  const fire = (visible: boolean, margin = "0px 0px -8% 0px") => observers[margin]?.([{ isIntersecting: visible }]);
+  // the observer that starts the count (any pixel visible) unless a margin is named ("near" = 35% below the viewport,
+  // Reveal's "seen" = 8% above the bottom edge)
+  const fire = (visible: boolean, margin = "0px") => observers[margin]?.([{ isIntersecting: visible }]);
+  const SEEN = "0px 0px -8% 0px";
   let frames: FrameRequestCallback[] = [];
   const flush = () => {
     const f = frames;
@@ -181,7 +183,7 @@ describe("CountUp", () => {
     scroll();
     act(() => fire(true, "0px 0px 35% 0px"));
     expect(el.dataset.reveal).toBe("wait");
-    act(() => fire(true));
+    act(() => fire(true, SEEN));
     expect(el.dataset.reveal).toBe("in");
     unmount();
     const printed = render(

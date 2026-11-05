@@ -102,7 +102,7 @@ export function CountUp({ value, kind }: { value: number; kind: KitValueKind }) 
     let io: IntersectionObserver | null = null;
     let near: IntersectionObserver | null = null;
     const disarm = onFirstScroll(() => {
-      // approaching: show 0; seen: count up where it can be watched
+      // approaching: show 0; visible: count up where it can be watched
       near = new IntersectionObserver((entries) => {
         if (entries.some((e) => e.isIntersecting)) {
           near?.disconnect();
@@ -115,7 +115,8 @@ export function CountUp({ value, kind }: { value: number; kind: KitValueKind }) 
           near?.disconnect();
           run();
         }
-      }, { rootMargin: SEEN });
+        // any pixel visible: a "0" never stays on screen, also not for a number at the very end of the page
+      }, { rootMargin: "0px" });
       near.observe(el);
       io.observe(el);
       return () => {
