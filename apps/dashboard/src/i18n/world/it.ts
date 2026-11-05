@@ -126,7 +126,7 @@ export const worldIt: Messages["world"] = {
     vsDay: "{delta} rispetto al {day}",
     fromTomorrow: "Confronto da domani",
     storeError: "Confronto non salvato (errore di archiviazione)",
-    note: "Tempo di visione e salti: mediana sui reel di Ana con un valore, rispetto al giorno prima; cambia con i nuovi reel e con le visualizzazioni che arrivano. Follower: come li riporta Instagram, fino a 48 h di ritardo.",
+    note: "Tempo di visione e salti: mediana sui reel di Ana con un valore, rispetto all'ultimo giorno precedente salvato (indicato accanto alla freccia); cambia con i nuovi reel e con le visualizzazioni che arrivano. Follower guadagnati / persi: come li riporta Instagram, fino a 48 h di ritardo.",
     points: "pt",
     reelNote: "Mediana sui {n} reel con un valore. Cambia con i nuovi reel e con le visualizzazioni che continuano ad arrivare.",
   },

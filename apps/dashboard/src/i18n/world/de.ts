@@ -126,7 +126,7 @@ export const worldDe: Messages["world"] = {
     vsDay: "{delta} ggü. {day}",
     fromTomorrow: "Vergleich ab morgen",
     storeError: "Vergleich nicht gespeichert (Speicherfehler)",
-    note: "Wiedergabezeit und Wegwischen: Median über Anas Reels mit Wert, verglichen mit dem Vortag; er bewegt sich mit neuen Reels und nachkommenden Aufrufen. Follower: so, wie Instagram sie meldet, bis zu 48 h verzögert.",
+    note: "Wiedergabezeit und Wegwischen: Median über Anas Reels mit Wert, verglichen mit dem letzten gespeicherten früheren Tag (am Pfeil genannt); er bewegt sich mit neuen Reels und nachkommenden Aufrufen. Gewonnene / verlorene Follower: so, wie Instagram sie meldet, bis zu 48 h verzögert.",
     points: "Pkt.",
     reelNote: "Median über die {n} Reels mit Wert. Er bewegt sich mit neuen Reels und mit Aufrufen, die noch dazukommen.",
   },

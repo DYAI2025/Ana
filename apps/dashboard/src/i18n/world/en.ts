@@ -125,7 +125,7 @@ export const worldEn = {
     vsDay: "{delta} vs. {day}",
     fromTomorrow: "Comparison from tomorrow",
     storeError: "Comparison not saved (storage error)",
-    note: "Watch time and skips: median over Ana's Reels with a value, compared with the day before; it moves with new Reels and views that keep coming in. Followers: as Instagram reports them, up to 48 h late.",
+    note: "Watch time and skips: median over Ana's Reels with a value, compared with the last stored earlier day (named at the arrow); it moves with new Reels and views that keep coming in. Followers gained / lost: as Instagram reports them, up to 48 h late.",
     points: "pts",
     reelNote: "Median over the {n} Reels with a value. It moves with new Reels and with views that keep coming in.",
   },
