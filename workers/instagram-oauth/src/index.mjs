@@ -34,6 +34,15 @@ const SNAPSHOT_PAGE_SIZE = 25;
 // Stays below Cloudflare's 50 sub-requests per invocation on the free plan; shortfall is reported, never hidden.
 const SNAPSHOT_SUBREQUEST_BUDGET = 45;
 const SNAPSHOT_INSIGHT_CONCURRENCY = 5;
+// Media history (internal read contract): older posts for the office topic count, without insights. 200 posts are 8
+// pages of 25; the budget leaves room for the identity read and the field fallback steps.
+const HISTORY_DEFAULT_MAX = 100;
+const HISTORY_MAX = 200;
+const HISTORY_SUBREQUEST_BUDGET = 14;
+// Insights of given posts (the older ones the snapshot does not reach): up to 40 per call, one Meta call per post
+// normally, within the snapshot's budget of 45.
+const INSIGHTS_MAX_IDS = 40;
+const INSIGHTS_SUBREQUEST_BUDGET = 45;
 const MEDIA_INSIGHT_METRICS = ['reach','views','saved','shares','likes','comments','total_interactions'];
 const ACCOUNT_METRICS = ['reach','views','accounts_engaged','total_interactions'];
 const ACCOUNT_WINDOW_DAYS = 28;
@@ -91,7 +100,7 @@ function escapeHTML(s) {
 function logEvent(event, fields = {}) { console.log(JSON.stringify({event, ...fields})); }
 function errorClass(e) {
   if (e instanceof MetaError) return e.metaCode !== null ? `meta-${e.metaCode}` : e.message;
-  return ['bad-short-token','bad-long-token','bad-identity','wrong-account','invalid-refresh','invalid-key-size'].includes(e?.message) ? e.message : (e?.name || 'error');
+  return ['bad-short-token','bad-long-token','bad-identity','wrong-account','invalid-refresh','invalid-key-size','subrequest-budget','meta-throttled'].includes(e?.message) ? e.message : (e?.name || 'error');
 }
 function validOpaque(s) { return typeof s === 'string' && /^[A-Za-z0-9_-]{32,100}$/.test(s); }
 function cookieValue(request, name) {
@@ -410,7 +419,7 @@ async function snapshotMedia(b, max) {
     {fields:SNAPSHOT_BASE_FIELDS + ',' + SNAPSHOT_OPTIONAL_FIELDS, optional:'ACCEPTED', picture:'REJECTED_BY_META'},
     {fields:SNAPSHOT_BASE_FIELDS, optional:'REJECTED_BY_META', picture:'REJECTED_BY_META'},
   ];
-  let step = 0, after = null, pages = 0, hasMore = false;
+  let step = 0, after = null, pages = 0, hasMore = false, stopped = null;
   let {fields, optional, picture} = steps[0];
   const items = [];
   while (items.length < max) {
@@ -419,6 +428,8 @@ async function snapshotMedia(b, max) {
     let page;
     try { page = await b.fetch('/me/media', params); }
     catch (e) {
+      // the budget or a throttle ends the paging after the first page: keep what was read and say why it stopped
+      if (pages > 0 && ['subrequest-budget','meta-throttled'].includes(e?.message)) { hasMore = true; stopped = e.message; break; }
       // only "invalid field or parameter" means Meta refused an optional field; anything else fails the read
       if (!(e instanceof MetaError) || e.metaCode !== 100 || pages > 0 || step >= steps.length - 1) throw e;
       ({fields, optional, picture} = steps[++step]);
@@ -432,7 +443,7 @@ async function snapshotMedia(b, max) {
     if (!hasMore) break;
     after = cursor;
   }
-  return {optional, picture, pages, hasMore, items:items.map(m => ({
+  return {optional, picture, pages, hasMore, stopped, items:items.map(m => ({
     id:String(m.id), media_type:m.media_type ?? null, media_product_type:m.media_product_type ?? null,
     permalink:m.permalink ?? null, timestamp:m.timestamp ?? null, thumbnail_url:m.thumbnail_url ?? null,
     ...(optional === 'ACCEPTED' ? {caption:typeof m.caption === 'string' ? m.caption : null, like_count:countOrNull(m.like_count), comments_count:countOrNull(m.comments_count)} : {}),
@@ -546,6 +557,55 @@ async function readSocialSnapshot(req,env,url) {
       items:media.items.map((m,i)=>({...m, insights:insights[i]}))},
     insights:{requested_metrics:MEDIA_INSIGHT_METRICS, priority:'mature-first', mature_days:SNAPSHOT_MATURE_DAYS, halted:b.halted,
       posts_with_insights:insights.filter(x=>x.state==='ok'||x.state==='partial').length, budget:{limit:b.limit, used:b.used}}
+  });
+}
+// Ana's older posts (id, time, type, caption, cover/picture), newest first, no insights. Same account check and paging as
+// the snapshot; Meta's paging URLs and the token never leave the Worker.
+async function readMediaHistory(req,env,url) {
+  if(!(await authorizeAdmin(req,env,'INTERNAL_READ_KEY')))return json({error:'unauthorized'},401);
+  const maxRaw=url.searchParams.get('max')||String(HISTORY_DEFAULT_MAX);
+  if(!/^\d{1,3}$/.test(maxRaw) || +maxRaw<1 || +maxRaw>HISTORY_MAX)return json({error:'invalid-max'},400);
+  const token=await usableToken(env);
+  if(!token)return json({error:'reauth-required'},409);
+  const b=metaBudget(token,HISTORY_SUBREQUEST_BUDGET);
+  let identity, media;
+  try {
+    identity=await snapshotIdentity(b);
+    if(!isExpectedAccount(identity.me,env))return json({error:'account-mismatch'},409);
+    media=await snapshotMedia(b,+maxRaw);
+  } catch(e) { return json({error:'instagram-media-fetch-failed',reason:errorClass(e)},502); }
+  return json({
+    history_version:1, fetched_at:new Date().toISOString(), provider:'instagram', api_version:GRAPH_VERSION, account:{id:String(env.EXPECTED_IG_USER_ID)},
+    media:{requested_max:+maxRaw, returned:media.items.length, pages_fetched:media.pages, has_more:media.hasMore, stopped:media.stopped, optional_fields_state:media.optional, picture_field_state:media.picture,
+      items:media.items.map(m=>({id:m.id, media_type:m.media_type, media_product_type:m.media_product_type, timestamp:m.timestamp, thumbnail_url:m.thumbnail_url,
+        ...('caption' in m ? {caption:m.caption} : {}), ...('image_url' in m ? {image_url:m.image_url} : {})}))},
+    budget:{limit:b.limit, used:b.used}
+  });
+}
+// Lifetime insights of the given posts (ids from /internal/media-history), same metrics, per-metric isolation, throttle
+// halt and budget rule as the snapshot. The account is checked first; Meta answers only for media of the token's account.
+async function readMediaInsights(req,env,url) {
+  if(!(await authorizeAdmin(req,env,'INTERNAL_READ_KEY')))return json({error:'unauthorized'},401);
+  const raw=url.searchParams.get('ids')||'';
+  const ids=raw.split(',');
+  if(raw.length>INSIGHTS_MAX_IDS*31 || ids.length<1 || ids.length>INSIGHTS_MAX_IDS || ids.some(id=>!/^\d{1,30}$/.test(id)) || new Set(ids).size!==ids.length)return json({error:'invalid-ids'},400);
+  const token=await usableToken(env);
+  if(!token)return json({error:'reauth-required'},409);
+  const b=metaBudget(token,INSIGHTS_SUBREQUEST_BUDGET);
+  try {
+    const identity=await snapshotIdentity(b);
+    if(!isExpectedAccount(identity.me,env))return json({error:'account-mismatch'},409);
+  } catch(e) { return json({error:'instagram-media-fetch-failed',reason:errorClass(e)},502); }
+  const insights=new Array(ids.length);
+  for (let i=0;i<ids.length;i+=SNAPSHOT_INSIGHT_CONCURRENCY) {
+    const chunk=ids.slice(i,i+SNAPSHOT_INSIGHT_CONCURRENCY);
+    const results=await Promise.all(chunk.map(id=>mediaInsights(b,id)));
+    results.forEach((r,j)=>{insights[i+j]=r;});
+  }
+  return json({
+    insights_version:1, fetched_at:new Date().toISOString(), provider:'instagram', api_version:GRAPH_VERSION, account:{id:String(env.EXPECTED_IG_USER_ID)},
+    requested_metrics:MEDIA_INSIGHT_METRICS, halted:b.halted, budget:{limit:b.limit, used:b.used},
+    items:ids.map((id,i)=>({id, insights:insights[i]}))
   });
 }
 // ---- World pulse and audience (ANA World, additive internal read contracts) ----
@@ -691,6 +751,8 @@ async function route(req,env,url) {
   }
   if(req.method==='GET' && url.pathname==='/internal/media')return readMedia(req,env,url);
   if(req.method==='GET' && url.pathname==='/internal/social-snapshot')return readSocialSnapshot(req,env,url);
+  if(req.method==='GET' && url.pathname==='/internal/media-history')return readMediaHistory(req,env,url);
+  if(req.method==='GET' && url.pathname==='/internal/media-insights')return readMediaInsights(req,env,url);
   if(req.method==='GET' && url.pathname==='/internal/social-pulse')return readSocialPulse(req,env,url);
   if(req.method==='GET' && url.pathname==='/internal/social-audience')return readSocialAudience(req,env);
   if(req.method==='GET' && url.pathname==='/instagram/start')return startPage(req,env,url);

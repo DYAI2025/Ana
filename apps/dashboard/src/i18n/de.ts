@@ -1,6 +1,7 @@
 import type { Messages } from "./en";
 import { socialDe } from "./social/de";
 import { worldDe } from "./world/de";
+import { officeBoardDe } from "./office/de";
 
 export const de: Messages = {
   app: {
@@ -287,6 +288,7 @@ export const de: Messages = {
   },
   social: socialDe,
   world: worldDe,
+  officeBoard: officeBoardDe,
   pulse: {
     socialTitle: "Social · Instagram",
     socialBody: "Echte Instagram-Beiträge und Kennzahlen, nur lesend auf diesem Computer.",

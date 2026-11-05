@@ -1,0 +1,10 @@
+# /etc/systemd/system/dyai-ana-office-backup.service — nightly local backup of Office Berlin (tickets, history,
+# pictures) from the dashboard's StateDirectory. Keeps 30 days on the host; off-host copies are an operator decision.
+[Unit]
+Description=Nightly backup of Office Berlin (ANA dashboard board)
+
+[Service]
+Type=oneshot
+ExecStart=/srv/dyai/runtime/ana-dashboard/office-backup.sh backup
+UMask=0077
+Nice=10

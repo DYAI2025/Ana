@@ -53,6 +53,37 @@ describe("Jira client", () => {
     expect(await down.get("/x")).toEqual({ ok: false, error: { kind: "network", detail: "fetch failed" } });
   });
 
+  it("a call cut at the budget that times out spends it, even when its timer fires before the clock reaches the deadline", async () => {
+    let calls = 0;
+    const client = createJiraClient(
+      { baseUrl: "https://x.invalid", email: "a", token: "b", timeoutMs: 20_000 },
+      async () => {
+        calls += 1;
+        // the budget timer fired a moment early: Date.now() is still before the deadline
+        throw new DOMException("The operation timed out.", "TimeoutError");
+      },
+      { budgetMs: 5_000 },
+    );
+    expect(await client.get("/a")).toEqual({ ok: false, error: { kind: "timeout" } });
+    expect(await client.get("/b")).toEqual({ ok: false, error: { kind: "budget" } });
+    expect(calls).toBe(1);
+  });
+
+  it("a call that times out on its own timeout (not the budget) leaves the rest of the budget", async () => {
+    let calls = 0;
+    const client = createJiraClient(
+      { baseUrl: "https://x.invalid", email: "a", token: "b", timeoutMs: 1_000 },
+      async () => {
+        calls += 1;
+        throw new DOMException("The operation timed out.", "TimeoutError");
+      },
+      { budgetMs: 60_000 },
+    );
+    expect(await client.get("/a")).toEqual({ ok: false, error: { kind: "timeout" } });
+    expect(await client.get("/b")).toEqual({ ok: false, error: { kind: "timeout" } });
+    expect(calls).toBe(2);
+  });
+
   it("a request budget bounds the whole call sequence: once spent, no further Jira call is made", async () => {
     let calls = 0;
     const client = createJiraClient(

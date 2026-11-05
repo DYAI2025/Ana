@@ -93,7 +93,8 @@ export interface TopicTagger {
   idle(): Promise<void>;
 }
 
-export const TOPIC_BATCH = 4;
+// 8 per run: with Ana's last 200 posts the first reading takes about 25 runs
+export const TOPIC_BATCH = 8;
 const CAPTION_MAX = 1_200;
 const RETRY_MS = 30 * 60_000;
 

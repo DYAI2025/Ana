@@ -50,10 +50,14 @@ export interface ClientOptions {
 export function createJiraClient(config: JiraConfig, fetchImpl: typeof fetch = fetch, options: ClientOptions = {}): JiraClient {
   const authorization = `Basic ${Buffer.from(`${config.email}:${config.token}`).toString("base64")}`;
   const deadline = options.budgetMs === undefined ? Infinity : Date.now() + options.budgetMs;
+  // a call cut at the budget that times out has spent it, even when the timer fired a moment before Date.now() reaches
+  // the deadline (timer and clock round differently): otherwise the next call would still be sent with ~1 ms left
+  let spent = false;
 
   async function call<T>(method: "GET" | "POST", path: string, body?: unknown): Promise<JiraResponse<T>> {
     const remaining = deadline - Date.now();
-    if (remaining <= 0) return { ok: false, error: { kind: "budget" } };
+    if (spent || remaining <= 0) return { ok: false, error: { kind: "budget" } };
+    const cutByBudget = remaining < config.timeoutMs;
     let response: Response;
     let text: string;
     try {
@@ -70,7 +74,10 @@ export function createJiraClient(config: JiraConfig, fetchImpl: typeof fetch = f
       });
       text = await response.text();
     } catch (error) {
-      if (isTimeout(error)) return { ok: false, error: { kind: "timeout" } };
+      if (isTimeout(error)) {
+        if (cutByBudget) spent = true;
+        return { ok: false, error: { kind: "timeout" } };
+      }
       return { ok: false, error: { kind: "network", detail: error instanceof Error ? error.message.slice(0, DETAIL_MAX) : "network error" } };
     }
     if (!response.ok) return { ok: false, error: { kind: "http", status: response.status, detail: jiraErrorDetail(text) } };

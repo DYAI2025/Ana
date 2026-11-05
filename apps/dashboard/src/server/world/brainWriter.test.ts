@@ -4,6 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { WorldPayload } from "@/features/world/types";
+import { NEWSLETTERS_OFF } from "@/features/world/newsletters";
 import { brainWriterConfigFromEnv, createBrainWriter, isoWeek, SOURCE_ID, TOPICS, weekNoteId } from "./brainWriter";
 
 const KEY = "anab_" + "k".repeat(40);
@@ -31,8 +32,10 @@ function world(): WorldPayload {
     release: { sha: null, started_at: new Date(NOW).toISOString() },
     post_tags: { state: "off", tags: {} },
     post_topics: { state: "off", version: "t", topics: {}, failing: 0 },
+    newsletters: NEWSLETTERS_OFF,
+    post_history: { state: "off", fetched_at: null, total: 0, oldest: null, posts: [], waiting: 0, list_failing: null, numbers_failing: null, store_error: false },
     brain: { state: "off", last_day: null, note: null, reason: null },
-    brief: { state: "off", busy: false, latest: null, weekly: null, in_brain: false, brain: false, reason: null },
+    brief: { state: "off", busy: false, latest: {}, weekly: {}, in_brain: false, brain: false, reason: null },
   } as WorldPayload;
 }
 

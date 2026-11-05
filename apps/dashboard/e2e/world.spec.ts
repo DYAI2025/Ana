@@ -111,6 +111,8 @@ test.describe("ANA World — 3D view over real dashboard data", () => {
     const body = await (await page.request.get("/api/world")).json();
     expect(body.world.post_tags).toEqual({ state: "off", tags: {} });
     expect(body.world.post_topics).toMatchObject({ state: "off", topics: {} });
+    // no model key in e2e: the newsletter feeds are not read, and nothing claims they were
+    expect(body.world.newsletters).toMatchObject({ state: "off", read_at: null, posts: 0, topics: {} });
   });
 
   test("works · top posts and the posts behind a value light up in the orbit and open their numbers", async ({ page }) => {
@@ -380,6 +382,8 @@ test.describe("ANA World — 3D view over real dashboard data", () => {
   test("office · the hut at Ana's place opens her office as a 3D room: board, computer and lamp each do something", async ({ page }) => {
     test.setTimeout(90_000);
     await page.emulateMedia({ reducedMotion: "reduce" });
+    // Ana's older posts are read in the background on the first world reads (fake worker: 30 posts)
+    await expect.poll(async () => (await (await page.request.get("/api/world")).json()).world.post_history.total, { timeout: 15_000 }).toBe(30);
     await openWorld(page);
     await page.getByTestId("world-view-ana").click();
     const hut = page.locator(".world-label.office");
@@ -410,6 +414,10 @@ test.describe("ANA World — 3D view over real dashboard data", () => {
     await expect(page.getByTestId("office-matrix").locator("[data-testid^='office-dot-']")).toHaveCount(11);
     await expect(page.getByTestId("office-matrix").locator("[data-tested='true']")).toHaveCount(0);
     await expect(page.getByTestId("office-asof")).toContainText(/model|Modell|modello/);
+    await expect(page.getByTestId("office-newsletters-asof")).toContainText(/model|Modell|modello/);
+    // Ana's older posts come from the fake worker's history (30 posts); their numbers are read in the background
+    await expect(page.getByTestId("office-history")).toContainText(/ 30[,.]/);
+    await expect(page.locator('[data-testid^="office-newsletters-"]:not([data-testid="office-newsletters-asof"])')).toHaveCount(0);
     await expect(page.getByTestId("office-group-test").locator("li[id^='office-topic-']")).toHaveCount(6);
     await expect(page.getByTestId("office-group-skip").locator("li[id^='office-topic-']")).toHaveCount(5);
     await expect(page.getByTestId("office-group-starter")).toHaveCount(0);

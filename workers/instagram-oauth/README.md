@@ -99,6 +99,10 @@ Insights support may be claimed only after `insights-probe` returns `PASS` again
 - A hard budget of 45 Meta calls per snapshot keeps the Worker under Cloudflare's 50 sub-requests per invocation. Posts beyond it are `not_fetched` with `reason: subrequest-budget`. `insights.budget` reports `used` and `limit`.
 - Captions pass through to the BFF for localhost display only (PO decision, ANA-38) and are never logged.
 
+`GET /internal/media-history?max=1..200` (default 100, same `INTERNAL_READ_KEY`, ANA-48) returns Ana's older posts for the office topic count: id, time, `media_type`, `media_product_type`, caption, `thumbnail_url` and `image_url` (same paging, field fallbacks and video-file rule as the snapshot), newest first, **without insights**, no permalink and no counters. Its own budget of 14 Meta calls (identity, 8 pages of 25, fallback steps; worst case 12). If the budget or a throttle ends the paging after the first page, the posts read so far come back with `has_more: true` and `stopped` naming the reason (`subrequest-budget`, `meta-throttled`); otherwise `stopped` is `null`.
+
+`GET /internal/media-insights?ids=<id>,<id>,…` (1..40 numeric ids, no doubles, same `INTERNAL_READ_KEY`, ANA-48) returns the lifetime insights of those posts (ids from `/internal/media-history`), in the order asked: the same metrics, per-metric isolation on Meta error 100, throttle halt (`halted`) and `not_fetched` budget rule as the snapshot, within the snapshot's budget of 45 calls. The account is checked first; that Meta answers only for media of the token's own account is Meta's documented behaviour, not something this Worker checks per id (ids are digits only, so no other Graph path can be reached). The dashboard reads each older post once, when it is at least 7 days old. Captions go to the dashboard server only, under the same agreement as the post categories (cover + caption to Claude, only topic ids kept), and are never logged.
+
 ## Security boundaries
 
 - `/admin/*` uses a header-only bearer key with digest-based constant-time comparison. `/internal/media` uses its own key, and each key is rejected on the other's routes.

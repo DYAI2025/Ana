@@ -1065,3 +1065,143 @@ test('social audience: a throttle stops further reads and is reported as error /
   assert.ok(body.metrics.every(m => m.results.length === 0));
   assert.equal((await internalGet(env, '/internal/social-audience', null)).status, 401);
 });
+
+const history = (env, q = '', key = INTERNAL_KEY) => worker.fetch(new Request(origin + '/internal/media-history' + q, {headers: {Authorization: `Bearer ${key}`}}), env);
+
+test('media history: internal key only, max validation, reauth and account checks', async () => {
+  const env = mockEnv();
+  assert.equal((await worker.fetch(new Request(origin + '/internal/media-history'), env)).status, 401);
+  assert.equal((await history(env, '', ADMIN_KEY)).status, 401, 'admin key is not the internal read key');
+  assert.equal((await history(env)).status, 409, 'no token -> reauth-required');
+  await connect(env);
+  for (const q of ['?max=0', '?max=201', '?max=abc', '?max=-1', '?max=1000']) assert.equal((await history(env, q)).status, 400, q);
+  const mismatch = installMeta({me: () => Response.json({user_id: IG_USER_ID, username: 'someoneelse'})});
+  assert.equal((await history(env)).status, 409, 'account mismatch');
+  assert.ok(mismatch.every(c => c.url.pathname !== '/v26.0/me/media'), 'no media read for another account');
+  installMeta({media: metaError(4, 400)});
+  const failed = await history(env);
+  assert.equal(failed.status, 502);
+  assert.deepEqual(await failed.json(), {error: 'instagram-media-fetch-failed', reason: 'meta-4'});
+});
+
+test('media history: pages to 200 posts within its budget, no insights, never forwards Meta paging URLs or tokens', async () => {
+  const env = mockEnv();
+  await connect(env);
+  const calls = installMeta({media: pagedMedia(260)});
+  const r = await history(env, '?max=200');
+  assert.equal(r.status, 200);
+  const text = await r.text();
+  assert.ok(!text.includes(LONG_TOKEN) && !text.includes('access_token'), 'no token in output');
+  assert.ok(!text.includes('graph.instagram.com') && !text.includes('paging') && !text.includes('after=') && !text.includes('"c25"'), 'no Meta paging URL, link or cursor in output');
+  const body = JSON.parse(text);
+  assert.deepEqual({requested: body.media.requested_max, returned: body.media.returned, pages: body.media.pages_fetched, more: body.media.has_more, stopped: body.media.stopped}, {requested: 200, returned: 200, pages: 8, more: true, stopped: null});
+  assert.equal(body.media.items[199].id, 'm199');
+  assert.equal(body.media.items[0].caption, `synthetic caption 0 ${'c'.repeat(8)}`);
+  const image = body.media.items.find(m => m.media_type === 'IMAGE');
+  const video = body.media.items.find(m => m.media_type === 'VIDEO');
+  const keys = ['caption', 'id', 'image_url', 'media_product_type', 'media_type', 'thumbnail_url', 'timestamp'];
+  assert.deepEqual(Object.keys(image).sort(), keys, 'exactly these fields, nothing else from Meta');
+  assert.deepEqual(Object.keys(video).sort(), keys);
+  assert.equal(image.image_url, `https://example.invalid/i/${image.id.slice(1)}.jpg`);
+  assert.equal(video.image_url, null, 'a video never passes its file URL on');
+  assert.ok(calls.every(c => !c.url.pathname.includes('/insights')), 'no insights calls');
+  assert.equal(body.budget.limit, 14);
+  assert.equal(body.budget.used, calls.length);
+});
+
+test('media history: the worst case (identity and both field fallbacks) still reads 200 posts within 14 calls', async () => {
+  const env = mockEnv();
+  await connect(env);
+  const refused = () => Response.json({error: {message: 'synthetic', type: 'OAuthException', code: 100}}, {status: 400});
+  const inner = pagedMedia(260);
+  const calls = installMeta({
+    me: u => (u.searchParams.get('fields').includes('followers_count') ? refused() : Response.json({user_id: IG_USER_ID, username: 'anasavu'})),
+    media: u => (u.searchParams.get('fields').includes('caption') || u.searchParams.get('fields').includes('media_url') ? refused() : inner(u)),
+  });
+  const body = await (await history(env, '?max=200')).json();
+  assert.equal(body.media.returned, 200);
+  assert.equal(body.media.optional_fields_state, 'REJECTED_BY_META');
+  assert.equal(body.budget.used, 12);
+  assert.equal(calls.length, 12);
+  assert.ok(body.media.items.every(m => !('caption' in m) && !('image_url' in m)));
+});
+
+test('media history: when the budget runs out mid-paging, the posts read so far come back and the stop is named', async () => {
+  const env = mockEnv();
+  await connect(env);
+  const short = pagedMedia(300);
+  // Meta answers 10 posts per page although 25 were asked for: the budget ends before 200
+  installMeta({media: u => { u.searchParams.set('limit', '10'); return short(u); }});
+  const r = await history(env, '?max=200');
+  assert.equal(r.status, 200);
+  const body = await r.json();
+  assert.equal(body.media.stopped, 'subrequest-budget');
+  assert.equal(body.media.has_more, true);
+  assert.equal(body.media.returned, 130);
+  assert.equal(body.budget.used, 14);
+});
+
+test('media history: default 100, fewer posts reported honestly', async () => {
+  const env = mockEnv();
+  await connect(env);
+  installMeta({media: pagedMedia(7)});
+  const body = await (await history(env)).json();
+  assert.deepEqual({requested: body.media.requested_max, returned: body.media.returned, more: body.media.has_more}, {requested: 100, returned: 7, more: false});
+});
+
+const insightsOf = (env, q = '', key = INTERNAL_KEY) => worker.fetch(new Request(origin + '/internal/media-insights' + q, {headers: {Authorization: `Bearer ${key}`}}), env);
+
+test('media insights: internal key only, id validation, reauth and account checks', async () => {
+  const env = mockEnv();
+  assert.equal((await worker.fetch(new Request(origin + '/internal/media-insights?ids=1'), env)).status, 401);
+  assert.equal((await insightsOf(env, '?ids=1', ADMIN_KEY)).status, 401, 'admin key is not the internal read key');
+  assert.equal((await insightsOf(env, '?ids=1')).status, 409, 'no token -> reauth-required');
+  await connect(env);
+  const many = Array.from({length: 41}, (_, i) => String(1000 + i)).join(',');
+  for (const q of ['', '?ids=', '?ids=abc', '?ids=1,,2', '?ids=1,1', '?ids=1%2F..%2Fme', '?ids=' + many, '?ids=' + '9'.repeat(31)]) assert.equal((await insightsOf(env, q)).status, 400, q);
+  const mismatch = installMeta({me: () => Response.json({user_id: IG_USER_ID, username: 'someoneelse'})});
+  assert.equal((await insightsOf(env, '?ids=1')).status, 409, 'account mismatch');
+  assert.ok(mismatch.every(c => !c.url.pathname.endsWith('/insights')), 'no insights read for another account');
+});
+
+test('media insights: one call per post within 45, same per-metric isolation as the snapshot, no token in the output', async () => {
+  const env = mockEnv();
+  await connect(env);
+  const ids = Array.from({length: 40}, (_, i) => String(9000 + i));
+  const calls = installMeta({
+    mediaInsights: u => {
+      const id = u.pathname.split('/')[2];
+      const metrics = u.searchParams.get('metric').split(',');
+      if (id === '9001' && metrics.length > 1) return Response.json({error: {message: 'synthetic', type: 'OAuthException', code: 100}}, {status: 400});
+      if (id === '9001' && metrics[0] === 'views') return Response.json({error: {message: 'synthetic', type: 'OAuthException', code: 100}}, {status: 400});
+      return Response.json({data: metrics.map((name, i) => ({name, period: 'lifetime', values: [{value: 10 + i}]}))});
+    }
+  });
+  const r = await insightsOf(env, '?ids=' + ids.join(','));
+  assert.equal(r.status, 200);
+  const text = await r.text();
+  assert.ok(!text.includes(LONG_TOKEN) && !text.includes('access_token') && !text.includes('graph.instagram.com'));
+  const body = JSON.parse(text);
+  assert.deepEqual(body.items.map(x => x.id), ids, 'same order as asked');
+  assert.equal(body.items[0].insights.state, 'ok');
+  assert.deepEqual(body.items[0].insights.metrics.find(m => m.name === 'saved'), {name: 'saved', value: 12, state: 'ok', period: 'lifetime'});
+  assert.equal(body.items[1].insights.state, 'partial');
+  assert.equal(body.budget.limit, 45);
+  assert.equal(body.budget.used, calls.length);
+  assert.ok(calls.length <= 45);
+  // posts the budget did not reach are not_fetched, never errors
+  const skipped = body.items.filter(x => x.insights.state === 'not_fetched');
+  assert.ok(skipped.length > 0, 'the per-metric fallback of one post spends calls, so the last posts are not reached');
+  assert.ok(skipped.every(x => x.insights.reason === 'subrequest-budget'));
+  assert.equal(body.items.filter(x => x.insights.state === 'ok' || x.insights.state === 'partial').length + skipped.length, 40);
+});
+
+test('media insights: a throttle halts the rest and is named', async () => {
+  const env = mockEnv();
+  await connect(env);
+  installMeta({mediaInsights: () => Response.json({error: {message: 'synthetic', type: 'OAuthException', code: 4}}, {status: 400})});
+  const body = await (await insightsOf(env, '?ids=1,2,3,4,5,6,7')).json();
+  assert.equal(body.halted, 'meta-4');
+  assert.ok(body.items.every(x => x.insights.state === 'error' || x.insights.state === 'not_fetched'));
+  assert.ok(body.items.slice(5).every(x => x.insights.state === 'not_fetched'));
+});

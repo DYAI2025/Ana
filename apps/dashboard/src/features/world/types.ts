@@ -3,7 +3,7 @@
  * Instagram snapshot, a near-real-time counter pulse, Meta's aggregated audience geography, Jira work (when the
  * server has a Jira connection) and the operator-set place of Ana. Provider payloads never reach the browser.
  */
-import type { SocialResult } from "@/features/social/types";
+import type { PostFormat, SocialResult } from "@/features/social/types";
 import type { StatusCategory } from "@/features/work/types";
 import type { AnaLook } from "./looks";
 
@@ -96,6 +96,8 @@ export interface WorldRelease {
 
 import type { PostTags } from "./postTags";
 import type { BriefRecord } from "./brief";
+import type { WorldNewsletters } from "./newsletters";
+import type { Locale } from "@/lib/locale";
 
 export interface WorldPayload {
   version: 1;
@@ -112,6 +114,10 @@ export interface WorldPayload {
   post_tags: { state: "on" | "off"; tags: Record<string, PostTags> };
   /** office topics per post by media id (features/world/office.ts; [] = read, no topic); state of the reader */
   post_topics: { state: "on" | "off"; version: string; topics: Record<string, string[]>; failing: number };
+  /** what popular Substack newsletters wrote about the office topics (features/world/newsletters.ts); "off" without a model key */
+  newsletters: WorldNewsletters;
+  /** Ana's last 200 posts with their lifetime saves, shares and reach, for the office board (older than the snapshot) */
+  post_history: WorldPostHistory;
   /** whether "Was läuft" is written into the ANA Brain (once per Berlin day, see brainWriter.ts) */
   brain: WorldBrainSync;
   /** the brief "Das Wichtigste fürs Geschäft" (features/world/brief.ts); "off" without a model key */
@@ -121,11 +127,11 @@ export interface WorldPayload {
 export interface WorldBriefState {
   state: "off" | "on" | "error";
   busy: boolean;
-  /** the newest brief (button or weekly) */
-  latest: BriefRecord | null;
-  /** the newest weekly brief */
-  weekly: BriefRecord | null;
-  /** whether the newest weekly brief is in the ANA Brain */
+  /** the newest brief (button or weekly) per dashboard language */
+  latest: Partial<Record<Locale, BriefRecord>>;
+  /** the newest weekly brief per dashboard language */
+  weekly: Partial<Record<Locale, BriefRecord>>;
+  /** whether the newest week's brief is in the ANA Brain (the German one goes there) */
   in_brain: boolean;
   /** whether a Brain is configured at all */
   brain: boolean;
@@ -140,3 +146,37 @@ export interface WorldBrainSync {
   note: string | null;
   reason: string | null;
 }
+
+/** One of Ana's last 200 posts; the numbers are read once the post is at least 7 days old (null until then). */
+export interface WorldHistoryPost {
+  id: string;
+  published_at: string;
+  format: PostFormat;
+  /** cover on Meta's CDN, from today's list; null when unknown */
+  cover: string | null;
+  reach: number | null;
+  saves: number | null;
+  shares: number | null;
+  /** (saves + shares) ÷ reach, only when all three are measured */
+  ssr: number | null;
+}
+
+export interface WorldPostHistory {
+  state: "on" | "off";
+  /** when the full list was last read */
+  fetched_at: string | null;
+  /** posts in the list (her last 200) and the publication time of the oldest */
+  total: number;
+  oldest: string | null;
+  /** the listed posts except those the snapshot measures itself (the board takes those from the snapshot) */
+  posts: WorldHistoryPost[];
+  /** posts at least 7 days old whose numbers are not read yet */
+  waiting: number;
+  /** the last list read failed or stopped early ("incomplete", "http-502", "timeout"…); null = fine */
+  list_failing: string | null;
+  /** the last numbers read failed; null = fine */
+  numbers_failing: string | null;
+  store_error: boolean;
+}
+
+export const POST_HISTORY_OFF: WorldPostHistory = { state: "off", fetched_at: null, total: 0, oldest: null, posts: [], waiting: 0, list_failing: null, numbers_failing: null, store_error: false };
