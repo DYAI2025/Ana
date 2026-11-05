@@ -31,5 +31,5 @@
   },
   "scope_note": "Brain-WRITE, chat persistence, new database, upload, audience and H1/H4 inference, historical single-post search through Brain digests (segment Neue Posts is withheld) and provider fallback are out of scope. mcpClient.ts is carried byte-identical from PR #39 head b53c548; its block parsing is ported; its writer, insight notes, retrieval.ts and /api/brain/context stay in PR #39. AC-04's exclusion of Brain notes is lifted only for notes released under AC-06 (PO decision of 2026-11-04, asked to be written into AC-04); audience geography, person and account data stay excluded for Brain content too. The analyst uses the write-capable agent key because no read scope exists: enforced client-side only by the typed reader, residual risk put to the PO.",
   "synced_at": "2026-11-04T22:30:00Z",
-  "source": "offline: ANA Jira has no DRS custom fields; acceptance criteria live in Jira ANAK-3 and Confluence 132382942 v10, the gate definitions are mirrored in a Jira comment, gate states are recorded in Jira and the pull request, not in this file"
+  "source": "offline: ANA Jira has no DRS custom fields; acceptance criteria live in Jira ANAK-3 and Confluence 132382942 v11, the gate definitions are mirrored in a Jira comment, gate states are recorded in Jira and the pull request, not in this file"
 }
