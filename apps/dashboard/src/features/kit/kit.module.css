@@ -1,6 +1,6 @@
 /* Media kit (ANA-53): bright and calm. Warm paper, ink, sand and sea blue; serif headings, light large numbers. */
 .page :where(h1, h2, h3, p, li, dd, dt, a, span, small) {
-  overflow-wrap: anywhere;
+  overflow-wrap: anywhere; /* break-word would still let long words widen grid and flex items (e2e AC5) */
 }
 .page {
   --paper: #fbf8f3;

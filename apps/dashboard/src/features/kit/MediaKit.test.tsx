@@ -5,7 +5,7 @@ import { EMPTY_KIT_CONFIG, parseKitConfig } from "./config";
 import { formatValue } from "./format";
 import { MediaKit } from "./MediaKit";
 import { buildKit } from "./model";
-import { CountUp } from "./motion";
+import { CountUp, Reveal } from "./motion";
 
 const finalOf = (testid: string) => screen.getByTestId(testid).querySelector("[data-final]")!;
 
@@ -71,7 +71,9 @@ describe("MediaKit", () => {
 });
 
 describe("CountUp", () => {
-  let fire: (visible: boolean) => void = () => undefined;
+  let observers: Record<string, (e: Array<{ isIntersecting: boolean }>) => void> = {};
+  // the observer that starts the count ("seen") unless a margin is named ("near" = 35% below the viewport)
+  const fire = (visible: boolean, margin = "0px 0px -8% 0px") => observers[margin]?.([{ isIntersecting: visible }]);
   let frames: FrameRequestCallback[] = [];
   const flush = () => {
     const f = frames;
@@ -81,7 +83,7 @@ describe("CountUp", () => {
   afterEach(() => {
     vi.unstubAllGlobals();
     vi.restoreAllMocks();
-    fire = () => undefined;
+    observers = {};
     frames = [];
   });
   const scroll = () => act(() => {
@@ -92,8 +94,8 @@ describe("CountUp", () => {
     vi.stubGlobal(
       "IntersectionObserver",
       class {
-        constructor(cb: (e: Array<{ isIntersecting: boolean }>) => void) {
-          fire = (v) => cb([{ isIntersecting: v }]);
+        constructor(cb: (e: Array<{ isIntersecting: boolean }>) => void, options?: { rootMargin?: string }) {
+          observers[options?.rootMargin ?? ""] = cb;
         }
         observe() {}
         disconnect() {}
@@ -117,8 +119,12 @@ describe("CountUp", () => {
     act(() => fire(true));
     expect(shown.textContent).toBe("48.2K");
     scroll();
-    act(() => fire(true));
+    // about to scroll in: 0; in view: the count runs where it can be watched
+    act(() => fire(true, "0px 0px 35% 0px"));
     expect(shown.textContent).toBe("0");
+    expect(frames).toHaveLength(0);
+    act(() => fire(true));
+    expect(frames.length).toBeGreaterThan(0);
     act(() => flush());
     expect(shown.textContent).toBe("48.2K");
     expect(container.textContent).toContain("48.2K");
@@ -160,5 +166,34 @@ describe("CountUp", () => {
     scroll();
     act(() => fire(true));
     expect(reduced.container.querySelector("[data-final]")!.textContent).toBe("30");
+  });
+
+  it("Reveal: shown until someone scrolls; then hidden when about to scroll in, risen in when seen or printed", () => {
+    motion(false);
+    const { getByTestId, unmount } = render(
+      <Reveal data-testid="r">
+        <p>x</p>
+      </Reveal>,
+    );
+    const el = getByTestId("r");
+    act(() => fire(true, "0px 0px 35% 0px"));
+    expect(el.dataset.reveal).toBeUndefined();
+    scroll();
+    act(() => fire(true, "0px 0px 35% 0px"));
+    expect(el.dataset.reveal).toBe("wait");
+    act(() => fire(true));
+    expect(el.dataset.reveal).toBe("in");
+    unmount();
+    const printed = render(
+      <Reveal data-testid="p">
+        <p>y</p>
+      </Reveal>,
+    );
+    scroll();
+    act(() => fire(true, "0px 0px 35% 0px"));
+    act(() => {
+      window.dispatchEvent(new Event("beforeprint"));
+    });
+    expect(printed.getByTestId("p").dataset.reveal).toBe("in");
   });
 });
