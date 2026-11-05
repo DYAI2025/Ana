@@ -42,8 +42,8 @@ const ON_TOPIC = ["Welche Motive kommen beim Publikum derzeit am stärksten an?"
 const NOW = Date.parse("2026-03-05T09:00:00Z");
 const NOTE = weekNoteId("2026-03-05");
 
-/** content words: long enough not to be a stop word, in lower case */
-const words = (text: string) => new Set((text.toLowerCase().match(/\p{L}{4,}/gu) ?? []).filter((w) => !["welche", "beim", "derzeit", "eine", "nicht", "oder", "auch", "nach", "aber", "wird", "aller", "sagt", "nur"].includes(w)));
+/** content words: three letters or more, without stop words, in lower case */
+const words = (text: string) => new Set((text.toLowerCase().match(/\p{L}{3,}/gu) ?? []).filter((w) => !["was", "wie", "der", "die", "das", "den", "dem", "des", "und", "ist", "ein", "für", "von", "mit", "the", "and", "for", "welche", "beim", "derzeit", "eine", "nicht", "oder", "auch", "nach", "aber", "wird", "aller", "sagt", "nur"].includes(w)));
 
 describe.skipIf(!DIR)("World analyst -> real Brain, Qdrant 1.19.2, BGE-M3", () => {
   const root = DIR ?? "";
@@ -157,7 +157,11 @@ describe.skipIf(!DIR)("World analyst -> real Brain, Qdrant 1.19.2, BGE-M3", () =
 
   it("the paraphrase shares no content word with the note", async () => {
     const note = await reader().get(NOTE);
-    const shared = [...words(PARAPHRASE)].filter((w) => words(note.body).has(w));
+    // the Brain embeds the title with every chunk, so a word shared with the title counts too
+    const title = (note.frontmatter as { title?: unknown }).title;
+    expect(typeof title).toBe("string");
+    const indexed = words(`${String(title)}\n${note.body}`);
+    const shared = [...words(PARAPHRASE)].filter((w) => indexed.has(w));
     evidence.shared_content_words = shared;
     expect(shared).toEqual([]);
   });

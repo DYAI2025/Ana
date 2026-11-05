@@ -3,9 +3,9 @@ import "server-only";
 /**
  * The World analyst's configuration, all of it server-side. WORLD_ANALYST_PROVIDER is the one switch: unset means no
  * call to any provider, no worker read and no Brain read. Each provider has its own variable, never the tagger's
- * ANTHROPIC_API_KEY, so switching the analyst on stays a separate decision from the post categories; the host may give
- * it the same value, and then both share one account's spend and rate limits. There is no fallback: a provider without
- * its key or model is misconfigured and nothing is sent.
+ * ANTHROPIC_API_KEY, so switching the analyst on stays a separate decision from the dashboard's other Claude readers; the
+ * host may give it the same value, and then they all share one account's spend and rate limits. There is no fallback: a
+ * provider without its key or model is misconfigured and nothing is sent.
  */
 export const PROVIDERS = ["anthropic", "openai", "openrouter"] as const;
 export type Provider = (typeof PROVIDERS)[number];

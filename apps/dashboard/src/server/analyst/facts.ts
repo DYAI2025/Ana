@@ -162,8 +162,8 @@ const OUT_OF_SCOPE =
  * Claims with a digit the number check cannot see: the names numbersBacked lets pass are the brief's facts, the analyst's
  * facts hold no tier and no such window; and a true figure with a scale on it is another figure ("20k" from a real 20).
  */
-const NOT_IN_THESE_FACTS = /(?<![\p{L}\p{N}])(?:Tier ?[123]|(?:7|28|30)[ -](?:Tage|Tagen|days)|\d+ ?(?:k|m|mn|b|bn|mio|mrd|tsd)(?![\p{L}\p{N}]))/iu;
-/** quantities brief.ts's list does not hold: Italian (a supported language) and German compounds. "uno", "due", "sei" are ordinary words too. */
+const NOT_IN_THESE_FACTS = /(?<![\p{L}\p{N}])(?:Tier ?[123]|(?:7|28|30)[ -](?:Tage|Tagen|days?|giorni)|\d+ ?(?:k|m|mn|b|bn|mio|mrd|tsd)(?![\p{L}\p{N}]))/iu;
+/** quantities brief.ts's list does not hold, or held once: German compounds and Italian. brief.ts now also refuses "due" and "sei", so "due to" and "es sei" are refused and counted. */
 const MORE_NUMBER_WORDS = /(?<!\p{L})(?:due volte|tre|quattro|cinque|sette|otto|nove|dieci|venti|trenta|quaranta|cinquanta|cento|mille|doppi[oa]|tripl[oa]|metà)(?!\p{L})|\p{L}+(?:hundert|tausend|zwanzig|dreißig|vierzig|fünfzig|sechzig|siebzig|achtzig|neunzig)\p{L}*/iu;
 const ISO_DAY = /\d{4}-\d{2}-\d{2}/g;
 
@@ -205,7 +205,8 @@ const items = (o: Record<string, unknown>, key: string): Array<Record<string, un
 export function parseAnswer(raw: string, catalog: FactCatalog, brainItems: ReadonlyMap<string, BrainContextForPrompt> = new Map()): ParsedAnswer | { ok: false; reason: "no_evidence" | "invalid_answer" } {
   const o = parseJson(raw);
   if (!o) return { ok: false, reason: "invalid_answer" };
-  let rejected = 0;
+  // a block that is not a list says something that cannot be shown: dropped and counted like any other item
+  let rejected = ["measured", "categories", "groups", "brain", "hypotheses"].filter((key) => o[key] !== undefined && o[key] !== null && !Array.isArray(o[key])).length;
   /** takes the first `max` items through `take`; everything else counts as rejected */
   const through = <T>(list: Array<Record<string, unknown>>, max: number, take: (x: Record<string, unknown>) => T | null): T[] => {
     const out: T[] = [];
