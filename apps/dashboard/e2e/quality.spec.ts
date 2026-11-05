@@ -2,7 +2,7 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test } from "./fixtures";
 
-const ROUTES = ["/", "/board", "/backlog", "/sessions", "/sessions/working-session-01", "/brain", "/whiteboard", "/calendar", "/pulse", "/pulse/social/instagram", "/world", "/vault", "/toolbox"];
+const ROUTES = ["/", "/board", "/backlog", "/sessions", "/sessions/working-session-01", "/brain", "/whiteboard", "/calendar", "/pulse", "/pulse/social/instagram", "/world", "/vault", "/toolbox", "/kit", "/kit?for=asia"];
 
 for (const route of ROUTES) {
   test(`axe: no serious or critical WCAG A/AA violations on ${route}`, async ({ page }) => {

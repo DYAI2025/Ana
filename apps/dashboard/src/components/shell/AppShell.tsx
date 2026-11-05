@@ -1,5 +1,6 @@
 "use client";
 
+import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { useI18n } from "@/components/providers/I18nProvider";
 import { NavRail } from "./NavRail";
@@ -9,6 +10,9 @@ import styles from "./shell.module.css";
 
 export function AppShell({ children }: { children: ReactNode }) {
   const { t } = useI18n();
+  const pathname = usePathname();
+  // the media kit is a page for brands: no dashboard navigation, search or atmosphere around it (ANA-53)
+  const bare = pathname === "/kit" || Boolean(pathname?.startsWith("/kit/"));
   const [searchOpen, setSearchOpen] = useState(false);
   // a fresh palette per opening: query and selection never leak from a previous search
   const [searchSession, setSearchSession] = useState(0);
@@ -25,6 +29,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   useEffect(() => {
     // marks the client as interactive (used by automated journeys to avoid racing hydration)
     document.documentElement.dataset.ready = "true";
+    if (bare) return;
     const onKeyDown = (event: KeyboardEvent) => {
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
         event.preventDefault();
@@ -38,7 +43,9 @@ export function AppShell({ children }: { children: ReactNode }) {
     };
     document.addEventListener("keydown", onKeyDown);
     return () => document.removeEventListener("keydown", onKeyDown);
-  }, [openSearch]);
+  }, [openSearch, bare]);
+
+  if (bare) return <>{children}</>;
 
   return (
     <>
