@@ -7,7 +7,7 @@ import type { SocialConfig } from "@/server/social/config";
 import { InvalidWorkerResponse } from "@/server/social/normalize";
 import { NOT_CONFIGURED, workerFailure, type SnapshotService } from "@/server/social/service";
 import { type ReelDaily } from "./reelDaily";
-import { MISSING_FOLLOWS, MISSING_SERIES, MISSING_WHO, normalizeAudience, normalizePulse, type NormalizedAudience, type NormalizedPulse } from "./normalize";
+import { MISSING_CONTACT_TAPS, MISSING_FOLLOWS, MISSING_ONLINE, MISSING_REACH_SPLIT, MISSING_SERIES, MISSING_WHO, normalizeAudience, normalizePulse, type NormalizedAudience, type NormalizedPulse } from "./normalize";
 import { resolveLook, type ImageLook, type ManualLook, type NewestPost } from "@/features/world/looks";
 import type { VisionReader } from "./vision";
 import { readAnaPlace, readRelease } from "./presence";
@@ -256,6 +256,9 @@ export function createWorldService(deps: WorldDeps): WorldService {
             who: a.value.who,
             history,
             follows: a.value.follows,
+            reach_split: a.value.reach_split,
+            contact_taps: a.value.contact_taps,
+            online: a.value.online,
           }
         : {
             state: a.failure?.state ?? "unavailable",
@@ -271,6 +274,9 @@ export function createWorldService(deps: WorldDeps): WorldService {
             who: { engaged_week: MISSING_WHO, engaged_month: MISSING_WHO, follower: MISSING_WHO },
             history,
             follows: MISSING_FOLLOWS,
+            reach_split: MISSING_REACH_SPLIT,
+            contact_taps: MISSING_CONTACT_TAPS,
+            online: MISSING_ONLINE,
           };
       const workOut: WorldWork = { state: w.value ? (w.failure ? w.failure.state : "ok") : (w.failure?.state ?? "unavailable"), reason: w.failure?.reason ?? null, fetched_at: iso(w.at), issues: w.value ?? [] };
       const payload: WorldPayload = {

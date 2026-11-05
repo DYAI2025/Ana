@@ -67,6 +67,12 @@ test.describe("ANA World — 3D view over real dashboard data", () => {
     await expect(page.getByTestId("world-kpi-skip")).toContainText("29.0 %");
     await expect(page.getByTestId("world-kpi-watch-delta")).toHaveText("Comparison from tomorrow");
     await expect(page.getByTestId("world-kpi-note")).toContainText("up to 48 h late");
+    // ANA-56: share of new people from the two reach groups; the online peak (Pacific hour 7, PST) in the place's time (Nairobi)
+    await expect(page.getByTestId("world-kpi-new-people")).toContainText("90 %");
+    await expect(page.getByTestId("world-kpi-new-people-split")).toHaveText("9K new · 1K followers");
+    await expect(page.getByTestId("world-kpi-online")).toContainText("18:00");
+    await expect(page.getByTestId("world-kpi-online-where")).toHaveText("Testregion time · about 3,300 online");
+    await expect(page.getByTestId("world-kpi-contact-taps")).toHaveCount(0);
     const countries = page.getByTestId("world-audience-country");
     await expect(countries).toContainText("Spain");
     await expect(countries).toContainText("150");
