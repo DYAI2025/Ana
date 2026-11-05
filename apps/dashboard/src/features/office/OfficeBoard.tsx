@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useId, useRef, useState, type DragEvent, type FormEvent } from "react";
+import { createPortal } from "react-dom";
 import { useI18n } from "@/components/providers/I18nProvider";
 import { ago, byColumn, COLUMNS, isTeam, MAX_PICTURE_BYTES, NAMES, officeApi, PICTURE_TYPES, pictureUrl, type Assignee, type Attachment, type Column, type Entry, type Person, type Ticket, type TicketSummary } from "./api";
 import styles from "./office.module.css";
@@ -34,7 +35,7 @@ function Pictures({ items, t, onOpen }: { items: readonly Attachment[]; t: T; on
     <ul className={styles.pictures}>
       {items.map((a) => (
         <li key={a.id}>
-          <button type="button" className={styles.thumb} onClick={() => onOpen(a)} data-testid="office-thumb">
+          <button type="button" className={styles.thumb} onClick={() => onOpen(a)} data-testid="berlin-thumb">
             {/* a private picture behind the login: plain img, no Next image optimisation */}
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={pictureUrl(a.id, "thumb")} alt={t("officeBoard.ticket.pictureAlt", { name: NAMES[a.uploadedBy] })} loading="lazy" width={Math.min(a.width, 200)} height={Math.round((Math.min(a.width, 200) / a.width) * a.height)} />
@@ -83,7 +84,7 @@ function NewTicket({ t, onDone, onError }: { t: T; onDone: () => void; onError: 
     }
   };
   return (
-    <form className={styles.newForm} onSubmit={submit} data-testid="office-new-form">
+    <form className={styles.newForm} onSubmit={submit} data-testid="berlin-new-form">
       <label htmlFor={`${id}-t`}>{t("officeBoard.form.title")}</label>
       <input id={`${id}-t`} value={title} maxLength={120} required autoFocus onChange={(e) => setTitle(e.target.value)} />
       <label htmlFor={`${id}-d`}>{t("officeBoard.form.description")}</label>
@@ -193,7 +194,7 @@ function TicketDialog({ id, me, t, locale, onClose, onChanged }: { id: string; m
 
   return (
     <div className={styles.backdrop} onClick={onClose}>
-      <div className={styles.dialog} role="dialog" aria-modal="true" aria-labelledby={titleId} onClick={(e) => e.stopPropagation()} data-testid="office-ticket">
+      <div className={styles.dialog} role="dialog" aria-modal="true" aria-labelledby={titleId} onClick={(e) => e.stopPropagation()} data-testid="berlin-ticket">
         <button ref={closeRef} type="button" className={styles.close} onClick={onClose} aria-label={t("officeBoard.ticket.close")}>
           ×
         </button>
@@ -246,7 +247,7 @@ function TicketDialog({ id, me, t, locale, onClose, onChanged }: { id: string; m
             {data.entries.length === 0 && <p className={styles.muted}>{t("officeBoard.ticket.noHistory")}</p>}
             <ol className={styles.history}>
               {data.entries.map((e) => (
-                <li key={e.id} className={`${styles.entry} ${e.isQuestion && !e.questionResolved ? styles.openQ : ""}`} data-testid="office-entry">
+                <li key={e.id} className={`${styles.entry} ${e.isQuestion && !e.questionResolved ? styles.openQ : ""}`} data-testid="berlin-entry">
                   <div className={styles.entryHead}>
                     <Who person={e.author} t={t} />
                     <When iso={e.createdAt} t={t} locale={locale} />
@@ -285,7 +286,7 @@ function TicketDialog({ id, me, t, locale, onClose, onChanged }: { id: string; m
                 </label>
                 <label className={styles.ghost}>
                   {t("officeBoard.ticket.addPictures")}
-                  <input ref={fileRef} type="file" accept={PICTURE_TYPES} multiple className={styles.visuallyHidden} onChange={(e) => pick(e.target.files)} data-testid="office-file" />
+                  <input ref={fileRef} type="file" accept={PICTURE_TYPES} multiple className={styles.visuallyHidden} onChange={(e) => pick(e.target.files)} data-testid="berlin-file" />
                 </label>
                 <button type="submit" className={styles.primary} disabled={busy || (!text.trim() && files.length === 0)}>
                   {t("officeBoard.ticket.send")}
@@ -319,8 +320,11 @@ function TicketDialog({ id, me, t, locale, onClose, onChanged }: { id: string; m
   );
 }
 
-/** The board as a readable 2D view; inside the 3D room it opens when the wall board is clicked. */
-export function OfficeBoard({ embedded = false }: { embedded?: boolean }) {
+/**
+ * The board as a readable 2D view; inside the 3D room it opens when the wall is clicked (or, for one person, when
+ * their desk is clicked). onLoaded hands every fresh list to the room, so the wall follows what happens here.
+ */
+export function OfficeBoard({ embedded = false, person, onLoaded }: { embedded?: boolean; person?: "ben" | "vince"; onLoaded?: (tickets: TicketSummary[]) => void }) {
   const { t, locale } = useI18n();
   const [state, setState] = useState<{ me: Person; tickets: TicketSummary[] } | null>(null);
   const [failed, setFailed] = useState(false);
@@ -331,10 +335,16 @@ export function OfficeBoard({ embedded = false }: { embedded?: boolean }) {
   // stable, so the open ticket does not reload (and grab focus) every time the board refreshes
   const closeTicket = useCallback(() => setOpen(null), []);
 
+  const loadedRef = useRef(onLoaded);
+  useEffect(() => {
+    loadedRef.current = onLoaded;
+  }, [onLoaded]);
   const load = useCallback(async () => {
     try {
-      setState(await officeApi.list());
+      const d = await officeApi.list();
+      setState(d);
       setFailed(false);
+      loadedRef.current?.(d.tickets);
     } catch {
       setFailed(true);
     }
@@ -343,7 +353,11 @@ export function OfficeBoard({ embedded = false }: { embedded?: boolean }) {
   useEffect(() => {
     let alive = true;
     officeApi.list().then(
-      (d) => alive && setState(d),
+      (d) => {
+        if (!alive) return;
+        setState(d);
+        loadedRef.current?.(d.tickets);
+      },
       () => alive && setFailed(true),
     );
     return () => {
@@ -362,7 +376,7 @@ export function OfficeBoard({ embedded = false }: { embedded?: boolean }) {
   };
 
   const team = state ? isTeam(state.me) : false;
-  const columns = state ? byColumn(state.tickets) : null;
+  const columns = state ? byColumn(person ? state.tickets.filter((x) => x.assignee === person) : state.tickets) : null;
 
   const onDrop = (column: Column) => (e: DragEvent) => {
     e.preventDefault();
@@ -372,16 +386,22 @@ export function OfficeBoard({ embedded = false }: { embedded?: boolean }) {
   };
 
   return (
-    <section className={`${styles.board} ${embedded ? styles.embedded : ""}`} aria-labelledby="office-board-title" data-testid="office-board">
+    <section className={`${styles.board} ${embedded ? styles.embedded : ""}`} aria-labelledby="berlin-board-title" data-testid="berlin-board">
       <header className={styles.header}>
         <div>
-          <h1 id="office-board-title" className={styles.title}>
-            {t("officeBoard.title")}
-          </h1>
-          <p className={styles.muted}>{t("officeBoard.subtitle")}</p>
+          {embedded ? (
+            <h2 id="berlin-board-title" className={styles.title} tabIndex={-1}>
+              {person ? t("officeBoard.room.deskTitle", { name: NAMES[person] }) : t("officeBoard.title")}
+            </h2>
+          ) : (
+            <h1 id="berlin-board-title" className={styles.title}>
+              {t("officeBoard.title")}
+            </h1>
+          )}
+          <p className={styles.muted}>{person ? t("officeBoard.room.deskHint", { name: NAMES[person] }) : t("officeBoard.subtitle")}</p>
         </div>
-        {team && !creating && (
-          <button type="button" className={styles.primary} onClick={() => setCreating(true)} data-testid="office-new">
+        {team && !creating && !person && (
+          <button type="button" className={styles.primary} onClick={() => setCreating(true)} data-testid="berlin-new">
             + {t("officeBoard.newTicket")}
           </button>
         )}
@@ -419,7 +439,7 @@ export function OfficeBoard({ embedded = false }: { embedded?: boolean }) {
               onDragOver={team ? (e) => (e.preventDefault(), setDragOver(c)) : undefined}
               onDragLeave={team ? () => setDragOver(null) : undefined}
               onDrop={team ? onDrop(c) : undefined}
-              data-testid={`office-col-${c}`}
+              data-testid={`berlin-col-${c}`}
             >
               <h2 className={styles.colTitle}>
                 {t(`officeBoard.columns.${c}`)} <span className={styles.count}>{columns[c].length}</span>
@@ -432,7 +452,7 @@ export function OfficeBoard({ embedded = false }: { embedded?: boolean }) {
                     className={`${styles.card} ${ticket.openQuestions > 0 ? styles.cardQ : ""}`}
                     draggable={team}
                     onDragStart={team ? (e) => e.dataTransfer.setData("text/x-office-ticket", ticket.id) : undefined}
-                    data-testid="office-card"
+                    data-testid="berlin-card"
                   >
                     <button type="button" className={styles.cardOpen} onClick={() => setOpen(ticket.id)} aria-label={t("officeBoard.card.open", { title: ticket.title })}>
                       <span className={styles.cardTitle}>{ticket.title}</span>
@@ -441,7 +461,7 @@ export function OfficeBoard({ embedded = false }: { embedded?: boolean }) {
                         {ticket.entries > 0 && <span title={t("officeBoard.card.comments", { n: ticket.entries })}>💬 {ticket.entries}</span>}
                         {ticket.attachments > 0 && <span title={t("officeBoard.card.pictures", { n: ticket.attachments })}>🖼 {ticket.attachments}</span>}
                         {ticket.openQuestions > 0 && (
-                          <span className={styles.qMark} title={t("officeBoard.card.question")} data-testid="office-question">
+                          <span className={styles.qMark} title={t("officeBoard.card.question")} data-testid="berlin-question">
                             ?
                           </span>
                         )}
@@ -468,7 +488,10 @@ export function OfficeBoard({ embedded = false }: { embedded?: boolean }) {
           ))}
         </div>
       )}
-      {open && state && <TicketDialog id={open} me={state.me} t={t} locale={locale} onClose={closeTicket} onChanged={() => void load()} />}
+      {/* on top of everything, also of the 3D room the board may sit in */}
+      {open && state && typeof document !== "undefined"
+        ? createPortal(<TicketDialog id={open} me={state.me} t={t} locale={locale} onClose={closeTicket} onChanged={() => void load()} />, document.body)
+        : null}
     </section>
   );
 }

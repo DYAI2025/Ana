@@ -49,18 +49,18 @@ describe("OfficeBoard", () => {
   it("shows three columns, the ticket in 'Working on it' and an open question mark", async () => {
     fakeFetch("ana");
     show();
-    const doing = await screen.findByTestId("office-col-doing");
+    const doing = await screen.findByTestId("berlin-col-doing");
     expect(within(doing).getByText("New website draft")).toBeTruthy();
-    expect(within(doing).getByTestId("office-question")).toBeTruthy();
-    expect(screen.getByTestId("office-col-todo")).toBeTruthy();
-    expect(screen.getByTestId("office-col-done")).toBeTruthy();
+    expect(within(doing).getByTestId("berlin-question")).toBeTruthy();
+    expect(screen.getByTestId("berlin-col-todo")).toBeTruthy();
+    expect(screen.getByTestId("berlin-col-done")).toBeTruthy();
   });
 
   it("gives Ana no buttons to create or move tickets", async () => {
     fakeFetch("ana");
     show();
     await screen.findByText("New website draft");
-    expect(screen.queryByTestId("office-new")).toBeNull();
+    expect(screen.queryByTestId("berlin-new")).toBeNull();
     expect(screen.queryByRole("button", { name: /Move to/ })).toBeNull();
   });
 
@@ -68,7 +68,7 @@ describe("OfficeBoard", () => {
     const calls = fakeFetch("ana");
     show();
     await userEvent.click(await screen.findByRole("button", { name: /Open ticket: New website draft/ }));
-    const dialog = await screen.findByTestId("office-ticket");
+    const dialog = await screen.findByTestId("berlin-ticket");
     expect(within(dialog).getByText("First look at the homepage.")).toBeTruthy();
     expect(await within(dialog).findByText("Can I see it on my phone?")).toBeTruthy();
     await userEvent.type(within(dialog).getByRole("textbox"), "Is the colour final?");
@@ -82,10 +82,10 @@ describe("OfficeBoard", () => {
     const calls = fakeFetch("ana");
     show();
     await userEvent.click(await screen.findByRole("button", { name: /Open ticket: New website draft/ }));
-    const dialog = await screen.findByTestId("office-ticket");
-    expect(await within(dialog).findByTestId("office-thumb")).toBeTruthy();
+    const dialog = await screen.findByTestId("berlin-ticket");
+    expect(await within(dialog).findByTestId("berlin-thumb")).toBeTruthy();
     const file = new File([new Uint8Array([137, 80, 78, 71])], "screen.png", { type: "image/png" });
-    await userEvent.upload(within(dialog).getByTestId("office-file"), file);
+    await userEvent.upload(within(dialog).getByTestId("berlin-file"), file);
     expect(within(dialog).getByText("1 pictures ready to send")).toBeTruthy();
     await userEvent.type(within(dialog).getByRole("textbox"), "Like this");
     await userEvent.click(within(dialog).getByRole("button", { name: "Send" }));

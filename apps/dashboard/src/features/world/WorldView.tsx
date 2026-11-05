@@ -13,6 +13,7 @@ import { postsWith, TAG_FIELDS, TAG_MIN_CONFIDENCE, topPosts, whatWorks, type Po
 import type { SceneData, SceneRef, StationStatus, ViewName, WorldScene } from "./scene/world";
 import { pulseDigest } from "./pulse";
 import { BriefBlock } from "./BriefBlock";
+import { BerlinRoom } from "@/features/office/BerlinRoom";
 import { OfficeRoom } from "./OfficeRoom";
 import styles from "./world.module.css";
 
@@ -198,10 +199,13 @@ export function WorldView() {
   // Ana's office: a 3D room entered through the hut at her place (or the button in her panel)
   const [office, setOffice] = useState(false);
   const closeOffice = useCallback(() => setOffice(false), []);
-  // only one 3D view draws at a time: the world rests while the office is open
+  // Office Berlin: Ben and Vince's room with the ticket board for Ana (entered from Ben, Vince or the Berlin office)
+  const [berlin, setBerlin] = useState(false);
+  const closeBerlin = useCallback(() => setBerlin(false), []);
+  // only one 3D view draws at a time: the world rests while a room is open
   useEffect(() => {
-    sceneRef.current?.pause(office);
-  }, [office]);
+    sceneRef.current?.pause(office || berlin);
+  }, [office, berlin]);
   // a category value picked in "What works", or the top posts, lit up in the orbit
   const [worksPick, setWorksPick] = useState<{ field: TagField; value: string } | "top" | "fresh" | null>(null);
   // what "What works" ranks by: engagement, or saves + shares (the closer hint for long reads, e.g. Substack)
@@ -827,6 +831,12 @@ export function WorldView() {
               {t("world.office.open")}
             </button>
           ) : null}
+          {s.id === "ben" || s.id === "vince" ? (
+            <button type="button" className={styles.officeOpen} onClick={() => setBerlin(true)} data-testid="berlin-open">
+              <span aria-hidden="true">🏢 </span>
+              {t("officeBoard.room.open")}
+            </button>
+          ) : null}
           {s.id === "ana" ? lookBlock(place ? anaNight(place) : false, local) : null}
           {s.id === "ben" || s.id === "vince"
             ? (() => {
@@ -958,6 +968,12 @@ export function WorldView() {
       <div className={styles.pane}>
         <h3 className={styles.selTitle}>{s.id === "berlin" ? t("world.places.berlin") : anaPlaceLabel ?? t("world.places.anaUnknown")}</h3>
         <p className={styles.muted}>{s.id === "berlin" ? t("world.people.ben.sub") : t("world.sources.placeBody")}</p>
+        {s.id === "berlin" ? (
+          <button type="button" className={styles.officeOpen} onClick={() => setBerlin(true)} data-testid="berlin-open">
+              <span aria-hidden="true">🏢 </span>
+              {t("officeBoard.room.open")}
+            </button>
+        ) : null}
       </div>
     );
   })();
@@ -1106,6 +1122,7 @@ export function WorldView() {
           }}
         />
       ) : null}
+      {berlin ? <BerlinRoom onClose={closeBerlin} /> : null}
     </div>
   );
 }
