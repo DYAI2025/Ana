@@ -12,6 +12,7 @@ import { BERLIN, PEOPLE, type AvatarSpec, type ProjectShape, type WorldPersonId 
 import type { WorldPlace } from "../types";
 import { buildAvatar, type AvatarRig } from "./avatar";
 import { declutter } from "./declutter";
+import { buildDaylight } from "./daylight";
 import { basic, disposeGeometry, disposeTree, ll, mesh, PALETTE, R } from "./kit";
 import { buildAiOrb, buildAnaSpot, buildBook, buildBowl, buildClouds, buildDumbbell, buildFuton, buildGlobe, buildGymCorner, buildMusic, buildOffice, buildRock, buildScooter, buildSelfiePhone, buildStation, buildWineGlass, type AnaSpot, type Station } from "./stage";
 
@@ -173,6 +174,10 @@ export function createWorldScene(
   const world = new THREE.Group();
   scene.add(world);
   world.add(buildGlobe(geo));
+  // night side of the Earth from the real sun position, moved every 20 seconds in the frame loop
+  const daylight = buildDaylight();
+  world.add(daylight.shell);
+  let lastSun = 0;
   const clouds = buildClouds([BERLIN]);
   world.add(clouds);
 
@@ -1057,6 +1062,11 @@ export function createWorldScene(
     placeCamera();
 
     clouds.rotation.y += dt * 0.008 * mo;
+    // wall clock, so the night side is right straight away after the tab was in the background
+    if (Date.now() - lastSun >= 20_000) {
+      lastSun = Date.now();
+      daylight.update(new Date(lastSun));
+    }
     // time of day from the real clock: Berlin exactly, Ana's place from its time zone (estimated without one)
     // Ben and Vince: one activity per 20 minutes from the clock, asleep from midnight to 7 in Berlin
     if (T - lastDay >= 1 || lastDay < 0) {
