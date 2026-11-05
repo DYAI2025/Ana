@@ -13,6 +13,29 @@ The app in this folder is **ASADA** — Ana Savu Dashboard (Jira ANA-4 visual sh
   clusters, explicit relations, provenance). The server reads it with `BRAIN_API_URL` and `BRAIN_API_TOKEN` (see
   `.env.example`; the browser never sees either). Without them the page shows **BLOCKED — the Brain connection is not
   configured**, never example notes. It writes nothing.
+- **The media kit** (ANA-53, slice 1): `/kit` is the brand-facing page, for now an internal preview behind the same
+  access check as every data route. It is rendered on the server from the world snapshot, so the page carries only
+  aggregated numbers and cover links (never captions or `/api/world`). A number Instagram did not return as VERIFIED
+  is left out, never shown as 0. `?for=asia|west|<own preset>` picks what a brand sees first. Ana's own content —
+  her line, the contact for the one button, case studies, packages, add-ons and own presets — comes from
+  `media-kit.json` next to the audience history in the state directory (never in git; the repo is public). Every
+  part is optional: a missing part hides its section, and the preview bar lists what is hidden. The file is read on
+  each view; with the systemd unit's `DynamicUser` it must belong to the unit's state directory owner
+  (`chown --reference=<state dir> media-kit.json`, mode 0600). Shape (all fields optional):
+
+  ```json
+  {
+    "name": "Ana Savu",
+    "tagline": "a line in Ana's own words",
+    "contact": { "email": "…", "label": "Work with Ana", "subject": "Collaboration" },
+    "cases": [{ "brand": "…", "title": "…", "summary": "…", "results": [{ "label": "…", "value": "…" }], "link": "https://…" }],
+    "packages": [{ "name": "…", "price": "from …", "includes": ["…"], "note": "…" }],
+    "addons": [{ "name": "Usage rights", "price": "…", "note": "…" }],
+    "presets": { "insurer-us": { "base": "west", "label": "…", "focus": ["US", "GB"], "focus_label": "US & UK", "sections": ["audience", "numbers", "reels", "proof", "packages"], "tiles": ["followers", "reach", "engagement", "watch", "hold"], "reels": ["<media id>"] } }
+  }
+  ```
+
+  Public per-brand links without the dashboard login, open tracking and revocation are a later slice.
 - **Everything else is local prototype data**: Sessions, Whiteboard, Calendar, Pulse, Vault and Toolbox are not
   connected to Confluence, Drive, a calendar, an AI provider or a database. Whiteboard notes and calendar events live
   in memory for the browser tab and reset on reload. Only the chosen language is remembered (localStorage
