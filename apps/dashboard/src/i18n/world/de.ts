@@ -278,6 +278,8 @@ export const worldDe: Messages["world"] = {
     comments: "Kommentare",
     saves: "Gespeichert",
     shares: "Geteilt",
+    watchTime: "Ø Wiedergabezeit",
+    skipRate: "In den ersten 3 s übersprungen",
     er: "Interaktionen pro Reichweite {value} · Median {median}",
     erNone: "Keine Interaktionsrate (Reichweite oder Interaktionen nicht gemessen).",
     countersAt: "Likes und Kommentare Stand {time}",

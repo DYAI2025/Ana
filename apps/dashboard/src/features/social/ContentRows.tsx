@@ -4,7 +4,7 @@ import { ChevronDown, ExternalLink } from "lucide-react";
 import { useEffect, useId, useRef, useState } from "react";
 import { useI18n } from "@/components/providers/I18nProvider";
 import { useReducedMotion } from "@/lib/hooks/useReducedMotion";
-import { ageDays, formatCompact, formatCount, formatDay, formatIndex, formatPercent } from "./format";
+import { ageDays, formatCompact, formatCount, formatDay, formatIndex, formatObservation, formatPercent } from "./format";
 import { InspectButton, useObservationSpec } from "./Inspector";
 import { StateChip } from "./Instruments";
 import { RATE_INPUTS, verified, type Analysis, type PostAnalysis, type RateName, type ThemeId } from "./insights";
@@ -15,6 +15,8 @@ import styles from "./social.module.css";
 
 const ROW_METRICS: readonly CanonicalMetric[] = ["reach", "views", "saves", "shares", "comments"];
 const DETAIL_METRICS: readonly CanonicalMetric[] = ["reach", "views", "saves", "shares", "likes", "comments", "total_interactions"];
+/** Reels only (ANA-51): how long people watch and how many skip in the first 3 s */
+const REEL_METRICS: readonly CanonicalMetric[] = ["avg_watch_time", "skip_rate"];
 const RATES: readonly RateName[] = ["saves_per_reach", "shares_per_reach", "comments_per_reach", "high_intent_rate"];
 const CAPTION_EXCERPT = 110;
 
@@ -197,6 +199,23 @@ function ContentRow({ p, snapshot, overrides, onOverride, open, onToggle }: { p:
                 );
               })}
             </ul>
+            {post.format === "reel" ? (
+              <>
+                <h3 className={styles.detailTitle}>{t("social.content.reelViewing")}</h3>
+                <ul className={styles.metricGrid} data-testid="reel-viewing">
+                  {REEL_METRICS.map((m) => {
+                    const o = post.observations.find((x) => x.metric_name === m);
+                    return (
+                      <li key={m} className={styles.metricCell} data-availability={o?.availability_state ?? "UNAVAILABLE"} data-testid={`reel-${m}`}>
+                        <span className={styles.cellLabel}>{metricLabel(m)}</span>
+                        {o && o.value !== null ? <span className={styles.mono}>{formatObservation({ value: o.value, unit: o.unit }, locale)}</span> : <StateChip state={o?.availability_state ?? "UNAVAILABLE"} />}
+                        {o ? <InspectButton spec={specOf(o, metricLabel(m))} testId={`inspect-${m}`} /> : null}
+                      </li>
+                    );
+                  })}
+                </ul>
+              </>
+            ) : null}
             <h3 className={styles.detailTitle}>{t("social.content.derivedRates")}</h3>
             <ul className={styles.metricGrid}>
               {RATES.map((r) => {

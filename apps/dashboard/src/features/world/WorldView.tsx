@@ -911,6 +911,18 @@ export function WorldView() {
               </div>
             ))}
           </div>
+          {p.format === "reel" ? (
+            <div className={styles.kpis} data-testid="world-post-viewing">
+              <div>
+                <span>{t("world.post.watchTime")}</span>
+                <b>{p.watchSeconds == null ? "—" : `${pf.format(p.watchSeconds)} s`}</b>
+              </div>
+              <div>
+                <span>{t("world.post.skipRate")}</span>
+                <b>{pct1(p.skipRate ?? null)}</b>
+              </div>
+            </div>
+          ) : null}
           <p>{p.er !== null && ig.erMedian !== null ? t("world.post.er", { value: `${pf.format(p.er * 100)} %`, median: `${pf.format(ig.erMedian * 100)} %` }) : p.er !== null ? t("world.post.er", { value: `${pf.format(p.er * 100)} %`, median: "—" }) : t("world.post.erNone")}</p>
           {p.ssr !== null ? <p data-testid="world-post-ssr">{t("world.post.ssr", { value: pct1(p.ssr) })}</p> : null}
           <p className={styles.muted}>{t("world.post.countersAt", { time: ago(p.counters_at) })}</p>

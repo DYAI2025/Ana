@@ -89,6 +89,20 @@ describe("instagramView", () => {
     expect(v.erMedian).toBeNull();
   });
 
+  it("carries a Reel's watch time in seconds and its skip rate as a share, only when measured", () => {
+    const w = world(50);
+    const snap = w.instagram.ok ? w.instagram.snapshot : null;
+    snap!.posts[0]!.observations.push({ ...obs("a", "avg_watch_time", 28130), unit: "ms" }, { ...obs("a", "skip_rate", 34.5), unit: "percent" });
+    snap!.posts[1]!.observations.push({ ...obs("b", "avg_watch_time", null), unit: "ms" });
+    const v = instagramView(w);
+    const a = v.posts.find((p) => p.id === "a")!;
+    expect(a.watchSeconds).toBeCloseTo(28.13, 5);
+    expect(a.skipRate).toBeCloseTo(0.345, 5);
+    const b = v.posts.find((p) => p.id === "b")!;
+    expect(b.watchSeconds).toBeNull();
+    expect(b.skipRate).toBeNull();
+  });
+
   it("save+share rate only when saves, shares and reach are all measured", () => {
     const w = world(77);
     if (!w.instagram.ok) throw new Error("fixture");

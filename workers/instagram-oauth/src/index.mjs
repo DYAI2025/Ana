@@ -460,7 +460,9 @@ const notSent = e => e?.message === 'subrequest-budget' || e?.message === 'meta-
 // Reel-only and newer metrics (Meta IG Media insights): requested in the same call as the base metrics, by product type.
 // Which of them Meta accepts is learned once per Worker call on the first post of that type, so a refused one costs a
 // few calls once instead of the per-metric loop on every post.
-const EXTRA_METRICS = {REELS:['ig_reels_avg_watch_time','reels_skip_rate','reposts'], FEED:['reposts']};
+// reposts is documented for feed posts and Reels but refused by Meta (error 100) for this account on every post
+// (live snapshot of 2026-11-05, worker fa0dcd18): asking for it cost 6 calls of every snapshot, so it is not asked.
+const EXTRA_METRICS = {REELS:['ig_reels_avg_watch_time','reels_skip_rate']};
 const refusedMetric = name => metricState(name, 'unavailable', 'meta-100');
 const insightReader = (b, id) => async metrics => {
   const data = await b.fetch(`/${id}/insights`, {metric:metrics.join(',')});
@@ -882,4 +884,4 @@ export default {
     })());
   }
 };
-export const testing={randomUrlSafe,digest,constantTimeEquals,seal,openSealed,metaOAuthURL,configured,refresh,unwrapSingle,parsePermissions,MAX_ATTEMPTS_PER_INVITE};
+export const testing={EXTRA_METRICS,randomUrlSafe,digest,constantTimeEquals,seal,openSealed,metaOAuthURL,configured,refresh,unwrapSingle,parsePermissions,MAX_ATTEMPTS_PER_INVITE};

@@ -81,6 +81,10 @@ function installMeta(overrides = {}) {
   return calls;
 }
 const metaError = (code, status = 400) => () => Response.json({error: {message: 'synthetic', type: 'OAuthException', code}}, {status});
+// the learning tests need a third extra Meta can refuse: they ask for reposts too (production asks Reels for two)
+const PRODUCTION_EXTRAS = structuredClone(testing.EXTRA_METRICS);
+const useTestExtras = () => Object.assign(testing.EXTRA_METRICS, {REELS: ['ig_reels_avg_watch_time', 'reels_skip_rate', 'reposts'], FEED: ['reposts']});
+afterEach(() => { for (const k of Object.keys(testing.EXTRA_METRICS)) delete testing.EXTRA_METRICS[k]; Object.assign(testing.EXTRA_METRICS, structuredClone(PRODUCTION_EXTRAS)); });
 
 // ---- flow helpers ----
 async function createInvite(env) {
@@ -692,8 +696,22 @@ test('social snapshot: per-post insights with per-metric isolation; missing valu
   assert.ok(byId.m2.metrics.every(m => m.value === null && m.state === 'error' && m.error_class === 'meta-10'));
 });
 
+test('social snapshot (production extras): Reels carry watch time and skip rate in their one call, feed posts nothing more', async () => {
+  const env = mockEnv();
+  await connect(env);
+  const calls = installMeta({media: pagedMedia(3)});
+  const body = await (await snapshot(env)).json();
+  assert.deepEqual(body.insights.extra_metrics, {REELS: ['ig_reels_avg_watch_time', 'reels_skip_rate']});
+  const byId = Object.fromEntries(body.media.items.map(i => [i.id, i.insights]));
+  assert.deepEqual(byId.m0.metrics.slice(7).map(m => [m.name, m.state]), [['ig_reels_avg_watch_time', 'ok'], ['reels_skip_rate', 'ok']]);
+  assert.equal(byId.m2.metrics.length, 7, 'feed posts: base metrics only (reposts is refused by Meta for this account)');
+  assert.ok(calls.filter(c => /\/m\d+\/insights$/.test(c.url.pathname)).every(c => !c.url.searchParams.get('metric').includes('reposts')));
+  for (const id of ['m0', 'm1', 'm2']) assert.equal(calls.filter(c => c.url.pathname.endsWith(`/${id}/insights`)).length, 1);
+});
+
 test('social snapshot: Reels also carry watch time, skip rate and reposts; feed posts reposts; in the same call per post', async () => {
   const env = mockEnv();
+  useTestExtras();
   await connect(env);
   const calls = installMeta({media: pagedMedia(3)});
   const body = await (await snapshot(env)).json();
@@ -709,6 +727,7 @@ test('social snapshot: Reels also carry watch time, skip rate and reposts; feed 
 
 test('social snapshot: extra metrics Meta refuses are learned once per call, so the other posts cost one call each', async () => {
   const env = mockEnv();
+  useTestExtras();
   await connect(env);
   const refuse = () => Response.json({error: {message: 'synthetic', type: 'OAuthException', code: 100}}, {status: 400});
   const calls = installMeta({media: pagedMedia(12), mediaInsights: u => {
@@ -734,6 +753,7 @@ test('social snapshot: extra metrics Meta refuses are learned once per call, so 
 
 test('social snapshot: a post that refuses its learned extras falls back to the base metrics in one more call', async () => {
   const env = mockEnv();
+  useTestExtras();
   await connect(env);
   const calls = installMeta({media: pagedMedia(2), mediaInsights: u => {
     const metrics = u.searchParams.get('metric').split(',');
@@ -750,6 +770,7 @@ test('social snapshot: a post that refuses its learned extras falls back to the 
 
 test('social snapshot: a first Reel that fails for another reason does not mark the extras as refused', async () => {
   const env = mockEnv();
+  useTestExtras();
   await connect(env);
   // mature-first order: m14 (feed) and m15 (the first Reel asked) come first; m15 fails with a server error, the next Reels learn
   installMeta({media: pagedMedia(16), mediaInsights: u => u.pathname.endsWith('/m15/insights')
@@ -764,6 +785,7 @@ test('social snapshot: a first Reel that fails for another reason does not mark 
 
 test('social snapshot: an extra whose own probe fails for another reason is learned again, never marked refused', async () => {
   const env = mockEnv();
+  useTestExtras();
   await connect(env);
   const refuse = () => Response.json({error: {message: 'synthetic', type: 'OAuthException', code: 100}}, {status: 400});
   let skipProbes = 0;
@@ -783,6 +805,7 @@ test('social snapshot: an extra whose own probe fails for another reason is lear
 
 test('social snapshot: a throttle while a post falls back from its extras keeps the throttle as the reason', async () => {
   const env = mockEnv();
+  useTestExtras();
   await connect(env);
   // mature-first chunks: [m14 m15 m16 m17 m18] learn; then [m19 m0 m1 m2 m3]: m19's call with extras is refused late,
   // after m0 was throttled, so its base call is never sent
@@ -802,6 +825,7 @@ test('social snapshot: a throttle while a post falls back from its extras keeps 
 
 test('social snapshot: when Meta refuses every extra, a post without insights costs no doubled base call', async () => {
   const env = mockEnv();
+  useTestExtras();
   await connect(env);
   const extras = ['ig_reels_avg_watch_time', 'reels_skip_rate', 'reposts'];
   const refuse = () => Response.json({error: {message: 'synthetic', type: 'OAuthException', code: 100}}, {status: 400});
@@ -817,6 +841,7 @@ test('social snapshot: when Meta refuses every extra, a post without insights co
 
 test('social snapshot: an extra whose probe keeps failing is learned at most twice, so the other posts keep their budget', async () => {
   const env = mockEnv();
+  useTestExtras();
   await connect(env);
   const calls = installMeta({media: pagedMedia(25), mediaInsights: u => {
     const metrics = u.searchParams.get('metric').split(',');
@@ -838,6 +863,7 @@ test('social snapshot: an extra whose probe keeps failing is learned at most twi
 
 test('social snapshot: a throttle that lands while a fallback call is in flight is the reason, not the budget', async () => {
   const env = mockEnv();
+  useTestExtras();
   await connect(env);
   const wait = ms => new Promise(r => setTimeout(r, ms));
   const refuse = () => Response.json({error: {message: 'synthetic', type: 'OAuthException', code: 100}}, {status: 400});
@@ -861,6 +887,7 @@ const reelExtras = r => Object.fromEntries(r.insights.metrics.filter(m => !['rea
 
 test('social snapshot: posts that fail as a whole teach nothing about the extras, however many they are', async () => {
   const env = mockEnv();
+  useTestExtras();
   await connect(env);
   // the first two Reels asked (m15, m16) fail with a transient error; Meta accepts every extra
   installMeta({media: pagedMedia(25), mediaInsights: u => {
@@ -875,6 +902,7 @@ test('social snapshot: posts that fail as a whole teach nothing about the extras
 
 test('social snapshot: what one post learned about an extra is kept when the next post learns another', async () => {
   const env = mockEnv();
+  useTestExtras();
   await connect(env);
   // m15 (first Reel): watch time answers, skip rate fails once; m16: skip rate answers, a watch-time probe would fail
   installMeta({media: pagedMedia(25), mediaInsights: u => {
@@ -898,6 +926,7 @@ test('social snapshot: what one post learned about an extra is kept when the nex
 
 test('social snapshot: a Reel without insights stays unavailable, even when an extra was given up', async () => {
   const env = mockEnv();
+  useTestExtras();
   await connect(env);
   installMeta({media: pagedMedia(25), mediaInsights: u => {
     const metrics = u.searchParams.get('metric').split(',');
@@ -914,6 +943,7 @@ test('social snapshot: a Reel without insights stays unavailable, even when an e
 
 test('social snapshot: a persistent error on every call with an extra costs no post its base metrics', async () => {
   const env = mockEnv();
+  useTestExtras();
   await connect(env);
   const extras = ['ig_reels_avg_watch_time', 'reels_skip_rate', 'reposts'];
   const calls = installMeta({media: pagedMedia(25), mediaInsights: u => {
@@ -930,6 +960,7 @@ test('social snapshot: a persistent error on every call with an extra costs no p
 
 test('social snapshot: a throttle on another post while a Reel learns its extras leaves that Reel not_fetched, not error', async () => {
   const env = mockEnv();
+  useTestExtras();
   await connect(env);
   // first chunk: m14 (feed) is throttled at once; m15 (the first Reel, extras open) is refused with 100 a moment later
   installMeta({media: pagedMedia(20), mediaInsights: async u => {

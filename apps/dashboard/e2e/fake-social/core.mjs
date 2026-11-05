@@ -48,10 +48,12 @@ export function buildSnapshot({ count = POSTS.length, observedAt = FAKE_OBSERVED
   const items = POSTS.slice(0, count).map(([type, daysAgo, reach, saved, shares, comments, caption], i) => {
     const notFetched = reach === 0;
     const values = { reach, views: reach * 2 + 100, saved, shares, likes: Math.round(reach * 0.05), comments, total_interactions: saved + shares + comments + Math.round(reach * 0.05) };
-    const metrics = METRICS.map((name) => {
+    // Reels also carry watch time (ms) and skip rate (percent 0-100), as the worker reads them (ANA-51)
+    const extras = type === "REELS" ? { ig_reels_avg_watch_time: 12000 + i * 1500, reels_skip_rate: 20 + (i % 5) * 4.5 } : {};
+    const metrics = [...METRICS, ...Object.keys(extras)].map((name) => {
       if (notFetched) return { name, value: null, state: "not_fetched", period: null };
       if (i === PARTIAL_INDEX && name === "views") return { name, value: null, state: "unavailable", period: null, error_class: "meta-100" };
-      return { name, value: values[name], state: "ok", period: "lifetime" };
+      return { name, value: values[name] ?? extras[name], state: "ok", period: "lifetime" };
     });
     return {
       id: `syn${String(i).padStart(3, "0")}`,
@@ -84,7 +86,7 @@ export function buildSnapshot({ count = POSTS.length, observedAt = FAKE_OBSERVED
       metrics: [accountMetric("reach", 48200), accountMetric("views", 131000), { ...accountMetric("accounts_engaged", null), state: "unavailable", error_class: "meta-100" }, accountMetric("total_interactions", 3900)],
     },
     media: { requested_max: 50, returned: items.length, pages_fetched: 2, has_more: true, optional_fields_state: "ACCEPTED", items },
-    insights: { requested_metrics: METRICS, priority: "mature-first", mature_days: 7, halted: null, posts_with_insights: items.filter((x) => x.insights.state !== "not_fetched").length, budget: { limit: 45, used: 45 } },
+    insights: { requested_metrics: METRICS, extra_metrics: { REELS: ["ig_reels_avg_watch_time", "reels_skip_rate"] }, priority: "mature-first", mature_days: 7, halted: null, posts_with_insights: items.filter((x) => x.insights.state !== "not_fetched").length, budget: { limit: 45, used: 45 } },
   };
 }
 

@@ -278,6 +278,8 @@ export const worldIt: Messages["world"] = {
     comments: "Commenti",
     saves: "Salvataggi",
     shares: "Condivisioni",
+    watchTime: "Tempo medio di visione",
+    skipRate: "Saltato nei primi 3 s",
     er: "Interazioni per copertura {value} · mediana {median}",
     erNone: "Nessun tasso di interazione (copertura o interazioni non misurate).",
     countersAt: "Like e commenti al {time}",
