@@ -848,6 +848,63 @@ test('social snapshot: a throttle that lands while a fallback call is in flight 
   assert.equal(m19.reason, 'meta-throttled');
 });
 
+const okInsights = metrics => Response.json({data: metrics.map((name, i) => ({name, period: 'lifetime', values: [{value: 10 + i}]}))});
+const metaErr = (code, status = 400) => Response.json({error: {message: 'synthetic', type: 'OAuthException', code}}, {status});
+const reelExtras = r => Object.fromEntries(r.insights.metrics.filter(m => !['reach', 'views', 'saved', 'shares', 'likes', 'comments', 'total_interactions'].includes(m.name)).map(m => [m.name, m]));
+
+test('social snapshot: posts that fail as a whole teach nothing about the extras, however many they are', async () => {
+  const env = mockEnv();
+  await connect(env);
+  // the first two Reels asked (m15, m16) fail with a transient error; Meta accepts every extra
+  installMeta({media: pagedMedia(25), mediaInsights: u => {
+    const metrics = u.searchParams.get('metric').split(',');
+    if ((u.pathname.endsWith('/m15/insights') || u.pathname.endsWith('/m16/insights')) && metrics.length > 7) return metaErr(2, 500);
+    return okInsights(metrics);
+  }});
+  const body = await (await snapshot(env, '?max=25')).json();
+  const later = body.media.items.filter(i => i.media_product_type === 'REELS' && !['m15', 'm16'].includes(i.id));
+  assert.ok(later.length >= 10 && later.every(r => r.insights.state === 'ok' && Object.values(reelExtras(r)).every(m => m.state === 'ok')));
+});
+
+test('social snapshot: what one post learned about an extra is kept when the next post learns another', async () => {
+  const env = mockEnv();
+  await connect(env);
+  // m15 (first Reel): watch time answers, skip rate fails once; m16: skip rate answers, a watch-time probe would fail
+  installMeta({media: pagedMedia(25), mediaInsights: u => {
+    const metrics = u.searchParams.get('metric').split(',');
+    if (metrics.includes('reposts')) return metaErr(100);
+    if (metrics.length > 7 && metrics.includes('reels_skip_rate') && u.pathname.endsWith('/m15/insights')) return metaErr(100);
+    if (metrics.length === 1 && metrics[0] === 'reels_skip_rate' && u.pathname.endsWith('/m15/insights')) return metaErr(2, 500);
+    if (metrics.length === 1 && metrics[0] === 'ig_reels_avg_watch_time' && u.pathname.endsWith('/m16/insights')) return metaErr(2, 500);
+    return okInsights(metrics);
+  }});
+  const body = await (await snapshot(env, '?max=25')).json();
+  const reels = body.media.items.filter(i => i.media_product_type === 'REELS' && i.id !== 'm15');
+  assert.ok(reels.length >= 10);
+  for (const r of reels) {
+    const x = reelExtras(r);
+    assert.equal(x.ig_reels_avg_watch_time.state, 'ok', r.id);
+    assert.equal(x.reels_skip_rate.state, 'ok', r.id);
+    assert.equal(x.reposts.error_class, 'meta-100', r.id);
+  }
+});
+
+test('social snapshot: a Reel without insights stays unavailable, even when an extra was given up', async () => {
+  const env = mockEnv();
+  await connect(env);
+  installMeta({media: pagedMedia(25), mediaInsights: u => {
+    const metrics = u.searchParams.get('metric').split(',');
+    if (u.pathname.endsWith('/m3/insights')) return metaErr(100);
+    if (metrics.includes('reposts') || (metrics.length > 1 && metrics.includes('reels_skip_rate'))) return metaErr(100);
+    if (metrics.length === 1 && metrics[0] === 'reels_skip_rate') return metaErr(2, 500);
+    return okInsights(metrics);
+  }});
+  const body = await (await snapshot(env, '?max=25')).json();
+  const m3 = body.media.items.find(i => i.id === 'm3').insights;
+  assert.equal(m3.state, 'unavailable');
+  assert.ok(m3.metrics.every(m => m.state === 'unavailable'));
+});
+
 test('media insights endpoint: older posts keep the base metrics only', async () => {
   const env = mockEnv();
   await connect(env);

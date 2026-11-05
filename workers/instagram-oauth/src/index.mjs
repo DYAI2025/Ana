@@ -518,64 +518,66 @@ async function withExtras(b, id, extras) {
     return summarize([...base.metrics, ...extras.map(refusedMetric)], b);
   }
 }
-// first post of a type: learn which extras Meta accepts (each one read alone once if the call with all is refused);
-// knowledge = accepted (answered), refused (Meta error 100), unsettled (failed for another reason or not asked)
-const LEARN_TRIES = 2;
-async function learnExtras(b, id, wanted) {
-  const all = [...MEDIA_INSIGHT_METRICS, ...wanted];
-  const unknown = {accepted:[], refused:[], unsettled:wanted};
-  if (b.remaining() < 1) return {insights:skipped(b, all), knowledge:unknown};
+// What Meta does with each extra, learned per snapshot and type from the posts read so far: accepted (answered),
+// refused (Meta error 100 on the extra alone), given up (its probe failed for another reason PROBE_TRIES times). Extras
+// in none of these are still open; while some are open, posts of that type are read one at a time so the knowledge
+// grows from each before the next. Only a probe of one extra counts: a post that fails or has no insights says
+// nothing about its extras.
+const PROBE_TRIES = 2;
+function extraKnowledge(b, type) {
+  b.extraKnowledge ??= new Map();
+  if (!b.extraKnowledge.has(type)) b.extraKnowledge.set(type, {accepted:new Set(), refused:new Set(), givenUp:new Set(), failures:new Map(), lock:null});
+  return b.extraKnowledge.get(type);
+}
+const openExtras = (k, wanted) => wanted.filter(n => !k.accepted.has(n) && !k.refused.has(n) && !k.givenUp.has(n));
+async function readWithExtras(b, id, wanted, k) {
+  const accepted = wanted.filter(n => k.accepted.has(n));
+  const open = openExtras(k, wanted);
+  if (!open.length) return withExtras(b, id, accepted);
+  const all = [...MEDIA_INSIGHT_METRICS, ...accepted, ...open];
+  if (b.remaining() < 1) return skipped(b, all);
   try {
-    return {insights:summarize(fromEntries(all, await insightReader(b, id)(all)), b), knowledge:{accepted:wanted, refused:[], unsettled:[]}};
+    const r = summarize(fromEntries(all, await insightReader(b, id)(all)), b);
+    for (const n of open) k.accepted.add(n);
+    return r;
   } catch (e) {
-    if (notSent(e)) return {insights:skipped(b, all), knowledge:unknown};
-    if (!(e instanceof MetaError) || e.metaCode !== 100) return {insights:{state:'error', metrics:all.map(n => metricState(n, 'error', errorClass(e)))}, knowledge:unknown};
-    const base = await baseInsights(b, id);
-    // a post without insights (even reach refused) says nothing about the extras
-    if (base.state !== 'ok' && base.state !== 'partial') {
-      const metrics = [...base.metrics, ...wanted.map(n => base.state === 'not_fetched' ? metricState(n, 'not_fetched') : refusedMetric(n))];
-      return {insights:base.state === 'not_fetched' ? {...base, metrics} : summarize(metrics, b), knowledge:unknown};
-    }
+    if (notSent(e)) return skipped(b, all);
+    if (!(e instanceof MetaError) || e.metaCode !== 100) return {state:'error', metrics:all.map(n => metricState(n, 'error', errorClass(e)))};
+    // one of the open extras (or the post itself) is refused: the known part first, then each open extra alone
+    const known = await withExtras(b, id, accepted);
+    if (known.state !== 'ok' && known.state !== 'partial') return known;
     const read = insightReader(b, id);
-    const extras = [], knowledge = {accepted:[], refused:[], unsettled:[]};
-    for (const name of wanted) {
-      if (b.remaining() < 1) { extras.push(metricState(name, 'not_fetched')); knowledge.unsettled.push(name); continue; }
-      try { extras.push(...fromEntries([name], await read([name]))); knowledge.accepted.push(name); }
+    const probed = [];
+    for (const name of open) {
+      if (b.remaining() < 1) { probed.push(metricState(name, 'not_fetched')); continue; }
+      try { probed.push(...fromEntries([name], await read([name]))); k.accepted.add(name); }
       catch (err) {
-        if (notSent(err)) { extras.push(metricState(name, 'not_fetched')); knowledge.unsettled.push(name); continue; }
-        const refused = err instanceof MetaError && err.metaCode === 100;
-        extras.push(metricState(name, refused ? 'unavailable' : 'error', errorClass(err)));
-        knowledge[refused ? 'refused' : 'unsettled'].push(name);
+        if (notSent(err)) { probed.push(metricState(name, 'not_fetched')); continue; }
+        if (err instanceof MetaError && err.metaCode === 100) { probed.push(refusedMetric(name)); k.refused.add(name); continue; }
+        probed.push(metricState(name, 'error', errorClass(err)));
+        const tries = (k.failures.get(name) ?? 0) + 1;
+        k.failures.set(name, tries);
+        if (tries >= PROBE_TRIES) k.givenUp.add(name);
       }
     }
-    return {insights:summarize([...base.metrics, ...extras], b), knowledge};
+    return summarize([...known.metrics, ...probed], b);
   }
 }
 async function mediaInsights(b, id, productType = null) {
   const wanted = Object.hasOwn(EXTRA_METRICS, productType ?? '') ? EXTRA_METRICS[productType] : [];
   if (!wanted.length) return baseInsights(b, id);
-  b.extras ??= new Map();
-  b.learnTries ??= new Map();
-  if (!b.extras.has(productType)) {
-    const tries = (b.learnTries.get(productType) ?? 0) + 1;
-    b.learnTries.set(productType, tries);
-    let settle, known = null;
-    b.extras.set(productType, new Promise(r => { settle = r; }));
-    try {
-      const learned = await learnExtras(b, id, wanted);
-      // an extra that failed for another reason is learned again on the next post, at most LEARN_TRIES times in all:
-      // a probe that keeps failing must not eat the budget of the other posts
-      if (!learned.knowledge.unsettled.length || tries >= LEARN_TRIES) known = learned.knowledge;
-      return learned.insights;
-    } finally {
-      if (known === null) b.extras.delete(productType);
-      settle(known);
-    }
-  }
-  const known = await b.extras.get(productType);
-  if (known === null) return mediaInsights(b, id, productType);
-  const r = await withExtras(b, id, known.accepted);
-  const absent = n => r.state === 'not_fetched' ? metricState(n, 'not_fetched') : known.unsettled.includes(n) ? metricState(n, 'error', 'extra-not-learned') : refusedMetric(n);
+  const k = extraKnowledge(b, productType);
+  let release = null;
+  while (openExtras(k, wanted).length && k.lock) await k.lock;
+  if (openExtras(k, wanted).length) k.lock = new Promise(r => { release = () => { k.lock = null; r(); }; });
+  let r;
+  try { r = await readWithExtras(b, id, wanted, k); }
+  finally { release?.(); }
+  // extras this post did not get back: cut with the post, refused with a post that has no insights, or as known
+  const absent = n => r.state === 'not_fetched' ? metricState(n, 'not_fetched')
+    : r.state === 'unavailable' || k.refused.has(n) ? refusedMetric(n)
+    : k.givenUp.has(n) ? metricState(n, 'error', 'extra-not-learned')
+    : metricState(n, r.state === 'error' ? 'error' : 'not_fetched', r.state === 'error' ? 'post-error' : undefined);
   const metrics = [...r.metrics.filter(m => MEDIA_INSIGHT_METRICS.includes(m.name)), ...wanted.map(n => r.metrics.find(m => m.name === n) ?? absent(n))];
   return r.state === 'not_fetched' ? {...r, metrics} : summarize(metrics, b);
 }
