@@ -96,7 +96,7 @@ function escapeHTML(s) {
 function logEvent(event, fields = {}) { console.log(JSON.stringify({event, ...fields})); }
 function errorClass(e) {
   if (e instanceof MetaError) return e.metaCode !== null ? `meta-${e.metaCode}` : e.message;
-  return ['bad-short-token','bad-long-token','bad-identity','wrong-account','invalid-refresh','invalid-key-size'].includes(e?.message) ? e.message : (e?.name || 'error');
+  return ['bad-short-token','bad-long-token','bad-identity','wrong-account','invalid-refresh','invalid-key-size','subrequest-budget','meta-throttled'].includes(e?.message) ? e.message : (e?.name || 'error');
 }
 function validOpaque(s) { return typeof s === 'string' && /^[A-Za-z0-9_-]{32,100}$/.test(s); }
 function cookieValue(request, name) {
@@ -415,7 +415,7 @@ async function snapshotMedia(b, max) {
     {fields:SNAPSHOT_BASE_FIELDS + ',' + SNAPSHOT_OPTIONAL_FIELDS, optional:'ACCEPTED', picture:'REJECTED_BY_META'},
     {fields:SNAPSHOT_BASE_FIELDS, optional:'REJECTED_BY_META', picture:'REJECTED_BY_META'},
   ];
-  let step = 0, after = null, pages = 0, hasMore = false;
+  let step = 0, after = null, pages = 0, hasMore = false, stopped = null;
   let {fields, optional, picture} = steps[0];
   const items = [];
   while (items.length < max) {
@@ -424,6 +424,8 @@ async function snapshotMedia(b, max) {
     let page;
     try { page = await b.fetch('/me/media', params); }
     catch (e) {
+      // the budget or a throttle ends the paging after the first page: keep what was read and say why it stopped
+      if (pages > 0 && ['subrequest-budget','meta-throttled'].includes(e?.message)) { hasMore = true; stopped = e.message; break; }
       // only "invalid field or parameter" means Meta refused an optional field; anything else fails the read
       if (!(e instanceof MetaError) || e.metaCode !== 100 || pages > 0 || step >= steps.length - 1) throw e;
       ({fields, optional, picture} = steps[++step]);
@@ -437,7 +439,7 @@ async function snapshotMedia(b, max) {
     if (!hasMore) break;
     after = cursor;
   }
-  return {optional, picture, pages, hasMore, items:items.map(m => ({
+  return {optional, picture, pages, hasMore, stopped, items:items.map(m => ({
     id:String(m.id), media_type:m.media_type ?? null, media_product_type:m.media_product_type ?? null,
     permalink:m.permalink ?? null, timestamp:m.timestamp ?? null, thumbnail_url:m.thumbnail_url ?? null,
     ...(optional === 'ACCEPTED' ? {caption:typeof m.caption === 'string' ? m.caption : null, like_count:countOrNull(m.like_count), comments_count:countOrNull(m.comments_count)} : {}),
@@ -570,7 +572,7 @@ async function readMediaHistory(req,env,url) {
   } catch(e) { return json({error:'instagram-media-fetch-failed',reason:errorClass(e)},502); }
   return json({
     history_version:1, fetched_at:new Date().toISOString(), provider:'instagram', api_version:GRAPH_VERSION, account:{id:String(env.EXPECTED_IG_USER_ID)},
-    media:{requested_max:+maxRaw, returned:media.items.length, pages_fetched:media.pages, has_more:media.hasMore, optional_fields_state:media.optional, picture_field_state:media.picture,
+    media:{requested_max:+maxRaw, returned:media.items.length, pages_fetched:media.pages, has_more:media.hasMore, stopped:media.stopped, optional_fields_state:media.optional, picture_field_state:media.picture,
       items:media.items.map(m=>({id:m.id, media_type:m.media_type, media_product_type:m.media_product_type, timestamp:m.timestamp, thumbnail_url:m.thumbnail_url,
         ...('caption' in m ? {caption:m.caption} : {}), ...('image_url' in m ? {image_url:m.image_url} : {})}))},
     budget:{limit:b.limit, used:b.used}
