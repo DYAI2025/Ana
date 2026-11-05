@@ -1004,6 +1004,11 @@ button.barLabel {
   place-items: center;
 }
 
+/* an older post on the office board: a picture, not a button */
+.coverStatic {
+  cursor: default;
+}
+
 .cover img {
   width: 100%;
   height: 100%;

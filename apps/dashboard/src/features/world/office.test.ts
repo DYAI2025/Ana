@@ -79,3 +79,23 @@ describe("Ana's office — topics in the matrix", () => {
     expect(reactionsOf(OFFICE_TOPICS.find((t) => t.id === "quit-to-travel") as OfficeTopic)).toBe(588);
   });
 });
+
+describe("office posts — the snapshot and Ana's older posts", () => {
+  it("adds the history's posts once, the snapshot wins, and older posts count for the topics", async () => {
+    const { officePosts, officeView, OFFICE_TOPICS } = await import("./office");
+    const snap = [{ id: "a", format: "reel" as const, caption: null, permalink: null, published_at: "2026-11-04T00:00:00Z", reach: 100, views: null, saves: 1, shares: 1, interactions: null, likes: null, comments: null, counters_at: null, er: null, ssr: 0.02, fresh: false }];
+    const hist = (id: string, ssr: number | null) => ({ id, published_at: "2026-08-01T00:00:00Z", format: "reel" as const, cover: null, reach: 100, saves: 5, shares: 5, ssr });
+    const all = officePosts(snap, { posts: [hist("a", 0.9), hist("b", 0.1), hist("c", 0.1), hist("d", 0.1), hist("e", null)] });
+    expect(all.map((p) => [p.id, p.ssr])).toEqual([["a", 0.02], ["b", 0.1], ["c", 0.1], ["d", 0.1], ["e", null]]);
+    const view = officeView(OFFICE_TOPICS, all, { b: ["homesick"], c: ["homesick"], d: ["homesick"], e: ["homesick"] });
+    const homesick = view.points.find((p) => p.id === "homesick");
+    // three older posts with numbers make the topic tested; the one without numbers does not count
+    expect(homesick?.ana.n).toBe(3);
+    expect(homesick?.ana.index).not.toBeNull();
+    expect(officePosts(snap, null)).toEqual(snap);
+    // a snapshot post without its own numbers takes the history's
+    const unmeasured = [{ ...(snap[0] as (typeof snap)[number]), ssr: null, reach: null, saves: null, shares: null }];
+    expect(officePosts(unmeasured, { posts: [hist("a", 0.3)] })[0]).toMatchObject({ id: "a", ssr: 0.3, reach: 100 });
+    expect(officePosts(unmeasured, { posts: [hist("a", 0.3)] })).toHaveLength(1);
+  });
+});

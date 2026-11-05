@@ -128,6 +128,19 @@ export function buildAudience({ unavailable = false } = {}) {
   };
 }
 
+/** Synthetic older posts (numeric ids like Meta's): the snapshot's posts are not in it, so all of these are "older". */
+export function buildHistory() {
+  const items = Array.from({ length: 30 }, (_, i) => ({
+    id: String(17900000000000 + i),
+    media_type: "VIDEO",
+    media_product_type: "REELS",
+    timestamp: iso(60 + i),
+    thumbnail_url: null,
+    caption: `Synthetic older post ${i}`,
+  }));
+  return { history_version: 1, media: { requested_max: 200, returned: items.length, pages_fetched: 2, has_more: false, stopped: null, items }, budget: { limit: 14, used: 3 } };
+}
+
 /** Fake worker state: the next answer can be a fault. */
 export function createFakeSocial() {
   let fault = null;
@@ -153,6 +166,13 @@ export function createFakeSocial() {
         if (headers.authorization !== `Bearer ${expectedKey}`) return { status: 401, body: { error: "unauthorized" } };
         if (u.pathname === "/internal/social-pulse") return world.pulseStatus ? { status: world.pulseStatus, body: { error: "fault" } } : { status: 200, body: buildPulse({ likeBump: world.likeBump }) };
         return { status: 200, body: buildAudience({ unavailable: world.audienceUnavailable }) };
+      }
+      // Ana's older posts for the office board: 30 synthetic posts 60..89 days old, and their lifetime numbers
+      if (method === "GET" && (u.pathname === "/internal/media-history" || u.pathname === "/internal/media-insights")) {
+        if (headers.authorization !== `Bearer ${expectedKey}`) return { status: 401, body: { error: "unauthorized" } };
+        if (u.pathname === "/internal/media-history") return { status: 200, body: buildHistory() };
+        const ids = (u.searchParams.get("ids") ?? "").split(",").filter(Boolean);
+        return { status: 200, body: { insights_version: 1, items: ids.map((id, i) => ({ id, insights: { state: "ok", metrics: [["reach", 2000], ["saved", 20 + (i % 7)], ["shares", 5]].map(([name, value]) => ({ name, value, state: "ok", period: "lifetime" })) } })) } };
       }
       if (method !== "GET" || u.pathname !== "/internal/social-snapshot") return { status: 404, body: { error: "not-found" } };
       if (headers.authorization !== `Bearer ${expectedKey}`) return { status: 401, body: { error: "unauthorized" } };

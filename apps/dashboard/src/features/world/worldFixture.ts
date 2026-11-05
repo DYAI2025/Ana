@@ -63,6 +63,7 @@ export function world(): WorldPayload {
       },
       store_error: false,
     },
+    post_history: { state: "off", fetched_at: null, total: 0, oldest: null, posts: [], waiting: 0, list_failing: null, numbers_failing: null, store_error: false },
     brain: { state: "off", last_day: null, note: null, reason: null },
     brief: { state: "off", busy: false, latest: {}, weekly: {}, in_brain: false, brain: false, reason: null },
   };

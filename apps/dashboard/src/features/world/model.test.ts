@@ -67,6 +67,7 @@ function world(pulseLikes: number, pulseAt = "2026-10-31T20:00:00.000Z", extraPu
     post_tags: { state: "off", tags: {} },
     post_topics: { state: "off", version: "t", topics: {}, failing: 0 },
     newsletters: NEWSLETTERS_OFF,
+    post_history: { state: "off", fetched_at: null, total: 0, oldest: null, posts: [], waiting: 0, list_failing: null, numbers_failing: null, store_error: false },
     brain: { state: "off", last_day: null, note: null, reason: null },
     brief: { state: "off", busy: false, latest: {}, weekly: {}, in_brain: false, brain: false, reason: null },
   };

@@ -5,7 +5,7 @@ import { createPortal } from "react-dom";
 import type { useI18n } from "@/components/providers/I18nProvider";
 import { useReducedMotion } from "@/lib/hooks/useReducedMotion";
 import type { WorldPost } from "./model";
-import { OFFICE_AS_OF, OFFICE_CONFIRMED, OFFICE_MIN_N, OFFICE_SOURCE, OFFICE_TOPICS, officeView, ROOM_SPOTS, type BoardDot, type OfficePoint, type OfficeQuadrant, type RoomSpot } from "./office";
+import { OFFICE_AS_OF, OFFICE_CONFIRMED, OFFICE_MIN_N, OFFICE_SOURCE, OFFICE_TOPICS, officePosts, officeView, ROOM_SPOTS, type BoardDot, type OfficePoint, type OfficeQuadrant, type RoomSpot } from "./office";
 import { NEWSLETTER_CHECK_MIN, NEWSLETTER_FEEDS, NEWSLETTERS_PICKED, feedName } from "./newsletters";
 import { PEOPLE } from "./people";
 import type { RoomScene } from "./scene/officeRoom";
@@ -67,13 +67,22 @@ function layout(points: readonly OfficePoint[], threshold: number): Map<string, 
   return out;
 }
 
-function Cover({ post, onPost, label }: { post: WorldPost; onPost: (id: string) => void; label: string }) {
+function Cover({ post, onPost, label, olderLabel }: { post: WorldPost; onPost: (id: string) => void; label: string; olderLabel?: string }) {
   const [broken, setBroken] = useState(false);
+  // Meta's CDN picture as it is (no Next image optimisation of a third-party URL)
+  // eslint-disable-next-line @next/next/no-img-element
+  const picture = post.cover && !broken ? <img src={post.cover} alt="" referrerPolicy="no-referrer" loading="lazy" onError={() => setBroken(true)} /> : <span aria-hidden="true">▶</span>;
+  // an older post is not in the world view: shown, not opened
+  if (post.history) {
+    return (
+      <span className={`${styles.cover} ${styles.coverStatic}`} role="img" aria-label={olderLabel ?? label} data-testid="office-older-cover">
+        {picture}
+      </span>
+    );
+  }
   return (
     <button type="button" className={styles.cover} onClick={() => onPost(post.id)} aria-label={label}>
-      {/* Meta's CDN picture as it is (no Next image optimisation of a third-party URL) */}
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      {post.cover && !broken ? <img src={post.cover} alt="" referrerPolicy="no-referrer" loading="lazy" onError={() => setBroken(true)} /> : <span aria-hidden="true">▶</span>}
+      {picture}
     </button>
   );
 }
@@ -124,7 +133,8 @@ export function OfficeRoom({ world, posts, t, locale, onClose, onPost }: { world
   const [lamp, setLamp] = useState(true);
   const [hover, setHover] = useState<RoomSpot | null>(null);
   const reader = world.post_topics.state === "on";
-  const view = useMemo(() => officeView(OFFICE_TOPICS, posts, reader ? world.post_topics.topics : null), [posts, reader, world.post_topics.topics]);
+  const all = useMemo(() => officePosts(posts, world.post_history), [posts, world.post_history]);
+  const view = useMemo(() => officeView(OFFICE_TOPICS, all, reader ? world.post_topics.topics : null), [all, reader, world.post_topics.topics]);
   const dots = useMemo(() => boardDots(view.points, layout(view.points, view.threshold)), [view]);
 
   const use = useCallback((s: RoomSpot) => {
@@ -327,13 +337,14 @@ export function OfficeRoom({ world, posts, t, locale, onClose, onPost }: { world
 /** The topic board: the matrix and the topics for Substack with their evidence (what the board in the room opens). */
 export function OfficeBoard({ world, posts, t, locale, onPost }: { world: WorldPayload; posts: readonly WorldPost[]; t: T; locale: string; onPost: (id: string) => void }) {
   const reader = world.post_topics.state === "on";
-  const view = useMemo(() => officeView(OFFICE_TOPICS, posts, reader ? world.post_topics.topics : null), [posts, reader, world.post_topics.topics]);
+  const all = useMemo(() => officePosts(posts, world.post_history), [posts, world.post_history]);
+  const view = useMemo(() => officeView(OFFICE_TOPICS, all, reader ? world.post_topics.topics : null), [all, reader, world.post_topics.topics]);
   const pos = useMemo(() => layout(view.points, view.threshold), [view]);
   const [picked, setPicked] = useState<string | null>(null);
   const nf = useMemo(() => new Intl.NumberFormat(locale), [locale]);
   const nf1 = useMemo(() => new Intl.NumberFormat(locale, { minimumFractionDigits: 1, maximumFractionDigits: 1 }), [locale]);
   const asOf = useMemo(() => new Intl.DateTimeFormat(locale, { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" }).format(new Date(`${OFFICE_AS_OF}T12:00:00Z`)), [locale]);
-  const byId = useMemo(() => new Map(posts.map((p) => [p.id, p])), [posts]);
+  const byId = useMemo(() => new Map(all.map((p) => [p.id, p])), [all]);
   const asOfPicked = useMemo(() => new Intl.DateTimeFormat(locale, { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" }).format(new Date(`${NEWSLETTERS_PICKED}T12:00:00Z`)), [locale]);
 
   const pick = (id: string) => {
@@ -349,10 +360,31 @@ export function OfficeBoard({ world, posts, t, locale, onPost }: { world: WorldP
         : p.ana.n >= OFFICE_MIN_N
           ? t("world.office.anaNoBase", { n: p.ana.n })
           : t("world.office.anaFew", { n: p.ana.n, min: OFFICE_MIN_N });
-  // the posts actually in the Instagram snapshot (the live pulse adds a few without numbers, never read for topics)
+  // the posts read for topics: the Instagram snapshot (the live pulse adds a few without numbers, never read) and the
+  // older posts of the history list
   const snapshot = world.instagram.ok ? world.instagram.snapshot.posts.map((x) => x.media_id) : null;
-  const total = snapshot ? snapshot.length : posts.length;
-  const read = snapshot ? snapshot.filter((id) => Object.hasOwn(world.post_topics.topics, id)).length : view.read;
+  // without the snapshot (Instagram down) the posts in view are what the board reads
+  const readable = snapshot ? [...new Set([...snapshot, ...world.post_history.posts.map((h) => h.id)])] : all.filter((p) => !p.fresh).map((p) => p.id);
+  const total = readable.length;
+  const read = readable.filter((id) => Object.hasOwn(world.post_topics.topics, id)).length;
+  const ph = world.post_history;
+  const historyLine =
+    ph.state !== "on"
+      ? null
+      : ph.store_error
+        ? t("world.office.historyStoreError")
+        : ph.total === 0
+          ? ph.list_failing
+            ? t("world.office.historyFailing")
+            : t("world.office.historyWaiting")
+          : [
+              t("world.office.history", { n: ph.total, date: ph.oldest ? new Intl.DateTimeFormat(locale, { day: "numeric", month: "short", year: "numeric", timeZone: "Europe/Berlin" }).format(new Date(ph.oldest)) : "?" }),
+              ph.waiting > 0 ? t("world.office.historyNumbersWaiting", { n: ph.waiting }) : "",
+              ph.list_failing ? t("world.office.historyFailing") : "",
+              ph.numbers_failing ? t("world.office.historyNumbersFailing") : "",
+            ]
+              .filter(Boolean)
+              .join(" ");
   const nl = world.newsletters;
   const day = (d: string) => new Intl.DateTimeFormat(locale, { day: "numeric", month: "short", timeZone: "UTC" }).format(new Date(`${d}T12:00:00Z`));
   const berlinDay = (iso: string) => new Intl.DateTimeFormat(locale, { day: "numeric", month: "short", timeZone: "Europe/Berlin" }).format(new Date(iso));
@@ -386,6 +418,7 @@ export function OfficeBoard({ world, posts, t, locale, onPost }: { world: WorldP
           {reader ? t("world.office.asOf", { source: OFFICE_SOURCE, date: asOf, read, total }) : t("world.office.readerOff")}
           {reader && world.post_topics.failing > 0 ? ` ${t("world.office.failing", { n: world.post_topics.failing })}` : ""}
         </p>
+        {historyLine ? <p className={styles.muted} data-testid="office-history">{historyLine}</p> : null}
         <p className={styles.muted} data-testid="office-newsletters-asof">{nlAsOf}</p>
         {nlCheck ? <p className={styles.muted} data-testid="office-newsletters-check">{nlCheck}</p> : null}
         <div className={styles.officeBody}>
@@ -496,7 +529,7 @@ export function OfficeBoard({ world, posts, t, locale, onPost }: { world: WorldP
                                   <h5>{t("world.office.posts")}</h5>
                                   <div className={styles.signalCovers}>
                                     {mine.slice(0, 6).map((m) => (
-                                      <Cover key={m.id} post={m} onPost={onPost} label={t("world.simple.openPost")} />
+                                      <Cover key={m.id} post={m} onPost={onPost} label={t("world.simple.openPost")} olderLabel={t("world.office.olderPost")} />
                                     ))}
                                   </div>
                                 </>
