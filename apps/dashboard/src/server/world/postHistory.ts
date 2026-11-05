@@ -26,8 +26,10 @@ export const INSIGHTS_BATCH = 40;
 export const INSIGHTS_GAP_MS = 2 * 60_000;
 /** younger posts are still growing: their numbers come from the live snapshot, not from here */
 export const MATURE_DAYS = 7;
-/** a post whose insights failed is asked again after this */
+/** a post without a final answer is asked again after this, at most INSIGHTS_TRIES times; a failed call pauses all */
 const INSIGHTS_RETRY_MS = 6 * 3_600_000;
+export const INSIGHTS_TRIES = 4;
+const INSIGHTS_BLOCK_MS = 3_600_000;
 const TIMEOUT_MS = 60_000;
 const ID_RE = /^\d{1,30}$/;
 
@@ -86,8 +88,11 @@ export interface HistoryItem {
   caption: string | null;
 }
 
-/** The worker's media-history answer, checked: items without an id or a time are skipped. */
-export function parseHistory(data: unknown): HistoryItem[] | null {
+/**
+ * The worker's media-history answer, checked: items without an id or a time are skipped. `full` = the list is complete
+ * (200 posts, or all she has); a list the worker stopped early (budget, throttle) is not, and must not prune the store.
+ */
+export function parseHistory(data: unknown): { items: HistoryItem[]; full: boolean } | null {
   const media = isObject(data) && isObject(data.media) ? data.media : null;
   if (!media || !Array.isArray(media.items)) return null;
   const out: HistoryItem[] = [];
@@ -100,26 +105,58 @@ export function parseHistory(data: unknown): HistoryItem[] | null {
       id: m.id,
       published_at: new Date(at).toISOString(),
       format: formatOf(str(m.media_type), str(m.media_product_type)),
-      cover: str(m.thumbnail_url) ?? str(m.image_url),
+      cover: httpsUrl(m.thumbnail_url) ?? httpsUrl(m.image_url),
       caption: typeof m.caption === "string" ? m.caption : null,
     });
   }
-  return out;
+  const stopped = media.stopped === null || media.stopped === undefined ? null : media.stopped;
+  const full = stopped === null && (media.items.length >= HISTORY_MAX || media.has_more === false);
+  return { items: out, full };
 }
 
-/** The worker's media-insights answer: reach, saves and shares per post that came back ok or partial. */
-export function parseInsights(data: unknown): Map<string, { reach: number | null; saves: number | null; shares: number | null }> {
-  const out = new Map<string, { reach: number | null; saves: number | null; shares: number | null }>();
+const httpsUrl = (x: unknown): string | null => {
+  if (typeof x !== "string" || !x) return null;
+  try {
+    return new URL(x).protocol === "https:" ? x : null;
+  } catch {
+    return null;
+  }
+};
+
+/** Snapshot posts whose reach, saves and shares the snapshot itself measured (verified values). */
+export function measuredIds(posts: ReadonlyArray<{ media_id: string; observations: ReadonlyArray<{ metric_name: string; availability_state: string; value: number | null }> }>): string[] {
+  return posts
+    .filter((p) => ["reach", "saves", "shares"].every((m) => p.observations.some((o) => o.metric_name === m && o.availability_state === "VERIFIED" && o.value !== null)))
+    .map((p) => p.media_id);
+}
+
+export interface PostNumbers {
+  reach: number | null;
+  saves: number | null;
+  shares: number | null;
+  /** every one of reach, saves and shares came back measured or "does not apply": asking again would not change it */
+  final: boolean;
+}
+
+/** The worker's media-insights answer: reach, saves and shares per post that came back ok, partial or unavailable. */
+export function parseInsights(data: unknown): Map<string, PostNumbers> {
+  const out = new Map<string, PostNumbers>();
   const items = isObject(data) && Array.isArray(data.items) ? data.items : [];
   for (const it of items) {
     if (!isObject(it) || typeof it.id !== "string" || !ID_RE.test(it.id) || !isObject(it.insights)) continue;
-    if (it.insights.state !== "ok" && it.insights.state !== "partial") continue;
+    const state = it.insights.state;
+    if (state !== "ok" && state !== "partial" && state !== "unavailable") continue;
     const metrics = Array.isArray(it.insights.metrics) ? it.insights.metrics : [];
+    const find = (name: string) => metrics.find((x) => isObject(x) && x.name === name) as Record<string, unknown> | undefined;
     const value = (name: string) => {
-      const m = metrics.find((x) => isObject(x) && x.name === name && x.state === "ok");
-      return isObject(m) ? num(m.value) : null;
+      const m = find(name);
+      return m && m.state === "ok" ? num(m.value) : null;
     };
-    out.set(it.id, { reach: value("reach"), saves: value("saved"), shares: value("shares") });
+    const settled = (name: string) => {
+      const m = find(name);
+      return state === "unavailable" || (m !== undefined && (m.state === "ok" || m.state === "unavailable"));
+    };
+    out.set(it.id, { reach: value("reach"), saves: value("saved"), shares: value("shares"), final: ["reach", "saved", "shares"].every(settled) });
   }
   return out;
 }
@@ -128,8 +165,11 @@ export interface PostHistory {
   current(): WorldPostHistory;
   /** covers and captions of the listed posts, for the topic reader (empty until the first read) */
   tagged(): TaggedPost[];
-  /** reads the list once a day and fills missing numbers in the background; never throws, never waits */
-  schedule(snapshotIds: readonly string[]): void;
+  /**
+   * reads the list once a day and fills missing numbers in the background; never throws, never waits. `measured` = the
+   * snapshot posts whose saves, shares and reach the snapshot itself measured (those are never asked here)
+   */
+  schedule(measured: readonly string[]): void;
   /** test hook */
   idle(): Promise<void>;
 }
@@ -143,11 +183,15 @@ export function createPostHistory(config: SocialConfig, file: string = postHisto
   let busy = false;
   /** this run's list, newest first, with covers and captions (memory only) */
   let listed: HistoryItem[] = [];
+  let listedAt = -Infinity;
   let listFailedAt = -Infinity;
   let lastInsightsAt = -Infinity;
+  let insightsBlockedUntil = -Infinity;
   const insightsFailedAt = new Map<string, number>();
-  let failing: string | null = null;
-  /** the posts of the latest snapshot: their numbers are live there, so they never wait here */
+  const insightsTries = new Map<string, number>();
+  let listFailing: string | null = null;
+  let numbersFailing: string | null = null;
+  /** the snapshot posts the snapshot itself measured: their numbers are live there, so they are not read or sent here */
   let lastSnapshot: ReadonlySet<string> = new Set();
 
   const load = () =>
@@ -175,34 +219,43 @@ export function createPostHistory(config: SocialConfig, file: string = postHisto
     }
   }
 
+  const oldestDay = () => Object.values(store.posts).reduce<string | null>((a, p) => (a === null || p.published_at < a ? p.published_at : a), null);
   const mature = (p: StoredPost) => now() - Date.parse(p.published_at) >= MATURE_DAYS * 86_400_000;
 
   async function readList(): Promise<boolean> {
-    const fetched = store.fetched_at ? Date.parse(store.fetched_at) : -Infinity;
-    if (listed.length > 0 && now() - fetched < HISTORY_EVERY_MS) return false;
+    // after a restart the list (covers, captions) is read again at once; otherwise once a day
+    if (now() - listedAt < HISTORY_EVERY_MS) return false;
     if (now() - listFailedAt < HISTORY_RETRY_MS) return false;
     const r = await fetchWorkerJson(worker, `/internal/media-history?max=${HISTORY_MAX}`, fetchImpl);
-    const items = r.ok ? parseHistory(r.data) : null;
-    if (!items) {
+    const parsed = r.ok ? parseHistory(r.data) : null;
+    if (!parsed) {
       listFailedAt = now();
-      failing = r.ok ? "invalid" : r.error.kind === "http" ? `http-${r.error.status}` : r.error.kind;
+      listFailing = r.ok ? "invalid" : r.error.kind === "http" ? `http-${r.error.status}` : r.error.kind;
       return false;
     }
-    failing = null;
+    const { items, full } = parsed;
     listed = items;
-    const keep = new Set(items.map((i) => i.id));
     for (const it of items) {
       const had = store.posts[it.id];
       store.posts[it.id] = had ? { ...had, published_at: it.published_at, format: it.format } : { published_at: it.published_at, format: it.format, reach: null, saves: null, shares: null, insights_at: null };
     }
+    if (!full) {
+      // the worker stopped early: keep everything already known, try the whole list again in an hour
+      listFailedAt = now();
+      listFailing = "incomplete";
+      return items.length > 0;
+    }
+    listFailing = null;
+    listedAt = now();
     // only Ana's last 200 posts are kept
+    const keep = new Set(items.map((i) => i.id));
     for (const id of Object.keys(store.posts)) if (!keep.has(id)) delete store.posts[id];
     store.fetched_at = new Date(now()).toISOString();
     return true;
   }
 
   async function readInsights(snapshot: ReadonlySet<string>): Promise<boolean> {
-    if (now() - lastInsightsAt < INSIGHTS_GAP_MS) return false;
+    if (now() - lastInsightsAt < INSIGHTS_GAP_MS || now() < insightsBlockedUntil) return false;
     const due = Object.entries(store.posts)
       .filter(([id, p]) => !snapshot.has(id) && p.insights_at === null && mature(p) && now() - (insightsFailedAt.get(id) ?? -Infinity) >= INSIGHTS_RETRY_MS)
       .sort((a, b) => (a[1].published_at < b[1].published_at ? 1 : -1))
@@ -212,21 +265,32 @@ export function createPostHistory(config: SocialConfig, file: string = postHisto
     lastInsightsAt = now();
     const r = await fetchWorkerJson(worker, `/internal/media-insights?ids=${due.join(",")}`, fetchImpl);
     if (!r.ok) {
-      failing = r.error.kind === "http" ? `http-${r.error.status}` : r.error.kind;
+      // the whole call failed (worker, Meta identity, throttle): a pause for everyone, nothing counts against a post
+      numbersFailing = r.error.kind === "http" ? `http-${r.error.status}` : r.error.kind;
+      insightsBlockedUntil = now() + INSIGHTS_BLOCK_MS;
       return false;
     }
-    failing = null;
+    numbersFailing = null;
     const got = parseInsights(r.data);
     let changed = false;
     for (const id of due) {
       const v = got.get(id);
       const p = store.posts[id];
       if (!p) continue;
-      if (!v) {
+      const tries = (insightsTries.get(id) ?? 0) + 1;
+      if (!v?.final && tries < INSIGHTS_TRIES) {
+        // not final yet (a metric not fetched or failed): what came back is kept, asked again later
+        insightsTries.set(id, tries);
         insightsFailedAt.set(id, now());
+        if (v) {
+          store.posts[id] = { ...p, reach: v.reach, saves: v.saves, shares: v.shares };
+          changed = true;
+        }
         continue;
       }
-      store.posts[id] = { ...p, ...v, insights_at: new Date(now()).toISOString() };
+      // final, or given up after a few tries: what is measured stays, the rest stays unknown (never zero)
+      store.posts[id] = { ...p, reach: v?.reach ?? p.reach, saves: v?.saves ?? p.saves, shares: v?.shares ?? p.shares, insights_at: new Date(now()).toISOString() };
+      insightsTries.delete(id);
       insightsFailedAt.delete(id);
       changed = true;
     }
@@ -244,6 +308,7 @@ export function createPostHistory(config: SocialConfig, file: string = postHisto
     current() {
       const covers = new Map(listed.map((i) => [i.id, i.cover]));
       const posts: WorldHistoryPost[] = Object.entries(store.posts)
+        .filter(([id]) => !lastSnapshot.has(id))
         .map(([id, p]) => ({
           id,
           published_at: p.published_at,
@@ -256,7 +321,7 @@ export function createPostHistory(config: SocialConfig, file: string = postHisto
         }))
         .sort((a, b) => (a.published_at < b.published_at ? 1 : a.published_at > b.published_at ? -1 : 0));
       const waiting = Object.entries(store.posts).filter(([id, p]) => !lastSnapshot.has(id) && p.insights_at === null && mature(p)).length;
-      return { state: "on", fetched_at: store.fetched_at, posts, waiting, failing, store_error: loadError };
+      return { state: "on", fetched_at: store.fetched_at, total: Object.keys(store.posts).length, oldest: oldestDay(), posts, waiting, list_failing: listFailing, numbers_failing: numbersFailing, store_error: loadError };
     },
     tagged: () => listed.map((i) => ({ id: i.id, cover: i.cover, caption: i.caption })),
     schedule(snapshotIds) {

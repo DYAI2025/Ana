@@ -93,5 +93,9 @@ describe("office posts — the snapshot and Ana's older posts", () => {
     expect(homesick?.ana.n).toBe(3);
     expect(homesick?.ana.index).not.toBeNull();
     expect(officePosts(snap, null)).toEqual(snap);
+    // a snapshot post without its own numbers takes the history's
+    const unmeasured = [{ ...(snap[0] as (typeof snap)[number]), ssr: null, reach: null, saves: null, shares: null }];
+    expect(officePosts(unmeasured, { posts: [hist("a", 0.3)] })[0]).toMatchObject({ id: "a", ssr: 0.3, reach: 100 });
+    expect(officePosts(unmeasured, { posts: [hist("a", 0.3)] })).toHaveLength(1);
   });
 });

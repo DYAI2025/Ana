@@ -391,6 +391,8 @@ export const worldIt: Messages["world"] = {
     historyFailing: "All'ultimo tentativo non si è potuto leggere l'elenco dei suoi post meno recenti.",
     historyWaiting: "I suoi post meno recenti non sono ancora stati letti.",
     historyStoreError: "Non si sono potuti caricare i numeri salvati dei suoi post meno recenti.",
+    historyNumbersFailing: "All'ultimo tentativo non si sono potuti leggere i numeri dei suoi post meno recenti; il prossimo tentativo è tra un'ora.",
+    olderPost: "Un post meno recente (solo sulla lavagna)",
     newsletters: "Newsletter a pagamento: {k} delle {n} newsletter dedicate a questi temi ne hanno scritto {span} ({names}; {posts} articolo/i).",
     newslettersNone: "Newsletter a pagamento: nessuna delle {n} newsletter dedicate a questi temi ne ha scritto {span}.",
     newslettersSoFar: "Newsletter a pagamento: nessuna finora ({checked} articoli su {posts} controllati).",

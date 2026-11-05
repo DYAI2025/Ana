@@ -211,12 +211,17 @@ export function reactionsOf(t: OfficeTopic): number {
  * 2026-11-05: her last 200), each post once; the snapshot wins where both have it.
  */
 export function officePosts(posts: readonly WorldPost[], history: Pick<WorldPostHistory, "posts"> | null): WorldPost[] {
-  const out = [...posts];
+  const byId = new Map((history?.posts ?? []).map((h) => [h.id, h]));
+  // a snapshot post the snapshot could not measure takes the history's numbers when those exist
+  const out = posts.map((p) => {
+    const h = byId.get(p.id);
+    return p.ssr === null && h && h.ssr !== null ? { ...p, reach: h.reach, saves: h.saves, shares: h.shares, ssr: h.ssr } : p;
+  });
   const known = new Set(posts.map((p) => p.id));
   for (const h of history?.posts ?? []) {
     if (known.has(h.id)) continue;
     known.add(h.id);
-    out.push({ id: h.id, format: h.format, caption: null, permalink: null, published_at: h.published_at, reach: h.reach, views: null, saves: h.saves, shares: h.shares, interactions: null, likes: null, comments: null, counters_at: null, er: null, ssr: h.ssr, fresh: false, cover: h.cover });
+    out.push({ id: h.id, format: h.format, caption: null, permalink: null, published_at: h.published_at, reach: h.reach, views: null, saves: h.saves, shares: h.shares, interactions: null, likes: null, comments: null, counters_at: null, er: null, ssr: h.ssr, fresh: false, cover: h.cover, history: true });
   }
   return out;
 }

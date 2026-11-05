@@ -413,6 +413,8 @@ test.describe("ANA World — 3D view over real dashboard data", () => {
     await expect(page.getByTestId("office-matrix").locator("[data-tested='true']")).toHaveCount(0);
     await expect(page.getByTestId("office-asof")).toContainText(/model|Modell|modello/);
     await expect(page.getByTestId("office-newsletters-asof")).toContainText(/model|Modell|modello/);
+    // Ana's older posts come from the fake worker's history (30 posts); their numbers are read in the background
+    await expect(page.getByTestId("office-history")).toBeVisible();
     await expect(page.locator('[data-testid^="office-newsletters-"]:not([data-testid="office-newsletters-asof"])')).toHaveCount(0);
     await expect(page.getByTestId("office-group-test").locator("li[id^='office-topic-']")).toHaveCount(6);
     await expect(page.getByTestId("office-group-skip").locator("li[id^='office-topic-']")).toHaveCount(5);

@@ -67,13 +67,22 @@ function layout(points: readonly OfficePoint[], threshold: number): Map<string, 
   return out;
 }
 
-function Cover({ post, onPost, label }: { post: WorldPost; onPost: (id: string) => void; label: string }) {
+function Cover({ post, onPost, label, olderLabel }: { post: WorldPost; onPost: (id: string) => void; label: string; olderLabel?: string }) {
   const [broken, setBroken] = useState(false);
+  // Meta's CDN picture as it is (no Next image optimisation of a third-party URL)
+  // eslint-disable-next-line @next/next/no-img-element
+  const picture = post.cover && !broken ? <img src={post.cover} alt="" referrerPolicy="no-referrer" loading="lazy" onError={() => setBroken(true)} /> : <span aria-hidden="true">▶</span>;
+  // an older post is not in the world view: shown, not opened
+  if (post.history) {
+    return (
+      <span className={styles.cover} role="img" aria-label={olderLabel ?? label} data-testid="office-older-cover">
+        {picture}
+      </span>
+    );
+  }
   return (
     <button type="button" className={styles.cover} onClick={() => onPost(post.id)} aria-label={label}>
-      {/* Meta's CDN picture as it is (no Next image optimisation of a third-party URL) */}
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      {post.cover && !broken ? <img src={post.cover} alt="" referrerPolicy="no-referrer" loading="lazy" onError={() => setBroken(true)} /> : <span aria-hidden="true">▶</span>}
+      {picture}
     </button>
   );
 }
@@ -354,24 +363,25 @@ export function OfficeBoard({ world, posts, t, locale, onPost }: { world: WorldP
   // the posts read for topics: the Instagram snapshot (the live pulse adds a few without numbers, never read) and the
   // older posts of the history list
   const snapshot = world.instagram.ok ? world.instagram.snapshot.posts.map((x) => x.media_id) : null;
-  const readable = snapshot ? [...new Set([...snapshot, ...world.post_history.posts.map((h) => h.id)])] : null;
-  const total = readable ? readable.length : posts.length;
-  const read = readable ? readable.filter((id) => Object.hasOwn(world.post_topics.topics, id)).length : view.read;
+  // without the snapshot (Instagram down) the posts in view are what the board reads
+  const readable = snapshot ? [...new Set([...snapshot, ...world.post_history.posts.map((h) => h.id)])] : all.filter((p) => !p.fresh).map((p) => p.id);
+  const total = readable.length;
+  const read = readable.filter((id) => Object.hasOwn(world.post_topics.topics, id)).length;
   const ph = world.post_history;
-  const oldest = ph.posts.length ? ph.posts[ph.posts.length - 1]?.published_at : null;
   const historyLine =
     ph.state !== "on"
       ? null
       : ph.store_error
         ? t("world.office.historyStoreError")
-        : ph.posts.length === 0
-          ? ph.failing
+        : ph.total === 0
+          ? ph.list_failing
             ? t("world.office.historyFailing")
             : t("world.office.historyWaiting")
           : [
-              t("world.office.history", { n: ph.posts.length, date: oldest ? new Intl.DateTimeFormat(locale, { day: "numeric", month: "short", year: "numeric", timeZone: "Europe/Berlin" }).format(new Date(oldest)) : "?" }),
+              t("world.office.history", { n: ph.total, date: ph.oldest ? new Intl.DateTimeFormat(locale, { day: "numeric", month: "short", year: "numeric", timeZone: "Europe/Berlin" }).format(new Date(ph.oldest)) : "?" }),
               ph.waiting > 0 ? t("world.office.historyNumbersWaiting", { n: ph.waiting }) : "",
-              ph.failing ? t("world.office.historyFailing") : "",
+              ph.list_failing ? t("world.office.historyFailing") : "",
+              ph.numbers_failing ? t("world.office.historyNumbersFailing") : "",
             ]
               .filter(Boolean)
               .join(" ");
@@ -519,7 +529,7 @@ export function OfficeBoard({ world, posts, t, locale, onPost }: { world: WorldP
                                   <h5>{t("world.office.posts")}</h5>
                                   <div className={styles.signalCovers}>
                                     {mine.slice(0, 6).map((m) => (
-                                      <Cover key={m.id} post={m} onPost={onPost} label={t("world.simple.openPost")} />
+                                      <Cover key={m.id} post={m} onPost={onPost} label={t("world.simple.openPost")} olderLabel={t("world.office.olderPost")} />
                                     ))}
                                   </div>
                                 </>

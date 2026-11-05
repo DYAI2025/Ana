@@ -14,7 +14,7 @@ import { historyEntry, type HistoryEntry } from "./audienceHistory";
 import type { PostTagger } from "./tagger";
 import type { TopicTagger } from "./topicTagger";
 import type { NewsletterReader } from "./newsletterReader";
-import type { PostHistory } from "./postHistory";
+import { measuredIds, type PostHistory } from "./postHistory";
 import { POST_HISTORY_OFF } from "@/features/world/types";
 import { NEWSLETTERS_OFF } from "@/features/world/newsletters";
 import { OFFICE_VERSION } from "@/features/world/office";
@@ -219,7 +219,8 @@ export function createWorldService(deps: WorldDeps): WorldService {
       // without Instagram nothing is categorised, but the stored categories are still read (so the Brain digest can start)
       if (deps.tagger) deps.tagger.schedule(instagram.ok ? instagram.snapshot.posts.map((x) => ({ id: x.media_id, cover: x.thumbnail_url ?? x.image_url ?? null, caption: x.caption })) : []);
       const snapshotIds = instagram.ok ? instagram.snapshot.posts.map((x) => x.media_id) : [];
-      if (deps.postHistory && instagram.ok) deps.postHistory.schedule(snapshotIds);
+      // the snapshot measures only some of its posts (its budget favours older ones): the history reads the rest
+      if (deps.postHistory && instagram.ok) deps.postHistory.schedule(measuredIds(instagram.snapshot.posts));
       if (deps.topicTagger) {
         // the snapshot's posts first, then Ana's older posts from the history list (same reader, same agreement)
         const tagged = instagram.ok ? instagram.snapshot.posts.map((x) => ({ id: x.media_id, cover: x.thumbnail_url ?? x.image_url ?? null, caption: x.caption })) : [];

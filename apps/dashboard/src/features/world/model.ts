@@ -59,6 +59,8 @@ export interface WorldPost {
   fresh: boolean;
   /** cover picture on Meta's CDN (video thumbnail or photo), null when unknown */
   cover?: string | null;
+  /** one of Ana's older posts from the history list (not in the world view, so it cannot be opened there) */
+  history?: boolean;
 }
 
 export interface ChannelView {

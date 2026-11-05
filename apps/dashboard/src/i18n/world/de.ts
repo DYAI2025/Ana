@@ -391,6 +391,8 @@ export const worldDe: Messages["world"] = {
     historyFailing: "Die Liste ihrer älteren Posts konnte beim letzten Versuch nicht gelesen werden.",
     historyWaiting: "Ihre älteren Posts sind noch nicht gelesen.",
     historyStoreError: "Die gespeicherten Zahlen ihrer älteren Posts konnten nicht geladen werden.",
+    historyNumbersFailing: "Die Zahlen ihrer älteren Posts konnten beim letzten Versuch nicht gelesen werden; der nächste Versuch ist in einer Stunde.",
+    olderPost: "Ein älterer Post (nur auf der Tafel)",
     newsletters: "Bezahlte Newsletter: {k} von {n} zu diesen Themen haben {span} darüber geschrieben ({names}; {posts} Beitrag/Beiträge).",
     newslettersNone: "Bezahlte Newsletter: keiner der {n} zu diesen Themen hat {span} darüber geschrieben.",
     newslettersSoFar: "Bezahlte Newsletter: bisher keiner ({checked} von {posts} Beiträgen geprüft).",

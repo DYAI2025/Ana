@@ -1191,6 +1191,7 @@ test('media insights: one call per post within 45, same per-metric isolation as 
   assert.ok(calls.length <= 45);
   // posts the budget did not reach are not_fetched, never errors
   const skipped = body.items.filter(x => x.insights.state === 'not_fetched');
+  assert.ok(skipped.length > 0, 'the per-metric fallback of one post spends calls, so the last posts are not reached');
   assert.ok(skipped.every(x => x.insights.reason === 'subrequest-budget'));
   assert.equal(body.items.filter(x => x.insights.state === 'ok' || x.insights.state === 'partial').length + skipped.length, 40);
 });

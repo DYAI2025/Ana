@@ -390,6 +390,8 @@ export const worldEn = {
     historyFailing: "The list of her older posts could not be read at the last try.",
     historyWaiting: "Her older posts are not read yet.",
     historyStoreError: "The saved numbers of her older posts could not be loaded.",
+    historyNumbersFailing: "The numbers of her older posts could not be read at the last try; the next try is in an hour.",
+    olderPost: "An older post (only on the board)",
     newsletters: "Paid newsletters: {k} of {n} on these themes wrote about it {span} ({names}; {posts} post(s)).",
     newslettersNone: "Paid newsletters: none of the {n} on these themes wrote about it {span}.",
     newslettersSoFar: "Paid newsletters: none so far ({checked} of {posts} posts checked).",

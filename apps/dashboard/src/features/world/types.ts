@@ -163,14 +163,20 @@ export interface WorldHistoryPost {
 
 export interface WorldPostHistory {
   state: "on" | "off";
-  /** when the list was last read */
+  /** when the full list was last read */
   fetched_at: string | null;
+  /** posts in the list (her last 200) and the publication time of the oldest */
+  total: number;
+  oldest: string | null;
+  /** the listed posts except those the snapshot measures itself (the board takes those from the snapshot) */
   posts: WorldHistoryPost[];
   /** posts at least 7 days old whose numbers are not read yet */
   waiting: number;
-  /** the last read failed (e.g. "http-502", "timeout"); null = fine */
-  failing: string | null;
+  /** the last list read failed or stopped early ("incomplete", "http-502", "timeout"…); null = fine */
+  list_failing: string | null;
+  /** the last numbers read failed; null = fine */
+  numbers_failing: string | null;
   store_error: boolean;
 }
 
-export const POST_HISTORY_OFF: WorldPostHistory = { state: "off", fetched_at: null, posts: [], waiting: 0, failing: null, store_error: false };
+export const POST_HISTORY_OFF: WorldPostHistory = { state: "off", fetched_at: null, total: 0, oldest: null, posts: [], waiting: 0, list_failing: null, numbers_failing: null, store_error: false };
