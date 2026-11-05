@@ -685,6 +685,84 @@ test('social snapshot: per-post insights with per-metric isolation; missing valu
   assert.ok(byId.m2.metrics.every(m => m.value === null && m.state === 'error' && m.error_class === 'meta-10'));
 });
 
+test('social snapshot: Reels also carry watch time, skip rate and reposts; feed posts reposts; in the same call per post', async () => {
+  const env = mockEnv();
+  await connect(env);
+  const calls = installMeta({media: pagedMedia(3)});
+  const body = await (await snapshot(env)).json();
+  const byId = Object.fromEntries(body.media.items.map(i => [i.id, i.insights]));
+  // m0, m1 = REELS, m2 = FEED (pagedMedia)
+  assert.deepEqual(byId.m0.metrics.map(m => m.name), ['reach', 'views', 'saved', 'shares', 'likes', 'comments', 'total_interactions', 'ig_reels_avg_watch_time', 'reels_skip_rate', 'reposts']);
+  assert.deepEqual(byId.m0.metrics.find(m => m.name === 'ig_reels_avg_watch_time'), {name: 'ig_reels_avg_watch_time', value: 17, state: 'ok', period: 'lifetime'});
+  assert.deepEqual(byId.m2.metrics.map(m => m.name), ['reach', 'views', 'saved', 'shares', 'likes', 'comments', 'total_interactions', 'reposts']);
+  assert.ok(Object.values(byId).every(i => i.state === 'ok'));
+  for (const id of ['m0', 'm1', 'm2']) assert.equal(calls.filter(c => c.url.pathname.endsWith(`/${id}/insights`)).length, 1, `one call for ${id}`);
+  assert.deepEqual(body.insights.extra_metrics, {REELS: ['ig_reels_avg_watch_time', 'reels_skip_rate', 'reposts'], FEED: ['reposts']});
+});
+
+test('social snapshot: extra metrics Meta refuses are learned once per call, so the other posts cost one call each', async () => {
+  const env = mockEnv();
+  await connect(env);
+  const refuse = () => Response.json({error: {message: 'synthetic', type: 'OAuthException', code: 100}}, {status: 400});
+  const calls = installMeta({media: pagedMedia(12), mediaInsights: u => {
+    const metrics = u.searchParams.get('metric').split(',');
+    if (metrics.includes('reels_skip_rate')) return refuse();
+    return Response.json({data: metrics.map((name, i) => ({name, period: 'lifetime', values: [{value: 10 + i}]}))});
+  }});
+  const body = await (await snapshot(env)).json();
+  const reels = body.media.items.filter(i => i.media_product_type === 'REELS');
+  assert.equal(reels.length, 8);
+  for (const r of reels) {
+    assert.equal(r.insights.state, 'partial', r.id);
+    assert.equal(r.insights.metrics.find(m => m.name === 'reach').value, 10);
+    assert.deepEqual(r.insights.metrics.find(m => m.name === 'reels_skip_rate'), {name: 'reels_skip_rate', value: null, state: 'unavailable', period: null, error_class: 'meta-100'});
+    assert.equal(r.insights.metrics.find(m => m.name === 'ig_reels_avg_watch_time').state, 'ok', 'the accepted extras still come back');
+    assert.equal(r.insights.metrics.find(m => m.name === 'reposts').state, 'ok');
+  }
+  const reelCalls = calls.filter(c => reels.some(r => c.url.pathname.endsWith(`/${r.id}/insights`))).length;
+  // the first Reel: combined (refused) + base + 3 extras alone = 5; the 7 others: 1 each
+  assert.equal(reelCalls, 5 + 7);
+  assert.ok(body.media.items.filter(i => i.media_product_type === 'FEED').every(i => i.insights.state === 'ok'));
+});
+
+test('social snapshot: a post that refuses its learned extras falls back to the base metrics in one more call', async () => {
+  const env = mockEnv();
+  await connect(env);
+  const calls = installMeta({media: pagedMedia(2), mediaInsights: u => {
+    const metrics = u.searchParams.get('metric').split(',');
+    if (u.pathname.endsWith('/m1/insights') && metrics.includes('reposts')) return Response.json({error: {message: 'synthetic', type: 'OAuthException', code: 100}}, {status: 400});
+    return Response.json({data: metrics.map((name, i) => ({name, period: 'lifetime', values: [{value: 10 + i}]}))});
+  }});
+  const body = await (await snapshot(env)).json();
+  const m1 = body.media.items.find(i => i.id === 'm1').insights;
+  assert.equal(m1.state, 'partial');
+  assert.ok(m1.metrics.filter(m => ['ig_reels_avg_watch_time', 'reels_skip_rate', 'reposts'].includes(m.name)).every(m => m.state === 'unavailable' && m.error_class === 'meta-100'));
+  assert.ok(m1.metrics.filter(m => m.name === 'reach' || m.name === 'saved').every(m => m.state === 'ok'));
+  assert.equal(calls.filter(c => c.url.pathname.endsWith('/m1/insights')).length, 2, 'combined + base only, no per-metric loop');
+});
+
+test('social snapshot: a first Reel that fails for another reason does not mark the extras as refused', async () => {
+  const env = mockEnv();
+  await connect(env);
+  // mature-first order: m14 (feed) and m15 (the first Reel asked) come first; m15 fails with a server error, the next Reels learn
+  installMeta({media: pagedMedia(16), mediaInsights: u => u.pathname.endsWith('/m15/insights')
+    ? Response.json({error: {message: 'synthetic', type: 'OAuthException', code: 2}}, {status: 500})
+    : Response.json({data: u.searchParams.get('metric').split(',').map((name, i) => ({name, period: 'lifetime', values: [{value: 10 + i}]}))})});
+  const body = await (await snapshot(env)).json();
+  const reels = body.media.items.filter(i => i.media_product_type === 'REELS' && i.id !== 'm15');
+  assert.ok(reels.length > 5);
+  assert.ok(reels.every(r => r.insights.state === 'ok' && r.insights.metrics.find(m => m.name === 'reels_skip_rate').state === 'ok'));
+  assert.equal(body.media.items.find(i => i.id === 'm15').insights.state, 'error');
+});
+
+test('media insights endpoint: older posts keep the base metrics only', async () => {
+  const env = mockEnv();
+  await connect(env);
+  installMeta();
+  const body = await (await worker.fetch(new Request(origin + '/internal/media-insights?ids=11,12', {headers: {Authorization: `Bearer ${INTERNAL_KEY}`}}), env)).json();
+  assert.ok(body.items.every(i => i.insights.metrics.length === 7 && !i.insights.metrics.some(m => m.name === 'reposts')));
+});
+
 test('social snapshot: a hard sub-request budget bounds Meta calls; posts beyond it are marked not_fetched', async () => {
   const env = mockEnv();
   await connect(env);
@@ -731,12 +809,12 @@ test('social snapshot: identity extras fall back only on Meta error 100; a rate 
 test('social snapshot: a budget that runs out inside the per-metric fallback yields not_fetched, never error', async () => {
   const env = mockEnv();
   await connect(env);
-  // 1 identity + 1 media page + 4 account metrics = 6; then each post's combined call fails with 100 and the
-  // per-metric fallback (7 calls per post) exhausts the 45-call budget mid-post
+  // 1 identity + 1 media page + 4 account metrics = 6; then each post's call with its extras and its base call fail with
+  // 100 and the per-metric fallback (7 calls) finds nothing: 9 calls per post exhaust the 45-call budget mid-post
   installMeta({media: pagedMedia(30), mediaInsights: u => u.searchParams.get('metric').includes(',')
     ? Response.json({error: {message: 'synthetic', type: 'OAuthException', code: 100}}, {status: 400})
     : Response.json({data: []})});
-  const body = await (await snapshot(env)).json();
+  const body = await (await snapshot(env, '?max=25')).json();
   assert.equal(body.insights.budget.used, body.insights.budget.limit);
   const states = body.media.items.map(i => i.insights.state);
   assert.ok(!states.includes('error'), 'budget shortfall is never an error');
@@ -755,7 +833,8 @@ test('social snapshot: media without insight support stops the per-metric fallba
   const ins = body.media.items[0].insights;
   assert.equal(ins.state, 'unavailable');
   assert.ok(ins.metrics.every(m => m.value === null && m.state === 'unavailable'));
-  assert.equal(calls.filter(c => /\/m0\/insights$/.test(c.url.pathname)).length, 2, 'combined call + reach only');
+  // m0 is a Reel: the call with its extras, the base call, then reach alone; the extras are not probed one by one
+  assert.equal(calls.filter(c => /\/m0\/insights$/.test(c.url.pathname)).length, 3, 'combined with extras + base + reach only');
 });
 
 test('social snapshot: a throttle or token error stops further insight calls', async () => {
