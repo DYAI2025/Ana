@@ -1065,3 +1065,49 @@ test('social audience: a throttle stops further reads and is reported as error /
   assert.ok(body.metrics.every(m => m.results.length === 0));
   assert.equal((await internalGet(env, '/internal/social-audience', null)).status, 401);
 });
+
+const history = (env, q = '', key = INTERNAL_KEY) => worker.fetch(new Request(origin + '/internal/media-history' + q, {headers: {Authorization: `Bearer ${key}`}}), env);
+
+test('media history: internal key only, max validation, reauth and account checks', async () => {
+  const env = mockEnv();
+  assert.equal((await worker.fetch(new Request(origin + '/internal/media-history'), env)).status, 401);
+  assert.equal((await history(env, '', ADMIN_KEY)).status, 401, 'admin key is not the internal read key');
+  assert.equal((await history(env)).status, 409, 'no token -> reauth-required');
+  await connect(env);
+  for (const q of ['?max=0', '?max=201', '?max=abc', '?max=-1', '?max=1000']) assert.equal((await history(env, q)).status, 400, q);
+  installMeta({me: () => Response.json({user_id: IG_USER_ID, username: 'someoneelse'})});
+  assert.equal((await history(env)).status, 409, 'account mismatch');
+  installMeta({media: metaError(4, 400)});
+  const failed = await history(env);
+  assert.equal(failed.status, 502);
+  assert.deepEqual(await failed.json(), {error: 'instagram-media-fetch-failed', reason: 'meta-4'});
+});
+
+test('media history: pages to 200 posts within its budget, no insights, never forwards Meta paging URLs or tokens', async () => {
+  const env = mockEnv();
+  await connect(env);
+  const calls = installMeta({media: pagedMedia(260)});
+  const r = await history(env, '?max=200');
+  assert.equal(r.status, 200);
+  const text = await r.text();
+  assert.ok(!text.includes(LONG_TOKEN) && !text.includes('access_token'), 'no token or paging URL in output');
+  const body = JSON.parse(text);
+  assert.deepEqual({requested: body.media.requested_max, returned: body.media.returned, pages: body.media.pages_fetched, more: body.media.has_more}, {requested: 200, returned: 200, pages: 8, more: true});
+  assert.equal(body.media.items[199].id, 'm199');
+  assert.equal(body.media.items[0].caption, `synthetic caption 0 ${'c'.repeat(8)}`);
+  assert.ok(body.media.items.every(m => !('insights' in m) && !('permalink' in m) && !('like_count' in m)));
+  const image = body.media.items.find(m => m.media_type === 'IMAGE');
+  const video = body.media.items.find(m => m.media_type === 'VIDEO');
+  assert.equal(image.image_url, `https://example.invalid/i/${image.id.slice(1)}.jpg`);
+  assert.equal(video.image_url, null, 'a video never passes its file URL on');
+  assert.ok(calls.every(c => !c.url.pathname.includes('/insights')), 'no insights calls');
+  assert.ok(calls.length <= body.budget.limit && body.budget.limit <= 45, `calls ${calls.length} within budget ${body.budget.limit}`);
+});
+
+test('media history: default 100, fewer posts reported honestly', async () => {
+  const env = mockEnv();
+  await connect(env);
+  installMeta({media: pagedMedia(7)});
+  const body = await (await history(env)).json();
+  assert.deepEqual({requested: body.media.requested_max, returned: body.media.returned, more: body.media.has_more}, {requested: 100, returned: 7, more: false});
+});

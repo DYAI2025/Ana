@@ -99,6 +99,8 @@ Insights support may be claimed only after `insights-probe` returns `PASS` again
 - A hard budget of 45 Meta calls per snapshot keeps the Worker under Cloudflare's 50 sub-requests per invocation. Posts beyond it are `not_fetched` with `reason: subrequest-budget`. `insights.budget` reports `used` and `limit`.
 - Captions pass through to the BFF for localhost display only (PO decision, ANA-38) and are never logged.
 
+`GET /internal/media-history?max=1..200` (default 100, same `INTERNAL_READ_KEY`, ANA-48) returns Ana's older posts for the office topic count: id, time, `media_type`, `media_product_type`, caption, `thumbnail_url` and `image_url` (same paging, field fallbacks and video-file rule as the snapshot), newest first, **without insights**, no permalink and no counters. Its own budget of 14 Meta calls (identity, 8 pages of 25, fallback steps). Captions go to the dashboard server only, under the same agreement as the post categories (cover + caption to Claude, only topic ids kept), and are never logged.
+
 ## Security boundaries
 
 - `/admin/*` uses a header-only bearer key with digest-based constant-time comparison. `/internal/media` uses its own key, and each key is rejected on the other's routes.

@@ -34,6 +34,11 @@ const SNAPSHOT_PAGE_SIZE = 25;
 // Stays below Cloudflare's 50 sub-requests per invocation on the free plan; shortfall is reported, never hidden.
 const SNAPSHOT_SUBREQUEST_BUDGET = 45;
 const SNAPSHOT_INSIGHT_CONCURRENCY = 5;
+// Media history (internal read contract): older posts for the office topic count, without insights. 200 posts are 8
+// pages of 25; the budget leaves room for the identity read and the field fallback steps.
+const HISTORY_DEFAULT_MAX = 100;
+const HISTORY_MAX = 200;
+const HISTORY_SUBREQUEST_BUDGET = 14;
 const MEDIA_INSIGHT_METRICS = ['reach','views','saved','shares','likes','comments','total_interactions'];
 const ACCOUNT_METRICS = ['reach','views','accounts_engaged','total_interactions'];
 const ACCOUNT_WINDOW_DAYS = 28;
@@ -548,6 +553,29 @@ async function readSocialSnapshot(req,env,url) {
       posts_with_insights:insights.filter(x=>x.state==='ok'||x.state==='partial').length, budget:{limit:b.limit, used:b.used}}
   });
 }
+// Ana's older posts (id, time, type, caption, cover/picture), newest first, no insights. Same account check and paging as
+// the snapshot; Meta's paging URLs and the token never leave the Worker.
+async function readMediaHistory(req,env,url) {
+  if(!(await authorizeAdmin(req,env,'INTERNAL_READ_KEY')))return json({error:'unauthorized'},401);
+  const maxRaw=url.searchParams.get('max')||String(HISTORY_DEFAULT_MAX);
+  if(!/^\d{1,3}$/.test(maxRaw) || +maxRaw<1 || +maxRaw>HISTORY_MAX)return json({error:'invalid-max'},400);
+  const token=await usableToken(env);
+  if(!token)return json({error:'reauth-required'},409);
+  const b=metaBudget(token,HISTORY_SUBREQUEST_BUDGET);
+  let identity, media;
+  try {
+    identity=await snapshotIdentity(b);
+    if(!isExpectedAccount(identity.me,env))return json({error:'account-mismatch'},409);
+    media=await snapshotMedia(b,+maxRaw);
+  } catch(e) { return json({error:'instagram-media-fetch-failed',reason:errorClass(e)},502); }
+  return json({
+    history_version:1, fetched_at:new Date().toISOString(), provider:'instagram', api_version:GRAPH_VERSION, account:{id:String(env.EXPECTED_IG_USER_ID)},
+    media:{requested_max:+maxRaw, returned:media.items.length, pages_fetched:media.pages, has_more:media.hasMore, optional_fields_state:media.optional, picture_field_state:media.picture,
+      items:media.items.map(m=>({id:m.id, media_type:m.media_type, media_product_type:m.media_product_type, timestamp:m.timestamp, thumbnail_url:m.thumbnail_url,
+        ...('caption' in m ? {caption:m.caption} : {}), ...('image_url' in m ? {image_url:m.image_url} : {})}))},
+    budget:{limit:b.limit, used:b.used}
+  });
+}
 // ---- World pulse and audience (ANA World, additive internal read contracts) ----
 // Pulse: one cheap read of the newest posts' public counters so the dashboard can show real like/comment deltas
 // within a minute. Audience: Meta's aggregated demographics (top 45, up to 48 h delayed). Neither carries per-like or
@@ -691,6 +719,7 @@ async function route(req,env,url) {
   }
   if(req.method==='GET' && url.pathname==='/internal/media')return readMedia(req,env,url);
   if(req.method==='GET' && url.pathname==='/internal/social-snapshot')return readSocialSnapshot(req,env,url);
+  if(req.method==='GET' && url.pathname==='/internal/media-history')return readMediaHistory(req,env,url);
   if(req.method==='GET' && url.pathname==='/internal/social-pulse')return readSocialPulse(req,env,url);
   if(req.method==='GET' && url.pathname==='/internal/social-audience')return readSocialAudience(req,env);
   if(req.method==='GET' && url.pathname==='/instagram/start')return startPage(req,env,url);
