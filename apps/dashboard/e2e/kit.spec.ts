@@ -65,7 +65,7 @@ test.describe("ANA-53 · media kit", () => {
       JSON.stringify({
         tagline: "A test line",
         contact: { email: "e2e@example.invalid", label: "Work with Ana" },
-        partners: [{ name: "Test Partner", kind: "paid" }, { name: "Test Affiliate", kind: "affiliate" }],
+        partners: [{ name: "Test Partner", kind: "paid" }, { name: "Test Affiliate", kind: "affiliate", current: true }],
         cases: [{ brand: "Test Brand", results: [{ label: "Bookings", value: "+40%" }] }, { brand: "Test Unproven", role: "Filming" }],
         packages: [{ name: "One Reel", price: "from €1" }],
         addons: [{ name: "Usage rights", price: "+20–50 %" }],
@@ -84,6 +84,8 @@ test.describe("ANA-53 · media kit", () => {
     await expect(page.getByTestId("kit-partners")).toContainText("Test Partner");
     await expect(page.getByTestId("kit-partners")).toContainText("Paid partnership");
     await expect(page.getByTestId("kit-partners")).toContainText("Affiliate");
+    await expect(page.getByTestId("kit-partners-current")).toContainText("Test Affiliate");
+    await expect(page.getByTestId("kit-partners-past")).toContainText("Test Partner");
     // the case with results shows them; the one without says so
     await expect(page.getByTestId("kit-proof")).toContainText("+40%");
     await expect(page.getByTestId("kit-case-no-results")).toHaveText(["Collaboration · no published results"]);

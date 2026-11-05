@@ -76,10 +76,12 @@ describe("parseKitConfig — partners, Reel labels, case fields (ANA-54)", () =>
   it("partners: names with a known kind; no kind is the name alone; an unknown kind is dropped", () => {
     const c = parseKitConfig({ partners: [{ name: "Fiverr", kind: "paid" }, { name: " ClassPass ", kind: "affiliate" }, { name: "Nomad" }, { name: "X", kind: "sponsor" }, { kind: "paid" }] });
     expect(c.partners).toEqual([
-      { name: "Fiverr", kind: "paid" },
-      { name: "ClassPass", kind: "affiliate" },
-      { name: "Nomad", kind: null },
+      { name: "Fiverr", kind: "paid", current: false },
+      { name: "ClassPass", kind: "affiliate", current: false },
+      { name: "Nomad", kind: null, current: false },
     ]);
+    // only an explicit true is a running partnership
+    expect(parseKitConfig({ partners: [{ name: "A", current: true }, { name: "B", current: "yes" }, { name: "C", kind: "affiliate", current: true }] }).partners.map((p) => [p.name, p.current])).toEqual([["A", true], ["B", false], ["C", true]]);
   });
 
   it("Reel labels: by media id, known kinds only; organic and concept carry no brand", () => {

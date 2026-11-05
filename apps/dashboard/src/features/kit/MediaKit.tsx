@@ -346,6 +346,38 @@ function PreviewBar({ model }: { model: KitModel }) {
 
 const asOf = new Intl.DateTimeFormat(LOCALE, { day: "numeric", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit", timeZone: "UTC", timeZoneName: "short" });
 
+/** running partnerships first ("Currently working with"), then "Also worked with" (no claim that those ended); one "Worked with" list when none runs */
+function Partners({ partners }: { partners: KitModel["partners"] }) {
+  const current = partners.filter((p) => p.current);
+  const past = partners.filter((p) => !p.current);
+  const list = (items: KitModel["partners"], testid: string) => (
+    <ul data-testid={testid}>
+      {items.map((p, i) => (
+        <li key={`${p.name}-${i}`}>
+          <span className={styles.partnerName}>{p.name}</span>
+          {p.kind ? <small>{p.kind}</small> : null}
+        </li>
+      ))}
+    </ul>
+  );
+  return (
+    <div className={styles.partners} data-testid="kit-partners">
+      {current.length ? (
+        <>
+          <p className={styles.group}>Currently working with</p>
+          {list(current, "kit-partners-current")}
+        </>
+      ) : null}
+      {past.length ? (
+        <>
+          <p className={`${styles.group} ${current.length ? styles.groupNext : ""}`}>{current.length ? "Also worked with" : "Worked with"}</p>
+          {list(past, "kit-partners-past")}
+        </>
+      ) : null}
+    </div>
+  );
+}
+
 const day = new Intl.DateTimeFormat(LOCALE, { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
 
 /** the baseline a brand can expect, before the best Reels: medians, with how many Reels and from when */
@@ -408,19 +440,7 @@ export function MediaKit({ model, preview = false }: { model: KitModel; preview?
               ) : null}
             </div>
           ) : null}
-          {model.partners.length ? (
-            <div className={styles.partners} data-testid="kit-partners">
-              <p className={styles.group}>Worked with</p>
-              <ul>
-                {model.partners.map((p, i) => (
-                  <li key={`${p.name}-${i}`}>
-                    <span className={styles.partnerName}>{p.name}</span>
-                    {p.kind ? <small>{p.kind}</small> : null}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ) : null}
+          {model.partners.length ? <Partners partners={model.partners} /> : null}
           {model.contact ? (
             // one way to write, one button (Ben's wish): the hero link leads down to it
             <a className={styles.heroCta} href="#kit-cta" data-testid="kit-hero-cta">

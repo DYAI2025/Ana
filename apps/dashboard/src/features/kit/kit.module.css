@@ -621,6 +621,9 @@ a.reel:focus-visible {
 .partners .group {
   margin-top: 0;
 }
+.partners .groupNext {
+  margin-top: 18px;
+}
 .partners ul {
   display: flex;
   flex-wrap: wrap;
