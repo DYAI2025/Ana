@@ -113,7 +113,7 @@ const SPOT_ICON: Record<RoomSpot, string> = { board: "📋", computer: "💻", l
 
 /**
  * Ana's office: a small 3D room you walk into from the world (the hut at Ana's place, or the button in her panel).
- * The board on the wall holds the topics for Substack, the computer is where Claude will answer later, the lamp just
+ * The board on the wall holds the topics for Substack, the computer shows Ana's media kit (ANA-56), the lamp just
  * switches. Everything is reachable with the buttons that float over the things too (keyboard, screen readers), and
  * without WebGL the board opens directly.
  */
@@ -305,7 +305,7 @@ export function OfficeRoom({ world, posts, t, locale, onClose, onPost }: { world
             ))}
           </div>
           {shown === "board" || shown === "computer" ? (
-            <aside className={styles.officeDrawer} aria-labelledby="office-drawer-title" data-testid="office-drawer">
+            <aside className={`${styles.officeDrawer} ${shown === "computer" ? styles.officeDrawerWide : ""}`} aria-labelledby="office-drawer-title" data-testid="office-drawer">
               <div className={styles.officeDrawerHead}>
                 <h3 id="office-drawer-title" tabIndex={-1}>
                   <span aria-hidden="true">{SPOT_ICON[shown]} </span>
@@ -320,9 +320,15 @@ export function OfficeRoom({ world, posts, t, locale, onClose, onPost }: { world
               {shown === "board" ? (
                 <OfficeBoard world={world} posts={posts} t={t} locale={locale} onPost={onPost} />
               ) : (
+                // Ana's media kit on her screen (ANA-56): the same page brands will see, with its preview bar
                 <div className={styles.officeComputer} data-testid="office-computer">
-                  <p>{t("world.office.computerBody")}</p>
-                  <p className={styles.note}>{t("world.office.computerNote")}</p>
+                  <p className={styles.note}>
+                    {t("world.office.computerBody")}{" "}
+                    <a href="/kit" target="_blank" rel="noopener" data-testid="office-kit-open">
+                      {t("world.office.computerOpen")} ↗
+                    </a>
+                  </p>
+                  <iframe className={styles.officeKit} src="/kit" title={t("world.office.computerFrame")} data-testid="office-kit" />
                 </div>
               )}
             </aside>
