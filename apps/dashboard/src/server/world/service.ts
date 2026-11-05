@@ -220,7 +220,10 @@ export function createWorldService(deps: WorldDeps): WorldService {
       if (deps.tagger) deps.tagger.schedule(instagram.ok ? instagram.snapshot.posts.map((x) => ({ id: x.media_id, cover: x.thumbnail_url ?? x.image_url ?? null, caption: x.caption })) : []);
       const snapshotIds = instagram.ok ? instagram.snapshot.posts.map((x) => x.media_id) : [];
       // the snapshot measures only some of its posts (its budget favours older ones): the history reads the rest
-      if (deps.postHistory && instagram.ok) deps.postHistory.schedule(measuredIds(instagram.snapshot.posts));
+      if (deps.postHistory) {
+        if (instagram.ok) deps.postHistory.schedule(measuredIds(instagram.snapshot.posts));
+        else deps.postHistory.noSnapshot();
+      }
       if (deps.topicTagger) {
         // the snapshot's posts first, then Ana's older posts from the history list (same reader, same agreement)
         const tagged = instagram.ok ? instagram.snapshot.posts.map((x) => ({ id: x.media_id, cover: x.thumbnail_url ?? x.image_url ?? null, caption: x.caption })) : [];

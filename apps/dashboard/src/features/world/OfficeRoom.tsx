@@ -75,7 +75,7 @@ function Cover({ post, onPost, label, olderLabel }: { post: WorldPost; onPost: (
   // an older post is not in the world view: shown, not opened
   if (post.history) {
     return (
-      <span className={styles.cover} role="img" aria-label={olderLabel ?? label} data-testid="office-older-cover">
+      <span className={`${styles.cover} ${styles.coverStatic}`} role="img" aria-label={olderLabel ?? label} data-testid="office-older-cover">
         {picture}
       </span>
     );
