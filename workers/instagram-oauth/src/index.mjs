@@ -726,7 +726,9 @@ const AUDIENCE_READS = [
   ['follower_demographics', 'age', 'this_month'], ['follower_demographics', 'gender', 'this_month'],
 ];
 // identity read(s) plus one read per entry above
-const AUDIENCE_SUBREQUEST_BUDGET = AUDIENCE_READS.length + 3;
+// + 1 for follows_and_unfollows of the last 24 hours (Meta: day period, follow_type breakdown, up to 48 h delayed)
+const AUDIENCE_SUBREQUEST_BUDGET = AUDIENCE_READS.length + 4;
+const FOLLOWS_WINDOW_SECONDS = 86400;
 // The caller has already checked INTERNAL_READ_KEY.
 async function internalIdentity(env, budget) {
   const token=await usableToken(env);
@@ -787,10 +789,25 @@ async function readSocialAudience(req,env) {
   };
   // The four original reads run one after another as before (a throttle stops the rest); the additive reads then run
   // in parallel, so the whole answer stays well inside the dashboard's request timeout even when Meta is slow.
+  // follows and unfollows of the last 24 hours (FOLLOWER = followed, NON_FOLLOWER = unfollowed or left Instagram)
+  const follows=async () => {
+    const until=nowSeconds(), since=until-FOLLOWS_WINDOW_SECONDS;
+    const base={name:'follows_and_unfollows', breakdown:'follow_type', period:'day', since, until};
+    try {
+      const data=await ctx.b.fetch(`/${userId}/insights`,{metric:'follows_and_unfollows', period:'day', metric_type:'total_value', breakdown:'follow_type', since, until});
+      const entry=(Array.isArray(data?.data)?data.data:[]).find(x=>x?.name==='follows_and_unfollows');
+      const results=demographicResults(entry, 'follow_type');
+      return results.length?{...base, state:'ok', results}:{...base, state:'unavailable', error_class:'empty-response', results:[]};
+    } catch(e) {
+      const cls=notSent(e)?e.message:errorClass(e);
+      return {...base, state:e instanceof MetaError&&e.metaCode===100?'unavailable':notSent(e)?'not_fetched':'error', error_class:cls, results:[]};
+    }
+  };
   const metrics=[];
   for (const r of AUDIENCE_READS.slice(0, 4)) metrics.push(await read(r));
-  metrics.push(...await Promise.all(AUDIENCE_READS.slice(4).map(read)));
-  return json({audience_version:1, fetched_at:new Date().toISOString(), provider:'instagram', api_version:GRAPH_VERSION, metrics});
+  const [rest, followsResult]=await Promise.all([Promise.all(AUDIENCE_READS.slice(4).map(read)), follows()]);
+  metrics.push(...rest);
+  return json({audience_version:1, fetched_at:new Date().toISOString(), provider:'instagram', api_version:GRAPH_VERSION, metrics, follows:followsResult});
 }
 async function refresh(env,force=false) {
   const row=await findToken(env);

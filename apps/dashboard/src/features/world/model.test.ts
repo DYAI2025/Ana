@@ -59,7 +59,7 @@ function world(pulseLikes: number, pulseAt = "2026-10-31T20:00:00.000Z", extraPu
       },
     },
     pulse: { state: "ok", reason: null, fetched_at: pulseAt, followers: 1010, media_count: 3, items: [{ id: "a", published_at: "2026-10-30T10:00:00.000Z", like_count: pulseLikes, comments_count: 4 }, ...extraPulse] },
-    audience: { state: "ok", reason: null, fetched_at: pulseAt, timeframe: "this_month", engaged_country: { state: "ok", reason: null, results: [{ key: "DE", value: 30 }, { key: "ES", value: 10 }] }, engaged_city: { state: "unavailable", reason: "meta-100", results: [] }, follower_country: { state: "unavailable", reason: null, results: [] }, follower_city: { state: "unavailable", reason: null, results: [] }, engaged_country_week: N, engaged_city_week: N, who: { engaged_week: W, engaged_month: W, follower: W }, history: { days: 0, since: null } },
+    audience: { state: "ok", reason: null, fetched_at: pulseAt, timeframe: "this_month", engaged_country: { state: "ok", reason: null, results: [{ key: "DE", value: 30 }, { key: "ES", value: 10 }] }, engaged_city: { state: "unavailable", reason: "meta-100", results: [] }, follower_country: { state: "unavailable", reason: null, results: [] }, follower_city: { state: "unavailable", reason: null, results: [] }, engaged_country_week: N, engaged_city_week: N, who: { engaged_week: W, engaged_month: W, follower: W }, history: { days: 0, since: null }, follows: { state: "not_fetched", reason: "not-returned", since: null, until: null, gained: null, lost: null } },
     work: { state: "not-configured", reason: "not-configured", fetched_at: null, issues: [] },
     places: { ana: null },
     ana_look: resolveLook(null, null),
@@ -68,6 +68,7 @@ function world(pulseLikes: number, pulseAt = "2026-10-31T20:00:00.000Z", extraPu
     post_topics: { state: "off", version: "t", topics: {}, failing: 0 },
     newsletters: NEWSLETTERS_OFF,
     post_history: { state: "off", fetched_at: null, total: 0, oldest: null, posts: [], waiting: 0, list_failing: null, numbers_failing: null, store_error: false },
+    reel_viewing: { state: "off", reels: 0, skip_reels: 0, watch_ms: null, skip_pct: null, previous: null, store_error: false },
     brain: { state: "off", last_day: null, note: null, reason: null },
     brief: { state: "off", busy: false, latest: {}, weekly: {}, in_brain: false, brain: false, reason: null },
   };

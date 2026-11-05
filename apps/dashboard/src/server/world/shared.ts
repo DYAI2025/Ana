@@ -12,6 +12,7 @@ import { createPostTagger } from "./tagger";
 import { createTopicTagger } from "./topicTagger";
 import { createNewsletterReader, type NewsletterReader } from "./newsletterReader";
 import { createPostHistory } from "./postHistory";
+import { createReelDaily } from "./reelDaily";
 import { brainCaller, brainWriterConfigFromEnv, createBrainWriter } from "./brainWriter";
 import { createBriefService, type BriefService } from "./briefService";
 
@@ -73,6 +74,7 @@ export function worldServiceFromEnv(): WorldService {
         newsletters,
         // Ana's last 200 posts for the office board (Ben, 2026-11-05): same worker and key as the snapshot
         postHistory: config ? createPostHistory(config) : null,
+        reelDaily: createReelDaily(),
         // agent:lumen, Ben's approval of 2026-11-03: aggregated numbers only, never CONFIRMED
         brain: brain ? createBrainWriter(brain) : null,
         brief,

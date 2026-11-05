@@ -25,6 +25,7 @@ function world(): WorldPayload {
       engaged_city: N, engaged_city_week: N, follower_country: N, follower_city: N,
       who: { engaged_week: { age: N, gender: N, age_gender: N }, engaged_month: { age: N, gender: N, age_gender: N }, follower: { age: N, gender: N, age_gender: N } },
       history: { days: 0, since: null },
+      follows: { state: "not_fetched", reason: "not-returned", since: null, until: null, gained: null, lost: null },
     },
     work: { state: "not-configured", reason: null, fetched_at: null, issues: [] },
     places: { ana: null },
@@ -34,6 +35,7 @@ function world(): WorldPayload {
     post_topics: { state: "off", version: "t", topics: {}, failing: 0 },
     newsletters: NEWSLETTERS_OFF,
     post_history: { state: "off", fetched_at: null, total: 0, oldest: null, posts: [], waiting: 0, list_failing: null, numbers_failing: null, store_error: false },
+    reel_viewing: { state: "off", reels: 0, skip_reels: 0, watch_ms: null, skip_pct: null, previous: null, store_error: false },
     brain: { state: "off", last_day: null, note: null, reason: null },
     brief: { state: "off", busy: false, latest: {}, weekly: {}, in_brain: false, brain: false, reason: null },
   } as WorldPayload;

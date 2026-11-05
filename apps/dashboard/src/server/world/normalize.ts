@@ -1,5 +1,5 @@
 import "server-only";
-import type { AudienceSeries, AudienceSeriesState, PulseItem, WhoSeries, WorldAudience } from "@/features/world/types";
+import type { AudienceSeries, AudienceSeriesState, PulseItem, WhoSeries, WorldAudience, WorldFollows } from "@/features/world/types";
 import { InvalidWorkerResponse } from "@/server/social/normalize";
 
 type Rec = Record<string, unknown>;
@@ -45,6 +45,7 @@ export interface NormalizedAudience {
   engaged_country_week: AudienceSeries;
   engaged_city_week: AudienceSeries;
   who: WorldAudience["who"];
+  follows: WorldFollows;
 }
 
 const SERIES_STATES: readonly AudienceSeriesState[] = ["ok", "unavailable", "error", "not_fetched"];
@@ -79,6 +80,26 @@ function series(metrics: readonly unknown[], name: string, breakdown: Breakdown,
   return { state, reason: state === "ok" ? null : (str(m.error_class)?.slice(0, 40) ?? null), results: state === "ok" ? results : [] };
 }
 
+export const MISSING_FOLLOWS: WorldFollows = { state: "not_fetched", reason: "not-returned", since: null, until: null, gained: null, lost: null };
+const secondsIso = (v: unknown): string | null => (typeof v === "number" && Number.isFinite(v) && v > 0 ? new Date(v * 1000).toISOString() : null);
+const followCount = (results: unknown[], key: string): number | null => {
+  const r = results.find((x) => isRec(x) && x.key === key);
+  return r && isRec(r) && typeof r.value === "number" && Number.isInteger(r.value) && r.value >= 0 ? r.value : null;
+};
+
+/** follows_and_unfollows by follow type: FOLLOWER = followed, NON_FOLLOWER = unfollowed or left Instagram. */
+function follows(raw: unknown): WorldFollows {
+  if (!isRec(raw)) return MISSING_FOLLOWS;
+  const state = SERIES_STATES.includes(raw.state as AudienceSeriesState) ? (raw.state as AudienceSeriesState) : "error";
+  const window = { since: secondsIso(raw.since), until: secondsIso(raw.until) };
+  if (state !== "ok") return { state, reason: str(raw.error_class)?.slice(0, 40) ?? null, ...window, gained: null, lost: null };
+  const results = Array.isArray(raw.results) ? raw.results : [];
+  const gained = followCount(results, "FOLLOWER");
+  const lost = followCount(results, "NON_FOLLOWER");
+  if (gained === null && lost === null) return { state: "unavailable", reason: "unknown-follow-types", ...window, gained: null, lost: null };
+  return { state: "ok", reason: null, ...window, gained, lost };
+}
+
 /** Worker audience (audience_version 1) → four aggregated series. Never invents a value for a missing series. */
 export function normalizeAudience(raw: unknown): NormalizedAudience {
   if (!isRec(raw) || raw.audience_version !== 1) throw new InvalidWorkerResponse("unsupported audience_version");
@@ -102,5 +123,6 @@ export function normalizeAudience(raw: unknown): NormalizedAudience {
       engaged_month: { age: series(raw.metrics, E, "age", "this_month"), gender: series(raw.metrics, E, "gender", "this_month"), age_gender: series(raw.metrics, E, "age,gender", "this_month") },
       follower: { age: series(raw.metrics, F, "age", "this_month"), gender: series(raw.metrics, F, "gender", "this_month"), age_gender: series(raw.metrics, F, "age,gender", "this_month") },
     },
+    follows: follows(raw.follows),
   };
 }
