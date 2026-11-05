@@ -725,9 +725,19 @@ const AUDIENCE_READS = [
   ['engaged_audience_demographics', 'age,gender', 'this_month'],
   ['follower_demographics', 'age', 'this_month'], ['follower_demographics', 'gender', 'this_month'],
 ];
+// Account signals (ANA-56), additive to the audience answer: reach split into followers and non-followers, and taps on
+// the profile's contact buttons. Meta describes profile_links_taps as taps on the business address, call, email and text
+// buttons: it does NOT count the bio link (Meta has no account-level bio-link metric; per post it is profile_activity,
+// action_type BIO_LINK_CLICKED, FEED and STORY only). Same window as the snapshot's account metrics.
+const SIGNAL_READS = [['reach', 'follow_type'], ['profile_links_taps', 'contact_button_type']];
+// online_followers appears in Meta's documentation only as a limitation (last 30 days, nothing under 100 followers), not
+// in its metric table: one attempt per call, a refusal is a state. The time zone of Meta's hour keys is not documented
+// either and must be read off live data before the dashboard shows hours.
+const ONLINE_FOLLOWERS_WINDOW_DAYS = 28;
 // identity read(s) plus one read per entry above
 // + 1 for follows_and_unfollows of the last 24 hours (Meta: day period, follow_type breakdown, up to 48 h delayed)
-const AUDIENCE_SUBREQUEST_BUDGET = AUDIENCE_READS.length + 4;
+// + one per account signal + 1 for online_followers
+const AUDIENCE_SUBREQUEST_BUDGET = AUDIENCE_READS.length + 4 + SIGNAL_READS.length + 1;
 const FOLLOWS_WINDOW_SECONDS = 86400;
 // The caller has already checked INTERNAL_READ_KEY.
 async function internalIdentity(env, budget) {
@@ -805,9 +815,46 @@ async function readSocialAudience(req,env) {
   };
   const metrics=[];
   for (const r of AUDIENCE_READS.slice(0, 4)) metrics.push(await read(r));
-  const [rest, followsResult]=await Promise.all([Promise.all(AUDIENCE_READS.slice(4).map(read)), follows()]);
+  const [rest, followsResult, signals, online]=await Promise.all([Promise.all(AUDIENCE_READS.slice(4).map(read)), follows(),
+    Promise.all(SIGNAL_READS.map(s=>signalRead(ctx.b,userId,s))), onlineFollowersRead(ctx.b,userId)]);
   metrics.push(...rest);
-  return json({audience_version:1, fetched_at:new Date().toISOString(), provider:'instagram', api_version:GRAPH_VERSION, metrics, follows:followsResult});
+  return json({audience_version:1, fetched_at:new Date().toISOString(), provider:'instagram', api_version:GRAPH_VERSION, metrics, follows:followsResult,
+    signals, online_followers:online});
+}
+const failedState = e => e instanceof MetaError&&e.metaCode===100?'unavailable':notSent(e)?'not_fetched':'error';
+const failedClass = e => notSent(e)?e.message:errorClass(e);
+// Daily totals over the window with Meta's breakdown. An explicit 0 from Meta is a real 0; no data is an empty answer.
+async function signalRead(b, userId, [name, breakdown]) {
+  const until=nowSeconds(), since=until-ACCOUNT_WINDOW_DAYS*86400;
+  const base={name, breakdown, period:'day', metric_type:'total_value', window_days:ACCOUNT_WINDOW_DAYS, since, until};
+  try {
+    const data=await b.fetch(`/${userId}/insights`,{metric:name, period:'day', metric_type:'total_value', breakdown, since, until});
+    const entry=(Array.isArray(data?.data)?data.data:[]).find(x=>x?.name===name);
+    const total=countOrNull(entry?.total_value?.value);
+    const results=demographicResults(entry, breakdown);
+    return total!==null||results.length?{...base, state:'ok', total, results}:{...base, state:'unavailable', error_class:'empty-response', total:null, results:[]};
+  } catch(e) { return {...base, state:failedState(e), error_class:failedClass(e), total:null, results:[]}; }
+}
+// Meta's lifetime shape: one entry per day, value = {"0": n, ..., "23": n}. Only well-formed days are kept.
+function onlineFollowerDays(entry) {
+  const values=Array.isArray(entry?.values)?entry.values:[];
+  return values.slice(0, 31).map(v=>{
+    const obj=v?.value;
+    if(!obj || typeof obj!=='object' || Array.isArray(obj))return null;
+    const hours=Array.from({length:24},(_,h)=>countOrNull(obj[String(h)]));
+    if(hours.every(x=>x===null))return null;
+    const end=typeof v?.end_time==='string' && v.end_time.length<=40 && !Number.isNaN(Date.parse(v.end_time))?v.end_time:null;
+    return {end_time:end, hours};
+  }).filter(Boolean);
+}
+async function onlineFollowersRead(b, userId) {
+  const until=nowSeconds(), since=until-ONLINE_FOLLOWERS_WINDOW_DAYS*86400;
+  const base={name:'online_followers', period:'lifetime', since, until, hours_timezone:'unverified'};
+  try {
+    const data=await b.fetch(`/${userId}/insights`,{metric:'online_followers', period:'lifetime', since, until});
+    const days=onlineFollowerDays((Array.isArray(data?.data)?data.data:[]).find(x=>x?.name==='online_followers'));
+    return days.length?{...base, state:'ok', days}:{...base, state:'unavailable', error_class:'empty-response', days:[]};
+  } catch(e) { return {...base, state:failedState(e), error_class:failedClass(e), days:[]}; }
 }
 async function refresh(env,force=false) {
   const row=await findToken(env);
