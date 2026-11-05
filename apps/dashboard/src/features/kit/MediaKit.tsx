@@ -1,5 +1,5 @@
 import { formatValue, KIT_LOCALE } from "./format";
-import type { KitAudience, KitModel, KitReel, KitSection, KitTile } from "./model";
+import { SETTLED_DAYS, type KitAudience, type KitModel, type KitReel, type KitSection, type KitTile, type KitTypicalReel } from "./model";
 import { CountUp, Cover, Reveal } from "./motion";
 import styles from "./kit.module.css";
 
@@ -19,7 +19,11 @@ function Tile({ tile, big = false }: { tile: KitTile; big?: boolean }) {
         <CountUp value={tile.value} kind={tile.kind} />
       </b>
       <span className={styles.tileLabel}>{tile.label}</span>
-      {big ? tile.short ? <small className={styles.tileNote}>{tile.short}</small> : null : <small className={styles.tileNote}>{tile.note}</small>}
+      {big ? (
+        tile.short ? <small className={styles.tileNote}>{tile.short}</small> : null
+      ) : (
+        <small className={styles.tileNote}>Instagram · {tile.note}</small>
+      )}
     </div>
   );
 }
@@ -149,6 +153,11 @@ function ReelCard({ reel }: { reel: KitReel }) {
     <>
       <Cover src={reel.cover} className={styles.reelCover} />
       <span className={styles.reelShade} aria-hidden="true" />
+      {reel.label ? (
+        <span className={styles.reelLabel} data-testid="kit-reel-label">
+          {reel.label}
+        </span>
+      ) : null}
       <span className={styles.reelMeta}>
         {reel.link ? <span className={styles.srOnly}>Reel on Instagram:</span> : null}
         {reel.views !== null ? (
@@ -180,12 +189,12 @@ function ReelCard({ reel }: { reel: KitReel }) {
   );
 }
 
-function Section({ section, n }: { section: KitSection; n: number }) {
+function Section({ section, n, fresh }: { section: KitSection; n: number; fresh: boolean }) {
   switch (section.id) {
     case "numbers":
       return (
         <Reveal className={styles.section} aria-labelledby="kit-numbers" data-testid="kit-numbers">
-          <Heading n={n} overline="Performance" title="Live numbers" id="kit-numbers" />
+          <Heading n={n} overline="Performance" title={fresh ? "Live numbers" : "Numbers"} id="kit-numbers" />
           <div className={styles.tiles}>
             {section.tiles.map((t) => (
               <Tile key={t.id} tile={t} />
@@ -198,12 +207,18 @@ function Section({ section, n }: { section: KitSection; n: number }) {
     case "reels":
       return (
         <Reveal className={styles.section} aria-labelledby="kit-reels" data-testid="kit-reels">
-          <Heading n={n} overline="Content" title="Top Reels" id="kit-reels" />
-          <div className={styles.reels}>
-            {section.reels.map((r) => (
-              <ReelCard key={r.id} reel={r} />
-            ))}
-          </div>
+          <Heading n={n} overline="Content" title={section.reels.length ? "Top Reels" : "Reels"} id="kit-reels" />
+          {section.typical ? <Typical typical={section.typical} /> : null}
+          {section.reels.length ? (
+            <>
+              {section.typical ? <p className={styles.group}>Best performing</p> : null}
+              <div className={styles.reels}>
+                {section.reels.map((r) => (
+                  <ReelCard key={r.id} reel={r} />
+                ))}
+              </div>
+            </>
+          ) : null}
         </Reveal>
       );
     case "proof":
@@ -216,6 +231,22 @@ function Section({ section, n }: { section: KitSection; n: number }) {
                 <p className={styles.caseBrand}>{c.brand}</p>
                 {c.title ? <h3 className={styles.h3}>{c.title}</h3> : null}
                 {c.summary ? <p className={styles.caseText}>{c.summary}</p> : null}
+                {c.role || c.deliverables.length ? (
+                  <dl className={styles.caseFacts}>
+                    {c.role ? (
+                      <div>
+                        <dt>Role</dt>
+                        <dd>{c.role}</dd>
+                      </div>
+                    ) : null}
+                    {c.deliverables.length ? (
+                      <div>
+                        <dt>Deliverables</dt>
+                        <dd>{c.deliverables.join(" · ")}</dd>
+                      </div>
+                    ) : null}
+                  </dl>
+                ) : null}
                 {c.results.length ? (
                   <dl className={styles.caseResults}>
                     {c.results.map((r) => (
@@ -225,7 +256,12 @@ function Section({ section, n }: { section: KitSection; n: number }) {
                       </div>
                     ))}
                   </dl>
-                ) : null}
+                ) : (
+                  <p className={styles.caseNoResults} data-testid="kit-case-no-results">
+                    Collaboration · no published results
+                  </p>
+                )}
+                {c.period || c.source ? <p className={styles.caseSource}>{[c.results.length ? "Measured" : null, c.period, c.source ? `source: ${c.source}` : null].filter(Boolean).join(" · ")}</p> : null}
                 {c.link ? (
                   <a className={styles.textLink} href={c.link} target="_blank" rel="noreferrer noopener">
                     See the work
@@ -288,6 +324,11 @@ function PreviewBar({ model }: { model: KitModel }) {
           </a>
         ))}
       </nav>
+      {model.case_ids.length ? (
+        <span className={styles.previewIds} data-testid="kit-case-ids">
+          Case ids: {model.case_ids.join(", ")}
+        </span>
+      ) : null}
       {model.hidden.length || model.config_error ? (
         <details className={styles.hidden}>
           <summary>Not shown ({model.hidden.length + (model.config_error ? 1 : 0)})</summary>
@@ -304,6 +345,34 @@ function PreviewBar({ model }: { model: KitModel }) {
 }
 
 const asOf = new Intl.DateTimeFormat(LOCALE, { day: "numeric", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit", timeZone: "UTC", timeZoneName: "short" });
+
+const day = new Intl.DateTimeFormat(LOCALE, { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
+
+/** the baseline a brand can expect, before the best Reels: medians, with how many Reels and from when */
+function Typical({ typical }: { typical: KitTypicalReel }) {
+  return (
+    <div className={styles.typical} data-testid="kit-typical">
+      <p className={styles.group}>Typical Reel</p>
+      <div className={styles.typicalValues}>
+        <span data-testid="kit-typical-views">
+          <b className={styles.value}>
+            <CountUp value={typical.views} kind="count" />
+          </b>
+          <span className={styles.tileLabel}>views</span>
+        </span>
+        <span data-testid="kit-typical-reach">
+          <b className={styles.value}>
+            <CountUp value={typical.reach} kind="count" />
+          </b>
+          <span className={styles.tileLabel}>accounts reached</span>
+        </span>
+      </div>
+      <small className={styles.tileNote}>
+        Instagram · median per Reel over {typical.n} Reels published {day.format(new Date(typical.from))} – {day.format(new Date(typical.to))}, lifetime values of Reels at least {SETTLED_DAYS} days old
+      </small>
+    </div>
+  );
+}
 
 export function MediaKit({ model, preview = false }: { model: KitModel; preview?: boolean }) {
   return (
@@ -323,12 +392,40 @@ export function MediaKit({ model, preview = false }: { model: KitModel; preview?
               {model.tagline}
             </p>
           ) : null}
-          {model.hero.tiles.length ? (
+          {model.hero.tiles.length || model.hero.signal ? (
             <div className={styles.heroTiles} data-testid="kit-hero-tiles">
               {model.hero.tiles.map((t) => (
                 <Tile key={t.id} tile={t} big />
               ))}
+              {model.hero.signal ? (
+                <div className={styles.heroTile} data-testid="kit-hero-signal">
+                  <b className={`${styles.value} ${styles.signalValue}`}>
+                    <CountUp value={model.hero.signal.share} kind="share" />
+                  </b>
+                  <span className={styles.tileLabel}>In {model.hero.signal.label}</span>
+                  <small className={styles.tileNote}>{model.hero.signal.basis.replace(" · ", ", ")}, by country</small>
+                </div>
+              ) : null}
             </div>
+          ) : null}
+          {model.partners.length ? (
+            <div className={styles.partners} data-testid="kit-partners">
+              <p className={styles.group}>Worked with</p>
+              <ul>
+                {model.partners.map((p, i) => (
+                  <li key={`${p.name}-${i}`}>
+                    <span className={styles.partnerName}>{p.name}</span>
+                    {p.kind ? <small>{p.kind}</small> : null}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+          {model.contact ? (
+            // one way to write, one button (Ben's wish): the hero link leads down to it
+            <a className={styles.heroCta} href="#kit-cta" data-testid="kit-hero-cta">
+              {model.contact.label} <span aria-hidden="true">↓</span>
+            </a>
           ) : null}
         </div>
         <div className={styles.mosaic} data-count={model.hero.covers.length} aria-hidden="true">
@@ -337,10 +434,10 @@ export function MediaKit({ model, preview = false }: { model: KitModel; preview?
       </header>
       <main id="main" className={styles.main} tabIndex={-1}>
         {model.sections.map((s, i) => (
-          <Section key={s.id} section={s} n={i + 1} />
+          <Section key={s.id} section={s} n={i + 1} fresh={model.fresh} />
         ))}
         {model.contact ? (
-          <Reveal className={`${styles.section} ${styles.cta}`} data-testid="kit-cta">
+          <Reveal className={`${styles.section} ${styles.cta}`} data-testid="kit-cta" id="kit-cta">
             <p className={styles.overline}>Get in touch</p>
             <a className={styles.button} href={model.contact.href}>
               {model.contact.label}
@@ -351,8 +448,8 @@ export function MediaKit({ model, preview = false }: { model: KitModel; preview?
       <footer className={styles.footer}>
         {model.as_of ? (
           <p data-testid="kit-as-of">
-            Numbers live from Instagram, measured {asOf.format(new Date(model.as_of))}
-            {model.stale ? " (the latest available reading)" : ""}.
+            {model.fresh ? "Numbers live from Instagram" : "Numbers from Instagram"}, measured {asOf.format(new Date(model.as_of))}
+            {model.fresh ? "" : " (the latest available reading)"}.
           </p>
         ) : null}
         <p>Audience shares are of the countries, ages and genders Instagram reports. 28-day figures are Instagram&apos;s account totals.</p>

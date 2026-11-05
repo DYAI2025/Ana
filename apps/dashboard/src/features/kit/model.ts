@@ -8,7 +8,7 @@
 import type { CanonicalMetric, Observation, SocialPost, SocialSnapshot } from "@/features/social/types";
 import { shares } from "@/features/world/model";
 import type { AudienceSeries, WhoSeries, WorldPayload } from "@/features/world/types";
-import type { KitAddon, KitCase, KitConfig, KitPackage } from "./config";
+import { PARTNER_KINDS, REEL_LABELS, type KitAddon, type KitCase, type KitConfig, type KitPackage, type KitReelLabel } from "./config";
 import { project, type KitGeo, type KitLand } from "./map";
 import { presetList, resolvePreset, type KitPreset, type KitSectionId, type KitTileId } from "./presets";
 
@@ -64,13 +64,29 @@ export interface KitReel {
   views: number | null;
   reach: number | null;
   watch_s: number | null;
+  /** what the Reel is, as set in media-kit.json ("Brand partnership · Fiverr"); null when not set */
+  label: string | null;
 }
+
+/** the typical Reel: medians over Reels old enough for their lifetime values to have settled */
+export interface KitTypicalReel {
+  views: number;
+  reach: number;
+  /** both medians are over the same Reels: those with a measured value for both */
+  n: number;
+  /** publishing dates of the Reels counted */
+  from: string;
+  to: string;
+}
+
+/** fewer Reels than this are no "typical" Reel */
+export const MIN_TYPICAL = 5;
 
 export type KitSection =
   | { id: "proof"; cases: KitCase[] }
   | { id: "numbers"; tiles: KitTile[] }
   | { id: "audience"; audience: KitAudience }
-  | { id: "reels"; reels: KitReel[] }
+  | { id: "reels"; reels: KitReel[]; typical: KitTypicalReel | null }
   | { id: "packages"; packages: KitPackage[]; addons: KitAddon[] };
 
 export interface KitModel {
@@ -79,17 +95,38 @@ export interface KitModel {
   name: string;
   handle: string | null;
   tagline: string | null;
-  hero: { covers: Array<{ id: string; src: string }>; tiles: KitTile[] };
+  hero: {
+    covers: Array<{ id: string; src: string }>;
+    tiles: KitTile[];
+    /** the preset's markets as a share of the listed audience, e.g. 58 % in Asia-Pacific & India */
+    /** basis: whose countries and when, e.g. "Engaged accounts · last 30 days" */
+    signal: { share: number; label: string; basis: string } | null;
+  };
+  /** brands Ana has worked with and how, names only */
+  partners: Array<{ name: string; kind: string | null }>;
   sections: KitSection[];
   contact: { href: string; label: string } | null;
   /** when Instagram measured the numbers; null without a snapshot */
   as_of: string | null;
   /** the snapshot is an older one because the last read failed */
   stale: boolean;
+  /** measured within FRESH_MS and not stale: only then the page says "live" */
+  fresh: boolean;
   /** what the internal preview says is not shown, and why */
   hidden: string[];
+  /** ids of all case studies, for writing presets (internal preview only) */
+  case_ids: string[];
   config_error: boolean;
 }
+
+/** a reading older than this is not called live */
+export const FRESH_MS = 26 * 3_600_000;
+/** a Reel's lifetime values count for the typical Reel once it is this old */
+export const SETTLED_DAYS = 7;
+const DAY_MS = 86_400_000;
+
+/** the briefing a brand fills in, in the e-mail the button opens */
+export const BRIEF_TEMPLATE = ["Brand:", "Campaign goal:", "Markets:", "Timing:", "Budget range:", "Deliverables you have in mind:"].join("\r\n");
 
 const MAX_COUNTRIES = 8;
 /** at most 6 of the brand's markets, so at least 2 countries elsewhere stay in the list of 8 */
@@ -225,7 +262,34 @@ const httpsOrNull = (u: string | null | undefined, host?: RegExp): string | null
   }
 };
 
-function reel(p: SocialPost): KitReel {
+const labelText = (l: KitReelLabel | undefined): string | null => (l ? [REEL_LABELS[l.kind], l.brand].filter(Boolean).join(" · ") : null);
+
+const median = (values: number[]): number | null => {
+  if (!values.length) return null;
+  const s = [...values].sort((a, b) => a - b);
+  const mid = Math.floor(s.length / 2);
+  return s.length % 2 ? s[mid]! : (s[mid - 1]! + s[mid]!) / 2;
+};
+
+/** Medians of views and reach over the Reels at least SETTLED_DAYS old: what a brand can expect, not the best Reel. */
+export function typicalReel(snapshot: SocialSnapshot | null): KitTypicalReel | null {
+  if (!snapshot) return null;
+  const measuredAt = Date.parse(snapshot.observed_at);
+  if (Number.isNaN(measuredAt)) return null;
+  const settled = snapshot.posts.filter((p) => {
+    const at = p.published_at ? Date.parse(p.published_at) : Number.NaN;
+    return p.format === "reel" && !Number.isNaN(at) && measuredAt - at >= SETTLED_DAYS * DAY_MS;
+  });
+  // one set of Reels for both numbers, so one n and one date range describe both
+  const counted = settled
+    .map((p) => ({ at: p.published_at!, views: verified(p.observations, "views"), reach: verified(p.observations, "reach") }))
+    .filter((x): x is { at: string; views: number; reach: number } => x.views !== null && x.reach !== null);
+  if (counted.length < MIN_TYPICAL) return null;
+  const dates = counted.map((x) => x.at).sort();
+  return { views: median(counted.map((x) => x.views))!, reach: median(counted.map((x) => x.reach))!, n: counted.length, from: dates[0]!, to: dates.at(-1)! };
+}
+
+function toReel(p: SocialPost, labels: Readonly<Record<string, KitReelLabel>>): KitReel {
   const watch = verified(p.observations, "avg_watch_time");
   return {
     id: p.media_id,
@@ -235,10 +299,12 @@ function reel(p: SocialPost): KitReel {
     views: verified(p.observations, "views"),
     reach: verified(p.observations, "reach"),
     watch_s: watch === null ? null : Math.round(watch / 100) / 10,
+    label: labelText(Object.hasOwn(labels, p.media_id) ? labels[p.media_id] : undefined),
   };
 }
 
-function reels(snapshot: SocialSnapshot | null, preset: KitPreset): KitReel[] {
+function reels(snapshot: SocialSnapshot | null, preset: KitPreset, labels: Readonly<Record<string, KitReelLabel>>): KitReel[] {
+  const reel = (p: SocialPost) => toReel(p, labels);
   const all = (snapshot?.posts ?? []).filter((p) => p.format === "reel");
   if (preset.reels.length) {
     const byId = new Map(all.map((p) => [p.media_id, p]));
@@ -260,14 +326,31 @@ function reels(snapshot: SocialSnapshot | null, preset: KitPreset): KitReel[] {
     .map(reel);
 }
 
-export function buildKit({ world, config, presetId, geo = null, configError = false }: { world: WorldPayload; config: KitConfig; presetId?: string | null; geo?: KitGeo | null; configError?: boolean }): KitModel {
+export function buildKit({
+  world,
+  config,
+  presetId,
+  geo = null,
+  configError = false,
+  now = Date.now(),
+}: {
+  world: WorldPayload;
+  config: KitConfig;
+  presetId?: string | null;
+  geo?: KitGeo | null;
+  configError?: boolean;
+  now?: number;
+}): KitModel {
   const preset = resolvePreset(presetId, config.presets);
   const snapshot = world.instagram.ok ? world.instagram.snapshot : null;
   const hidden: string[] = [];
   const allTiles = tiles(world, snapshot);
   const shownTiles = preset.tiles.map((id) => allTiles.get(id)).filter((t): t is KitTile => Boolean(t));
-  const kitReels = reels(snapshot, preset);
+  const kitReels = reels(snapshot, preset, config.reels);
+  const typical = typicalReel(snapshot);
   const kitAudience = audience(world, preset, geo);
+  // a preset can pick and order the case studies; unknown ids are skipped
+  const cases = preset.cases.length ? preset.cases.map((id) => config.cases.find((c) => c.id === id)).filter((c): c is KitCase => Boolean(c)) : config.cases;
 
   const sections: KitSection[] = [];
   for (const id of preset.sections) {
@@ -277,17 +360,18 @@ export function buildKit({ world, config, presetId, geo = null, configError = fa
   function section(id: KitSectionId): KitSection | null {
     switch (id) {
       case "proof":
-        if (!config.cases.length) hidden.push("Case studies: none in media-kit.json yet");
-        return config.cases.length ? { id, cases: config.cases } : null;
+        if (!cases.length) hidden.push(config.cases.length ? "Case studies: none of the preset's cases are in media-kit.json" : "Case studies: none in media-kit.json yet");
+        return cases.length ? { id, cases } : null;
       case "numbers":
-        if (!shownTiles.length) hidden.push("Live numbers: Instagram returned none");
+        if (!shownTiles.length) hidden.push("Numbers: Instagram returned none");
         return shownTiles.length ? { id, tiles: shownTiles } : null;
       case "audience":
         if (!kitAudience) hidden.push("Audience: Instagram returned no audience data");
         return kitAudience ? { id, audience: kitAudience } : null;
       case "reels":
         if (!kitReels.length) hidden.push(preset.reels.length ? "Top Reels: the preset's Reels are not in the current snapshot" : "Top Reels: no Reel with measured views");
-        return kitReels.length ? { id, reels: kitReels } : null;
+        if (snapshot && !typical) hidden.push(`Typical Reel: fewer than ${MIN_TYPICAL} Reels at least ${SETTLED_DAYS} days old with measured views and reach`);
+        return kitReels.length || typical ? { id, reels: kitReels, typical } : null;
       case "packages":
         if (!config.packages.length) hidden.push("Packages: none in media-kit.json yet");
         if (!config.addons.length) hidden.push("Add-ons: none in media-kit.json yet");
@@ -296,11 +380,13 @@ export function buildKit({ world, config, presetId, geo = null, configError = fa
   }
   if (!config.tagline) hidden.push("Ana's line under her name: none in media-kit.json yet");
   if (!config.contact) hidden.push("The button: no contact e-mail in media-kit.json yet");
-  if (!snapshot) hidden.push("Instagram is not reachable right now: live numbers and Reels are hidden");
+  if (!config.partners.length) hidden.push("Partners: none in media-kit.json yet");
+  if (!snapshot) hidden.push("Instagram is not reachable right now: its numbers and Reels are hidden");
+
 
   const contact = config.contact
     ? {
-        href: `mailto:${config.contact.email}${config.contact.subject ? `?subject=${encodeURIComponent(config.contact.subject)}` : ""}`,
+        href: `mailto:${config.contact.email}?${[config.contact.subject ? `subject=${encodeURIComponent(config.contact.subject)}` : null, `body=${encodeURIComponent(`${BRIEF_TEMPLATE}\n`)}`].filter(Boolean).join("&")}`,
         label: config.contact.label ?? "Work with Ana",
       }
     : null;
@@ -315,13 +401,18 @@ export function buildKit({ world, config, presetId, geo = null, configError = fa
         .filter((r): r is KitReel & { cover: string } => r.cover !== null)
         .map((r) => ({ id: r.id, src: r.cover }))
         .slice(0, HERO_COVERS),
-      tiles: shownTiles.slice(0, 3),
+      // with a market signal the hero keeps two numbers, so it stays three short facts
+      tiles: shownTiles.slice(0, kitAudience?.focus ? 2 : 3),
+      signal: kitAudience?.focus ? { share: kitAudience.focus.share, label: kitAudience.focus.label, basis: kitAudience.basis_label } : null,
     },
+    partners: config.partners.map((p) => ({ name: p.name, kind: p.kind ? PARTNER_KINDS[p.kind] : null })),
     sections,
     contact,
     as_of: snapshot?.observed_at ?? null,
     stale: world.instagram.ok ? world.instagram.stale : false,
+    fresh: Boolean(snapshot) && !(world.instagram.ok && world.instagram.stale) && now - Date.parse(snapshot!.observed_at) <= FRESH_MS,
     hidden,
+    case_ids: config.cases.map((c) => c.id),
     config_error: configError,
   };
 }

@@ -4,7 +4,7 @@ import { series, N, world as baseWorld } from "@/features/world/worldFixture";
 import type { WorldPayload } from "@/features/world/types";
 import { EMPTY_KIT_CONFIG, parseKitConfig } from "./config";
 import { landDots, MAP_SOUTH, project, type KitGeo } from "./map";
-import { buildKit, type KitSection } from "./model";
+import { BRIEF_TEMPLATE, buildKit, FRESH_MS, typicalReel, type KitSection } from "./model";
 
 const o = (media: string | null, metric: Observation["metric_name"], value: number | null, state: Observation["availability_state"] = "VERIFIED"): Observation => ({
   account_id: "acc", media_id: media, provider: "instagram", provider_api_version: "v26.0", metric_name: metric, native_metric_name: metric, value: state === "VERIFIED" ? value : null,
@@ -113,7 +113,10 @@ describe("buildKit — sections and Ana's content", () => {
     const m = buildKit({ world: world(), config, presetId: "west" });
     expect(m.sections.map((s) => s.id)).toEqual(["audience", "numbers", "proof", "reels", "packages"]);
     expect(sectionOf(m, "packages")).toMatchObject({ packages: [], addons: [{ name: "Exclusivity" }] });
-    expect(m.contact).toEqual({ href: "mailto:hi@example.com?subject=Collab%20%26%20more", label: "Work with Ana" });
+    expect(m.contact!.label).toBe("Work with Ana");
+    expect(m.contact!.href).toBe(`mailto:hi@example.com?subject=Collab%20%26%20more&body=${encodeURIComponent(`${BRIEF_TEMPLATE}\n`)}`);
+    // the briefing arrives as lines in the e-mail
+    expect(decodeURIComponent(m.contact!.href.split("body=")[1]!)).toBe("Brand:\r\nCampaign goal:\r\nMarkets:\r\nTiming:\r\nBudget range:\r\nDeliverables you have in mind:\n");
     expect(m.tagline).toBe("Ana's words");
     expect(m.hidden.some((h) => h.startsWith("Add-ons"))).toBe(false);
   });
@@ -222,5 +225,101 @@ describe("map", () => {
     expect(landDots({ width, height, land: new Uint8Array(width * height) }).path).toBe("");
     expect(project({ lat: 0, lon: 0 }, { width: 720, full: 360 })).toEqual({ x: 360, y: 180 });
     expect(project({ lat: 90, lon: -180 }, { width: 720, full: 360 })).toEqual({ x: 0, y: 0 });
+  });
+});
+
+describe("buildKit — ANA-54: partners, labels, typical Reel, cases, hero signal, freshness", () => {
+  const settledWorld = () =>
+    world((w) => {
+      if (!w.instagram.ok) return;
+      const at = Date.parse(w.instagram.snapshot.observed_at);
+      const days = (d: number) => new Date(at - d * 86_400_000).toISOString();
+      w.instagram.snapshot.posts = [
+        reel("old1", 1_000, { published_at: days(30) }),
+        reel("old2", 3_000, { published_at: days(20) }),
+        reel("old3", 2_000, { published_at: days(8) }),
+        reel("old4", 4_000, { published_at: days(9) }),
+        reel("old5", 5_000, { published_at: days(10) }),
+        // views not measured: not counted, for neither number (one n, one range for both)
+        reel("noviews", null, { published_at: days(50) }),
+        reel("young", 900_000, { published_at: days(2) }),
+        { ...reel("car", 50_000, { published_at: days(40) }), format: "carousel" },
+      ];
+    });
+
+  it("empty config: no partners, no labels, no button anywhere; the preview names the missing partners", () => {
+    const m = buildKit({ world: world(), config: EMPTY_KIT_CONFIG });
+    expect(m.partners).toEqual([]);
+    expect(sectionOf(m, "reels")!.reels.every((r) => r.label === null)).toBe(true);
+    expect(m.contact).toBeNull();
+    expect(m.hidden.some((h) => h.startsWith("Partners"))).toBe(true);
+  });
+
+  it("partners and Reel labels render as configured", () => {
+    const config = parseKitConfig({ partners: [{ name: "Fiverr", kind: "paid" }, { name: "ClassPass", kind: "affiliate" }], reels: { r2: { kind: "partnership", brand: "Fiverr" }, r1: { kind: "organic" } } });
+    const m = buildKit({ world: world(), config });
+    expect(m.partners).toEqual([{ name: "Fiverr", kind: "Paid partnership" }, { name: "ClassPass", kind: "Affiliate" }]);
+    const labels = Object.fromEntries(sectionOf(m, "reels")!.reels.map((r) => [r.id, r.label]));
+    expect(labels).toMatchObject({ r2: "Brand partnership · Fiverr", r1: "Organic", r4: null });
+  });
+
+  it("the typical Reel: medians over Reels at least 7 days old, with n and dates; young Reels and carousels never count", () => {
+    const w = settledWorld();
+    const t = typicalReel(w.instagram.ok ? w.instagram.snapshot : null)!;
+    expect(t).toMatchObject({ views: 3_000, reach: 900, n: 5 });
+    // the range spans the Reels counted: the one without views (50 days old) is not in it
+    const at = Date.parse(w.instagram.ok ? w.instagram.snapshot.observed_at : "");
+    expect(t.from).toBe(new Date(at - 30 * 86_400_000).toISOString());
+    expect(t.to).toBe(new Date(at - 8 * 86_400_000).toISOString());
+    const r = sectionOf(buildKit({ world: w, config: EMPTY_KIT_CONFIG }), "reels")!;
+    expect(r.typical).toEqual(t);
+    // the best Reels still include the young one, labelled as the best, not as the baseline
+    expect(r.reels[0]!.id).toBe("young");
+  });
+
+  it("fewer than 5 counted Reels: no typical Reel, and the preview says why", () => {
+    const w = settledWorld();
+    if (w.instagram.ok) w.instagram.snapshot.posts = w.instagram.snapshot.posts.filter((p) => p.media_id !== "old5");
+    expect(typicalReel(w.instagram.ok ? w.instagram.snapshot : null)).toBeNull();
+    expect(buildKit({ world: w, config: EMPTY_KIT_CONFIG }).hidden.join("\n")).toMatch(/Typical Reel: fewer than 5/);
+  });
+
+  it("no settled Reel: no typical Reel", () => {
+    const w = world((x) => {
+      if (x.instagram.ok) x.instagram.snapshot.posts = [reel("young", 5, { published_at: x.instagram.snapshot.observed_at })];
+    });
+    expect(typicalReel(w.instagram.ok ? w.instagram.snapshot : null)).toBeNull();
+    expect(sectionOf(buildKit({ world: w, config: EMPTY_KIT_CONFIG }), "reels")!.typical).toBeNull();
+  });
+
+  it("a preset picks and orders cases; unknown ids are skipped; none found hides the section with a reason", () => {
+    const config = parseKitConfig({ cases: [{ brand: "A" }, { brand: "B" }, { brand: "C" }], presets: { p: { cases: ["c", "x", "a"] }, q: { cases: ["x"] } } });
+    expect(sectionOf(buildKit({ world: world(), config, presetId: "p" }), "proof")!.cases.map((c) => c.brand)).toEqual(["C", "A"]);
+    expect(buildKit({ world: world(), config }).case_ids).toEqual(["a", "b", "c"]);
+    expect(sectionOf(buildKit({ world: world(), config }), "proof")!.cases.map((c) => c.brand)).toEqual(["A", "B", "C"]);
+    const q = buildKit({ world: world(), config, presetId: "q" });
+    expect(sectionOf(q, "proof")).toBeUndefined();
+    expect(q.hidden.join("\n")).toMatch(/none of the preset's cases/);
+  });
+
+  it("the hero carries the preset's market share and then two numbers; without focus three numbers and no signal", () => {
+    const asia = buildKit({ world: world(), config: EMPTY_KIT_CONFIG, presetId: "asia" });
+    expect(asia.hero.signal).toMatchObject({ label: "Asia-Pacific & India", basis: "Engaged accounts · last 30 days" });
+    expect(asia.hero.signal!.share).toBeCloseTo(0.4, 9);
+    expect(asia.hero.tiles).toHaveLength(2);
+    const plain = buildKit({ world: world(), config: EMPTY_KIT_CONFIG });
+    expect(plain.hero.signal).toBeNull();
+    expect(plain.hero.tiles).toHaveLength(3);
+  });
+
+  it("only a reading within 26 h that is not stale is called live", () => {
+    const w = world();
+    const at = Date.parse(w.instagram.ok ? w.instagram.snapshot.observed_at : "");
+    expect(buildKit({ world: w, config: EMPTY_KIT_CONFIG, now: at + FRESH_MS }).fresh).toBe(true);
+    expect(buildKit({ world: w, config: EMPTY_KIT_CONFIG, now: at + FRESH_MS + 1 }).fresh).toBe(false);
+    const stale = world((x) => {
+      if (x.instagram.ok) x.instagram = { ...x.instagram, stale: true, failure: { state: "STALE", code: "upstream" } };
+    });
+    expect(buildKit({ world: stale, config: EMPTY_KIT_CONFIG, now: at }).fresh).toBe(false);
   });
 });

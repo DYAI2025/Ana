@@ -80,6 +80,9 @@
 .hidden {
   margin-left: auto;
 }
+.previewIds {
+  opacity: 0.8;
+}
 .hidden summary {
   cursor: pointer;
 }
@@ -606,6 +609,119 @@ a.reel:focus-visible {
   flex-basis: 100%;
   color: var(--ink-3);
   font-size: 13px;
+}
+
+/* hero: market signal, partners, the briefing link */
+.signalValue {
+  color: var(--sand-deep);
+}
+.partners {
+  margin-top: 26px;
+}
+.partners .group {
+  margin-top: 0;
+}
+.partners ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 26px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.partners li {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.partnerName {
+  font-family: var(--serif);
+  font-size: 20px;
+  line-height: 1.2;
+}
+.partners small {
+  color: var(--ink-3);
+  font-size: 12px;
+}
+.heroCta {
+  display: inline-block;
+  margin-top: 28px;
+  padding: 12px 22px;
+  border: 1px solid var(--ink);
+  border-radius: 999px;
+  color: var(--ink);
+  font-weight: 500;
+  text-decoration: none;
+  transition:
+    background 300ms ease,
+    color 300ms ease;
+}
+.heroCta:hover {
+  background: var(--ink);
+  color: var(--paper);
+}
+.heroCta:focus-visible {
+  outline: 3px solid var(--sea);
+  outline-offset: 3px;
+}
+
+/* the typical Reel, before the best ones */
+.typical {
+  margin-bottom: clamp(28px, 4vw, 44px);
+  padding: clamp(18px, 3vw, 28px);
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  background: #fffdf9;
+}
+.typical .group {
+  margin-top: 0;
+}
+.typicalValues {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px clamp(28px, 5vw, 64px);
+  margin: 4px 0 10px;
+}
+.typicalValues > span {
+  display: flex;
+  flex-direction: column;
+}
+.typicalValues .value {
+  font-size: clamp(34px, 4vw, 48px);
+}
+.reelLabel {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  max-width: calc(100% - 24px);
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgba(251, 248, 243, 0.92);
+  color: var(--ink);
+  font-size: 12px;
+  font-weight: 500;
+}
+.caseFacts {
+  display: grid;
+  gap: 8px;
+  margin: 16px 0 0;
+}
+.caseFacts dt,
+.caseSource {
+  color: var(--ink-3);
+  font-size: 13px;
+}
+.caseFacts dd {
+  margin: 2px 0 0;
+}
+.caseNoResults {
+  margin: 18px 0 0;
+  color: var(--ink-3);
+  font-size: 13px;
+  font-style: italic;
+}
+.caseSource {
+  margin: 12px 0 0;
 }
 
 /* the one button */

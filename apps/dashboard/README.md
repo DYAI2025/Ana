@@ -28,12 +28,22 @@ The app in this folder is **ASADA** — Ana Savu Dashboard (Jira ANA-4 visual sh
     "name": "Ana Savu",
     "tagline": "a line in Ana's own words",
     "contact": { "email": "…", "label": "Work with Ana", "subject": "Collaboration" },
-    "cases": [{ "brand": "…", "title": "…", "summary": "…", "results": [{ "label": "…", "value": "…" }], "link": "https://…" }],
+    "partners": [{ "name": "…", "kind": "paid | gifted | ugc | affiliate | partnership (optional)" }],
+    "reels": { "<media id>": { "kind": "organic | partnership | ugc | concept", "brand": "…" } },
+    "cases": [{ "id": "…", "brand": "…", "title": "…", "summary": "…", "role": "…", "deliverables": ["…"], "period": "…", "source": "…", "results": [{ "label": "…", "value": "…" }], "link": "https://…" }],
     "packages": [{ "name": "…", "price": "from …", "includes": ["…"], "note": "…" }],
     "addons": [{ "name": "Usage rights", "price": "…", "note": "…" }],
-    "presets": { "insurer-us": { "base": "west", "label": "…", "focus": ["US", "GB"], "focus_label": "US & UK", "sections": ["audience", "numbers", "reels", "proof", "packages"], "tiles": ["followers", "reach", "engagement", "watch", "hold"], "reels": ["<media id>"] } }
+    "presets": { "insurer-us": { "base": "west", "label": "…", "focus": ["US", "GB"], "focus_label": "US & UK", "sections": ["audience", "numbers", "reels", "proof", "packages"], "tiles": ["followers", "reach", "engagement", "watch", "hold"], "reels": ["<media id>"], "cases": ["<case id>"] } }
   }
   ```
+
+  ANA-54 adds: partners under the hero numbers (names only, no logos; the kind only when it is set — a brand without
+  a kind shows its name alone); Reel labels on the cards; a "Typical Reel" before the best Reels (medians of views and
+  reach over the same Reels, at least 5 of them and each at least 7 days old, with n and dates); case role,
+  deliverables, measurement window and source, and "no published results" for a case without results; a hero link
+  that leads down to the one button, whose e-mail opens with a short briefing; the preset's market share in the hero;
+  "live" only for a reading of at most 26 h. A case's id defaults to its brand as a slug ("Nomad eSIM" →
+  `nomad-esim`, a second case of the same brand `nomad-esim-2`); the preview bar lists the ids.
 
   Public per-brand links without the dashboard login, open tracking and revocation are a later slice.
 - **Everything else is local prototype data**: Sessions, Whiteboard, Calendar, Pulse, Vault and Toolbox are not
