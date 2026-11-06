@@ -12,7 +12,7 @@ import { PEOPLE, PROJECTS, type WorldPersonId } from "./people";
 import type { AudienceSeries, WorldPayload } from "./types";
 import { postsWith, TAG_FIELDS, TAG_MIN_CONFIDENCE, topPosts, whatWorks, type PostTags, type RateKind, type TagField } from "./postTags";
 import type { SceneData, SceneRef, StationStatus, ViewName, WorldScene } from "./scene/world";
-import { pulseDigest } from "./pulse";
+import { pulseDigest, SETTLED_DAYS as REEL_SETTLED_DAYS } from "./pulse";
 import { BriefBlock } from "./BriefBlock";
 import { BerlinRoom } from "@/features/office/BerlinRoom";
 import { OfficeRoom } from "./OfficeRoom";
@@ -423,11 +423,16 @@ export function WorldView() {
     );
   };
   const pct1 = (v: number | null) => (v === null ? "—" : `${pf.format(v * 100)} %`);
-  const postRow = (p: { id: string; format: string; er: number | null; ssr: number | null; reach: number | null; permalink: string | null }, extra?: string | null) => (
-    <li key={p.id} className={styles.postRow}>
+  const postRow = (p: { id: string; format: string; er: number | null; ssr: number | null; reach: number | null; permalink: string | null; trial?: boolean | null }, extra?: string | null) => (
+    <li key={p.id} className={styles.postRow} data-trial={p.trial === true ? "true" : undefined}>
       <button type="button" className={styles.postTitle} onClick={() => { setSelected({ type: "post", id: p.id }); setTab("selection"); }}>
         {postTitle(p.id)}
       </button>
+      {p.trial === true ? (
+        <span className={styles.trialBadge} data-testid="post-trial">
+          {t("world.hot.trialBadge")}
+        </span>
+      ) : null}
       <span className={styles.muted}>
         {t("world.works.meta", { format: t(`world.works.values.format.${p.format}` as never), er: pct1(p.er), ssr: pct1(p.ssr), reach: num(p.reach) })}
       </span>
@@ -618,7 +623,8 @@ export function WorldView() {
                   <ol className={styles.postList}>
                     {freshPosts.map((p) => {
                       const f = digest.fresh.find((x) => x.id === p.id);
-                      return postRow(p, f?.vsMedian != null ? t("world.hot.vsMedian", { x: pf.format(f.vsMedian) }) : null);
+                      const key = f?.trial === true ? "world.hot.vsMedianTrial" : f?.trial === false ? "world.hot.vsMedianFeed" : "world.hot.vsMedian";
+                      return postRow(p, f?.vsMedian != null ? t(key, { x: pf.format(f.vsMedian) }) : null);
                     })}
                   </ol>
                   <button type="button" className={styles.linkButton} aria-pressed={pick === "fresh"} onClick={() => setWorksPick(pick === "fresh" ? null : "fresh")}>
@@ -630,6 +636,21 @@ export function WorldView() {
                 <p className={styles.muted}>{t("world.hot.freshNone")}</p>
               )}
             </div>
+            {digest.reels ? (
+              <div className={styles.audienceGroup} data-testid="world-hot-reels">
+                <h4>{t("world.hot.reels.title")}</h4>
+                {(["feed", "trial"] as const).map((kind) => {
+                  const g = digest.reels![kind];
+                  return (
+                    <p key={kind} data-testid={`world-hot-reels-${kind}`}>
+                      <b>{t(`world.hot.reels.${kind}`)}</b>{" "}
+                      {g.n ? t("world.hot.reels.line", { n: g.n, views: num(g.views), reach: num(g.reach), er: pct1(g.er) }) : <span className={styles.muted}>{t("world.hot.reels.none", { days: REEL_SETTLED_DAYS })}</span>}
+                    </p>
+                  );
+                })}
+                <p className={styles.note}>{t("world.hot.reels.note", { days: REEL_SETTLED_DAYS })}</p>
+              </div>
+            ) : null}
             {digest.brand.n > 0 ? (
               <p data-testid="world-hot-brand">
                 <b>{t("world.hot.brand")}</b> {t("world.hot.brandLine", { n: digest.brand.n, er: pct1(digest.brand.er), other: digest.brand.otherN, otherEr: pct1(digest.brand.otherEr) })}
@@ -916,6 +937,11 @@ export function WorldView() {
           <p className={styles.muted}>{p.published_at ? t("world.post.published", { time: ago(p.published_at) }) : null}</p>
           {tagChips(p.id)}
           {p.fresh ? <p className={styles.note}>{t("world.post.fresh")}</p> : null}
+          {p.trial === true ? (
+            <p className={styles.note} data-testid="world-post-trial">
+              <span className={styles.trialBadge}>{t("world.hot.trialBadge")}</span> {t("world.post.trial")}
+            </p>
+          ) : null}
           <div className={styles.kpis}>
             {(["reach", "views", "likes", "comments", "saves", "shares"] as const).map((k) => (
               <div key={k}>

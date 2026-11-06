@@ -64,6 +64,11 @@ export interface WorldPost {
   cover?: string | null;
   /** one of Ana's older posts from the history list (not in the world view, so it cannot be opened there) */
   history?: boolean;
+  /**
+   * Reels only: true = trial Reel (Meta's is_shared_to_feed false: Reels tab only, shown to non-followers, not on the
+   * profile), false = feed Reel, null = unknown (no flag from the worker, or not a Reel)
+   */
+  trial?: boolean | null;
 }
 
 export interface ChannelView {
@@ -144,6 +149,7 @@ export function instagramView(world: WorldPayload): ChannelView {
       cover: p.thumbnail_url ?? p.image_url ?? null,
       watchSeconds: value(p, "avg_watch_time") === null ? null : (value(p, "avg_watch_time") as number) / 1000,
       skipRate: value(p, "skip_rate") === null ? null : (value(p, "skip_rate") as number) / 100,
+      trial: p.format === "reel" && typeof p.shared_to_feed === "boolean" ? !p.shared_to_feed : null,
     };
   });
   const known = new Set(posts.map((p) => p.id));

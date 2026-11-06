@@ -61,6 +61,12 @@ test.describe("Instagram cockpit — real-data shape, honest states", () => {
     await expect(page.getByTestId("cluster-followers")).toContainText("12,400");
   });
 
+  test("a trial Reel is labelled in its row; Reels without a flag are not", async ({ page }) => {
+    await openCockpit(page);
+    await expect(row(page, "syn001").getByTestId("row-trial")).toContainText("Trial Reel");
+    await expect(page.getByTestId("row-trial")).toHaveCount(1);
+  });
+
   test("AC8 · missing values are named, never shown as 0; no synthetic history", async ({ page }) => {
     await openCockpit(page);
     await expect(row(page, "syn007").locator('[data-metric="views"]')).toHaveText(/Unavailable/);

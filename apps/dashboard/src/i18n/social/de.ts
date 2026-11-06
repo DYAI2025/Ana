@@ -109,6 +109,7 @@ export const socialDe: Messages["social"] = {
     all: "Alle",
     count: "{shown} von {total} Beiträgen",
     colPost: "Beitrag",
+    trial: "Trial-Reel (nur für Nicht-Follower, nicht auf dem Profil)",
     colReach: "Reichweite",
     colViews: "Aufrufe",
     colSaves: "Gespeichert",

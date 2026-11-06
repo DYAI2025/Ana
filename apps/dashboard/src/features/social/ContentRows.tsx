@@ -124,13 +124,16 @@ function ContentRow({ p, snapshot, overrides, onOverride, open, onToggle }: { p:
   const theme = assignTheme(post, overrides);
   const detailId = `detail-${post.media_id}`;
   const metricLabel = (m: CanonicalMetric) => t(`social.metrics.${m as "reach"}`);
+  // Meta's is_shared_to_feed false: a trial Reel, shown to non-followers only (unknown flag = not labelled)
+  const trial = post.format === "reel" && post.shared_to_feed === false;
   return (
-    <li ref={ref} className={styles.row} data-testid="content-row" data-media-id={post.media_id} data-format={post.format} data-insights={post.insights_state}>
+    <li ref={ref} className={styles.row} data-testid="content-row" data-media-id={post.media_id} data-format={post.format} data-insights={post.insights_state} data-trial={trial ? "true" : undefined}>
       <div className={styles.rowMain}>
         <Thumb p={p} />
         <div className={styles.rowText}>
           <span className={styles.rowMeta}>
             {t(`social.formats.${post.format}`)} · {post.published_at ? formatDay(post.published_at, locale) : "—"}
+            {trial ? <span data-testid="row-trial"> · {t("social.content.trial")}</span> : null}
           </span>
           <span className={styles.rowCaption} data-caption>
             {excerpt || t("social.content.noCaption")}

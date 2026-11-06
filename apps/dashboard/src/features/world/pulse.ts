@@ -22,9 +22,23 @@ export interface HotPost {
   er: number | null;
   ssr: number | null;
   reach: number | null;
-  /** er ÷ median er of all posts; null when either is unknown */
+  /**
+   * er ÷ median er of the same kind: trial Reels against trial Reels, feed Reels against feed Reels (a trial only
+   * reaches non-followers, so against all posts it would always look weak); other posts against all posts. null when
+   * either is unknown.
+   */
   vsMedian: number | null;
+  /** true = trial Reel, false = feed Reel, null = unknown or not a Reel */
+  trial: boolean | null;
   tags: PostTags | null;
+}
+
+/** medians over Reels at least SETTLED_DAYS old of one kind (feed or trial) */
+export interface ReelGroup {
+  n: number;
+  reach: number | null;
+  views: number | null;
+  er: number | null;
 }
 
 export interface ThemeRow {
@@ -52,6 +66,8 @@ export interface PulseDigest {
   gender: { f: number; m: number; u: number } | null;
   /** posts that visibly promote a brand vs the others (median engagement) */
   brand: { n: number; er: number | null; otherN: number; otherEr: number | null };
+  /** feed Reels next to trial Reels (at least SETTLED_DAYS old); null without any trial flag from the worker */
+  reels: { feed: ReelGroup; trial: ReelGroup } | null;
   reach28: number | null;
   followers: number | null;
   /** how many posts the categories rest on */
@@ -60,6 +76,17 @@ export interface PulseDigest {
 
 export const MIN_N = 3;
 const WEEK_MS = 7 * 86_400_000;
+/** a Reel's lifetime values count for the feed/trial comparison once it is this old (same rule as the media kit) */
+export const SETTLED_DAYS = 7;
+
+const medianOf = (values: Array<number | null>) => {
+  const v = values.filter((x): x is number => x !== null);
+  return v.length ? median(v) : null;
+};
+
+function reelGroup(posts: readonly WorldPost[]): ReelGroup {
+  return { n: posts.length, reach: medianOf(posts.map((p) => p.reach)), views: medianOf(posts.map((p) => p.views)), er: medianOf(posts.map((p) => p.er)) };
+}
 
 export function berlinDayOf(ms: number): string {
   return new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Berlin", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date(ms));
@@ -82,10 +109,24 @@ export function pulseDigest(world: WorldPayload, nowMs: number): PulseDigest {
 
   const measured = ig.posts.filter((p) => !p.fresh);
   const ssrMedian = median(measured.map((p) => p.ssr).filter((x): x is number => x !== null));
+  // a trial Reel is compared with trial Reels, a feed Reel with feed Reels (at least MIN_N measured), else with all posts
+  const kindMedian = (trial: boolean) => {
+    const ers = ig.posts.filter((p) => p.trial === trial && p.er !== null).map((p) => p.er as number);
+    return ers.length >= MIN_N ? median(ers) : null;
+  };
+  const erMedianFor = { trial: kindMedian(true), feed: kindMedian(false) };
+  const baseline = (p: WorldPost) => (p.trial === true ? erMedianFor.trial : p.trial === false ? erMedianFor.feed : ig.erMedian);
   const fresh: HotPost[] = ig.posts
     .filter((p): p is WorldPost & { published_at: string } => p.published_at !== null && nowMs - Date.parse(p.published_at) <= WEEK_MS && Date.parse(p.published_at) <= nowMs)
-    .map((p) => ({ id: p.id, format: p.format, published_at: p.published_at, er: p.er, ssr: p.ssr, reach: p.reach, vsMedian: p.er !== null && ig.erMedian ? p.er / ig.erMedian : null, tags: confident(tags, p.id) }))
+    .map((p) => {
+      const base = baseline(p);
+      return { id: p.id, format: p.format, published_at: p.published_at, er: p.er, ssr: p.ssr, reach: p.reach, vsMedian: p.er !== null && base ? p.er / base : null, trial: p.trial ?? null, tags: confident(tags, p.id) };
+    })
     .sort((x, y) => (y.er ?? -1) - (x.er ?? -1));
+  const settled = ig.posts.filter((p) => p.format === "reel" && p.published_at !== null && nowMs - Date.parse(p.published_at) >= SETTLED_DAYS * 86_400_000);
+  const reels = ig.posts.some((p) => typeof p.trial === "boolean")
+    ? { feed: reelGroup(settled.filter((p) => p.trial === false)), trial: reelGroup(settled.filter((p) => p.trial === true)) }
+    : null;
 
   const themes = (kind: "er" | "ssr") => whatWorks(ig.posts, tags, kind).fields.theme.filter((r) => r.n >= MIN_N).slice(0, 3);
   const who = whoView(a.who.engaged_week);
@@ -117,6 +158,7 @@ export function pulseDigest(world: WorldPayload, nowMs: number): PulseDigest {
     topAge,
     gender,
     brand: { n: brandPosts.length, er: median(brandPosts.map((p) => p.er as number)), otherN: other.length, otherEr: median(other.map((p) => p.er as number)) },
+    reels,
     reach28: ig.reach28,
     followers: ig.followers,
     tagged: ig.posts.filter((p) => confident(tags, p.id)).length,
