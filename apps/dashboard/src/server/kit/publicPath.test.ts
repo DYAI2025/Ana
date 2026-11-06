@@ -38,6 +38,7 @@ describe("public paths: only brand links and the static build files pass without
       "/kit",
       "/api/world",
       "/api/social/instagram",
+      "/api/rate-card",
       "/api/healthz",
       "/_next/image",
       "/_next/static",

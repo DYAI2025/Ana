@@ -56,8 +56,8 @@ export interface KitReelLabel {
 
 export interface KitPackage {
   name: string;
-  /** as Ana writes it, e.g. "from €1,500" */
-  price: string;
+  /** as Ana writes it, e.g. "from €1,500"; null: the kit shows the format only ("Rates on request") */
+  price: string | null;
   includes: string[];
   note: string | null;
 }
@@ -195,9 +195,8 @@ function parseCase(v: unknown): KitCase | null {
 function parsePackage(v: unknown): KitPackage | null {
   const o = obj(v);
   const name = str(o?.name, 60);
-  const price = str(o?.price, 40);
-  if (!o || !name || !price) return null;
-  return { name, price, includes: list(o.includes, (x) => str(x, 120), 8), note: str(o.note, 200) };
+  if (!o || !name) return null;
+  return { name, price: str(o.price, 40), includes: list(o.includes, (x) => str(x, 120), 8), note: str(o.note, 200) };
 }
 
 function parseAddon(v: unknown): KitAddon | null {

@@ -21,7 +21,7 @@ describe("MediaKit", () => {
     expect(within(screen.getByTestId("kit-hidden")).getByText(/Case studies/)).toBeTruthy();
   });
 
-  it("with Ana's content: line, cases, packages, add-ons and exactly one button; no preview bar for brands", () => {
+  it("with Ana's content: line, cases, packages, add-ons and one mail behind both buttons; no preview bar for brands", () => {
     const config = parseKitConfig({
       tagline: "Her own words",
       contact: { email: "hi@example.com", label: "Let's talk" },
@@ -35,13 +35,16 @@ describe("MediaKit", () => {
     expect(screen.getByTestId("kit-proof").textContent).toContain("1.2M");
     expect(screen.getByTestId("kit-package-list").textContent).toContain("from €1,500");
     expect(screen.getByTestId("kit-addons").textContent).toContain("+20–50 % of the fee");
+    // a priced kit does not also say "on request"
+    expect(screen.queryByTestId("kit-rates-on-request")).toBeNull();
     const button = within(screen.getByTestId("kit-cta")).getByRole("link");
     expect(button.getAttribute("href")).toMatch(/^mailto:hi@example\.com\?body=Brand%3A/);
     expect(button.textContent).toBe("Let's talk");
-    // one way to write, one button: the hero link leads down to it
-    expect(screen.getByTestId("kit-hero-cta").getAttribute("href")).toBe("#kit-cta");
-    expect(screen.getByTestId("kit-cta").id).toBe("kit-cta");
-    expect(document.querySelectorAll('a[href^="mailto:"]')).toHaveLength(1);
+    // the hero button writes at once: the same mail with the same brief as the button at the end
+    expect(screen.getByTestId("kit-hero-cta").getAttribute("href")).toBe(button.getAttribute("href"));
+    const mails = [...document.querySelectorAll('a[href^="mailto:"]')].map((a) => a.getAttribute("href"));
+    expect(mails).toHaveLength(2);
+    expect(new Set(mails).size).toBe(1);
     expect(screen.queryByTestId("kit-preview")).toBeNull();
     // other brands' presets are not on a brand's page
     expect(document.body.textContent).not.toContain("Secret Brand Pitch");
@@ -61,8 +64,26 @@ describe("MediaKit", () => {
     expect(screen.getByRole("heading", { level: 1 }).querySelector("a")?.getAttribute("href")).toBe("https://example.com/");
     expect(screen.getByTestId("kit-signature-email").textContent).toBe("hi@example.com");
     expect(screen.getByTestId("kit-signature").textContent).toContain("example.com");
-    // still one way to write: the address in the signature is text, the button is the only mailto link
-    expect(document.querySelectorAll('a[href^="mailto:"]')).toHaveLength(1);
+    // still one way to write: the address in the signature is text, only the two buttons are mailto links
+    expect(document.querySelectorAll('a[href^="mailto:"]')).toHaveLength(2);
+  });
+
+  it("without prices: the formats with what they include, \"Rates on request\" and no number anywhere", () => {
+    const config = parseKitConfig({
+      contact: { email: "hi@example.com" },
+      packages: [
+        { name: "Instagram Reel", includes: ["1 Instagram Reel", "Crossposted to TikTok, Facebook and YouTube Shorts"] },
+        { name: "Story set", includes: ["3 Story frames in total"] },
+      ],
+      addons: [{ name: "Usage rights", note: "Paid usage of the content" }, { name: "Exclusivity" }],
+    });
+    render(<MediaKit model={buildKit({ world: world(), config })} />);
+    const section = screen.getByTestId("kit-packages");
+    expect(screen.getByTestId("kit-rates-on-request").textContent).toBe("Rates on request");
+    expect(section.textContent).toContain("Crossposted to TikTok, Facebook and YouTube Shorts");
+    expect(section.textContent).toContain("Exclusivity");
+    expect(section.textContent).not.toMatch(/[$€£]|%/);
+    expect(section.querySelector("[class*='price']")).toBeNull();
   });
 
   it("partners_more closes the last partner list with \"and more\"; never without partners or without the flag", () => {

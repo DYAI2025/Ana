@@ -1685,3 +1685,102 @@ button.barLabel {
     border-radius: 18px 18px 0 0;
   }
 }
+
+/* the register's drawer: Ana's internal rate card (quote first, the lowest we accept beneath it) */
+.rateCard {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.rateCard h4 {
+  margin: 0;
+  font-size: 15px;
+}
+.rateList {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.rate {
+  padding: 12px 14px;
+  background: #fff;
+  border: 1px solid var(--ana-olive);
+  border-radius: 4px;
+}
+.rateHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 4px 12px;
+}
+.rateQuote {
+  margin: 0;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+.rateQuote strong {
+  color: var(--ana-olive);
+  font-size: 20px;
+  font-variant-numeric: tabular-nums;
+}
+.rateMin {
+  margin: 4px 0 0;
+  font-size: 13px;
+}
+.rateMin strong {
+  font-variant-numeric: tabular-nums;
+}
+.rateIncludes {
+  margin: 8px 0 0;
+  padding-left: 18px;
+  font-size: 13px;
+  line-height: 1.45;
+}
+.rateNote {
+  margin: 6px 0 0;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.rateAddons ul {
+  display: grid;
+  gap: 8px;
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.rateAddons li {
+  display: grid;
+  gap: 2px;
+  font-size: 13px;
+}
+.rateAddonName {
+  font-weight: 700;
+}
+.rateTiers {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+}
+.rateTiers strong {
+  color: var(--ana-olive);
+  font-variant-numeric: tabular-nums;
+}
+.rateAddons small {
+  color: var(--text-muted);
+}
+.rateTips {
+  padding: 10px 12px;
+  background: color-mix(in srgb, var(--ana-gold) 22%, #fff);
+  border-left: 3px solid var(--ana-olive);
+  border-radius: 2px;
+  font-size: 13px;
+}
+.rateTips p {
+  margin: 0;
+}
+.rateTips p + p {
+  margin-top: 6px;
+}

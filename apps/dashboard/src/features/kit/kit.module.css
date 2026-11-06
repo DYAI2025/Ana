@@ -683,6 +683,14 @@ a.reel:focus-visible {
   outline: 2px solid var(--olive);
   outline-offset: 3px;
 }
+/* a kit without prices: the formats, and this one quiet line under the heading */
+.ratesOnRequest {
+  margin: 0 0 clamp(20px, 3vw, 28px);
+  color: var(--olive);
+  font-family: var(--serif);
+  font-size: 20px;
+  font-style: italic;
+}
 .price {
   margin: 6px 0 0;
   color: var(--olive);

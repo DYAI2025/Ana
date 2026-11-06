@@ -280,12 +280,18 @@ function Section({ section, n, fresh }: { section: KitSection; n: number; fresh:
       return (
         <Reveal className={styles.section} aria-labelledby="kit-packages" data-testid="kit-packages">
           <Heading n={n} overline="Collaborations" title="Packages" id="kit-packages" />
+          {/* Ana's prices stay in the office (the register); a kit without them names the formats and asks to write */}
+          {section.packages.some((p) => p.price) || section.addons.some((a) => a.price) ? null : (
+            <p className={styles.ratesOnRequest} data-testid="kit-rates-on-request">
+              Rates on request
+            </p>
+          )}
           {section.packages.length ? (
             <div className={styles.packages} data-testid="kit-package-list">
               {section.packages.map((p, i) => (
                 <article key={`${p.name}-${i}`} className={styles.package}>
                   <h3 className={styles.h3}>{p.name}</h3>
-                  <p className={styles.price}>{p.price}</p>
+                  {p.price ? <p className={styles.price}>{p.price}</p> : null}
                   {p.includes.length ? (
                     <ul className={styles.includes}>
                       {p.includes.map((x) => (
@@ -515,9 +521,9 @@ export function MediaKit({ model, preview = false, links = [] }: { model: KitMod
           ) : null}
           {model.partners.length ? <Partners partners={model.partners} more={model.partners_more} /> : null}
           {model.contact ? (
-            // one way to write, one button (Ben's wish): the hero link leads down to it
-            <a className={styles.heroCta} href="#kit-cta" data-testid="kit-hero-cta">
-              {model.contact.label} <span aria-hidden="true">↓</span>
+            // the hero button writes at once: the same mail with the brief as the button at the end of the kit
+            <a className={styles.heroCta} href={model.contact.href} data-testid="kit-hero-cta">
+              {model.contact.label} <span aria-hidden="true">→</span>
             </a>
           ) : null}
         </div>

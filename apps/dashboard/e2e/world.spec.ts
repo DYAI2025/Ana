@@ -2,6 +2,9 @@
  * ANA-48 — the 3D world end to end through the production build, /api/world and the local fake worker (synthetic data
  * only, see e2e/fake-social/core.mjs). WebGL runs in headless Chromium (SwiftShader).
  */
+import AxeBuilder from "@axe-core/playwright";
+import { mkdir, rm, writeFile } from "node:fs/promises";
+import path from "node:path";
 import type { Page } from "@playwright/test";
 import { PNG } from "pngjs";
 import { expect, FAKE_BRAIN, FAKE_SOCIAL, test } from "./fixtures";
@@ -410,7 +413,7 @@ test.describe("ANA World — 3D view over real dashboard data", () => {
     // the room is drawn (WebGL) and the three things float as buttons over it
     await page.locator('[data-testid="office-canvas"][data-ready="true"]').waitFor({ timeout: 20_000 });
     await expect(office).toHaveAttribute("data-spot", "room");
-    for (const s of ["board", "computer", "lamp"]) await expect(page.getByTestId(`office-spot-${s}`)).toBeVisible();
+    for (const s of ["board", "computer", "register", "lamp"]) await expect(page.getByTestId(`office-spot-${s}`)).toBeVisible();
     // only one 3D view draws: the world rests behind the office
     await expect(page.getByTestId("world-canvas")).toHaveAttribute("data-paused", "true");
     // the lamp switches
@@ -497,6 +500,63 @@ test.describe("ANA World — 3D view over real dashboard data", () => {
     await page.getByTestId("office-close").click();
     await expect(page.getByTestId("office")).toHaveCount(0);
     await expect(page.getByTestId("office-open")).toBeFocused();
+  });
+
+  test("office · the register on Ana's desk shows the Reel's quote and opens her internal rate card", async ({ page }) => {
+    test.skip(Boolean(process.env.E2E_BASE_URL), "writes rate-card.json into the e2e server's state directory");
+    test.setTimeout(90_000);
+    const file = path.join(process.cwd(), "test-results/.world-state", "rate-card.json");
+    await mkdir(path.dirname(file), { recursive: true });
+    await writeFile(
+      file,
+      JSON.stringify({
+        currency: "USD",
+        rates: [
+          { id: "reel", name: "Instagram Reel", quote: 1500, includes: ["Crossposted to TikTok, Facebook and YouTube Shorts"], note: "Fixed rate" },
+          { id: "bundle", name: "Reel + 3 Stories", quote: 1950, minimum: 1750 },
+        ],
+        addons: [{ name: "Usage rights", tiers: [{ label: "30 days", value: "+30 %" }, { label: "90 days", value: "+50 %" }], note: "Of the content fee" }],
+        tips: ["Name our price first."],
+      }),
+    );
+    try {
+      await page.emulateMedia({ reducedMotion: "reduce" });
+      await openWorld(page);
+      await page.getByTestId("world-view-ana").click();
+      await page.locator(".world-label.office").click();
+      const office = page.getByTestId("office");
+      const canvas = page.locator('[data-testid="office-canvas"][data-ready="true"]');
+      await canvas.waitFor({ timeout: 20_000 });
+      // the data is visible before anything opens: the register's display shows what a Reel costs
+      await expect(page.getByTestId("office-canvas")).toHaveAttribute("data-register", "$1,500");
+      await page.getByTestId("office-spot-register").click();
+      await expect(office).toHaveAttribute("data-spot", "register");
+      await expect(page.locator("#office-drawer-title")).toBeFocused();
+      const rates = page.getByTestId("office-rates");
+      await expect(page.getByTestId("office-rate-reel-quote")).toHaveText("$1,500");
+      // a rate without a minimum shows none; the bundle shows the lowest we accept
+      await expect(page.getByTestId("office-rate-reel-minimum")).toHaveCount(0);
+      await expect(page.getByTestId("office-rate-bundle-quote")).toHaveText("$1,950");
+      await expect(page.getByTestId("office-rate-bundle-minimum")).toContainText("$1,750");
+      await expect(page.getByTestId("office-rate-addons")).toContainText("+50 %");
+      await expect(page.getByTestId("office-rate-tips")).toContainText("Name our price first.");
+      await expect(rates).toContainText("Crossposted to TikTok, Facebook and YouTube Shorts");
+      const axe = await new AxeBuilder({ page }).include("[data-testid='office-drawer']").withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"]).analyze();
+      expect(axe.violations.filter((v) => v.impact === "serious" || v.impact === "critical").map((v) => `${v.id}: ${v.nodes.map((n) => n.target.join(" ")).join(", ")}`)).toEqual([]);
+      await page.keyboard.press("Escape");
+      await expect(office).toHaveAttribute("data-spot", "room");
+      await expect(page.getByTestId("office-spot-register")).toBeFocused();
+      // without the file the register stays empty and the drawer says where the card goes
+      await rm(file, { force: true });
+      await page.getByTestId("office-close").click();
+      await page.locator(".world-label.office").click();
+      await canvas.waitFor({ timeout: 20_000 });
+      await page.getByTestId("office-spot-register").click();
+      await expect(page.getByTestId("office-rates-empty")).toContainText("rate-card.json");
+      await expect(page.getByTestId("office-canvas")).toHaveAttribute("data-register", "");
+    } finally {
+      await rm(file, { force: true });
+    }
   });
 
   test("office · twenty visits leave the world's 3D alive (each room releases its WebGL context)", async ({ page }) => {
