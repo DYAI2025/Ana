@@ -6,6 +6,7 @@ import { MediaKit } from "@/features/kit/MediaKit";
 import { buildKit } from "@/features/kit/model";
 import { checkAccess } from "@/server/access";
 import { kitGeo, readKitConfigOnce } from "@/server/kit/config";
+import { readKitLinks, readOpens } from "@/server/kit/links";
 import { worldServiceFromEnv } from "@/server/world/shared";
 
 // live numbers on every view: never a build-time copy
@@ -27,7 +28,9 @@ export default async function KitPage({ searchParams }: { searchParams: Promise<
   const params = await searchParams;
   const raw = params.for;
   const presetId = Array.isArray(raw) ? raw[0] : raw;
-  const [world, { config, error }, geo] = await Promise.all([worldServiceFromEnv().read(), readKitConfigOnce(), kitGeo()]);
+  const [world, { config, error }, geo, links, opens] = await Promise.all([worldServiceFromEnv().read(), readKitConfigOnce(), kitGeo(), readKitLinks(), readOpens()]);
   const model = buildKit({ world, config, presetId, geo, configError: error });
-  return <MediaKit model={model} preview />;
+  // the team finds the public brand links here, with how often each was opened (only behind the login)
+  const rows = links.map((l) => ({ id: l.id, label: l.label, preset: l.preset, path: `/kit/b/${l.token}`, revoked: l.revoked, views: opens[l.id]?.views ?? 0, previews: opens[l.id]?.previews ?? 0, last_view_at: opens[l.id]?.last_view_at ?? null }));
+  return <MediaKit model={model} preview links={rows} />;
 }

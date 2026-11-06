@@ -49,7 +49,10 @@ shown only by its evidence (section 2).
    settings.
 4. **Access enforcement.** Required settings: `CF_ACCESS_TEAM_DOMAIN`, `CF_ACCESS_AUD` and `ANA_ALLOWED_EMAILS`
    (exactly the invitees of the Access policy), see `dashboard.env.example`. The proxy and every data API route verify
-   the Cloudflare Access JWT (RS256 signature against the team's keys, issuer, AUD, expiry, invited email). Missing or
+   the Cloudflare Access JWT, with exactly two exemptions in the proxy: the media kit's public brand links
+   `/kit/b/<43-character token>` (the page answers 404 unless the token names an active link in `kit-links.json`) and the
+   hashed build files under `/_next/static/` they need (`src/server/kit/publicPath.ts`, pinned by unit and e2e tests).
+   The check covers the RS256 signature against the team's keys, issuer, AUD, expiry and invited email. Missing or
    incomplete settings answer 503; a request without a valid assertion answers 401, a valid one for an identity that
    is not invited 403. An assertion the app cannot verify is refused, so without the team's keys nobody gets in; keys
    fetched earlier stay in use for the key cache's lifetime (jose default, 10 minutes).
@@ -205,6 +208,23 @@ Emergency stop (the hostname then shows a Cloudflare error, nothing is exposed):
 (it then stops with "tunnel ... could not start"); `systemctl unmask` undoes it. Full removal additionally disables
 `dyai-ana-dashboard.service` and deletes the two unit files, `/srv/dyai/runtime/ana-dashboard` and
 `/etc/dyai/credentials/ana-dashboard`; the public hostname is removed in the tunnel's settings.
+
+### Public brand links (media kit)
+
+Brands open `https://<public hostname>/kit/b/<token>` without a login. The app itself serves only those pages and the
+static build files without an Access assertion; every other path answers 401 there. The Cloudflare side is one of:
+
+- **Recommended: a separate public hostname** (e.g. `kit.dyai.cloud`) on the tunnel `ana-dashboard` →
+  `http://127.0.0.1:3410`, **without** "Protect with Access" and without any Access application covering it.
+  `ana.dyai.cloud` stays exactly as it is (Access on every path, cloudflared enforcing it as well). No Host header
+  override (invariant 5).
+- Same hostname: Access applications with a **Bypass** policy for `ana.dyai.cloud/kit/b` and `ana.dyai.cloud/_next/static`,
+  and "Protect with Access" turned off on the tunnel route (cloudflared would otherwise refuse the bypassed requests).
+  This removes cloudflared's layer for the whole dashboard hostname; the app's own check remains.
+
+Check after setting it up, from outside and without a login: `https://<public hostname>/kit/b/<valid token>` → 200;
+an unknown token → 404; `https://<public hostname>/` and `/api/world` → 401; `https://ana.dyai.cloud/` still redirects
+to Access.
 
 ### Verify after every release
 
