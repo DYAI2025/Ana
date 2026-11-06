@@ -404,7 +404,7 @@ function Typical({ typical }: { typical: KitTypicalReel }) {
         </span>
       </div>
       <small className={styles.tileNote}>
-        Instagram · median per Reel over {typical.n} Reels published {day.format(new Date(typical.from))} – {day.format(new Date(typical.to))}, lifetime values of Reels at least {SETTLED_DAYS} days old
+        Instagram · median per Reel over {typical.n} {typical.feed_only ? "feed " : ""}Reels published {day.format(new Date(typical.from))} – {day.format(new Date(typical.to))}, lifetime values of Reels at least {SETTLED_DAYS} days old
       </small>
     </div>
   );

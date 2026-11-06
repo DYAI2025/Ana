@@ -77,6 +77,8 @@ export interface KitTypicalReel {
   /** publishing dates of the Reels counted */
   from: string;
   to: string;
+  /** every Reel counted is known to be a feed Reel (shared_to_feed true); false when some carry no flag (older worker) */
+  feed_only: boolean;
 }
 
 /** fewer Reels than this are no "typical" Reel */
@@ -151,14 +153,14 @@ function tiles(world: WorldPayload, snapshot: SocialSnapshot | null): Map<KitTil
   const account = snapshot?.account ?? [];
   const pulseFollowers = world.pulse.state === "ok" && typeof world.pulse.followers === "number" ? world.pulse.followers : null;
   add("followers", "Followers", pulseFollowers ?? verified(account, "followers"), "count", "Instagram followers", null);
-  const reach = verified(account, "reach");
-  const interactions = verified(account, "total_interactions");
-  add("reach", "Accounts reached", reach, "count", "Unique accounts, last 28 days", "Last 28 days");
+  add("reach", "Accounts reached", verified(account, "reach"), "count", "Unique accounts, last 28 days", "Last 28 days");
   add("views", "Views", verified(account, "views"), "count", "All content, last 28 days", "Last 28 days");
   add("engaged", "Accounts engaged", verified(account, "accounts_engaged"), "count", "Accounts that interacted, last 28 days", "Last 28 days");
-  add("interactions", "Interactions", interactions, "count", "Likes, comments, saves and shares, last 28 days", "Last 28 days");
-  // by reach, not by followers: the label says so, because brands often compare follower-based rates
-  add("engagement", "Engagement rate (by reach)", reach && interactions !== null ? (interactions / reach) * 100 : null, "percent", "Interactions ÷ accounts reached, last 28 days", "Interactions ÷ reach, 28 days");
+  add("interactions", "Interactions", verified(account, "total_interactions"), "count", "Likes, comments, saves and shares, last 28 days", "Last 28 days");
+  // per Reel, by reach (not by followers: the label says so, because brands often compare follower-based rates). Not the
+  // account's 28-day interactions ÷ reach: that counts every interaction but each account once, so it runs too high.
+  const e = reelEngagement(snapshot);
+  if (e) add("engagement", "Engagement per Reel (by reach)", e.value, "percent", `Median of interactions ÷ accounts reached per Reel, ${e.n} ${e.feed_only ? "feed " : ""}Reels at least ${SETTLED_DAYS} days old`, "Median per Reel");
   const v = world.reel_viewing;
   if (v.state === "on") {
     add("watch", "Watch time per Reel", v.watch_ms === null ? null : v.watch_ms / 1000, "seconds", `Median of the average watch time, ${v.reels} recent Reels`, "Median, recent Reels");
@@ -273,22 +275,49 @@ const median = (values: number[]): number | null => {
   return s.length % 2 ? s[mid]! : (s[mid - 1]! + s[mid]!) / 2;
 };
 
-/** Medians of views and reach over the Reels at least SETTLED_DAYS old: what a brand can expect, not the best Reel. */
-export function typicalReel(snapshot: SocialSnapshot | null): KitTypicalReel | null {
-  if (!snapshot) return null;
+/**
+ * A trial Reel: Meta's is_shared_to_feed is false (Reels tab only). Trial Reels go to non-followers only, so they reach
+ * and engage far less than feed Reels and would pull every baseline down. Checked 2026-11-06 against 5 trial and 5 feed
+ * Reels Ana named: 10 of 10 matched. No flag (older worker, non-Reel) is not a trial.
+ */
+const isTrial = (p: SocialPost) => p.shared_to_feed === false;
+
+/** Reels at least SETTLED_DAYS old (lifetime values have settled), trial Reels left out */
+function settledReels(snapshot: SocialSnapshot | null): SocialPost[] {
+  if (!snapshot) return [];
   const measuredAt = Date.parse(snapshot.observed_at);
-  if (Number.isNaN(measuredAt)) return null;
-  const settled = snapshot.posts.filter((p) => {
+  if (Number.isNaN(measuredAt)) return [];
+  return snapshot.posts.filter((p) => {
     const at = p.published_at ? Date.parse(p.published_at) : Number.NaN;
-    return p.format === "reel" && !Number.isNaN(at) && measuredAt - at >= SETTLED_DAYS * DAY_MS;
+    return p.format === "reel" && !isTrial(p) && !Number.isNaN(at) && measuredAt - at >= SETTLED_DAYS * DAY_MS;
   });
+}
+
+/** Medians of views and reach over the settled feed Reels: what a brand can expect, not the best Reel. */
+export function typicalReel(snapshot: SocialSnapshot | null): KitTypicalReel | null {
   // one set of Reels for both numbers, so one n and one date range describe both
-  const counted = settled
-    .map((p) => ({ at: p.published_at!, views: verified(p.observations, "views"), reach: verified(p.observations, "reach") }))
-    .filter((x): x is { at: string; views: number; reach: number } => x.views !== null && x.reach !== null);
+  const counted = settledReels(snapshot)
+    .map((p) => ({ at: p.published_at!, feed: p.shared_to_feed === true, views: verified(p.observations, "views"), reach: verified(p.observations, "reach") }))
+    .filter((x): x is { at: string; feed: boolean; views: number; reach: number } => x.views !== null && x.reach !== null);
   if (counted.length < MIN_TYPICAL) return null;
   const dates = counted.map((x) => x.at).sort();
-  return { views: median(counted.map((x) => x.views))!, reach: median(counted.map((x) => x.reach))!, n: counted.length, from: dates[0]!, to: dates.at(-1)! };
+  return {
+    views: median(counted.map((x) => x.views))!,
+    reach: median(counted.map((x) => x.reach))!,
+    n: counted.length,
+    from: dates[0]!,
+    to: dates.at(-1)!,
+    feed_only: counted.every((x) => x.feed),
+  };
+}
+
+/** Median of interactions ÷ reach per settled feed Reel, in percent; null below MIN_TYPICAL Reels with both values */
+export function reelEngagement(snapshot: SocialSnapshot | null): { value: number; n: number; feed_only: boolean } | null {
+  const rates = settledReels(snapshot)
+    .map((p) => ({ feed: p.shared_to_feed === true, interactions: verified(p.observations, "total_interactions"), reach: verified(p.observations, "reach") }))
+    .filter((x): x is { feed: boolean; interactions: number; reach: number } => x.interactions !== null && x.reach !== null && x.reach > 0);
+  if (rates.length < MIN_TYPICAL) return null;
+  return { value: median(rates.map((x) => (x.interactions / x.reach) * 100))!, n: rates.length, feed_only: rates.every((x) => x.feed) };
 }
 
 function toReel(p: SocialPost, labels: Readonly<Record<string, KitReelLabel>>): KitReel {
@@ -312,11 +341,12 @@ function reels(snapshot: SocialSnapshot | null, preset: KitPreset, labels: Reado
     const byId = new Map(all.map((p) => [p.media_id, p]));
     return preset.reels.map((id) => byId.get(id)).filter((p): p is SocialPost => Boolean(p)).slice(0, MAX_REELS).map(reel);
   }
-  // Reels with measured views first, by views; Reels with only a reach after them, by reach (never one mixed ranking)
+  // Reels with measured views first, by views; Reels with only a reach after them, by reach (never one mixed ranking).
+  // Trial Reels are not Ana's feed: left out here (a preset can still name one on purpose, above).
   const views = (p: SocialPost) => verified(p.observations, "views");
   const reach = (p: SocialPost) => verified(p.observations, "reach");
   return all
-    .filter((p) => views(p) !== null || reach(p) !== null)
+    .filter((p) => !isTrial(p) && (views(p) !== null || reach(p) !== null))
     .sort((x, y) => {
       const vx = views(x);
       const vy = views(y);
@@ -372,7 +402,7 @@ export function buildKit({
         return kitAudience ? { id, audience: kitAudience } : null;
       case "reels":
         if (!kitReels.length) hidden.push(preset.reels.length ? "Top Reels: the preset's Reels are not in the current snapshot" : "Top Reels: no Reel with measured views");
-        if (snapshot && !typical) hidden.push(`Typical Reel: fewer than ${MIN_TYPICAL} Reels at least ${SETTLED_DAYS} days old with measured views and reach`);
+        if (snapshot && !typical) hidden.push(`Typical Reel: fewer than ${MIN_TYPICAL} feed Reels at least ${SETTLED_DAYS} days old with measured views and reach`);
         return kitReels.length || typical ? { id, reels: kitReels, typical } : null;
       case "packages":
         if (!config.packages.length) hidden.push("Packages: none in media-kit.json yet");
