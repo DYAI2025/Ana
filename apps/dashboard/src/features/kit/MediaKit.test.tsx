@@ -65,6 +65,23 @@ describe("MediaKit", () => {
     expect(document.querySelectorAll('a[href^="mailto:"]')).toHaveLength(1);
   });
 
+  it("partners_more closes the last partner list with \"and more\"; never without partners or without the flag", () => {
+    const withPast = parseKitConfig({ partners: [{ name: "Fiverr", current: true }, { name: "Airbnb" }], partners_more: true });
+    const { unmount } = render(<MediaKit model={buildKit({ world: world(), config: withPast })} />);
+    expect(within(screen.getByTestId("kit-partners-past")).getByTestId("kit-partners-more").textContent).toBe("and more");
+    expect(within(screen.getByTestId("kit-partners-current")).queryByTestId("kit-partners-more")).toBeNull();
+    unmount();
+    const currentOnly = parseKitConfig({ partners: [{ name: "Fiverr", current: true }], partners_more: true });
+    const second = render(<MediaKit model={buildKit({ world: world(), config: currentOnly })} />);
+    expect(within(screen.getByTestId("kit-partners-current")).getByTestId("kit-partners-more")).toBeTruthy();
+    second.unmount();
+    for (const config of [parseKitConfig({ partners_more: true }), parseKitConfig({ partners: [{ name: "Airbnb" }], partners_more: "yes" })]) {
+      const r = render(<MediaKit model={buildKit({ world: world(), config })} />);
+      expect(screen.queryByTestId("kit-partners-more")).toBeNull();
+      r.unmount();
+    }
+  });
+
   it("numbers render their final value; the hero says the period", () => {
     render(<MediaKit model={buildKit({ world: world(), config: EMPTY_KIT_CONFIG })} />);
     expect(finalOf("kit-tile-followers").textContent).toBe("5,010");
