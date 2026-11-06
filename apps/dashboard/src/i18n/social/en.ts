@@ -108,6 +108,7 @@ export const socialEn = {
     all: "All",
     count: "{shown} of {total} posts",
     colPost: "Post",
+    trial: "Trial Reel (non-followers only, not on the profile)",
     colReach: "Reach",
     colViews: "Views",
     colSaves: "Saves",

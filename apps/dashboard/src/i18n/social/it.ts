@@ -109,6 +109,7 @@ export const socialIt: Messages["social"] = {
     all: "Tutti",
     count: "{shown} di {total} post",
     colPost: "Post",
+    trial: "Reel di prova (solo per chi non segue, non sul profilo)",
     colReach: "Copertura",
     colViews: "Visualizzazioni",
     colSaves: "Salvataggi",

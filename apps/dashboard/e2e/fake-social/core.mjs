@@ -41,6 +41,7 @@ const POSTS = [
   ["REELS", 48, 0, 0, 0, 0, "Old money tips reel"],
 ];
 const PARTIAL_INDEX = 7; // views unavailable on this post
+const TRIAL_INDEX = 1;
 
 const iso = (daysAgo) => new Date(Date.parse(FAKE_OBSERVED_AT) - daysAgo * 86_400_000).toISOString().replace(".000Z", "+0000");
 
@@ -66,6 +67,8 @@ export function buildSnapshot({ count = POSTS.length, observedAt = FAKE_OBSERVED
       caption,
       like_count: values.likes,
       comments_count: comments,
+      // one trial Reel (Meta: is_shared_to_feed false); the others carry no flag, as from an older worker
+      ...(i === TRIAL_INDEX ? { shared_to_feed: false } : {}),
       insights: notFetched
         ? { state: "not_fetched", reason: "subrequest-budget", metrics }
         : { state: i === PARTIAL_INDEX ? "partial" : "ok", metrics },

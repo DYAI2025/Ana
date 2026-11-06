@@ -869,6 +869,16 @@ button.barLabel {
   color: var(--ink-coral);
 }
 
+/* a trial Reel (shown to non-followers only): a quiet label, not a warning */
+.trialBadge {
+  align-self: flex-start;
+  padding: 1px 7px;
+  border-radius: 999px;
+  border: 1px dashed var(--ink-cool);
+  font: 600 11px/1.5 var(--font);
+  color: var(--ink-cool);
+}
+
 .barValue[data-dir="up"] {
   color: var(--ink-coral);
 }
