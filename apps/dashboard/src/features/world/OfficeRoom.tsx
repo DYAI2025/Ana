@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import type { useI18n } from "@/components/providers/I18nProvider";
 import { formatAmount, registerDisplay, type RateCard } from "@/features/kit/rateCard";
+import { RateCardEditor } from "./RateCardEditor";
 import { useReducedMotion } from "@/lib/hooks/useReducedMotion";
 import type { WorldPost } from "./model";
 import { OFFICE_AS_OF, OFFICE_CONFIRMED, OFFICE_MIN_N, OFFICE_SOURCE, OFFICE_TOPICS, officePosts, officeView, ROOM_SPOTS, type BoardDot, type OfficePoint, type OfficeQuadrant, type RoomSpot } from "./office";
@@ -115,7 +116,7 @@ const SPOT_ICON: Record<RoomSpot, string> = { board: "📋", computer: "💻", r
 /** Ana's rate card as GET /api/rate-card answers it (read when the office opens; never part of the media kit). */
 type RateCardState = { state: "loading" } | { state: "ok"; card: RateCard; fileError: boolean } | { state: "failed" };
 
-function useRateCard(): RateCardState {
+function useRateCard(): [RateCardState, (card: RateCard) => void] {
   const [rc, setRc] = useState<RateCardState>({ state: "loading" });
   useEffect(() => {
     const ctl = new AbortController();
@@ -129,7 +130,8 @@ function useRateCard(): RateCardState {
       });
     return () => ctl.abort();
   }, []);
-  return rc;
+  const saved = useCallback((card: RateCard) => setRc({ state: "ok", card, fileError: false }), []);
+  return [rc, saved];
 }
 
 /**
@@ -153,7 +155,7 @@ export function OfficeRoom({ world, posts, t, locale, onClose, onPost }: { world
   const spotRef = useRef<RoomSpot | null>(null);
   const [lamp, setLamp] = useState(true);
   const [hover, setHover] = useState<RoomSpot | null>(null);
-  const rateCard = useRateCard();
+  const [rateCard, rateCardSaved] = useRateCard();
   const reader = world.post_topics.state === "on";
   const all = useMemo(() => officePosts(posts, world.post_history), [posts, world.post_history]);
   const view = useMemo(() => officeView(OFFICE_TOPICS, all, reader ? world.post_topics.topics : null), [all, reader, world.post_topics.topics]);
@@ -347,7 +349,7 @@ export function OfficeRoom({ world, posts, t, locale, onClose, onPost }: { world
               {shown === "board" ? (
                 <OfficeBoard world={world} posts={posts} t={t} locale={locale} onPost={onPost} />
               ) : shown === "register" ? (
-                <OfficeRateCard rc={rateCard} t={t} />
+                <OfficeRateCard rc={rateCard} t={t} locale={locale} onSaved={rateCardSaved} />
               ) : (
                 // Ana's media kit on her screen (ANA-59): the same page brands will see, with its preview bar
                 <OfficeKit t={t} onEscape={back} firstFocus={() => closeRef.current?.focus()} />
@@ -408,21 +410,57 @@ function OfficeKit({ t, onEscape, firstFocus }: { t: T; onEscape: () => void; fi
  * set, what each format includes, the add-ons by duration and the team's tips. Brands never see this: their kit names
  * the formats and says "Rates on request".
  */
-export function OfficeRateCard({ rc, t }: { rc: RateCardState; t: T }) {
+export function OfficeRateCard({ rc, t, locale, onSaved }: { rc: RateCardState; t: T; locale: string; onSaved: (card: RateCard) => void }) {
+  const [editing, setEditing] = useState(false);
   if (rc.state === "loading") return <p className={styles.note} data-testid="office-rates-loading">{t("world.office.rates.loading")}</p>;
   if (rc.state === "failed") return <p className={styles.note} data-testid="office-rates-failed">{t("world.office.rates.failed")}</p>;
   const { card, fileError } = rc;
-  if (!card.rates.length && !card.addons.length) {
+  if (editing) {
     return (
-      <p className={styles.note} data-testid="office-rates-empty">
-        {t(fileError ? "world.office.rates.unreadable" : "world.office.rates.empty")}
-      </p>
+      <RateCardEditor
+        card={card}
+        t={t}
+        onSaved={(c) => {
+          onSaved(c);
+          setEditing(false);
+          requestAnimationFrame(() => document.querySelector<HTMLElement>("[data-testid='office-rates-edit']")?.focus());
+        }}
+        onCancel={() => {
+          setEditing(false);
+          requestAnimationFrame(() => document.querySelector<HTMLElement>("[data-testid='office-rates-edit']")?.focus());
+        }}
+      />
     );
   }
+  const editButton = (
+    <button type="button" className={styles.rateEditOpen} onClick={() => setEditing(true)} data-testid="office-rates-edit">
+      ✏️ {t(card.rates.length || card.addons.length ? "world.office.rates.edit" : "world.office.rates.create")}
+    </button>
+  );
+  if (!card.rates.length && !card.addons.length) {
+    return (
+      <div className={styles.rateCard}>
+        <p className={styles.note} data-testid="office-rates-empty">
+          {t(fileError ? "world.office.rates.unreadable" : "world.office.rates.empty")}
+        </p>
+        {editButton}
+      </div>
+    );
+  }
+  const edited =
+    card.updated_at !== null
+      ? t(card.updated_by ? "world.office.rates.editedBy" : "world.office.rates.edited", {
+          date: new Intl.DateTimeFormat(locale, { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", timeZone: "Europe/Berlin" }).format(new Date(card.updated_at)),
+          who: card.updated_by ?? "",
+        })
+      : null;
   const money = (v: number) => formatAmount(v, card.currency);
   return (
     <div className={styles.rateCard} data-testid="office-rates">
-      <p className={styles.note}>{t("world.office.rates.lead")}</p>
+      <div className={styles.rateCardHead}>
+        <p className={styles.note}>{t("world.office.rates.lead")}</p>
+        {editButton}
+      </div>
       {card.rates.length ? (
         <ul className={styles.rateList} aria-label={t("world.office.rates.formats")}>
           {card.rates.map((r) => (
@@ -482,7 +520,10 @@ export function OfficeRateCard({ rc, t }: { rc: RateCardState; t: T }) {
           ))}
         </aside>
       ) : null}
-      <p className={styles.note}>{t("world.office.rates.private")}</p>
+      <p className={styles.note}>
+        {t("world.office.rates.private")}
+        {edited ? <span data-testid="office-rates-edited"> {edited}</span> : null}
+      </p>
     </div>
   );
 }
