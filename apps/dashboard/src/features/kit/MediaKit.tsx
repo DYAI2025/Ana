@@ -1,11 +1,13 @@
+import { BRAND } from "./brand";
 import { formatValue, KIT_LOCALE } from "./format";
 import { SETTLED_DAYS, type KitAudience, type KitModel, type KitReel, type KitSection, type KitTile, type KitTypicalReel } from "./model";
 import { CountUp, Cover, Reveal } from "./motion";
 import styles from "./kit.module.css";
 
 /**
- * The media kit page (ANA-53). Bright and calm: Ana's covers large, serif headings, clean large numbers, sand and sea
- * blue as the only accents, sections that rise in gently and numbers that count up once when they come into view.
+ * The media kit page (ANA-53) in Ana Savu's brand: the original banner on top (its stripes carried to the edges), the
+ * guideline's olive number tiles with gold numbers, cream ground, olive lines, no shadows; sections that rise in
+ * gently and numbers that count up once when they come into view.
  * A server component: the model stays on the server; only the small client parts in motion.tsx get props.
  */
 
@@ -15,6 +17,8 @@ const share = (s: number) => formatValue(s, "share");
 function Tile({ tile, big = false }: { tile: KitTile; big?: boolean }) {
   return (
     <div className={big ? styles.heroTile : styles.tile} data-testid={big ? `kit-hero-${tile.id}` : `kit-tile-${tile.id}`}>
+      {/* eslint-disable-next-line @next/next/no-img-element -- original brand file, already 2× (no optimisation) */}
+      {big ? <img className={styles.heroIcon} src={BRAND.icons.instagram} width={22} height={22} alt="" /> : null}
       <b className={styles.value}>
         <CountUp value={tile.value} kind={tile.kind} />
       </b>
@@ -406,14 +410,42 @@ function Typical({ typical }: { typical: KitTypicalReel }) {
   );
 }
 
+/**
+ * The heading: the original banner (the guideline: never re-set the logo), at most 600 px wide so the 1200 px file
+ * stays sharp; the name is in the heading's text for screen readers and search. It links to Ana's site only when
+ * media-kit.json names one.
+ */
+function Banner({ name, website }: { name: string; website: string | null }) {
+  const inner = (
+    <>
+      {/* eslint-disable-next-line @next/next/no-img-element -- original brand file, already 2× (no optimisation) */}
+      <img src={BRAND.banner.src} width={600} height={180} alt="" />
+      <span className={styles.srOnly}>{name}</span>
+    </>
+  );
+  return (
+    <h1 className={styles.band} data-testid="kit-banner">
+      {website ? (
+        <a className={styles.bandLink} href={website} target="_blank" rel="noreferrer noopener">
+          {inner}
+        </a>
+      ) : (
+        <span className={styles.bandLink}>{inner}</span>
+      )}
+    </h1>
+  );
+}
+
 export function MediaKit({ model, preview = false }: { model: KitModel; preview?: boolean }) {
   return (
     <div className={styles.page} data-testid="kit" data-preset={model.preset.id}>
       {preview ? <PreviewBar model={model} /> : null}
+      <Banner name={model.name} website={model.website} />
       <header className={styles.hero}>
         <div className={styles.heroText}>
-          <p className={styles.overline}>Media kit{model.preset.id !== "default" ? ` · ${model.preset.label}` : ""}</p>
-          <h1 className={styles.h1}>{model.name}</h1>
+          <p className={styles.overline}>{BRAND.sender}</p>
+          <p className={styles.kitTitle}>Media kit</p>
+          {model.preset.id !== "default" ? <p className={`${styles.overline} ${styles.presetLine}`}>For {model.preset.label}</p> : null}
           {model.handle ? (
             <a className={styles.handle} href={`https://www.instagram.com/${encodeURIComponent(model.handle)}/`} target="_blank" rel="noreferrer noopener">
               @{model.handle}
@@ -431,6 +463,8 @@ export function MediaKit({ model, preview = false }: { model: KitModel; preview?
               ))}
               {model.hero.signal ? (
                 <div className={styles.heroTile} data-testid="kit-hero-signal">
+                  {/* eslint-disable-next-line @next/next/no-img-element -- original brand file, already 2× (no optimisation) */}
+                  <img className={styles.heroIcon} src={BRAND.icons.instagram} width={22} height={22} alt="" />
                   <b className={`${styles.value} ${styles.signalValue}`}>
                     <CountUp value={model.hero.signal.share} kind="share" />
                   </b>
@@ -449,7 +483,12 @@ export function MediaKit({ model, preview = false }: { model: KitModel; preview?
           ) : null}
         </div>
         <div className={styles.mosaic} data-count={model.hero.covers.length} aria-hidden="true">
-          {model.hero.covers.length ? model.hero.covers.map((c, i) => <Cover key={c.id} src={c.src} className={styles[`m${i}`]} />) : <span className={styles.mosaicEmpty} />}
+          {model.hero.covers.length ? model.hero.covers.map((c, i) => <Cover key={c.id} src={c.src} className={styles[`m${i}`]} />) : (
+            <span className={styles.mosaicEmpty}>
+              {/* eslint-disable-next-line @next/next/no-img-element -- original brand file, already 2× (no optimisation) */}
+              <img src={BRAND.logo.src} width={176} height={176} alt="" />
+            </span>
+          )}
         </div>
       </header>
       <main id="main" className={styles.main} tabIndex={-1}>
@@ -466,6 +505,26 @@ export function MediaKit({ model, preview = false }: { model: KitModel; preview?
         ) : null}
       </main>
       <footer className={styles.footer}>
+        <div className={styles.signature} data-testid="kit-signature">
+          {/* eslint-disable-next-line @next/next/no-img-element -- original brand file, already 2× (no optimisation) */}
+          <img src={BRAND.logo.src} width={64} height={64} alt="" />
+          <div>
+            <p className={styles.sender}>{BRAND.sender}</p>
+            <p className={styles.senderLine}>{BRAND.senderLine}</p>
+            {model.contact || model.website ? (
+              <p>
+                {/* the address as text: one way to write, one button (the only mailto link is the button) */}
+                {model.contact ? <span data-testid="kit-signature-email">{model.contact.email}</span> : null}
+                {model.contact && model.website ? " · " : null}
+                {model.website ? (
+                  <a href={model.website} target="_blank" rel="noreferrer noopener">
+                    {model.website.replace(/^https:\/\/(www\.)?/, "").replace(/\/$/, "")}
+                  </a>
+                ) : null}
+              </p>
+            ) : null}
+          </div>
+        </div>
         {model.as_of ? (
           <p data-testid="kit-as-of">
             {model.fresh ? "Numbers live from Instagram" : "Numbers from Instagram"}, measured {asOf.format(new Date(model.as_of))}
@@ -474,6 +533,7 @@ export function MediaKit({ model, preview = false }: { model: KitModel; preview?
         ) : null}
         <p>Audience shares are of the countries, ages and genders Instagram reports. 28-day figures are Instagram&apos;s account totals.</p>
       </footer>
+      <div className={styles.stripes} aria-hidden="true" />
     </div>
   );
 }

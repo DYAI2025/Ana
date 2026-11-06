@@ -105,7 +105,9 @@ export interface KitModel {
   /** brands Ana has worked with and how, names only */
   partners: Array<{ name: string; kind: string | null; current: boolean }>;
   sections: KitSection[];
-  contact: { href: string; label: string } | null;
+  contact: { href: string; label: string; email: string } | null;
+  /** Ana's site from media-kit.json (https), linked from the banner; null = no link */
+  website: string | null;
   /** when Instagram measured the numbers; null without a snapshot */
   as_of: string | null;
   /** the snapshot is an older one because the last read failed */
@@ -388,6 +390,7 @@ export function buildKit({
     ? {
         href: `mailto:${config.contact.email}?${[config.contact.subject ? `subject=${encodeURIComponent(config.contact.subject)}` : null, `body=${encodeURIComponent(`${BRIEF_TEMPLATE}\n`)}`].filter(Boolean).join("&")}`,
         label: config.contact.label ?? "Work with Ana",
+        email: config.contact.email,
       }
     : null;
   return {
@@ -408,6 +411,7 @@ export function buildKit({
     partners: config.partners.map((p) => ({ name: p.name, kind: p.kind ? PARTNER_KINDS[p.kind] : null, current: p.current })),
     sections,
     contact,
+    website: config.website,
     as_of: snapshot?.observed_at ?? null,
     stale: world.instagram.ok ? world.instagram.stale : false,
     fresh: Boolean(snapshot) && !(world.instagram.ok && world.instagram.stale) && now - Date.parse(snapshot!.observed_at) <= FRESH_MS,

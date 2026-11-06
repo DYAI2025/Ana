@@ -38,6 +38,11 @@ describe("parseKitConfig — Ana's content, lenient, nothing invented", () => {
     expect(parseKitConfig({ cases: [{ brand: "B", link: "https://example.com/work" }] }).cases[0]?.link).toBe("https://example.com/work");
   });
 
+  it("a website is kept only as https; anything else is no website", () => {
+    expect(parseKitConfig({ website: "https://example.com/" }).website).toBe("https://example.com/");
+    for (const website of ["http://example.com", "javascript:alert(1)", "example.com", 3, " "]) expect(parseKitConfig({ website }).website, String(website)).toBeNull();
+  });
+
   it("presets: valid ids, known sections and tiles, upper-case country codes, no duplicates", () => {
     const c = parseKitConfig({
       presets: {

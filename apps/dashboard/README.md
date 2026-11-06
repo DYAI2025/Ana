@@ -26,6 +26,7 @@ The app in this folder is **ASADA** — Ana Savu Dashboard (Jira ANA-4 visual sh
   ```json
   {
     "name": "Ana Savu",
+    "website": "https://… (optional; the banner links to it — only a site you want brands to see)",
     "tagline": "a line in Ana's own words",
     "contact": { "email": "…", "label": "Work with Ana", "subject": "Collaboration" },
     "partners": [{ "name": "…", "kind": "paid | gifted | ugc | affiliate | partnership (optional)", "current": true }],
@@ -46,6 +47,11 @@ The app in this folder is **ASADA** — Ana Savu Dashboard (Jira ANA-4 visual sh
   `nomad-esim`, a second case of the same brand `nomad-esim-2`); the preview bar lists the ids.
   ANA-55: a partner with `"current": true` is listed under "Currently working with", the others under "Also worked with"
   (no claim that those ended; "Worked with" when none is current).
+
+  Brand skin (brand guideline v1, Nov 2026): the original banner is the heading (its stripes carried to the edges,
+  shown at most 600 px wide so the 1200 px file stays sharp), the guideline's olive number tiles with gold numbers,
+  cream ground, 1 px olive lines, no shadows, and the "Ana Savu Management" signature in the footer. The contact
+  address appears there as text, so the button stays the only mailto link. Assets: `src/features/kit/brand/`.
 
   Public per-brand links without the dashboard login, open tracking and revocation are a later slice.
 - **Everything else is local prototype data**: Sessions, Whiteboard, Calendar, Pulse, Vault and Toolbox are not
