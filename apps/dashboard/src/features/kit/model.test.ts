@@ -14,7 +14,7 @@ const o = (media: string | null, metric: Observation["metric_name"], value: numb
 const reel = (id: string, views: number | null, extra: Partial<SocialPost> = {}, watchMs: number | null = 15_000): SocialPost => ({
   media_id: id, media_type: "VIDEO", media_product_type: "REELS", format: "reel", caption: `SECRET caption ${id}`,
   permalink: `https://www.instagram.com/reel/${id}/`, thumbnail_url: `https://scontent.cdninstagram.com/${id}.jpg`, published_at: "2026-10-20T10:00:00.000Z", insights_state: "ok",
-  observations: [o(id, "views", views, views === null ? "UNAVAILABLE" : "VERIFIED"), o(id, "reach", 900), o(id, "avg_watch_time", watchMs, watchMs === null ? "NOT_FETCHED" : "VERIFIED")],
+  observations: [o(id, "views", views, views === null ? "UNAVAILABLE" : "VERIFIED"), o(id, "reach", 900), o(id, "total_interactions", 45), o(id, "avg_watch_time", watchMs, watchMs === null ? "NOT_FETCHED" : "VERIFIED")],
   ...extra,
 });
 
@@ -28,6 +28,7 @@ function world(mut: (w: WorldPayload) => void = () => undefined): WorldPayload {
       reel("r3", null),
       { ...reel("c1", 999_999), format: "carousel", media_product_type: "FEED" },
       reel("r4", 12_000, { permalink: "https://evil.example/reel/r4", thumbnail_url: "http://insecure.example/r4.jpg" }, null),
+      reel("r5", 3_000),
     ];
   }
   w.audience.engaged_country = series([["DE", 40], ["IN", 25], ["TH", 15], ["US", 12], ["GB", 8]]);
@@ -65,20 +66,21 @@ describe("buildKit — numbers", () => {
     expect(tiles.every((t) => Number.isFinite(t.value))).toBe(true);
   });
 
-  it("followers come from the live pulse first; engagement is interactions per account reached; hold is 100 − skip", () => {
+  it("followers come from the live pulse first; engagement is the median per Reel by reach; hold is 100 − skip", () => {
     const m = buildKit({ world: world(), config: EMPTY_KIT_CONFIG });
     const t = Object.fromEntries(sectionOf(m, "numbers")!.tiles.map((x) => [x.id, x]));
     expect(t.followers!.value).toBe(5010);
-    expect(t.engagement!.value).toBeCloseTo((3900 / 48_200) * 100, 6);
+    // per Reel (45 ÷ 900 on each), not the account's 3,900 ÷ 48,200, which counts interactions but each account once
+    expect(t.engagement!.value).toBeCloseTo(5, 6);
     expect(t.watch).toMatchObject({ value: 28.13, kind: "seconds" });
     expect(t.hold).toMatchObject({ value: 65.5, kind: "percent" });
     expect(m.hero.tiles.map((x) => x.id)).toEqual(["followers", "reach", "views"]);
     // the hero says the period: 28-day totals never read as all-time; the rate says it is by reach
     expect(m.hero.tiles.map((x) => x.short)).toEqual([null, "Last 28 days", "Last 28 days"]);
-    expect(t.engagement).toMatchObject({ label: "Engagement rate (by reach)", short: "Interactions ÷ reach, 28 days" });
+    expect(t.engagement).toMatchObject({ label: "Engagement per Reel (by reach)", short: "Median per Reel", note: "Median of interactions ÷ accounts reached per Reel, 5 Reels at least 7 days old" });
   });
 
-  it("without a pulse the snapshot's followers count; without reach there is no engagement rate", () => {
+  it("without a pulse the snapshot's followers count; a missing account reach does not hide the per-Reel engagement", () => {
     const m = buildKit({
       world: world((w) => {
         w.pulse = { ...w.pulse, state: "error", followers: null };
@@ -87,7 +89,7 @@ describe("buildKit — numbers", () => {
       }),
       config: EMPTY_KIT_CONFIG,
     });
-    expect(sectionOf(m, "numbers")!.tiles.map((t) => [t.id, t.value])).toEqual([["followers", 4900]]);
+    expect(sectionOf(m, "numbers")!.tiles.map((t) => [t.id, t.value])).toEqual([["followers", 4900], ["engagement", 5]]);
   });
 
   it("without Instagram there are no numbers and no Reels, and the preview says why", () => {
@@ -189,18 +191,18 @@ describe("buildKit — audience per preset", () => {
 describe("buildKit — Reels", () => {
   it("the Reels with the most views, Reels only; links only to Instagram, covers only over https", () => {
     const r = sectionOf(buildKit({ world: world(), config: EMPTY_KIT_CONFIG }), "reels")!.reels;
-    expect(r.map((x) => x.id)).toEqual(["r2", "r4", "r1", "r3"]);
+    expect(r.map((x) => x.id)).toEqual(["r2", "r4", "r1", "r5", "r3"]);
     expect(r[0]).toMatchObject({ link: "https://www.instagram.com/reel/r2/", cover: "https://scontent.cdninstagram.com/r2.jpg", views: 90_000, watch_s: 15 });
     expect(r[1]).toMatchObject({ link: null, cover: null, watch_s: null });
     // a Reel without views comes after every Reel with views, however large its reach
-    expect(r[3]).toMatchObject({ views: null, reach: 900 });
+    expect(r[4]).toMatchObject({ views: null, reach: 900 });
   });
 
   it("Reels with measured views always rank before Reels with only a reach", () => {
     const big = reel("big", null);
     big.observations = big.observations.map((x) => (x.metric_name === "reach" ? { ...x, value: 5_000_000 } : x));
     const r = sectionOf(buildKit({ world: world((w) => { if (w.instagram.ok) w.instagram.snapshot.posts.push(big); }), config: EMPTY_KIT_CONFIG }), "reels")!.reels;
-    expect(r.map((x) => x.id)).toEqual(["r2", "r4", "r1", "big", "r3"]);
+    expect(r.map((x) => x.id)).toEqual(["r2", "r4", "r1", "r5", "big", "r3"]);
   });
 
   it("a preset's Reels in its order; ids not in the snapshot are skipped", () => {
@@ -290,6 +292,51 @@ describe("buildKit — ANA-54: partners, labels, typical Reel, cases, hero signa
     });
     expect(typicalReel(w.instagram.ok ? w.instagram.snapshot : null)).toBeNull();
     expect(sectionOf(buildKit({ world: w, config: EMPTY_KIT_CONFIG }), "reels")!.typical).toBeNull();
+  });
+
+  it("trial Reels (shared_to_feed false) count for nothing: not in the typical Reel, the engagement or the best Reels", () => {
+    const w = settledWorld();
+    if (w.instagram.ok) {
+      const at = Date.parse(w.instagram.snapshot.observed_at);
+      const days = (d: number) => new Date(at - d * 86_400_000).toISOString();
+      for (const p of w.instagram.snapshot.posts) p.shared_to_feed = true;
+      const trial = (id: string, views: number, d: number) => {
+        const t = reel(id, views, { published_at: days(d), shared_to_feed: false });
+        t.observations = t.observations.map((x) => (x.metric_name === "total_interactions" ? { ...x, value: 9 } : x));
+        return t;
+      };
+      w.instagram.snapshot.posts.push(trial("t1", 100, 11), trial("t2", 200, 12), trial("t3", 300, 13), trial("tbig", 2_000_000, 14));
+    }
+    const snap = w.instagram.ok ? w.instagram.snapshot : null;
+    // without the trials: the same medians as before, and all counted Reels are known feed Reels
+    expect(typicalReel(snap)).toMatchObject({ views: 3_000, n: 5, feed_only: true });
+    const m = buildKit({ world: w, config: EMPTY_KIT_CONFIG });
+    const t = Object.fromEntries(sectionOf(m, "numbers")!.tiles.map((x) => [x.id, x]));
+    // the Reel without measured views still has interactions and reach, so the engagement counts 6 Reels
+    expect(t.engagement).toMatchObject({ value: 5, note: "Median of interactions ÷ accounts reached per Reel, 6 feed Reels at least 7 days old" });
+    const best = sectionOf(m, "reels")!.reels.map((r) => r.id);
+    expect(best).not.toContain("tbig");
+    expect(best.some((id) => id.startsWith("t"))).toBe(false);
+  });
+
+  it("a preset can still name a trial Reel on purpose", () => {
+    const w = world((x) => {
+      if (x.instagram.ok) x.instagram.snapshot.posts.push(reel("trial", 1, { shared_to_feed: false }));
+    });
+    const config = parseKitConfig({ presets: { b: { reels: ["trial", "r1"] } } });
+    expect(sectionOf(buildKit({ world: w, config, presetId: "b" }), "reels")!.reels.map((r) => r.id)).toEqual(["trial", "r1"]);
+  });
+
+  it("without a feed flag (older worker) Reels still count, and the note does not claim feed Reels", () => {
+    const w = settledWorld();
+    expect(typicalReel(w.instagram.ok ? w.instagram.snapshot : null)).toMatchObject({ n: 5, feed_only: false });
+  });
+
+  it("fewer than 5 settled feed Reels with interactions and reach: no engagement tile, never the account quotient", () => {
+    const w = settledWorld();
+    if (w.instagram.ok) w.instagram.snapshot.posts = w.instagram.snapshot.posts.filter((p) => p.media_id !== "old5" && p.media_id !== "noviews");
+    const ids = sectionOf(buildKit({ world: w, config: EMPTY_KIT_CONFIG }), "numbers")!.tiles.map((x) => x.id);
+    expect(ids).not.toContain("engagement");
   });
 
   it("a preset picks and orders cases; unknown ids are skipped; none found hides the section with a reason", () => {
