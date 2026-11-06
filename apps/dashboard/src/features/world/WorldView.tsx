@@ -13,6 +13,7 @@ import type { AudienceSeries, WorldPayload } from "./types";
 import { postsWith, TAG_FIELDS, TAG_MIN_CONFIDENCE, topPosts, whatWorks, type PostTags, type RateKind, type TagField } from "./postTags";
 import type { SceneData, SceneRef, StationStatus, ViewName, WorldScene } from "./scene/world";
 import { pulseDigest, SETTLED_DAYS as REEL_SETTLED_DAYS } from "./pulse";
+import { clearSignals, LAB_MIN_AGE_DAYS, LAB_MIN_DIFF, LAB_MIN_N, pairSummary, reelPairs, strangerSignals, type StrangerRow } from "./trialLab";
 import { BriefBlock } from "./BriefBlock";
 import { BerlinRoom } from "@/features/office/BerlinRoom";
 import { OfficeRoom } from "./OfficeRoom";
@@ -392,6 +393,13 @@ export function WorldView() {
   // "Was läuft": the same digest the Brain gets once a day
   const digest = useMemo(() => (world ? pulseDigest(world, Date.parse(world.generated_at)) : null), [world]);
   const freshPosts = useMemo(() => (ig && digest ? digest.fresh.flatMap((f) => ig.posts.filter((p) => p.id === f.id)) : []), [ig, digest]);
+  // trial lab: trial and feed version of the same video, and what does better with strangers than with the community
+  const lab = useMemo(() => {
+    if (!world || !ig || !ig.posts.some((p) => typeof p.trial === "boolean")) return null;
+    const nowMs = Date.parse(world.generated_at);
+    const pairs = reelPairs(ig.posts, nowMs);
+    return { pairs, summary: pairSummary(pairs), signals: strangerSignals(ig.posts, world.post_tags.tags, nowMs) };
+  }, [world, ig]);
   const pickedAll = useMemo(() => {
     if (!world || !ig || !worksPick) return null;
     return worksPick === "top" ? top : worksPick === "fresh" ? freshPosts : postsWith(ig.posts, world.post_tags.tags, worksPick.field, worksPick.value, rateKind);
@@ -650,6 +658,73 @@ export function WorldView() {
                 })}
                 <p className={styles.note}>{t("world.hot.reels.note", { days: REEL_SETTLED_DAYS })}</p>
               </div>
+            ) : null}
+            {lab ? (
+              <details className={styles.more} data-testid="world-trial-lab">
+                <summary>{t("world.lab.title")}</summary>
+                <p className={styles.muted}>{t("world.lab.lead")}</p>
+                <div className={styles.audienceGroup} data-testid="world-lab-pairs">
+                  <h4>{t("world.lab.pairs")}</h4>
+                  {lab.summary.n > 0 && lab.summary.reachX !== null && lab.summary.erShare !== null ? (
+                    <p data-testid="world-lab-pairs-summary">
+                      {t("world.lab.pairsSummary", { n: lab.summary.n, x: pf.format(lab.summary.reachX), share: `${Math.round(lab.summary.erShare * 100)} %` })}
+                    </p>
+                  ) : null}
+                  {lab.pairs.length ? (
+                    <ol className={styles.postList}>
+                      {lab.pairs.map((p) => (
+                        <li key={p.feed.id} className={styles.postRow} data-testid="world-lab-pair">
+                          <button type="button" className={styles.postTitle} onClick={() => { setSelected({ type: "post", id: p.feed.id }); setTab("selection"); }}>
+                            {postTitle(p.feed.id)}
+                          </button>
+                          <span className={styles.muted}>{t("world.lab.pairLine", { tReach: num(p.trial.reach), tEr: pct1(p.trial.er), fReach: num(p.feed.reach), fEr: pct1(p.feed.er) })}</span>
+                          <span className={p.settled ? styles.hotBadge : styles.trialBadge}>
+                            {p.settled && p.erShare !== null ? t("world.lab.pairShare", { share: `${Math.round(p.erShare * 100)} %` }) : t("world.lab.pairYoung")}
+                          </span>
+                        </li>
+                      ))}
+                    </ol>
+                  ) : (
+                    <p className={styles.muted}>{t("world.lab.pairsNone")}</p>
+                  )}
+                  <p className={styles.note}>{t("world.lab.pairNote", { days: LAB_MIN_AGE_DAYS })}</p>
+                </div>
+                <div className={styles.audienceGroup} data-testid="world-lab-signals">
+                  {(() => {
+                    const line = (r: StrangerRow) => (
+                      <li key={`${r.field}-${r.value}`} data-testid="world-lab-signal">
+                        {t("world.lab.row", {
+                          field: t(`world.works.fields.${r.field}`),
+                          value: t(`world.works.values.${r.field}.${r.value}` as never),
+                          trial: `${pf.format(r.trial.index)}×`,
+                          tn: r.trial.n,
+                          feed: `${pf.format(r.feed.index)}×`,
+                          fn: r.feed.n,
+                        })}
+                      </li>
+                    );
+                    const { better, worse } = clearSignals(lab.signals);
+                    if (!better.length && !worse.length) return <p className={styles.muted}>{t("world.lab.none", { n: LAB_MIN_N, days: LAB_MIN_AGE_DAYS, gap: Math.round(LAB_MIN_DIFF * 100) })}</p>;
+                    return (
+                      <>
+                        {better.length ? (
+                          <>
+                            <h4>{t("world.lab.better")}</h4>
+                            <ul className={styles.plain}>{better.map(line)}</ul>
+                          </>
+                        ) : null}
+                        {worse.length ? (
+                          <>
+                            <h4>{t("world.lab.worse")}</h4>
+                            <ul className={styles.plain}>{worse.map(line)}</ul>
+                          </>
+                        ) : null}
+                      </>
+                    );
+                  })()}
+                  <p className={styles.note}>{t("world.lab.note")}</p>
+                </div>
+              </details>
             ) : null}
             {digest.brand.n > 0 ? (
               <p data-testid="world-hot-brand">
