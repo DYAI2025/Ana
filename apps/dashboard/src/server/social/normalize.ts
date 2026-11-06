@@ -144,6 +144,7 @@ export function normalizeSnapshot(raw: unknown): SocialSnapshot {
       permalink: httpsOrNull(item.permalink),
       thumbnail_url: httpsOrNull(item.thumbnail_url),
       image_url: httpsOrNull(item.image_url),
+      shared_to_feed: typeof item.shared_to_feed === "boolean" ? item.shared_to_feed : null,
       published_at: published && !Number.isNaN(Date.parse(published)) ? new Date(Date.parse(published)).toISOString() : null,
       insights_state: insightsState,
       observations,

@@ -573,7 +573,9 @@ function pagedMedia(total, {fields = null} = {}) {
       media_url: (start + k) % 3 === 2 ? `https://example.invalid/i/${start + k}.jpg` : `https://example.invalid/v/${start + k}.mp4`,
       timestamp: new Date(Date.now() - (start + k) * 0.5 * DAY * 1000).toISOString().replace('.000Z', '+0000'),
       thumbnail_url: `https://example.invalid/t/${start + k}.jpg`, caption: track(`synthetic caption ${start + k} ${'c'.repeat(8)}`),
-      like_count: 5, comments_count: 1
+      like_count: 5, comments_count: 1,
+      // Reels alternate feed/trial; non-Reels carry no flag (as Meta: Reels only)
+      ...((start + k) % 3 === 2 ? {} : {is_shared_to_feed: (start + k) % 2 === 0})
     }));
     const paging = end < total ? {cursors: {before: `c${start}`, after: `c${end}`}, next: `https://graph.instagram.com/v26.0/me/media?access_token=${LONG_TOKEN}&after=c${end}`} : {cursors: {before: `c${start}`, after: `c${end}`}};
     return Response.json({data, paging});
@@ -607,7 +609,41 @@ test('social snapshot: a refused media_url costs only the picture, never caption
   assert.equal(body.media.picture_field_state, 'REJECTED_BY_META');
   assert.equal(typeof body.media.items[0].caption, 'string');
   assert.ok(!('image_url' in body.media.items[0]));
-  assert.equal(fields.length, 2, 'one refused attempt, then one read without media_url');
+  assert.equal(body.media.feed_field_state, 'REJECTED_BY_META');
+  assert.equal(fields.length, 3, 'two refused attempts (with and without is_shared_to_feed), then one read without media_url');
+});
+
+test('social snapshot: shared_to_feed passes the boolean from Meta through, null where Meta sends none', async () => {
+  const env = mockEnv();
+  await connect(env);
+  const fields = [];
+  installMeta({media: pagedMedia(6, {fields})});
+  const body = await (await snapshot(env, '?max=6')).json();
+  assert.match(fields[0], /is_shared_to_feed/);
+  assert.equal(body.media.feed_field_state, 'ACCEPTED');
+  assert.equal(body.media.picture_field_state, 'ACCEPTED');
+  for (const m of body.media.items) {
+    const n = Number(m.id.slice(1));
+    assert.equal(m.shared_to_feed, n % 3 === 2 ? null : n % 2 === 0, m.id);
+  }
+});
+
+test('social snapshot: a refused is_shared_to_feed costs only that flag, never the picture, caption or counters', async () => {
+  const env = mockEnv();
+  await connect(env);
+  const fields = [];
+  const inner = pagedMedia(3, {fields});
+  installMeta({media: u => u.searchParams.get('fields').includes('is_shared_to_feed')
+    ? (fields.push(u.searchParams.get('fields')), Response.json({error: {message: 'synthetic', type: 'OAuthException', code: 100}}, {status: 400}))
+    : inner(u)});
+  const body = await (await snapshot(env, '?max=3')).json();
+  assert.equal(body.media.feed_field_state, 'REJECTED_BY_META');
+  assert.equal(body.media.picture_field_state, 'ACCEPTED');
+  assert.equal(body.media.optional_fields_state, 'ACCEPTED');
+  assert.equal(typeof body.media.items[0].caption, 'string');
+  assert.ok(!('shared_to_feed' in body.media.items[0]));
+  assert.equal(fields.length, 2, 'one refused attempt, then one read without is_shared_to_feed');
+  assert.match(fields[1], /media_url/);
 });
 
 test('social snapshot: a carousel that opens with a video passes no video file', async () => {
@@ -1541,7 +1577,7 @@ test('media history: pages to 200 posts within its budget, no insights, never fo
   assert.equal(body.budget.used, calls.length);
 });
 
-test('media history: the worst case (identity and both field fallbacks) still reads 200 posts within 14 calls', async () => {
+test('media history: the worst case (identity and all three field fallbacks) still reads 200 posts within 14 calls', async () => {
   const env = mockEnv();
   await connect(env);
   const refused = () => Response.json({error: {message: 'synthetic', type: 'OAuthException', code: 100}}, {status: 400});
@@ -1553,8 +1589,8 @@ test('media history: the worst case (identity and both field fallbacks) still re
   const body = await (await history(env, '?max=200')).json();
   assert.equal(body.media.returned, 200);
   assert.equal(body.media.optional_fields_state, 'REJECTED_BY_META');
-  assert.equal(body.budget.used, 12);
-  assert.equal(calls.length, 12);
+  assert.equal(body.budget.used, 13);
+  assert.equal(calls.length, 13);
   assert.ok(body.media.items.every(m => !('caption' in m) && !('image_url' in m)));
 });
 

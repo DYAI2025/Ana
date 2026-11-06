@@ -60,6 +60,12 @@ export interface SocialPost {
   thumbnail_url: string | null;
   /** the picture of a photo post or carousel (Meta gives thumbnail_url only for videos); absent from older workers */
   image_url?: string | null;
+  /**
+   * Meta's is_shared_to_feed (Reels only): true = may appear in Feed and Reels tab, false = Reels tab only. Read to tell
+   * trial Reels from feed Reels; whether false really means "trial" is still to be verified. null = Meta sent no
+   * boolean; absent from older workers.
+   */
+  shared_to_feed?: boolean | null;
   published_at: string | null;
   insights_state: "ok" | "partial" | "unavailable" | "error" | "not_fetched";
   observations: Observation[];
