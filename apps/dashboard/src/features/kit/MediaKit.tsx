@@ -351,10 +351,11 @@ function PreviewBar({ model }: { model: KitModel }) {
 const asOf = new Intl.DateTimeFormat(LOCALE, { day: "numeric", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit", timeZone: "UTC", timeZoneName: "short" });
 
 /** running partnerships first ("Currently working with"), then "Also worked with" (no claim that those ended); one "Worked with" list when none runs */
-function Partners({ partners }: { partners: KitModel["partners"] }) {
+function Partners({ partners, more }: { partners: KitModel["partners"]; more: boolean }) {
   const current = partners.filter((p) => p.current);
   const past = partners.filter((p) => !p.current);
-  const list = (items: KitModel["partners"], testid: string) => (
+  // "and more" closes the last list shown: the past one, or the current one when there is no past one
+  const list = (items: KitModel["partners"], testid: string, last: boolean) => (
     <ul data-testid={testid}>
       {items.map((p, i) => (
         <li key={`${p.name}-${i}`}>
@@ -362,6 +363,11 @@ function Partners({ partners }: { partners: KitModel["partners"] }) {
           {p.kind ? <small>{p.kind}</small> : null}
         </li>
       ))}
+      {more && last ? (
+        <li className={styles.partnersMore} data-testid="kit-partners-more">
+          and more
+        </li>
+      ) : null}
     </ul>
   );
   return (
@@ -369,13 +375,13 @@ function Partners({ partners }: { partners: KitModel["partners"] }) {
       {current.length ? (
         <>
           <p className={styles.group}>Currently working with</p>
-          {list(current, "kit-partners-current")}
+          {list(current, "kit-partners-current", !past.length)}
         </>
       ) : null}
       {past.length ? (
         <>
           <p className={`${styles.group} ${current.length ? styles.groupNext : ""}`}>{current.length ? "Also worked with" : "Worked with"}</p>
-          {list(past, "kit-partners-past")}
+          {list(past, "kit-partners-past", true)}
         </>
       ) : null}
     </div>
@@ -474,7 +480,7 @@ export function MediaKit({ model, preview = false }: { model: KitModel; preview?
               ) : null}
             </div>
           ) : null}
-          {model.partners.length ? <Partners partners={model.partners} /> : null}
+          {model.partners.length ? <Partners partners={model.partners} more={model.partners_more} /> : null}
           {model.contact ? (
             // one way to write, one button (Ben's wish): the hero link leads down to it
             <a className={styles.heroCta} href="#kit-cta" data-testid="kit-hero-cta">

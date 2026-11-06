@@ -30,6 +30,7 @@ The app in this folder is **ASADA** — Ana Savu Dashboard (Jira ANA-4 visual sh
     "tagline": "a line in Ana's own words",
     "contact": { "email": "…", "label": "Work with Ana", "subject": "Collaboration" },
     "partners": [{ "name": "…", "kind": "paid | gifted | ugc | affiliate | partnership (optional)", "current": true }],
+    "partners_more": true,
     "reels": { "<media id>": { "kind": "organic | partnership | ugc | concept", "brand": "…" } },
     "cases": [{ "id": "…", "brand": "…", "title": "…", "summary": "…", "role": "…", "deliverables": ["…"], "period": "…", "source": "…", "results": [{ "label": "…", "value": "…" }], "link": "https://…" }],
     "packages": [{ "name": "…", "price": "from …", "includes": ["…"], "note": "…" }],
@@ -45,6 +46,7 @@ The app in this folder is **ASADA** — Ana Savu Dashboard (Jira ANA-4 visual sh
   that leads down to the one button, whose e-mail opens with a short briefing; the preset's market share in the hero;
   "live" only for a reading of at most 26 h. A case's id defaults to its brand as a slug ("Nomad eSIM" →
   `nomad-esim`, a second case of the same brand `nomad-esim-2`); the preview bar lists the ids.
+  `"partners_more": true` ends the last partner list with "and more" (Ana names a selection, not every brand).
   ANA-55: a partner with `"current": true` is listed under "Currently working with", the others under "Also worked with"
   (no claim that those ended; "Worked with" when none is current).
 

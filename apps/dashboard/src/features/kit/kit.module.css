@@ -759,6 +759,13 @@ a.reel:focus-visible {
   font-size: 21px;
   line-height: 1.2;
 }
+.partnersMore {
+  color: var(--ink-3);
+  font-family: var(--serif);
+  font-size: 18px;
+  font-style: italic;
+  line-height: 1.3;
+}
 .partners small {
   color: var(--ink-3);
   font-size: 12px;

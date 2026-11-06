@@ -106,6 +106,8 @@ export interface KitModel {
   };
   /** brands Ana has worked with and how, names only */
   partners: Array<{ name: string; kind: string | null; current: boolean }>;
+  /** the last partner list ends with "and more" (only with partners) */
+  partners_more: boolean;
   sections: KitSection[];
   contact: { href: string; label: string; email: string } | null;
   /** Ana's site from media-kit.json (https), linked from the banner; null = no link */
@@ -439,6 +441,7 @@ export function buildKit({
       signal: kitAudience?.focus ? { share: kitAudience.focus.share, label: kitAudience.focus.label, basis: kitAudience.basis_label } : null,
     },
     partners: config.partners.map((p) => ({ name: p.name, kind: p.kind ? PARTNER_KINDS[p.kind] : null, current: p.current })),
+    partners_more: config.partners_more && config.partners.length > 0,
     sections,
     contact,
     website: config.website,
