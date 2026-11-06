@@ -256,9 +256,9 @@ export function officeView(topics: readonly OfficeTopic[], posts: ReadonlyArray<
   };
 }
 
-/** The things in Ana's office room you can use (scene/officeRoom.ts). */
-export type RoomSpot = "board" | "computer" | "lamp";
-export const ROOM_SPOTS: readonly RoomSpot[] = ["board", "computer", "lamp"];
+/** The things in Ana's office room you can use (scene/officeRoom.ts); the register holds her internal rate card. */
+export type RoomSpot = "board" | "computer" | "register" | "lamp";
+export const ROOM_SPOTS: readonly RoomSpot[] = ["board", "computer", "register", "lamp"];
 
 /** A topic on the board in the room: its number, quadrant and place inside the quadrant (0..1 from left / bottom). */
 export interface BoardDot {

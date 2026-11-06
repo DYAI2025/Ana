@@ -89,9 +89,9 @@ test.describe("ANA-53 · media kit", () => {
     await expect(page.getByTestId("kit-addons")).toContainText("Usage rights");
     const mailto = await page.getByTestId("kit-cta").getByRole("link").getAttribute("href");
     expect(mailto).toMatch(/^mailto:e2e@example\.invalid\?body=Brand%3A/);
-    // one way to write, one button: the hero link leads down to it
-    await expect(page.getByTestId("kit-hero-cta")).toHaveAttribute("href", "#kit-cta");
-    await expect(page.locator('a[href^="mailto:"]')).toHaveCount(1);
+    // the hero button writes at once: the same mail as the button at the end
+    await expect(page.getByTestId("kit-hero-cta")).toHaveAttribute("href", mailto!);
+    await expect(page.locator('a[href^="mailto:"]')).toHaveCount(2);
     await expect(page.getByTestId("kit-partners")).toContainText("Test Partner");
     await expect(page.getByTestId("kit-partners")).toContainText("Paid partnership");
     await expect(page.getByTestId("kit-partners")).toContainText("Affiliate");
@@ -237,6 +237,36 @@ test.describe("media kit · public brand links", () => {
     // everything else still needs the login: the internal kit, the dashboard, every API, a path that only looks like a link
     for (const p of ["/kit", "/kit?for=west", "/", "/world", "/api/world", "/api/social/instagram", "/api/work", `/kit/b/${WEST}/x`, `/kit/b/${WEST.slice(0, 42)}`]) {
       expect([401, 403], p).toContain((await page.request.get(p, { headers: outside })).status());
+    }
+  });
+
+  test("Ana's rate card stays internal: no number on a brand link or in the kit; the API needs the login", async ({ page }) => {
+    const card = path.join(STATE_DIR, "rate-card.json");
+    await writeFile(card, JSON.stringify({ rates: [{ id: "reel", name: "Instagram Reel", quote: 1500 }, { id: "bundle", name: "Reel + 3 Stories", quote: 1950, minimum: 1750 }] }));
+    await writeFile(
+      KIT_FILE,
+      JSON.stringify({
+        contact: { email: "e2e@example.invalid", label: "Work with Ana" },
+        packages: [{ name: "Instagram Reel", includes: ["Crossposted to TikTok, Facebook and YouTube Shorts"] }],
+        addons: [{ name: "Usage rights" }],
+      }),
+    );
+    try {
+      for (const [url, headers] of [[`/kit/b/${WEST}`, outside], ["/kit", {}]] as const) {
+        const res = await page.request.get(url, { headers });
+        expect(res.status(), url).toBe(200);
+        const html = await res.text();
+        expect(html).toContain("Rates on request");
+        for (const n of ["1,500", "1500", "1,950", "1950", "1,750", "1750"]) expect(html, `${url} ${n}`).not.toContain(n);
+      }
+      expect([401, 403]).toContain((await page.request.get("/api/rate-card", { headers: outside })).status());
+      // another site may not read it through a logged-in browser either
+      expect((await page.request.get("/api/rate-card", { headers: { "sec-fetch-site": "cross-site" } })).status()).toBe(403);
+      const own = await page.request.get("/api/rate-card");
+      expect(own.headers()["cache-control"]).toContain("no-store");
+      expect((await own.json()).card.rates.map((r: { quote: number }) => r.quote)).toEqual([1500, 1950]);
+    } finally {
+      await rm(card, { force: true });
     }
   });
 

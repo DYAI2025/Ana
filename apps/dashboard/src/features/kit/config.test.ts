@@ -18,14 +18,18 @@ describe("parseKitConfig — Ana's content, lenient, nothing invented", () => {
         { title: "no brand" },
         "junk",
       ],
-      packages: [{ name: "Reel", price: "from €1,500", includes: ["1 Reel", 3, " "] }, { name: "no price" }],
+      packages: [{ name: "Reel", price: "from €1,500", includes: ["1 Reel", 3, " "] }, { name: "no price" }, { price: "no name" }],
       addons: [{ name: "Usage rights", price: "+20–50 %" }, { price: "no name" }],
     });
     expect(c.name).toBe("Ana");
     expect(c.tagline).toBeNull();
     expect(c.contact).toEqual({ email: "hello@example.com", label: "Work with me", subject: "Collab" });
     expect(c.cases).toEqual([{ id: "hotel-a", brand: "Hotel A", title: "Stay", summary: "s", role: null, deliverables: [], period: null, source: null, results: [{ label: "Bookings", value: "+40%" }], link: null }]);
-    expect(c.packages).toEqual([{ name: "Reel", price: "from €1,500", includes: ["1 Reel"], note: null }]);
+    // a package without a price is a format only (the kit then says "Rates on request"); without a name it is dropped
+    expect(c.packages).toEqual([
+      { name: "Reel", price: "from €1,500", includes: ["1 Reel"], note: null },
+      { name: "no price", price: null, includes: [], note: null },
+    ]);
     expect(c.addons).toEqual([{ name: "Usage rights", price: "+20–50 %", note: null }]);
   });
 
