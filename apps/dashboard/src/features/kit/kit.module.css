@@ -1,25 +1,33 @@
-/* Media kit (ANA-53): bright and calm. Warm paper, ink, sand and sea blue; serif headings, light large numbers. */
+/*
+ * Media kit (ANA-53) in Ana Savu's brand (brand guideline v1, Nov 2026): cream ground, olive structure, gold only as
+ * a surface (the stripes, the number tiles) or for numbers on olive — never as text on cream (1.45 : 1). Flat: 1 px
+ * olive lines, no shadows, almost square corners. The serif stays for headings (the wordmark's own face is not
+ * known); labels follow the guideline's section labels: bold, upper case, widely spaced, olive.
+ */
 .page :where(h1, h2, h3, p, li, dd, dt, a, span, small) {
   overflow-wrap: anywhere; /* break-word would still let long words widen grid and flex items (e2e AC5) */
 }
 .page {
-  --paper: #fbf8f3;
-  --paper-2: #f3ede3;
-  --ink: #1d2226;
-  --ink-2: #4f585f;
-  --ink-3: #5c6469;
-  --line: #e4dccf;
-  --sand: #d8bb8f;
-  --sand-deep: #85592a;
-  --sea: #2c6e8a;
-  --sea-soft: #cfe1e8;
-  --dot: #d9d1c4;
+  /* the guideline's palette */
+  --cream: #f2efdc;
+  --gold: #dec84f;
+  --olive: #5f5722;
+  --black: #000;
+  /* derived from it, for surfaces and secondary text (contrast on cream: ink-2 10.4 : 1, ink-3 8.4 : 1) */
+  --card: #f7f5ea;
+  --cream-2: #e0ddc6;
+  --ink: var(--black);
+  --ink-2: #3b3720;
+  --ink-3: #4a4527;
+  --hair: rgba(95, 87, 34, 0.28);
+  --dot: #c9c4a8;
+  --radius: 2px;
   --serif: "Playfair Display Variable", "Iowan Old Style", "Palatino Linotype", Georgia, serif;
-  --sans: "Inter Variable", "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --sans: "Inter Variable", "Inter", system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   position: relative;
   z-index: 1;
   min-height: 100vh;
-  background: var(--paper);
+  background: var(--cream);
   color: var(--ink);
   font-family: var(--sans);
   font-size: 16px;
@@ -46,8 +54,8 @@
   align-items: center;
   gap: 8px 16px;
   padding: 10px clamp(16px, 4vw, 48px);
-  background: rgba(29, 34, 38, 0.92);
-  color: #f3ede3;
+  background: rgba(31, 28, 11, 0.94);
+  color: var(--cream);
   font-size: 13px;
   backdrop-filter: blur(8px);
 }
@@ -62,26 +70,26 @@
 }
 .presets a {
   padding: 3px 10px;
-  border: 1px solid rgba(243, 237, 227, 0.35);
-  border-radius: 999px;
+  border: 1px solid rgba(242, 239, 220, 0.4);
+  border-radius: var(--radius);
   color: inherit;
   text-decoration: none;
 }
 .presets a[aria-current="page"] {
-  background: var(--sand);
-  border-color: var(--sand);
-  color: var(--ink);
+  background: var(--gold);
+  border-color: var(--gold);
+  color: var(--black);
 }
 .presets a:focus-visible,
 .hidden summary:focus-visible {
-  outline: 2px solid var(--sand);
+  outline: 2px solid var(--gold);
   outline-offset: 2px;
 }
 .hidden {
   margin-left: auto;
 }
 .previewIds {
-  opacity: 0.8;
+  opacity: 0.85;
 }
 .hidden summary {
   cursor: pointer;
@@ -91,72 +99,138 @@
   padding-left: 18px;
 }
 
+/*
+ * the banner band: the banner at its 2× size (600 px), its gold/cream stripes carried on to both edges. One stripe
+ * pair is 50 px at 600 px (100 px in the 1200 px file), gold first; the tile offset puts a pair's start on the
+ * banner's left edge (50 % − 300 px).
+ */
+.band {
+  display: block;
+  margin: 0;
+  background: linear-gradient(90deg, var(--gold) 0 48%, var(--cream) 48% 100%) calc(50% - 275px) 0 / 50px 100% repeat-x;
+  border-bottom: 1px solid var(--olive);
+  line-height: 0;
+}
+.bandLink {
+  display: block;
+  width: min(600px, 100%);
+  margin: 0 auto;
+}
+.bandLink:focus-visible {
+  outline: 3px solid var(--olive);
+  outline-offset: -3px;
+}
+.band img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
 /* hero */
 .hero {
   display: grid;
   grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr);
-  gap: clamp(24px, 5vw, 72px);
-  align-items: center;
+  gap: clamp(28px, 5vw, 80px);
+  align-items: start;
   max-width: 1200px;
   margin: 0 auto;
-  padding: clamp(40px, 8vw, 112px) clamp(16px, 4vw, 48px) clamp(32px, 6vw, 80px);
+  padding: clamp(36px, 6vw, 88px) clamp(16px, 4vw, 48px) clamp(40px, 6vw, 88px);
 }
 .heroText {
   min-width: 0;
 }
 .overline {
+  display: block;
   margin: 0 0 12px;
-  color: var(--sand-deep);
-  font-size: 12px;
-  font-weight: 600;
-  letter-spacing: 0.16em;
+  color: var(--olive);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.22em;
   text-transform: uppercase;
 }
-.h1 {
+.kitTitle {
   margin: 0;
+  color: var(--olive);
   font-family: var(--serif);
-  font-size: clamp(48px, 8vw, 104px);
+  font-size: clamp(44px, 6.4vw, 84px);
   font-weight: 500;
-  line-height: 0.98;
-  letter-spacing: -0.015em;
+  line-height: 1;
+  letter-spacing: -0.01em;
+}
+.presetLine {
+  margin: 14px 0 0;
 }
 .handle {
   display: inline-block;
-  margin-top: 14px;
-  color: var(--sea);
-  font-size: 17px;
+  margin-top: 16px;
+  color: var(--ink-2);
+  font-size: 16px;
+  font-weight: 500;
   text-decoration: none;
+  border-bottom: 1px solid var(--olive);
 }
 .handle:hover {
-  text-decoration: underline;
+  color: var(--olive);
+}
+.handle:focus-visible {
+  outline: 2px solid var(--olive);
+  outline-offset: 3px;
 }
 .tagline {
   max-width: 34ch;
-  margin: 22px 0 0;
+  margin: 20px 0 0;
   font-family: var(--serif);
   font-size: clamp(20px, 2.2vw, 26px);
   font-style: italic;
   line-height: 1.35;
   color: var(--ink-2);
 }
+
+/* "Ana at a glance": olive tiles, the platform icon in cream, the number in gold, the label in cream */
 .heroTiles {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 20px clamp(24px, 4vw, 48px);
-  margin-top: clamp(28px, 4vw, 44px);
-  padding-top: 24px;
-  border-top: 1px solid var(--line);
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 96px), 1fr));
+  gap: clamp(6px, 1vw, 8px);
+  margin-top: clamp(28px, 4vw, 40px);
 }
 .heroTile {
   display: flex;
   flex-direction: column;
+  align-items: center;
   min-width: 0;
+  padding: 18px 8px 16px;
+  border-radius: var(--radius);
+  background: var(--olive);
+  color: var(--cream);
+  text-align: center;
+}
+.heroIcon {
+  width: 22px;
+  height: 22px;
+  margin-bottom: 10px;
 }
 .heroTile .value {
-  font-size: clamp(30px, 3.6vw, 44px);
+  color: var(--gold);
+  font-size: clamp(24px, 3vw, 38px);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+.heroTile .tileLabel {
+  margin-top: 8px;
+  color: var(--cream);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  line-height: 1.35;
+  text-transform: uppercase;
+}
+.heroTile .tileNote {
+  margin-top: 4px;
+  color: var(--cream);
+  font-size: 11px;
 }
 .value {
-  font-weight: 300;
+  font-weight: 400;
   font-variant-numeric: tabular-nums;
   letter-spacing: -0.02em;
   line-height: 1.05;
@@ -174,23 +248,23 @@
   line-height: 1.4;
 }
 
-/* cover mosaic: up to five covers, staggered */
+/* cover mosaic: up to five covers, staggered; photos keep a hairline frame, no shadow */
 .mosaic {
   position: relative;
   display: grid;
   grid-template-columns: repeat(6, minmax(0, 1fr));
   grid-auto-rows: minmax(0, auto);
-  gap: 12px;
+  gap: 10px;
   min-width: 0;
 }
-.mosaic img,
-.mosaic .coverEmpty {
+.mosaic > img,
+.mosaic > .coverEmpty {
   width: 100%;
   aspect-ratio: 9 / 16;
   object-fit: cover;
-  border-radius: 18px;
-  box-shadow: 0 18px 40px -24px rgba(29, 34, 38, 0.45);
-  background: var(--paper-2);
+  border: 1px solid var(--olive);
+  border-radius: var(--radius);
+  background: var(--cream-2);
 }
 .m0 {
   grid-column: 1 / span 3;
@@ -211,15 +285,20 @@
 .mosaicEmpty {
   grid-column: 1 / -1;
   aspect-ratio: 4 / 5;
-  border-radius: 28px;
-  background:
-    radial-gradient(circle at 30% 30%, rgba(216, 187, 143, 0.55), transparent 55%),
-    radial-gradient(circle at 70% 70%, rgba(44, 110, 138, 0.35), transparent 60%),
-    var(--paper-2);
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--olive);
+  border-radius: var(--radius);
+  background: var(--card);
+}
+.mosaicEmpty img {
+  width: 44%;
+  max-width: 176px;
+  height: auto;
 }
 .coverEmpty {
   display: block;
-  background: linear-gradient(160deg, var(--paper-2), var(--sea-soft));
+  background: linear-gradient(170deg, var(--cream-2), var(--card) 55%, rgba(222, 200, 79, 0.35));
 }
 @media (min-width: 900px) {
   .mosaic[data-count="3"] .m2,
@@ -249,7 +328,7 @@
 }
 .section {
   padding: clamp(48px, 7vw, 96px) 0;
-  border-top: 1px solid var(--line);
+  border-top: 1px solid var(--olive);
 }
 .reveal {
   transition:
@@ -265,6 +344,7 @@
 }
 .h2 {
   margin: 0;
+  color: var(--olive);
   font-family: var(--serif);
   font-size: clamp(32px, 4.6vw, 56px);
   font-weight: 500;
@@ -280,19 +360,27 @@
 .tiles {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr));
-  gap: clamp(10px, 1.6vw, 16px);
+  gap: 8px;
 }
 .tile {
   display: flex;
   flex-direction: column;
-  padding: clamp(18px, 3vw, 32px);
-  border: 1px solid var(--line);
-  border-radius: 20px;
-  background: #fffdf9;
+  padding: clamp(18px, 3vw, 28px);
+  border: 1px solid var(--olive);
+  border-radius: var(--radius);
+  background: var(--card);
   min-width: 0;
 }
 .tile .value {
-  font-size: clamp(36px, 4.4vw, 54px);
+  font-size: clamp(34px, 4.2vw, 50px);
+}
+.tile .tileLabel {
+  margin-top: 10px;
+  color: var(--olive);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
 }
 
 /* audience */
@@ -310,14 +398,15 @@
   stroke-width: 3.4;
   stroke-linecap: round;
 }
-.marker circle,
-.markerFocus circle {
-  fill: var(--sea);
-  fill-opacity: 0.78;
+.marker circle {
+  fill: var(--olive);
+  fill-opacity: 0.82;
 }
 .markerFocus circle {
-  fill: var(--sand-deep);
-  fill-opacity: 0.85;
+  fill: var(--gold);
+  fill-opacity: 1;
+  stroke: var(--olive);
+  stroke-width: 1.5;
 }
 .ring {
   fill: none !important;
@@ -328,10 +417,10 @@
   animation: ring 3.2s ease-out infinite;
 }
 .marker {
-  color: var(--sea);
+  color: var(--olive);
 }
 .markerFocus {
-  color: var(--sand-deep);
+  color: var(--olive);
 }
 @keyframes ring {
   0% {
@@ -343,19 +432,23 @@
     opacity: 0;
   }
 }
+/* the brand's market share: a number in gold on an olive band */
 .focusLine {
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
-  gap: 8px 16px;
+  gap: 8px 18px;
   margin: 0 0 clamp(28px, 4vw, 44px);
-  font-size: 18px;
-  color: var(--ink-2);
+  padding: clamp(18px, 3vw, 26px) clamp(20px, 3vw, 32px);
+  border-radius: var(--radius);
+  background: var(--olive);
+  color: var(--cream);
+  font-size: 17px;
 }
 .focusValue {
-  font-size: clamp(44px, 6vw, 72px);
-  font-weight: 300;
-  color: var(--sand-deep);
+  font-size: clamp(40px, 5.6vw, 64px);
+  font-weight: 700;
+  color: var(--gold);
   font-variant-numeric: tabular-nums;
   letter-spacing: -0.02em;
   line-height: 1;
@@ -371,11 +464,11 @@
   font-size: 13px;
 }
 .group {
-  margin: 16px 0 6px;
-  color: var(--sand-deep);
+  margin: 16px 0 8px;
+  color: var(--olive);
   font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.14em;
+  font-weight: 700;
+  letter-spacing: 0.2em;
   text-transform: uppercase;
 }
 .bars {
@@ -398,19 +491,23 @@
   white-space: nowrap;
 }
 .barTrack {
-  height: 6px;
-  border-radius: 999px;
-  background: var(--paper-2);
+  height: 8px;
+  background: var(--cream-2);
   overflow: hidden;
 }
 .barFill {
   display: block;
   height: 100%;
-  border-radius: inherit;
-  background: var(--sea);
+  background: var(--olive);
 }
+/* the brand's markets: gold, held by an olive edge (gold alone is too faint on cream) */
 .bars li[data-focus="true"] .barFill {
-  background: var(--sand-deep);
+  background: var(--gold);
+  outline: 1px solid var(--olive);
+  outline-offset: -1px;
+}
+.bars li[data-focus="true"] .barLabel {
+  font-weight: 600;
 }
 .barValue {
   text-align: right;
@@ -419,17 +516,18 @@
 }
 .split {
   display: flex;
-  gap: 3px;
+  gap: 2px;
   height: 14px;
-  border-radius: 999px;
   overflow: hidden;
 }
 .splitPart {
   flex-basis: 0;
-  background: var(--sea);
+  background: var(--olive);
 }
 .splitPart[data-key="M"] {
-  background: var(--sand);
+  background: var(--gold);
+  outline: 1px solid var(--olive);
+  outline-offset: -1px;
 }
 .splitPart[data-key="U"] {
   background: var(--dot);
@@ -445,21 +543,22 @@
   color: var(--ink-2);
 }
 .splitLegend b {
-  font-weight: 500;
+  font-weight: 600;
   color: var(--ink);
   font-variant-numeric: tabular-nums;
 }
 .splitLegend li::before {
   content: "";
   display: inline-block;
-  width: 8px;
-  height: 8px;
+  width: 9px;
+  height: 9px;
   margin-right: 6px;
-  border-radius: 50%;
-  background: var(--sea);
+  background: var(--olive);
 }
 .splitLegend li[data-key="M"]::before {
-  background: var(--sand);
+  background: var(--gold);
+  outline: 1px solid var(--olive);
+  outline-offset: -1px;
 }
 .splitLegend li[data-key="U"]::before {
   background: var(--dot);
@@ -469,16 +568,17 @@
 .reels {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: clamp(12px, 2vw, 24px);
+  gap: clamp(10px, 1.6vw, 16px);
 }
 .reel {
   position: relative;
   display: block;
   aspect-ratio: 9 / 16;
   overflow: hidden;
-  border-radius: 20px;
-  background: var(--paper-2);
-  color: #fff;
+  border: 1px solid var(--olive);
+  border-radius: var(--radius);
+  background: var(--cream-2);
+  color: var(--cream);
   text-decoration: none;
   isolation: isolate;
 }
@@ -491,16 +591,16 @@
   transition: transform 900ms cubic-bezier(0.2, 0.7, 0.2, 1);
 }
 a.reel:hover .reelCover {
-  transform: scale(1.035);
+  transform: scale(1.03);
 }
 a.reel:focus-visible {
-  outline: 3px solid var(--sea);
+  outline: 3px solid var(--olive);
   outline-offset: 3px;
 }
 .reelShade {
   position: absolute;
-  inset: 45% 0 0;
-  background: linear-gradient(to top, rgba(18, 22, 25, 0.72), transparent);
+  inset: 34% 0 0;
+  background: linear-gradient(to top, rgba(31, 28, 11, 0.94) 0%, rgba(31, 28, 11, 0.8) 42%, rgba(31, 28, 11, 0) 100%);
 }
 .reelMeta {
   position: absolute;
@@ -510,17 +610,20 @@ a.reel:focus-visible {
   display: flex;
   flex-direction: column;
   gap: 2px;
-  font-size: 14px;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
+  font-size: 13px;
 }
 .reelMeta b {
-  font-size: 22px;
-  font-weight: 400;
+  color: var(--gold);
+  font-size: 24px;
+  font-weight: 700;
   font-variant-numeric: tabular-nums;
 }
 .reelMeta small {
-  opacity: 0.8;
-  font-size: 12px;
+  margin-top: 4px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
 }
 
 /* proof, packages */
@@ -528,22 +631,22 @@ a.reel:focus-visible {
 .packages {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr));
-  gap: clamp(16px, 2.4vw, 28px);
+  gap: clamp(10px, 1.6vw, 16px);
 }
 .case,
 .package {
   padding: clamp(22px, 3vw, 32px);
-  border: 1px solid var(--line);
-  border-radius: 20px;
-  background: #fffdf9;
+  border: 1px solid var(--olive);
+  border-radius: var(--radius);
+  background: var(--card);
   min-width: 0;
 }
 .caseBrand {
-  margin: 0 0 8px;
-  color: var(--sea);
-  font-size: 13px;
-  font-weight: 600;
-  letter-spacing: 0.1em;
+  margin: 0 0 10px;
+  color: var(--olive);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.2em;
   text-transform: uppercase;
 }
 .caseText,
@@ -556,6 +659,8 @@ a.reel:focus-visible {
   flex-wrap: wrap;
   gap: 16px 28px;
   margin: 20px 0 0;
+  padding-top: 16px;
+  border-top: 1px solid var(--hair);
 }
 .caseResults dt {
   color: var(--ink-3);
@@ -563,24 +668,34 @@ a.reel:focus-visible {
 }
 .caseResults dd {
   margin: 2px 0 0;
+  color: var(--olive);
   font-size: 30px;
-  font-weight: 300;
+  font-weight: 600;
   font-variant-numeric: tabular-nums;
 }
 .textLink {
   display: inline-block;
   margin-top: 18px;
-  color: var(--sea);
+  color: var(--olive);
+  font-weight: 600;
+}
+.textLink:focus-visible {
+  outline: 2px solid var(--olive);
+  outline-offset: 3px;
 }
 .price {
   margin: 6px 0 0;
-  color: var(--sand-deep);
-  font-size: 20px;
+  color: var(--olive);
+  font-family: var(--serif);
+  font-size: 22px;
 }
 .includes {
   margin: 16px 0 0;
   padding-left: 18px;
   color: var(--ink-2);
+}
+.includes li::marker {
+  color: var(--olive);
 }
 .addons {
   margin-top: clamp(28px, 4vw, 44px);
@@ -589,7 +704,7 @@ a.reel:focus-visible {
   margin: 12px 0 0;
   padding: 0;
   list-style: none;
-  border-top: 1px solid var(--line);
+  border-top: 1px solid var(--olive);
 }
 .addons li {
   display: flex;
@@ -597,13 +712,13 @@ a.reel:focus-visible {
   gap: 4px 20px;
   align-items: baseline;
   padding: 14px 0;
-  border-bottom: 1px solid var(--line);
+  border-bottom: 1px solid var(--hair);
 }
 .addonName {
-  font-weight: 500;
+  font-weight: 600;
 }
 .addonPrice {
-  color: var(--sand-deep);
+  color: var(--olive);
 }
 .addons small {
   flex-basis: 100%;
@@ -613,10 +728,12 @@ a.reel:focus-visible {
 
 /* hero: market signal, partners, the briefing link */
 .signalValue {
-  color: var(--sand-deep);
+  color: var(--gold);
 }
 .partners {
-  margin-top: 26px;
+  margin-top: 28px;
+  padding-top: 20px;
+  border-top: 1px solid var(--olive);
 }
 .partners .group {
   margin-top: 0;
@@ -627,7 +744,7 @@ a.reel:focus-visible {
 .partners ul {
   display: flex;
   flex-wrap: wrap;
-  gap: 10px 26px;
+  gap: 10px 28px;
   margin: 0;
   padding: 0;
   list-style: none;
@@ -639,7 +756,7 @@ a.reel:focus-visible {
 }
 .partnerName {
   font-family: var(--serif);
-  font-size: 20px;
+  font-size: 21px;
   line-height: 1.2;
 }
 .partners small {
@@ -649,22 +766,25 @@ a.reel:focus-visible {
 .heroCta {
   display: inline-block;
   margin-top: 28px;
-  padding: 12px 22px;
-  border: 1px solid var(--ink);
-  border-radius: 999px;
-  color: var(--ink);
-  font-weight: 500;
+  padding: 13px 24px;
+  border: 1px solid var(--olive);
+  border-radius: var(--radius);
+  color: var(--olive);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
   text-decoration: none;
   transition:
     background 300ms ease,
     color 300ms ease;
 }
 .heroCta:hover {
-  background: var(--ink);
-  color: var(--paper);
+  background: var(--olive);
+  color: var(--cream);
 }
 .heroCta:focus-visible {
-  outline: 3px solid var(--sea);
+  outline: 3px solid var(--olive);
   outline-offset: 3px;
 }
 
@@ -672,9 +792,9 @@ a.reel:focus-visible {
 .typical {
   margin-bottom: clamp(28px, 4vw, 44px);
   padding: clamp(18px, 3vw, 28px);
-  border: 1px solid var(--line);
-  border-radius: 20px;
-  background: #fffdf9;
+  border: 1px solid var(--olive);
+  border-radius: var(--radius);
+  background: var(--card);
 }
 .typical .group {
   margin-top: 0;
@@ -694,15 +814,17 @@ a.reel:focus-visible {
 }
 .reelLabel {
   position: absolute;
-  top: 12px;
-  left: 12px;
-  max-width: calc(100% - 24px);
-  padding: 4px 10px;
-  border-radius: 999px;
-  background: rgba(251, 248, 243, 0.92);
-  color: var(--ink);
-  font-size: 12px;
-  font-weight: 500;
+  top: 10px;
+  left: 10px;
+  max-width: calc(100% - 20px);
+  padding: 4px 9px;
+  border-radius: var(--radius);
+  background: var(--cream);
+  color: var(--olive);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
 }
 .caseFacts {
   display: grid;
@@ -733,36 +855,77 @@ a.reel:focus-visible {
 }
 .button {
   display: inline-block;
-  padding: 18px 40px;
-  border-radius: 999px;
-  background: var(--ink);
-  color: var(--paper);
-  font-size: 17px;
-  font-weight: 500;
+  padding: 19px 46px;
+  border-radius: var(--radius);
+  background: var(--olive);
+  color: var(--cream);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
   text-decoration: none;
   transition:
     background 300ms ease,
     transform 300ms ease;
 }
 .button:hover {
-  background: var(--sea);
+  background: var(--black);
   transform: translateY(-1px);
 }
 .button:focus-visible {
-  outline: 3px solid var(--sea);
+  outline: 3px solid var(--black);
   outline-offset: 3px;
 }
 
+/* footer: the guideline's signature, then the measurement notes, closed by a strip of the banner's stripes */
 .footer {
   max-width: 1200px;
   margin: 0 auto;
-  padding: 32px clamp(16px, 4vw, 48px) 56px;
-  border-top: 1px solid var(--line);
+  padding: 36px clamp(16px, 4vw, 48px) 48px;
+  border-top: 1px solid var(--olive);
   color: var(--ink-3);
   font-size: 13px;
 }
 .footer p {
   margin: 0 0 6px;
+}
+.signature {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  margin-bottom: 26px;
+}
+.signature img {
+  flex: none;
+  width: 64px;
+  height: 64px;
+}
+.signature p {
+  margin: 0;
+}
+.sender {
+  color: var(--ink);
+  font-size: 15px;
+  font-weight: 700;
+}
+.senderLine {
+  color: var(--olive);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.signature a {
+  color: var(--ink-2);
+}
+.signature a:focus-visible {
+  outline: 2px solid var(--olive);
+  outline-offset: 2px;
+}
+.stripes {
+  height: 12px;
+  background: linear-gradient(90deg, var(--gold) 0 48%, var(--cream) 48% 100%) calc(50% - 275px) 0 / 50px 100% repeat-x;
+  border-top: 1px solid var(--olive);
 }
 
 @media (max-width: 760px) {
@@ -771,6 +934,10 @@ a.reel:focus-visible {
   }
   .mosaic {
     order: -1;
+  }
+  /* no covers: on a phone the logo placeholder would only push the content down */
+  .mosaic:has(.mosaicEmpty) {
+    display: none;
   }
   .reels,
   .tiles {
@@ -787,7 +954,8 @@ a.reel:focus-visible {
 @media (prefers-reduced-motion: reduce) {
   .reveal,
   .reelCover,
-  .button {
+  .button,
+  .heroCta {
     transition: none;
   }
   .ring {
@@ -796,8 +964,12 @@ a.reel:focus-visible {
   }
 }
 
-/* printed or saved as PDF: every section in full, whether it was scrolled to or not */
+/* printed or saved as PDF: every section in full, whether it was scrolled to or not; the brand colours print */
 @media print {
+  .page {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
   .reveal[data-reveal] {
     opacity: 1;
     transform: none;

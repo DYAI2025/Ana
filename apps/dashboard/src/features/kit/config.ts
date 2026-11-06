@@ -77,6 +77,8 @@ export interface KitContact {
 
 export interface KitConfig {
   name: string | null;
+  /** Ana's own site (https only); the banner links to it. Null: the banner links nowhere */
+  website: string | null;
   /** a line in Ana's own words; never written by the dashboard */
   tagline: string | null;
   contact: KitContact | null;
@@ -90,7 +92,7 @@ export interface KitConfig {
   presets: Record<string, KitPresetInput>;
 }
 
-export const EMPTY_KIT_CONFIG: KitConfig = { name: null, tagline: null, contact: null, partners: [], reels: {}, cases: [], packages: [], addons: [], presets: {} };
+export const EMPTY_KIT_CONFIG: KitConfig = { name: null, website: null, tagline: null, contact: null, partners: [], reels: {}, cases: [], packages: [], addons: [], presets: {} };
 
 const MAX_ITEMS = 12;
 const str = (v: unknown, max = 400): string | null => {
@@ -242,6 +244,7 @@ export function parseKitConfig(raw: unknown): KitConfig {
   }
   return {
     name: str(o.name, 60),
+    website: https(o.website),
     tagline: str(o.tagline, 200),
     contact: parseContact(o.contact),
     partners: list(o.partners, parsePartner, 12),

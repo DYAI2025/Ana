@@ -47,6 +47,24 @@ describe("MediaKit", () => {
     expect(document.body.textContent).not.toContain("Secret Brand Pitch");
   });
 
+  it("brand: the banner is the heading (name in its text), linked only to a configured https site; the signature shows the address as text", () => {
+    const { unmount } = render(<MediaKit model={buildKit({ world: world(), config: EMPTY_KIT_CONFIG })} />);
+    const h1 = screen.getByRole("heading", { level: 1 });
+    expect(h1.getAttribute("data-testid")).toBe("kit-banner");
+    expect(h1.querySelector("img")?.getAttribute("alt")).toBe("");
+    expect(h1.querySelector("a")).toBeNull();
+    expect(screen.getByTestId("kit-signature").textContent).toContain("Ana Savu Management");
+    expect(screen.queryByTestId("kit-signature-email")).toBeNull();
+    unmount();
+    const config = parseKitConfig({ website: "https://example.com/", contact: { email: "hi@example.com" } });
+    render(<MediaKit model={buildKit({ world: world(), config })} />);
+    expect(screen.getByRole("heading", { level: 1 }).querySelector("a")?.getAttribute("href")).toBe("https://example.com/");
+    expect(screen.getByTestId("kit-signature-email").textContent).toBe("hi@example.com");
+    expect(screen.getByTestId("kit-signature").textContent).toContain("example.com");
+    // still one way to write: the address in the signature is text, the button is the only mailto link
+    expect(document.querySelectorAll('a[href^="mailto:"]')).toHaveLength(1);
+  });
+
   it("numbers render their final value; the hero says the period", () => {
     render(<MediaKit model={buildKit({ world: world(), config: EMPTY_KIT_CONFIG })} />);
     expect(finalOf("kit-tile-followers").textContent).toBe("5,010");
