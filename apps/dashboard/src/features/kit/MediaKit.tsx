@@ -317,7 +317,39 @@ function Section({ section, n, fresh }: { section: KitSection; n: number; fresh:
   }
 }
 
-function PreviewBar({ model }: { model: KitModel }) {
+/** a public brand link as the team sees it in the preview (never on a brand's page) */
+export interface KitLinkRow {
+  id: string;
+  label: string;
+  preset: string;
+  path: string;
+  revoked: boolean;
+  views: number;
+  previews: number;
+  last_view_at: string | null;
+}
+
+const opened = new Intl.DateTimeFormat(LOCALE, { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", timeZone: "Europe/Berlin" });
+
+function BrandLinks({ links }: { links: KitLinkRow[] }) {
+  return (
+    <details className={styles.hidden} data-testid="kit-links">
+      <summary>Brand links ({links.filter((l) => !l.revoked).length})</summary>
+      <ul>
+        {links.map((l) => (
+          <li key={l.id} data-testid={`kit-link-${l.id}`}>
+            <b>{l.label}</b>
+            {l.revoked ? " · revoked" : null} · <code>{l.path}</code> · {l.views} {l.views === 1 ? "view" : "views"}
+            {l.last_view_at ? `, last ${opened.format(new Date(l.last_view_at))}` : ""}
+            {l.previews ? ` · ${l.previews} link ${l.previews === 1 ? "preview" : "previews"}` : ""}
+          </li>
+        ))}
+      </ul>
+    </details>
+  );
+}
+
+function PreviewBar({ model, links }: { model: KitModel; links: KitLinkRow[] }) {
   return (
     <aside className={styles.preview} data-testid="kit-preview" aria-label="Internal preview">
       <span className={styles.previewTag}>Internal preview · only behind the dashboard login</span>
@@ -333,6 +365,7 @@ function PreviewBar({ model }: { model: KitModel }) {
           Case ids: {model.case_ids.join(", ")}
         </span>
       ) : null}
+      {links.length ? <BrandLinks links={links} /> : null}
       {model.hidden.length || model.config_error ? (
         <details className={styles.hidden}>
           <summary>Not shown ({model.hidden.length + (model.config_error ? 1 : 0)})</summary>
@@ -442,10 +475,10 @@ function Banner({ name, website }: { name: string; website: string | null }) {
   );
 }
 
-export function MediaKit({ model, preview = false }: { model: KitModel; preview?: boolean }) {
+export function MediaKit({ model, preview = false, links = [] }: { model: KitModel; preview?: boolean; links?: KitLinkRow[] }) {
   return (
     <div className={styles.page} data-testid="kit" data-preset={model.preset.id}>
-      {preview ? <PreviewBar model={model} /> : null}
+      {preview ? <PreviewBar model={model} links={links} /> : null}
       <Banner name={model.name} website={model.website} />
       <header className={styles.hero}>
         <div className={styles.heroText}>

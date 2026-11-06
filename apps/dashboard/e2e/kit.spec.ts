@@ -178,3 +178,98 @@ test.describe("ANA-53 · media kit", () => {
     await expect(page.getByTestId("kit-numbers")).not.toHaveAttribute("data-reveal", "wait");
   });
 });
+
+/**
+ * Public brand links: /kit/b/<token> answers without the dashboard login, everything else still needs it. In the e2e
+ * build the gate is loopback mode, so a request with a foreign Host stands in for a visitor without a login (the
+ * same refusal a request without a Cloudflare Access assertion gets in production).
+ */
+test.describe("media kit · public brand links", () => {
+  test.skip(Boolean(process.env.E2E_BASE_URL), "writes kit-links.json into the e2e server's state directory");
+  const LINKS = path.join(STATE_DIR, "kit-links.json");
+  const OPENS = path.join(STATE_DIR, "kit-link-opens.json");
+  const WEST = "W".repeat(19) + "e2eWestToken_-0123456789";
+  const ASIA = "A".repeat(19) + "e2eAsiaToken_-0123456789";
+  const OLD = "R".repeat(19) + "e2eRevokedTok_-012345678";
+  const outside = { host: "kit.brand.example", "user-agent": "Mozilla/5.0 (Macintosh) AppleWebKit/605.1.15 Safari/605.1.15" };
+
+  test.beforeEach(async ({ page }) => {
+    for (const t of [WEST, ASIA, OLD]) expect(t).toHaveLength(43);
+    await mkdir(STATE_DIR, { recursive: true });
+    await rm(OPENS, { force: true });
+    await writeFile(KIT_FILE, JSON.stringify({ contact: { email: "e2e@example.invalid", label: "Work with Ana" }, cases: [{ brand: "Case Brand", results: [{ label: "Bookings", value: "+1" }] }] }));
+    await writeFile(
+      LINKS,
+      JSON.stringify({
+        links: [
+          { id: "west-1", token: WEST, preset: "west", label: "English-speaking markets" },
+          { id: "asia-1", token: ASIA, preset: "asia", label: "Asia" },
+          { id: "old-1", token: OLD, preset: "west", label: "Old", revoked: true },
+        ],
+      }),
+    );
+    await resetWorld(page);
+  });
+  test.afterAll(async () => {
+    await Promise.all([rm(LINKS, { force: true }), rm(OPENS, { force: true }), rm(KIT_FILE, { force: true })]);
+  });
+
+  test("a valid link opens without the login; unknown and revoked ones are 404; the rest of the dashboard stays closed", async ({ page }) => {
+    const west = await page.request.get(`/kit/b/${WEST}`, { headers: outside });
+    expect(west.status()).toBe(200);
+    const html = await west.text();
+    expect(html).toContain('data-preset="west"');
+    expect(html).toContain("Work with Ana");
+    // a brand sees its kit only: no preview bar, no other presets, no case ids, no link list
+    for (const absent of ['data-testid="kit-preview"', "Asia-Pacific", "Case ids", 'data-testid="kit-links"', ASIA, OLD]) expect(html).not.toContain(absent);
+    // the token never leaves in a Referer; no index, no shared cache
+    expect(west.headers()["referrer-policy"]).toBe("no-referrer");
+    expect(west.headers()["x-robots-tag"]).toBe("noindex, nofollow");
+    expect(west.headers()["cache-control"]).toContain("no-store");
+    expect(html).toContain('data-preset="west"');
+    // the page's own CSS and JS load without the login
+    const assets = [...html.matchAll(/(?:href|src)="(\/_next\/static\/[^"]+)"/g)].map((m) => m[1]!);
+    expect(assets.length).toBeGreaterThan(0);
+    for (const a of assets.slice(0, 5)) expect((await page.request.get(a, { headers: outside })).status(), a).toBe(200);
+
+    expect((await page.request.get(`/kit/b/${ASIA}`, { headers: outside })).status()).toBe(200);
+    for (const p of [`/kit/b/${OLD}`, `/kit/b/${"x".repeat(43)}`]) expect((await page.request.get(p, { headers: outside })).status(), p).toBe(404);
+    // everything else still needs the login: the internal kit, the dashboard, every API, a path that only looks like a link
+    for (const p of ["/kit", "/kit?for=west", "/", "/world", "/api/world", "/api/social/instagram", "/api/work", `/kit/b/${WEST}/x`, `/kit/b/${WEST.slice(0, 42)}`]) {
+      expect([401, 403], p).toContain((await page.request.get(p, { headers: outside })).status());
+    }
+  });
+
+  test("opens are counted: views apart from link previews; the team itself is not counted; the preview lists the links", async ({ page }) => {
+    await page.request.get(`/kit/b/${WEST}`, { headers: outside });
+    await page.request.get(`/kit/b/${WEST}`, { headers: { ...outside, "user-agent": "Slackbot-LinkExpanding 1.0 (+https://api.slack.com/robots)" } });
+    // the team opens the link through the dashboard (logged in): no count
+    expect((await page.request.get(`/kit/b/${WEST}`)).status()).toBe(200);
+    const opens = JSON.parse(await (await import("node:fs/promises")).readFile(OPENS, "utf8"));
+    expect(opens["west-1"]).toMatchObject({ views: 1, previews: 1 });
+    expect(opens["asia-1"]).toBeUndefined();
+
+    await page.goto("/kit");
+    await page.getByTestId("kit-links").locator("summary").click();
+    await expect(page.getByTestId("kit-links").locator("summary")).toHaveText("Brand links (2)");
+    await expect(page.getByTestId("kit-link-west-1")).toContainText(`/kit/b/${WEST}`);
+    await expect(page.getByTestId("kit-link-west-1")).toContainText("1 view");
+    await expect(page.getByTestId("kit-link-west-1")).toContainText("1 link preview");
+    await expect(page.getByTestId("kit-link-old-1")).toContainText("revoked");
+  });
+
+  test("the brand page in a browser: styled, no dashboard calls, no preview bar", async ({ page }) => {
+    const calls: string[] = [];
+    page.on("request", (r) => {
+      if (/\/api\//.test(new URL(r.url()).pathname)) calls.push(r.url());
+    });
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await page.goto(`/kit/b/${ASIA}`);
+    await page.locator('html[data-ready="true"]').waitFor();
+    await expect(page.getByTestId("kit")).toHaveAttribute("data-preset", "asia");
+    await expect(page.getByTestId("kit-preview")).toHaveCount(0);
+    await expect(page.getByTestId("kit-banner")).toBeVisible();
+    await page.waitForTimeout(1000);
+    expect(calls).toEqual([]);
+  });
+});

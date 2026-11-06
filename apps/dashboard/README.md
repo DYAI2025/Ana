@@ -55,7 +55,23 @@ The app in this folder is **ASADA** — Ana Savu Dashboard (Jira ANA-4 visual sh
   cream ground, 1 px olive lines, no shadows, and the "Ana Savu Management" signature in the footer. The contact
   address appears there as text, so the button stays the only mailto link. Assets: `src/features/kit/brand/`.
 
-  Public per-brand links without the dashboard login, open tracking and revocation are a later slice.
+  **Public brand links** (no dashboard login): `/kit/b/<token>` shows the kit of one preset to a brand. The links live in
+  `kit-links.json` next to `media-kit.json` (never in git):
+
+  ```json
+  { "links": [{ "id": "west-1", "token": "<43 chars: 32 random bytes, base64url>", "preset": "west",
+                "label": "English-speaking markets", "brand": null, "created_at": "2026-11-06T16:00:00Z", "revoked": false }] }
+  ```
+
+  A token is made with `node -e "console.log(require('crypto').randomBytes(32).toString('base64url'))"`. Revoke with
+  `"revoked": true` (the link answers 404 at once, like an unknown one). `src/proxy.ts` lets only `/kit/b/<43 chars>`
+  and `/_next/static/…` through without the access check (`src/server/kit/publicPath.ts`); every other page and every API
+  route still needs the login. The brand page has no preview bar, no other presets, no case ids, and loads nothing of
+  the dashboard; it is sent with `Referrer-Policy: no-referrer`, `X-Robots-Tag: noindex, nofollow` and
+  `Cache-Control: private, no-store`. Opens are counted in `kit-link-opens.json`: views apart from link previews
+  (Slack, WhatsApp, mail scanners), first and last view; no IP address, user agent or cookie is stored, and a team
+  member logged in to the dashboard is not counted. The internal preview (`/kit`) lists the links with their counts.
+  Which hostname brands use is a Cloudflare setting (deploy/ana-dashboard/README.md, "Public brand links").
 - **Everything else is local prototype data**: Sessions, Whiteboard, Calendar, Pulse, Vault and Toolbox are not
   connected to Confluence, Drive, a calendar, an AI provider or a database. Whiteboard notes and calendar events live
   in memory for the browser tab and reset on reload. Only the chosen language is remembered (localStorage

@@ -987,3 +987,9 @@ a.reel:focus-visible {
     display: none;
   }
 }
+
+/* brand links in the internal preview: the path can be selected and copied */
+.hidden code {
+  font-size: 12px;
+  user-select: all;
+}
