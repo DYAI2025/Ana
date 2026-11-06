@@ -148,6 +148,17 @@ describe("normalizeSnapshot — provider response → dashboard DTO", () => {
     expect(() => normalizeSnapshot({ snapshot_version: 2 })).toThrow(InvalidWorkerResponse);
     expect(() => normalizeSnapshot({ ...buildSnapshot(), fetched_at: "yesterday" })).toThrow(InvalidWorkerResponse);
   });
+
+  it("passes the feed flag of a Reel through only as a real boolean, null otherwise (older workers send none)", () => {
+    const raw = buildSnapshot();
+    const items = raw.media.items as Array<Record<string, unknown>>;
+    items[0]!.shared_to_feed = true;
+    items[1]!.shared_to_feed = false;
+    items[2]!.shared_to_feed = "false";
+    delete items[3]!.shared_to_feed;
+    const posts = normalizeSnapshot(raw).posts;
+    expect(posts.slice(0, 4).map((p) => p.shared_to_feed)).toEqual([true, false, null, null]);
+  });
 });
 
 describe("snapshot service — caching, STALE and failure states", () => {
