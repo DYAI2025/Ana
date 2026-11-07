@@ -50,7 +50,8 @@ function sortValue(p: PostAnalysis, key: SortKey): number | null {
     const t = p.post.published_at ? Date.parse(p.post.published_at) : NaN;
     return Number.isFinite(t) ? t : null;
   }
-  if (key === "reach") return p.reach !== null && p.reach > 0 ? p.reach : null;
+  // a verified reach of 0 is a measured value (shown as 0), only a missing reach goes last
+  if (key === "reach") return p.reach;
   return p.rates[key];
 }
 

@@ -116,6 +116,15 @@ describe("AC-3 · sorting and filters", () => {
     expect(ids(sortRows(analysis.posts, "reach", "asc")).slice(-3)).toEqual(["syn025", "syn026", "syn027"]);
   });
 
+  it("a verified reach of 0 is a value (first when ascending); only a missing reach goes last", () => {
+    const zero = analyze(withMetric(snapshot, "syn004", "reach", { value: 0 }));
+    const asc = sortRows(zero.posts, "reach", "asc");
+    expect(ids(asc)[0]).toBe("syn004");
+    expect(ids(asc).slice(-3)).toEqual(["syn025", "syn026", "syn027"]);
+    // its rates are missing (zero denominator), so it goes last when sorting by a rate
+    expect(ids(sortRows(zero.posts, "likes_per_reach", "desc")).slice(-4)).toEqual(["syn004", "syn025", "syn026", "syn027"]);
+  });
+
   it("category, format and feed/trial filters combine", () => {
     const reelsLifestyle = filterRows(analysis.posts, { ...NO_FILTERS, category: "lifestyle", format: "reel" }, categories);
     expect(ids(reelsLifestyle)).toEqual(["syn000", "syn002", "syn004", "syn006", "syn010", "syn016", "syn018"]);
@@ -148,8 +157,9 @@ describe("AC-4 · category summary over the filtered rows", () => {
     expect(of("beach").rates.shares_per_reach).toEqual({ n: 3, median: 18 / 5600 });
     expect(of("beach").rates.saves_per_reach).toEqual({ n: 3, median: 9 / 1100 });
     expect(of("beach").rates.comments_per_reach).toEqual({ n: 3, median: 11 / 5600 });
-    // lifestyle has an even n = 8: the mean of the two middle values
+    // lifestyle has an even n = 8: the mean of the two middle values 9/4100 and 1/450 = 163/73800
     expect(of("lifestyle").rates.comments_per_reach.n).toBe(8);
+    expect(of("lifestyle").rates.comments_per_reach.median).toBeCloseTo(163 / 73800, 15);
     // uncategorised: 10 posts, 3 of them without insights, so each rate rests on 7
     expect(of("uncategorised").rates.likes_per_reach.n).toBe(7);
   });

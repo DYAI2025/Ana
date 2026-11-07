@@ -150,6 +150,7 @@ export const socialIt: Messages["social"] = {
     dirDate: { desc: "prima i più recenti", asc: "prima i meno recenti" },
     sortOption: "{column}, {dir}",
     sortButton: "Ordina per {column}",
+    sortButtonNamed: "{label}, ordina per {column}",
     sortedBy: "Ordinato per {column}, {dir}. I post senza questo valore sono in fondo.",
     categoryFilter: "Mostra categoria",
     distributionFilter: "Mostra feed o prova",
@@ -177,7 +178,7 @@ export const socialIt: Messages["social"] = {
     explainTitle: "Cosa significano i tassi?",
     explain: {
       likes_per_reach: "Tasso di like: su 100 persone raggiunte, tante hanno messo like.",
-      shares_per_reach: "Tasso di condivisione: su 100 persone raggiunte, tante hanno condiviso il post.",
+      shares_per_reach: "Tasso di condivisione: condivisioni ogni 100 persone raggiunte. Instagram conta le condivisioni, non le persone: una persona può contare due volte.",
       saves_per_reach: "Tasso di salvataggio: su 100 persone raggiunte, tante hanno salvato il post.",
       comments_per_reach: "Tasso di commento: tanti commenti ogni 100 persone raggiunte. Instagram conta i commenti, non le persone: una persona può contare due volte.",
       reach: "Copertura: quanti account diversi hanno visto il post almeno una volta.",
@@ -186,7 +187,7 @@ export const socialIt: Messages["social"] = {
     plainTitle: "In parole semplici",
     plain: {
       likes_per_reach: "{x} persone raggiunte su 100 hanno messo like",
-      shares_per_reach: "{x} persone raggiunte su 100 hanno condiviso",
+      shares_per_reach: "{x} condivisioni ogni 100 persone raggiunte",
       saves_per_reach: "{x} persone raggiunte su 100 hanno salvato",
       comments_per_reach: "{x} commenti ogni 100 persone raggiunte",
     },

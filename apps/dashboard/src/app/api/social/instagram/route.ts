@@ -41,8 +41,8 @@ export async function GET(request: Request) {
     e2eCategoriesOff = false;
     return new Response(null, { status: 204 });
   }
-  if (e2e && params.get("__categories") === "off") {
-    e2eCategoriesOff = true;
+  if (e2e && (params.get("__categories") === "off" || params.get("__categories") === "on")) {
+    e2eCategoriesOff = params.get("__categories") === "off";
     return new Response(null, { status: 204 });
   }
   const refresh = params.get("refresh") === "1";

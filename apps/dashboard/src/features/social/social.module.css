@@ -995,8 +995,15 @@
   max-width: 100%;
 }
 
+.rowsHead > * {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  hyphens: auto;
+}
+
 .sortHead {
   display: inline-flex;
+  max-width: 100%;
   align-items: center;
   gap: 4px;
   background: none;

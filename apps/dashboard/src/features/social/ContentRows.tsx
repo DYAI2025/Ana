@@ -89,9 +89,13 @@ export function ContentRows({
   if (openSeq !== seenSeq) {
     setSeenSeq(openSeq);
     const chosen = all.find((p) => p.post.media_id === openId);
-    if (chosen && filterRows([chosen], filters, categories).length === 0) setFilters(NO_FILTERS);
+    if (chosen && filterRows([chosen], { ...filters, category: categories?.state === "on" ? filters.category : "all" }, categories).length === 0) setFilters(NO_FILTERS);
   }
-  const filtered = useMemo(() => filterRows(all, filters, categories), [all, filters, categories]);
+  // a chosen category that no longer exists (categories turned off, or a refreshed snapshot without that theme) must
+  // not keep filtering invisibly: it reads as "all"
+  const category = categoriesOn && (filters.category === "all" || options.includes(filters.category)) ? filters.category : "all";
+  const active = useMemo<Filters>(() => ({ ...filters, category }), [filters, category]);
+  const filtered = useMemo(() => filterRows(all, active, categories), [all, active, categories]);
   const rows = useMemo(() => sortRows(filtered, sort.key, sort.dir), [filtered, sort]);
   const summary = useMemo(() => summarize(filtered, categories), [filtered, categories]);
   const set = (patch: Partial<Filters>) => setFilters((f) => ({ ...f, ...patch }));
@@ -129,7 +133,7 @@ export function ContentRows({
         {categoriesOn ? (
           <label className={styles.selectField}>
             <span>{t("social.overview.categoryFilter")}</span>
-            <select value={filters.category} onChange={(e) => set({ category: e.target.value as Filters["category"] })} data-testid="category-filter">
+            <select value={category} onChange={(e) => set({ category: e.target.value as Filters["category"] })} data-testid="category-filter">
               <option value="all">{t("social.overview.allCategories")}</option>
               {options.map((k) => (
                 <option key={k} value={k}>
@@ -161,7 +165,7 @@ export function ContentRows({
       </div>
       {distributions.includes("trial") ? <p className={styles.note}>{t("social.overview.trialNote")}</p> : null}
 
-      <CategorySummaryPanel summary={summary} n={filtered.length} on={categoriesOn} active={filters.category} onPick={(k) => set({ category: filters.category === k ? "all" : k })} label={categoryLabel} />
+      <CategorySummaryPanel summary={summary} n={filtered.length} on={categoriesOn} active={category} onPick={(k) => set({ category: category === k ? "all" : k })} label={categoryLabel} />
 
       <details className={styles.explain} data-testid="rates-explained">
         <summary>{t("social.overview.explainTitle")}</summary>
@@ -207,8 +211,11 @@ export function ContentRows({
 function SortHead({ k, sort, onSort, label }: { k: SortKey; sort: Sort; onSort: (k: SortKey) => void; label: string }) {
   const { t } = useI18n();
   const active = sort.key === k;
+  const column = t(`social.overview.sortBy.${k}`);
+  // the accessible name starts with the visible label (WCAG 2.5.3); only the post column sorts by something else (date)
+  const name = label === column ? undefined : t("social.overview.sortButtonNamed", { label, column });
   return (
-    <button type="button" className={styles.sortHead} aria-pressed={active} onClick={() => onSort(k)} aria-label={t("social.overview.sortButton", { column: t(`social.overview.sortBy.${k}`) })} data-testid={`sort-${k}`} data-dir={active ? sort.dir : undefined}>
+    <button type="button" className={styles.sortHead} aria-pressed={active} onClick={() => onSort(k)} aria-label={name} title={t("social.overview.sortButton", { column })} data-testid={`sort-${k}`} data-dir={active ? sort.dir : undefined}>
       <span>{label}</span>
       {active ? sort.dir === "desc" ? <ArrowDown size={12} aria-hidden="true" /> : <ArrowUp size={12} aria-hidden="true" /> : null}
     </button>

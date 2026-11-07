@@ -274,7 +274,8 @@ test.describe("ANA-60 · Reel rates overview", () => {
     await expect(page.locator('[data-testid="content-rows"] [role="group"][aria-label="Sort by"]')).toHaveText(/Post.*Category.*Reach.*Like rate.*Share rate.*Save rate.*Comment rate/);
     await row(page, "syn004").getByTestId("row-toggle").click();
     const detail = row(page, "syn004").getByTestId("row-detail");
-    await expect(detail.getByTestId("plain-shares_per_reach")).toHaveText("2.5 of 100 reached people shared it");
+    await expect(detail.getByTestId("plain-shares_per_reach")).toHaveText("2.5 shares per 100 reached people");
+    await expect(detail.getByTestId("plain-likes_per_reach")).toHaveText("6.7 of 100 reached people liked it");
     await expect(detail.getByTestId("plain-comments_per_reach")).toHaveText("0.3 comments per 100 reached people");
     await expect(detail.getByTestId("rate-likes_per_reach")).toContainText("6.71%");
     await detail.getByTestId("inspect-rate-likes_per_reach").click();
@@ -284,7 +285,10 @@ test.describe("ANA-60 · Reel rates overview", () => {
     await expect(detail.getByTestId("row-index")).toContainText("×");
     await expect(detail.locator('[data-metric="views"]')).toContainText("4,300");
     await page.getByTestId("rates-explained").locator("summary").click();
-    await expect(page.getByTestId("rates-explained")).toContainText("of 100 people the post reached, this many shared it");
+    await expect(page.getByTestId("rates-explained")).toContainText("of 100 people the post reached, this many saved it");
+    // the post column sorts by date: its accessible name starts with what it shows (WCAG 2.5.3)
+    await expect(page.getByTestId("sort-date")).toHaveAccessibleName("Post, sort by Date");
+    await expect(page.getByTestId("sort-likes_per_reach")).toHaveAccessibleName(/^Like rate/);
   });
 
   test("AC-2 · the category is the Haiku theme (confidence ≥ 0.5); otherwise 'Not categorised'", async ({ page }) => {
@@ -306,12 +310,31 @@ test.describe("ANA-60 · Reel rates overview", () => {
 
   test("AC-2 · tagger off: 'Category not available', no category filter, no summary groups", async ({ page }) => {
     expect((await page.request.get("/api/social/instagram?__categories=off")).status()).toBe(204);
+    try {
+      await openCockpit(page);
+      await expect(row(page, "syn004").getByTestId("row-category")).toHaveText(/Category not available/);
+      await expect(page.getByTestId("category-filter")).toHaveCount(0);
+      await expect(page.getByTestId("category-summary")).toHaveAttribute("data-state", "unavailable");
+      await expect(page.getByTestId("category-summary")).toContainText("Category not available");
+      await expect(page.getByTestId("summary-category")).toHaveCount(0);
+    } finally {
+      // a reused server (E2E_BASE_URL) skips the per-test reset: switch the categories back on here
+      await page.request.get("/api/social/instagram?__categories=on");
+    }
+  });
+
+  test("a chosen category does not keep filtering once categories are gone", async ({ page }) => {
     await openCockpit(page);
-    await expect(row(page, "syn004").getByTestId("row-category")).toHaveText(/Category not available/);
-    await expect(page.getByTestId("category-filter")).toHaveCount(0);
-    await expect(page.getByTestId("category-summary")).toHaveAttribute("data-state", "unavailable");
-    await expect(page.getByTestId("category-summary")).toContainText("Category not available");
-    await expect(page.getByTestId("summary-category")).toHaveCount(0);
+    await page.getByTestId("category-filter").selectOption("lifestyle");
+    await expect(page.getByTestId("content-count")).toHaveText("8 of 28 posts");
+    expect((await page.request.get("/api/social/instagram?__categories=off")).status()).toBe(204);
+    try {
+      await page.getByTestId("refresh").click();
+      await expect(row(page, "syn004").getByTestId("row-category")).toHaveText(/Category not available/);
+      await expect(page.getByTestId("content-count")).toHaveText("28 of 28 posts");
+    } finally {
+      await page.request.get("/api/social/instagram?__categories=on");
+    }
   });
 
   test("AC-3 · sorting by each rate, missing values last; filters combine with an exact count", async ({ page }) => {
@@ -422,7 +445,8 @@ test.describe("ANA-60 · Reel rates overview", () => {
     await expect(page.locator('[data-testid="summary-category"][data-category="city"]')).toContainText("Zu wenige Posts");
     await row(page, "syn004").getByTestId("row-toggle").click();
     await expect(row(page, "syn004").getByTestId("row-detail")).toContainText("Angebots-Signal-Themen (stichwortbasiert, für H1/H4)");
-    await expect(row(page, "syn004").getByTestId("plain-shares_per_reach")).toHaveText("2,5 von 100 erreichten Personen haben geteilt");
+    await expect(row(page, "syn004").getByTestId("plain-shares_per_reach")).toHaveText("2,5-mal geteilt pro 100 erreichte Personen");
+    await expect(row(page, "syn004").getByTestId("plain-saves_per_reach")).toHaveText("4,2 von 100 erreichten Personen haben gespeichert");
   });
 });
 

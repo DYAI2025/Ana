@@ -149,6 +149,7 @@ export const socialEn = {
     dirDate: { desc: "newest first", asc: "oldest first" },
     sortOption: "{column}, {dir}",
     sortButton: "Sort by {column}",
+    sortButtonNamed: "{label}, sort by {column}",
     sortedBy: "Sorted by {column}, {dir}. Posts without this value are listed last.",
     categoryFilter: "Show category",
     distributionFilter: "Show feed or trial",
@@ -176,7 +177,7 @@ export const socialEn = {
     explainTitle: "What do the rates mean?",
     explain: {
       likes_per_reach: "Like rate: of 100 people the post reached, this many liked it.",
-      shares_per_reach: "Share rate: of 100 people the post reached, this many shared it.",
+      shares_per_reach: "Share rate: shares per 100 people the post reached. Instagram counts shares, not people, so one person can count twice.",
       saves_per_reach: "Save rate: of 100 people the post reached, this many saved it.",
       comments_per_reach: "Comment rate: of 100 people the post reached, this many commented. Instagram counts comments, not people, so one person can count twice.",
       reach: "Reach: how many different accounts saw the post at least once.",
@@ -185,7 +186,7 @@ export const socialEn = {
     plainTitle: "In plain words",
     plain: {
       likes_per_reach: "{x} of 100 reached people liked it",
-      shares_per_reach: "{x} of 100 reached people shared it",
+      shares_per_reach: "{x} shares per 100 reached people",
       saves_per_reach: "{x} of 100 reached people saved it",
       comments_per_reach: "{x} comments per 100 reached people",
     },
