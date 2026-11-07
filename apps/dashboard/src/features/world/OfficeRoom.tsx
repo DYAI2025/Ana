@@ -6,6 +6,7 @@ import type { useI18n } from "@/components/providers/I18nProvider";
 import { formatAmount, registerDisplay, type RateCard } from "@/features/kit/rateCard";
 import { RateCardEditor } from "./RateCardEditor";
 import { useReducedMotion } from "@/lib/hooks/useReducedMotion";
+import { AnalystPanel, useAnalystSession } from "./AnalystPanel";
 import type { WorldPost } from "./model";
 import { OFFICE_AS_OF, OFFICE_CONFIRMED, OFFICE_MIN_N, OFFICE_SOURCE, OFFICE_TOPICS, officePosts, officeView, ROOM_SPOTS, type BoardDot, type OfficePoint, type OfficeQuadrant, type RoomSpot } from "./office";
 import { NEWSLETTER_CHECK_MIN, NEWSLETTER_FEEDS, NEWSLETTERS_PICKED, feedName } from "./newsletters";
@@ -179,6 +180,12 @@ export function OfficeRoom({ world, posts, t, locale, onClose, onPost }: { world
     requestAnimationFrame(() => requestAnimationFrame(() => labelRefs.current[lastSpot.current]?.focus()));
   }, []);
 
+  const showFlat = useCallback((s: "board" | "computer") => {
+    flatSpotRef.current = s;
+    setFlatSpot(s);
+    document.getElementById("office-drawer-title")?.focus();
+  }, []);
+
   // focus moves into the room and back to where it came from (or to the office button when that is gone).
   // Escape steps back (board → room → world) and Tab stays inside, wherever focus happens to be;
   // only another dialog on top keeps its own keys
@@ -192,7 +199,11 @@ export function OfficeRoom({ world, posts, t, locale, onClose, onPost }: { world
       const otherDialog = at instanceof Element && !room.contains(at) && at.closest("[role='dialog']") !== null;
       if (otherDialog) return;
       if (e.key === "Escape") {
-        if (spotRef.current) back();
+        if (flatSpotRef.current === "computer") {
+          flatSpotRef.current = "board";
+          setFlatSpot("board");
+          flatComputerRef.current?.focus();
+        } else if (spotRef.current) back();
         else onClose();
         return;
       }
@@ -294,7 +305,7 @@ export function OfficeRoom({ world, posts, t, locale, onClose, onPost }: { world
 
   // without WebGL the board is what the room is for: it opens right away
   const flat = gl === "unsupported" || gl === "failed";
-  const shown: RoomSpot | null = flat ? "board" : spot;
+  const shown: RoomSpot | null = flat ? flatSpot : spot;
 
   const room = (
     <div className={styles.officeBackdrop} data-testid="office-backdrop">
@@ -344,6 +355,18 @@ export function OfficeRoom({ world, posts, t, locale, onClose, onPost }: { world
                   <button type="button" className={styles.officeBack} onClick={back} data-testid="office-back">
                     ← {t("world.office.back")}
                   </button>
+                ) : null}
+                {flat ? (
+                  <div role="group" aria-label={t("world.office.flatSwitch")} className={styles.officeFlatSwitch}>
+                    <button type="button" className={styles.officeBack} aria-pressed={flatSpot === "board"} onClick={() => showFlat("board")} data-testid="office-flat-board">
+                      <span aria-hidden="true">{SPOT_ICON.board} </span>
+                      {t("world.office.spots.board")}
+                    </button>
+                    <button ref={flatComputerRef} type="button" className={styles.officeBack} aria-pressed={flatSpot === "computer"} onClick={() => showFlat("computer")} data-testid="office-flat-computer">
+                      <span aria-hidden="true">{SPOT_ICON.computer} </span>
+                      {t("world.office.spots.computer")}
+                    </button>
+                  </div>
                 ) : null}
               </div>
               {shown === "board" ? (

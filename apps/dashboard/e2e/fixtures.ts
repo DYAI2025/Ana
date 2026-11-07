@@ -12,10 +12,20 @@ export interface FakeSocialControl {
 
 /** Control surface of the local fake Brain service (e2e/fake-brain/server.mjs) — synthetic data only. */
 export const FAKE_BRAIN = `http://127.0.0.1:${process.env.FAKE_BRAIN_PORT ?? 3197}`;
-export type FakeBrainMode = "ok" | "mirrored" | "empty" | "unindexed" | "pending" | "down" | "unauthorized" | "invalid" | "slow";
+export type FakeBrainMode = "ok" | "mirrored" | "empty" | "unindexed" | "pending" | "down" | "unauthorized" | "invalid" | "slow" | "search-down";
 
 export interface FakeBrainControl {
   mode(mode: FakeBrainMode): Promise<void>;
+}
+
+/** Control surface of the local fake model provider (e2e/fake-llm/server.mjs) — never a real provider. */
+export const FAKE_LLM = `http://127.0.0.1:${process.env.FAKE_LLM_PORT ?? 3196}`;
+export type FakeLlmMode = "ok" | "injection" | "no_evidence" | "garbage" | "rate_limited" | "failed" | "slow";
+
+export interface FakeLlmControl {
+  mode(mode: FakeLlmMode): Promise<void>;
+  /** the raw request bodies, as they would have left the dashboard */
+  requests(): Promise<string[]>;
 }
 
 export interface FakeJiraControl {
@@ -26,7 +36,18 @@ export interface FakeJiraControl {
   state(): Promise<{ creates: number; issues: { key: string; summary: string; status: string; labels: string[] }[] }>;
 }
 
-export const test = base.extend<{ consoleErrors: string[]; jira: FakeJiraControl; social: FakeSocialControl; brain: FakeBrainControl }>({
+export const test = base.extend<{ consoleErrors: string[]; jira: FakeJiraControl; social: FakeSocialControl; brain: FakeBrainControl; llm: FakeLlmControl }>({
+  /** Only tests that ask for it talk to the fake provider; each starts it empty and healthy. */
+  llm: async ({ request }, provide) => {
+    expect((await request.post(`${FAKE_LLM}/__fake/reset`)).ok(), "fake provider reset").toBe(true);
+    await provide({
+      mode: async (mode) => {
+        expect((await request.post(`${FAKE_LLM}/__fake/mode`, { data: { mode } })).ok()).toBe(true);
+      },
+      requests: async () => ((await (await request.get(`${FAKE_LLM}/__fake/requests`)).json()) as { requests: string[] }).requests,
+    });
+  },
+
   /** Every test starts with a healthy fake worker and an empty dashboard snapshot cache (e2e-only reset control). */
   social: [
     async ({ request, baseURL }, provide) => {
