@@ -1,0 +1,41 @@
+{
+  "drs_version": "1.0",
+  "jira": "ANA-60",
+  "state": "IN_PROGRESS",
+  "delivery_profile": "STANDARD_CODE",
+  "ic": {
+    "definition": "All acceptance criteria AC-1 to AC-9 of Jira ANA-60 (Reel rates overview in the Instagram cockpit /pulse/social/instagram). AC-1 every content row shows like, share, save and comment rate (counter ÷ reach) as a percentage only when counter and reach are VERIFIED and reach > 0, otherwise the existing not-available state, never 0; exact values in vitest. AC-2 the category is the Haiku post_tags theme (parseTags, confidence >= TAG_MIN_CONFIDENCE 0.5), delivered server-side through the Social BFF; below 0.5 or no tag reads 'not categorised', tagger off reads 'category not available'; vitest plus Playwright with the fake-social fixture. AC-3 sorting by date, reach and each rate in both directions, missing values always last, default date descending; category, format and feed/trial filters combine and the 'x of y' count is right (Playwright). AC-4 a category summary over the filtered rows shows n and the median of each rate, a 'too few posts' note instead of a median for n < 3, the format of the population, and a click sets the category filter (vitest plus Playwright). AC-5 posts younger than MATURE_AGE_DAYS (7) are marked 'still growing' (vitest plus Playwright). AC-6 keyword themes no longer appear in row head, filters or summary; in the row detail they remain as 'offer signal themes (keyword-based, for H1/H4)' with the session override; Patterns and Offer Signals give identical results on the identical fixture (existing tests plus a regression test). AC-7 npm run check, npm run e2e incl. axe and contrast, and npm run scan:bundle green on the exact candidate SHA; i18n DE/EN/IT without missing keys. AC-8 synthetic screenshots at 1440x900, 1280x800 and a mobile viewport showing the table with rates and categories, an active sort, an active category filter, a summary with an n < 3 category and an open detail, linked from the PR. AC-9 local runtime check with real data on authorized loopback, not committed: for 3 Reels likes, saves, shares, comments and reach match Instagram Insights and the rates are arithmetically right; text evidence without captions, ids or images.",
+    "state": "NOT_EVALUATED",
+    "claimed": null,
+    "evidence": []
+  },
+  "r2g": {
+    "definition": "On the exact candidate SHA: (1) GitHub Actions workflow 'dashboard' green (npm ci, lint, typecheck, unit tests, production build, client bundle secret scan, Playwright e2e against the fake Jira, fake Social worker and fake Brain boundaries; evidence_class integration-fake). (2) GitHub Actions workflow 'drs' green. (3) The client bundle scan finds 0 occurrences of the Social worker key, the SOCIAL_IG_* names, a Bearer header, the worker internal path or an Anthropic key. (4) Screenshots from synthetic fixtures at 1440x900, 1280x800 and 390x844. (5) The diff contains no secret, no real caption, media id, permalink, thumbnail or metric value, and leaves apps/dashboard/src/server/access.ts, the H1/H4 offer-signal logic and Meta scopes unchanged. (6) AC-9 real-data check recorded as text in a Jira ANA-60 comment (evidence_class real-boundary-smoke) or explicitly recorded as not performed. Stale evidence (another SHA) is inadmissible; a new commit invalidates R2G.",
+    "state": "NOT_EVALUATED",
+    "claimed": null,
+    "candidate_sha": null,
+    "evidence": [],
+    "allowed_paths": [
+      ".drs/ANA-60.json",
+      "apps/dashboard/src/features/social/**",
+      "apps/dashboard/src/server/social/**",
+      "apps/dashboard/src/server/world/shared.ts",
+      "apps/dashboard/src/server/world/tagger.ts",
+      "apps/dashboard/src/server/world/tagger.test.ts",
+      "apps/dashboard/src/app/api/social/instagram/route.ts",
+      "apps/dashboard/src/i18n/**",
+      "apps/dashboard/e2e/**",
+      "apps/dashboard/playwright.config.ts",
+      "docs/evidence/ANA-60/**"
+    ]
+  },
+  "r4m": {
+    "definition": "The unchanged R2G candidate has: Ben (PO) as acceptor who verified the evidence on the exact candidate SHA (the implementing session never accepts its own candidate); explicit PO approval for push, PR and merge (standing project rule); 0 open blocking findings; the PR targets main and is mergeable with the head containing the current base; PR CI green on the exact SHA. R4M is not a release: no deploy to ana.dyai.cloud without a separate approval.",
+    "state": "NOT_EVALUATED",
+    "claimed": null,
+    "evidence": []
+  },
+  "scope_note": "Created from the handoff contract of 2026-11-07 (PO decision Ben: cockpit location, Haiku categories leading, keyword themes only as H1/H4 input). Out of scope: likes/views in the 200-post history (follow-up proposal), Stan Store, comments (ANA-58), Meta scopes/OAuth, H1/H4 scoring (ANA-39), world/office/media kit, sticky navigation (ANA-44), new routes, persistence, deploy.",
+  "synced_at": "2026-11-07T15:50:00Z",
+  "source": "offline: ANA Jira has no DRS custom fields; the gate definitions are mirrored in Jira ANA-60 by a comment and acceptance states are recorded in Jira and the pull request, not in this file"
+}

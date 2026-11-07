@@ -11,8 +11,20 @@ export function formatCompact(value: number, locale: Locale): string {
   return new Intl.NumberFormat(INTL[locale], { notation: "compact", maximumFractionDigits: 1 }).format(value);
 }
 
+/** A plain number with up to `digits` decimals (4.2 / 4,2), for "x of 100" sentences. */
+export function formatDecimal(value: number, locale: Locale, digits = 1): string {
+  return new Intl.NumberFormat(INTL[locale], { maximumFractionDigits: digits }).format(value);
+}
+
 export function formatPercent(rate: number, locale: Locale, digits = 2): string {
   return new Intl.NumberFormat(INTL[locale], { style: "percent", minimumFractionDigits: digits, maximumFractionDigits: digits }).format(rate);
+}
+
+/** A measured value in its unit: a Reel's watch time (ms) in seconds, its skip rate (percent 0-100) as a percentage. */
+export function formatObservation(o: { value: number; unit: string }, locale: Locale): string {
+  if (o.unit === "ms") return `${new Intl.NumberFormat(INTL[locale], { minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(o.value / 1000)} s`;
+  if (o.unit === "percent") return formatPercent(o.value / 100, locale, 1);
+  return formatCount(o.value, locale);
 }
 
 export function formatIndex(index: number, locale: Locale): string {

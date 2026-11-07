@@ -41,17 +41,23 @@ const POSTS = [
   ["REELS", 48, 0, 0, 0, 0, "Old money tips reel"],
 ];
 const PARTIAL_INDEX = 7; // views unavailable on this post
+const TRIAL_INDEX = 1;
 
 const iso = (daysAgo) => new Date(Date.parse(FAKE_OBSERVED_AT) - daysAgo * 86_400_000).toISOString().replace(".000Z", "+0000");
 
 export function buildSnapshot({ count = POSTS.length, observedAt = FAKE_OBSERVED_AT } = {}) {
   const items = POSTS.slice(0, count).map(([type, daysAgo, reach, saved, shares, comments, caption], i) => {
     const notFetched = reach === 0;
-    const values = { reach, views: reach * 2 + 100, saved, shares, likes: Math.round(reach * 0.05), comments, total_interactions: saved + shares + comments + Math.round(reach * 0.05) };
-    const metrics = METRICS.map((name) => {
+    const likeCount = Math.round(reach * 0.05);
+    // the insights "likes" varies per post (ANA-60 sorts by like rate); the public like_count counter stays as it was
+    const likes = likeCount + (i % 5) * 9;
+    const values = { reach, views: reach * 2 + 100, saved, shares, likes, comments, total_interactions: saved + shares + comments + likes };
+    // Reels also carry watch time (ms) and skip rate (percent 0-100), as the worker reads them (ANA-51)
+    const extras = type === "REELS" ? { ig_reels_avg_watch_time: 12000 + i * 1500, reels_skip_rate: 20 + (i % 5) * 4.5 } : {};
+    const metrics = [...METRICS, ...Object.keys(extras)].map((name) => {
       if (notFetched) return { name, value: null, state: "not_fetched", period: null };
       if (i === PARTIAL_INDEX && name === "views") return { name, value: null, state: "unavailable", period: null, error_class: "meta-100" };
-      return { name, value: values[name], state: "ok", period: "lifetime" };
+      return { name, value: values[name] ?? extras[name], state: "ok", period: "lifetime" };
     });
     return {
       id: `syn${String(i).padStart(3, "0")}`,
@@ -62,8 +68,10 @@ export function buildSnapshot({ count = POSTS.length, observedAt = FAKE_OBSERVED
       // no real images: tests render the format glyph fallback
       thumbnail_url: null,
       caption,
-      like_count: values.likes,
+      like_count: likeCount,
       comments_count: comments,
+      // one trial Reel (Meta: is_shared_to_feed false); the others carry no flag, as from an older worker
+      ...(i === TRIAL_INDEX ? { shared_to_feed: false } : {}),
       insights: notFetched
         ? { state: "not_fetched", reason: "subrequest-budget", metrics }
         : { state: i === PARTIAL_INDEX ? "partial" : "ok", metrics },
@@ -84,7 +92,7 @@ export function buildSnapshot({ count = POSTS.length, observedAt = FAKE_OBSERVED
       metrics: [accountMetric("reach", 48200), accountMetric("views", 131000), { ...accountMetric("accounts_engaged", null), state: "unavailable", error_class: "meta-100" }, accountMetric("total_interactions", 3900)],
     },
     media: { requested_max: 50, returned: items.length, pages_fetched: 2, has_more: true, optional_fields_state: "ACCEPTED", items },
-    insights: { requested_metrics: METRICS, priority: "mature-first", mature_days: 7, halted: null, posts_with_insights: items.filter((x) => x.insights.state !== "not_fetched").length, budget: { limit: 45, used: 45 } },
+    insights: { requested_metrics: METRICS, extra_metrics: { REELS: ["ig_reels_avg_watch_time", "reels_skip_rate"] }, priority: "mature-first", mature_days: 7, halted: null, posts_with_insights: items.filter((x) => x.insights.state !== "not_fetched").length, budget: { limit: 45, used: 45 } },
   };
 }
 
@@ -125,6 +133,20 @@ export function buildAudience({ unavailable = false } = {}) {
       series("follower_demographics", "age", [["25-34", 4000]]),
       series("follower_demographics", "gender", [["F", 3000], ["M", 2000]]),
     ],
+    // ANA-52: followed and unfollowed in the last 24 hours
+    follows: unavailable
+      ? { name: "follows_and_unfollows", breakdown: "follow_type", period: "day", since: 0, until: 0, state: "unavailable", error_class: "meta-100", results: [] }
+      : { name: "follows_and_unfollows", breakdown: "follow_type", period: "day", since: Math.floor(Date.now() / 1000) - 86400, until: Math.floor(Date.now() / 1000), state: "ok", results: [{ key: "FOLLOWER", value: 120 }, { key: "NON_FOLLOWER", value: 45 }] },
+    // ANA-56: reach by follow type, contact-button taps, online followers (synthetic; Meta's hours run on US Pacific time)
+    signals: unavailable
+      ? [{ name: "reach", breakdown: "follow_type", period: "day", state: "unavailable", error_class: "meta-100", total: null, results: [] }]
+      : [
+          { name: "reach", breakdown: "follow_type", period: "day", since: Math.floor(Date.now() / 1000) - 28 * 86400, until: Math.floor(Date.now() / 1000), state: "ok", total: 9000, results: [{ key: "FOLLOWER", value: 1000 }, { key: "NON_FOLLOWER", value: 9000 }] },
+          { name: "profile_links_taps", breakdown: "contact_button_type", period: "day", state: "ok", total: 0, results: [] },
+        ],
+    online_followers: unavailable
+      ? { name: "online_followers", period: "lifetime", state: "unavailable", error_class: "meta-100", days: [] }
+      : { name: "online_followers", period: "lifetime", state: "ok", hours_timezone: "unverified", days: [{ end_time: "2026-11-04T08:00:00+0000", hours: Array.from({ length: 24 }, (_, h) => (h === 7 ? 3300 : 1800)) }] },
   };
 }
 

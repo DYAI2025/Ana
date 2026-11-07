@@ -61,6 +61,18 @@ describe("worker client", () => {
 describe("normalizeSnapshot — provider response → dashboard DTO", () => {
   const snapshot = normalizeSnapshot(buildSnapshot());
 
+  it("keeps a Reel's watch time in milliseconds and its skip rate in percent, and nothing of that on other posts", () => {
+    const reel = snapshot.posts[2]!;
+    const watch = reel.observations.find((o) => o.metric_name === "avg_watch_time")!;
+    expect(watch).toMatchObject({ native_metric_name: "ig_reels_avg_watch_time", value: 15000, unit: "ms", period: "lifetime", availability_state: "VERIFIED", source_reference: "instagram:media/syn002/insights#ig_reels_avg_watch_time" });
+    expect(reel.observations.find((o) => o.metric_name === "skip_rate")).toMatchObject({ native_metric_name: "reels_skip_rate", value: 29, unit: "percent" });
+    const carousel = snapshot.posts.find((p) => p.format === "carousel")!;
+    expect(carousel.observations.some((o) => o.metric_name === "avg_watch_time" || o.metric_name === "skip_rate")).toBe(false);
+    // a not-fetched Reel keeps the reason, never a 0
+    const cut = snapshot.posts.find((p) => p.insights_state === "not_fetched" && p.format === "reel")!;
+    expect(cut.observations.find((o) => o.metric_name === "avg_watch_time")).toMatchObject({ value: null, availability_state: "NOT_FETCHED" });
+  });
+
   it("keeps provenance on every observation (brief §5 DTO fields)", () => {
     const reach = snapshot.posts[2]!.observations.find((o) => o.metric_name === "reach")!;
     expect(reach).toEqual({
@@ -135,6 +147,17 @@ describe("normalizeSnapshot — provider response → dashboard DTO", () => {
     expect(normalizeSnapshot(raw).posts[0]!.permalink).toBeNull();
     expect(() => normalizeSnapshot({ snapshot_version: 2 })).toThrow(InvalidWorkerResponse);
     expect(() => normalizeSnapshot({ ...buildSnapshot(), fetched_at: "yesterday" })).toThrow(InvalidWorkerResponse);
+  });
+
+  it("passes the feed flag of a Reel through only as a real boolean, null otherwise (older workers send none)", () => {
+    const raw = buildSnapshot();
+    const items = raw.media.items as Array<Record<string, unknown>>;
+    items[0]!.shared_to_feed = true;
+    items[1]!.shared_to_feed = false;
+    items[2]!.shared_to_feed = "false";
+    delete items[3]!.shared_to_feed;
+    const posts = normalizeSnapshot(raw).posts;
+    expect(posts.slice(0, 4).map((p) => p.shared_to_feed)).toEqual([true, false, null, null]);
   });
 });
 

@@ -59,7 +59,7 @@ function world(pulseLikes: number, pulseAt = "2026-10-31T20:00:00.000Z", extraPu
       },
     },
     pulse: { state: "ok", reason: null, fetched_at: pulseAt, followers: 1010, media_count: 3, items: [{ id: "a", published_at: "2026-10-30T10:00:00.000Z", like_count: pulseLikes, comments_count: 4 }, ...extraPulse] },
-    audience: { state: "ok", reason: null, fetched_at: pulseAt, timeframe: "this_month", engaged_country: { state: "ok", reason: null, results: [{ key: "DE", value: 30 }, { key: "ES", value: 10 }] }, engaged_city: { state: "unavailable", reason: "meta-100", results: [] }, follower_country: { state: "unavailable", reason: null, results: [] }, follower_city: { state: "unavailable", reason: null, results: [] }, engaged_country_week: N, engaged_city_week: N, who: { engaged_week: W, engaged_month: W, follower: W }, history: { days: 0, since: null } },
+    audience: { state: "ok", reason: null, fetched_at: pulseAt, timeframe: "this_month", engaged_country: { state: "ok", reason: null, results: [{ key: "DE", value: 30 }, { key: "ES", value: 10 }] }, engaged_city: { state: "unavailable", reason: "meta-100", results: [] }, follower_country: { state: "unavailable", reason: null, results: [] }, follower_city: { state: "unavailable", reason: null, results: [] }, engaged_country_week: N, engaged_city_week: N, who: { engaged_week: W, engaged_month: W, follower: W }, history: { days: 0, since: null }, follows: { state: "not_fetched", reason: "not-returned", since: null, until: null, gained: null, lost: null }, reach_split: { state: "not_fetched", reason: "not-returned", since: null, until: null, followers: null, non_followers: null }, contact_taps: { state: "not_fetched", reason: "not-returned", total: null }, online: { state: "not_fetched", reason: "not-returned", days: 0, utc_hours: Array(24).fill(null) } },
     work: { state: "not-configured", reason: "not-configured", fetched_at: null, issues: [] },
     places: { ana: null },
     ana_look: resolveLook(null, null),
@@ -68,6 +68,7 @@ function world(pulseLikes: number, pulseAt = "2026-10-31T20:00:00.000Z", extraPu
     post_topics: { state: "off", version: "t", topics: {}, failing: 0 },
     newsletters: NEWSLETTERS_OFF,
     post_history: { state: "off", fetched_at: null, total: 0, oldest: null, posts: [], waiting: 0, list_failing: null, numbers_failing: null, store_error: false },
+    reel_viewing: { state: "off", reels: 0, skip_reels: 0, watch_ms: null, skip_pct: null, previous: null, store_error: false },
     brain: { state: "off", last_day: null, note: null, reason: null },
     brief: { state: "off", busy: false, latest: {}, weekly: {}, in_brain: false, brain: false, reason: null },
   };
@@ -87,6 +88,20 @@ describe("instagramView", () => {
     expect(v.posts[1]).toMatchObject({ likes: 60, er: 0.05 });
     expect(v.posts[2]?.er).toBeNull();
     expect(v.erMedian).toBeNull();
+  });
+
+  it("carries a Reel's watch time in seconds and its skip rate as a share, only when measured", () => {
+    const w = world(50);
+    const snap = w.instagram.ok ? w.instagram.snapshot : null;
+    snap!.posts[0]!.observations.push({ ...obs("a", "avg_watch_time", 28130), unit: "ms" }, { ...obs("a", "skip_rate", 34.5), unit: "percent" });
+    snap!.posts[1]!.observations.push({ ...obs("b", "avg_watch_time", null), unit: "ms" });
+    const v = instagramView(w);
+    const a = v.posts.find((p) => p.id === "a")!;
+    expect(a.watchSeconds).toBeCloseTo(28.13, 5);
+    expect(a.skipRate).toBeCloseTo(0.345, 5);
+    const b = v.posts.find((p) => p.id === "b")!;
+    expect(b.watchSeconds).toBeNull();
+    expect(b.skipRate).toBeNull();
   });
 
   it("save+share rate only when saves, shares and reach are all measured", () => {

@@ -26,6 +26,9 @@ const SNAPSHOT_OPTIONAL_FIELDS = 'caption,like_count,comments_count';
 // media_url: the picture of IMAGE posts and carousel containers (Meta: thumbnail_url exists only for VIDEO). It has its
 // own fallback step, so a refusal never costs caption and counters. For VIDEO it is the video file: never passed on.
 const SNAPSHOT_PICTURE_FIELD = 'media_url';
+// is_shared_to_feed (Reels only): true = may appear in Feed and Reels tab, false = Reels tab only. Read so trial Reels can be
+// told apart from feed Reels (to be verified against posts Ana named). Newest field, so it is the first to be dropped.
+const SNAPSHOT_FEED_FIELD = 'is_shared_to_feed';
 // Same maturity rule as the dashboard (apps/dashboard/src/features/social/insights.ts MATURE_AGE_DAYS).
 const SNAPSHOT_MATURE_DAYS = 7;
 const SNAPSHOT_DEFAULT_MAX = 30;
@@ -413,14 +416,17 @@ function pictureUrl(m) {
 // Follows paging.cursors.after through metaFetch; Meta's paging.next URL carries the token and is never used or returned.
 // media_product_type stays in the base set: without it Reels and feed videos could not be kept apart.
 async function snapshotMedia(b, max) {
-  // fallback steps on Meta error 100 (invalid field), first page only: all fields -> without media_url -> base fields
+  // fallback steps on Meta error 100 (invalid field), first page only:
+  // all fields -> without is_shared_to_feed -> also without media_url -> base fields
+  const opt = SNAPSHOT_BASE_FIELDS + ',' + SNAPSHOT_OPTIONAL_FIELDS;
   const steps = [
-    {fields:SNAPSHOT_BASE_FIELDS + ',' + SNAPSHOT_OPTIONAL_FIELDS + ',' + SNAPSHOT_PICTURE_FIELD, optional:'ACCEPTED', picture:'ACCEPTED'},
-    {fields:SNAPSHOT_BASE_FIELDS + ',' + SNAPSHOT_OPTIONAL_FIELDS, optional:'ACCEPTED', picture:'REJECTED_BY_META'},
-    {fields:SNAPSHOT_BASE_FIELDS, optional:'REJECTED_BY_META', picture:'REJECTED_BY_META'},
+    {fields:opt + ',' + SNAPSHOT_PICTURE_FIELD + ',' + SNAPSHOT_FEED_FIELD, optional:'ACCEPTED', picture:'ACCEPTED', feed:'ACCEPTED'},
+    {fields:opt + ',' + SNAPSHOT_PICTURE_FIELD, optional:'ACCEPTED', picture:'ACCEPTED', feed:'REJECTED_BY_META'},
+    {fields:opt, optional:'ACCEPTED', picture:'REJECTED_BY_META', feed:'REJECTED_BY_META'},
+    {fields:SNAPSHOT_BASE_FIELDS, optional:'REJECTED_BY_META', picture:'REJECTED_BY_META', feed:'REJECTED_BY_META'},
   ];
   let step = 0, after = null, pages = 0, hasMore = false, stopped = null;
-  let {fields, optional, picture} = steps[0];
+  let {fields, optional, picture, feed} = steps[0];
   const items = [];
   while (items.length < max) {
     const params = {fields, limit:Math.min(SNAPSHOT_PAGE_SIZE, max - items.length)};
@@ -432,7 +438,7 @@ async function snapshotMedia(b, max) {
       if (pages > 0 && ['subrequest-budget','meta-throttled'].includes(e?.message)) { hasMore = true; stopped = e.message; break; }
       // only "invalid field or parameter" means Meta refused an optional field; anything else fails the read
       if (!(e instanceof MetaError) || e.metaCode !== 100 || pages > 0 || step >= steps.length - 1) throw e;
-      ({fields, optional, picture} = steps[++step]);
+      ({fields, optional, picture, feed} = steps[++step]);
       continue;
     }
     pages++;
@@ -443,11 +449,13 @@ async function snapshotMedia(b, max) {
     if (!hasMore) break;
     after = cursor;
   }
-  return {optional, picture, pages, hasMore, stopped, items:items.map(m => ({
+  return {optional, picture, feed, pages, hasMore, stopped, items:items.map(m => ({
     id:String(m.id), media_type:m.media_type ?? null, media_product_type:m.media_product_type ?? null,
     permalink:m.permalink ?? null, timestamp:m.timestamp ?? null, thumbnail_url:m.thumbnail_url ?? null,
     ...(optional === 'ACCEPTED' ? {caption:typeof m.caption === 'string' ? m.caption : null, like_count:countOrNull(m.like_count), comments_count:countOrNull(m.comments_count)} : {}),
-    ...(picture === 'ACCEPTED' ? {image_url:pictureUrl(m)} : {})
+    ...(picture === 'ACCEPTED' ? {image_url:pictureUrl(m)} : {}),
+    // only a real boolean from Meta counts; anything else (missing, non-Reel) stays null, never guessed
+    ...(feed === 'ACCEPTED' ? {shared_to_feed:typeof m.is_shared_to_feed === 'boolean' ? m.is_shared_to_feed : null} : {})
   }))};
 }
 function insightValue(entry) {
@@ -457,47 +465,144 @@ function insightValue(entry) {
 const metricState = (name, state, error_class) => ({name, value:null, state, period:null, ...(error_class ? {error_class} : {})});
 const skipped = (b, metrics = MEDIA_INSIGHT_METRICS) => ({state:'not_fetched', reason:b.halted ? 'meta-throttled' : 'subrequest-budget', metrics:metrics.map(n => metricState(n, 'not_fetched'))});
 const notSent = e => e?.message === 'subrequest-budget' || e?.message === 'meta-throttled';
-async function mediaInsights(b, id) {
-  const read = async metrics => {
-    const data = await b.fetch(`/${id}/insights`, {metric:metrics.join(',')});
-    return Array.isArray(data?.data) ? data.data : [];
-  };
-  const fromEntries = (metrics, entries) => metrics.map(name => {
+// Reel-only and newer metrics (Meta IG Media insights): requested in the same call as the base metrics, by product type.
+// Which of them Meta accepts is learned once per Worker call on the first post of that type, so a refused one costs a
+// few calls once instead of the per-metric loop on every post.
+// reposts is documented for feed posts and Reels but refused by Meta (error 100) for this account on every post
+// (live snapshot of 2026-11-05, worker fa0dcd18): asking for it cost 6 calls of every snapshot, so it is not asked.
+const EXTRA_METRICS = {REELS:['ig_reels_avg_watch_time','reels_skip_rate']};
+const refusedMetric = name => metricState(name, 'unavailable', 'meta-100');
+const insightReader = (b, id) => async metrics => {
+  const data = await b.fetch(`/${id}/insights`, {metric:metrics.join(',')});
+  return Array.isArray(data?.data) ? data.data : [];
+};
+function fromEntries(metrics, entries) {
+  return metrics.map(name => {
     const e = entries.find(x => x?.name === name);
     const value = insightValue(e);
     return value === null ? metricState(name, 'unavailable', 'empty-response') : {name, value, state:'ok', period:e.period ?? null};
   });
+}
+// The base metrics of one post in one call; on Meta error 100 (a metric does not apply to this media) per metric.
+async function baseInsights(b, id) {
+  const read = insightReader(b, id);
   if (b.remaining() < 1) return skipped(b);
   try {
-    return summarize(fromEntries(MEDIA_INSIGHT_METRICS, await read(MEDIA_INSIGHT_METRICS)));
+    return summarize(fromEntries(MEDIA_INSIGHT_METRICS, await read(MEDIA_INSIGHT_METRICS)), b);
   } catch (e) {
     if (notSent(e)) return skipped(b);
-    // Meta rejects the whole request when one metric does not apply to this media (code 100): isolate per metric.
     if (!(e instanceof MetaError) || e.metaCode !== 100) return {state:'error', metrics:MEDIA_INSIGHT_METRICS.map(n => metricState(n, 'error', errorClass(e)))};
-    const metrics = [];
-    for (const name of MEDIA_INSIGHT_METRICS) {
-      if (b.remaining() < 1) { metrics.push(metricState(name, 'not_fetched')); continue; }
-      try { metrics.push(...fromEntries([name], await read([name]))); }
-      catch (err) {
-        if (notSent(err)) { metrics.push(metricState(name, 'not_fetched')); continue; }
-        metrics.push(metricState(name, err instanceof MetaError && err.metaCode === 100 ? 'unavailable' : 'error', errorClass(err)));
-        // reach applies to every insight-capable media: if even reach is refused, the post has no insights at all
-        if (name === MEDIA_INSIGHT_METRICS[0] && err instanceof MetaError && err.metaCode === 100) {
-          for (const rest of MEDIA_INSIGHT_METRICS.slice(1)) metrics.push(metricState(rest, 'unavailable', 'meta-100'));
-          break;
-        }
-      }
-    }
-    return summarize(metrics);
+    return isolated(b, read);
   }
 }
+async function isolated(b, read) {
+  const metrics = [];
+  for (const name of MEDIA_INSIGHT_METRICS) {
+    if (b.remaining() < 1) { metrics.push(metricState(name, 'not_fetched')); continue; }
+    try { metrics.push(...fromEntries([name], await read([name]))); }
+    catch (err) {
+      if (notSent(err)) { metrics.push(metricState(name, 'not_fetched')); continue; }
+      metrics.push(metricState(name, err instanceof MetaError && err.metaCode === 100 ? 'unavailable' : 'error', errorClass(err)));
+      // reach applies to every insight-capable media: if even reach is refused, the post has no insights at all
+      if (name === MEDIA_INSIGHT_METRICS[0] && err instanceof MetaError && err.metaCode === 100) {
+        for (const rest of MEDIA_INSIGHT_METRICS.slice(1)) metrics.push(metricState(rest, 'unavailable', 'meta-100'));
+        break;
+      }
+    }
+  }
+  return summarize(metrics, b);
+}
+// base + extras in one call; on Meta error 100 the base alone (its own fallback), the extras marked refused
+async function withExtras(b, id, extras) {
+  if (!extras.length) return baseInsights(b, id);
+  const all = [...MEDIA_INSIGHT_METRICS, ...extras];
+  if (b.remaining() < 1) return skipped(b, all);
+  try {
+    return summarize(fromEntries(all, await insightReader(b, id)(all)), b);
+  } catch (e) {
+    if (notSent(e)) return skipped(b, all);
+    if (!(e instanceof MetaError) || e.metaCode !== 100) return {state:'error', metrics:all.map(n => metricState(n, 'error', errorClass(e)))};
+    const base = await baseInsights(b, id);
+    // a throttle or budget stop keeps its own reason (summarize would report the budget)
+    if (base.state === 'not_fetched') return {...base, metrics:[...base.metrics, ...extras.map(n => metricState(n, 'not_fetched'))]};
+    return summarize([...base.metrics, ...extras.map(refusedMetric)], b);
+  }
+}
+// What Meta does with each extra, learned per snapshot and type from the posts read so far: accepted (answered),
+// refused (Meta error 100 on the extra alone), given up (its probe failed for another reason PROBE_TRIES times). Extras
+// in none of these are still open; while some are open, posts of that type are read one at a time so the knowledge
+// grows from each before the next. Only a probe of one extra counts: a post that fails or has no insights says
+// nothing about its extras.
+const PROBE_TRIES = 2;
+function extraKnowledge(b, type) {
+  b.extraKnowledge ??= new Map();
+  if (!b.extraKnowledge.has(type)) b.extraKnowledge.set(type, {accepted:new Set(), refused:new Set(), givenUp:new Set(), failures:new Map(), lock:null});
+  return b.extraKnowledge.get(type);
+}
+const openExtras = (k, wanted) => wanted.filter(n => !k.accepted.has(n) && !k.refused.has(n) && !k.givenUp.has(n));
+async function readWithExtras(b, id, wanted, k) {
+  const accepted = wanted.filter(n => k.accepted.has(n));
+  const open = openExtras(k, wanted);
+  if (!open.length) return withExtras(b, id, accepted);
+  const all = [...MEDIA_INSIGHT_METRICS, ...accepted, ...open];
+  if (b.remaining() < 1) return skipped(b, all);
+  try {
+    const r = summarize(fromEntries(all, await insightReader(b, id)(all)), b);
+    for (const n of open) k.accepted.add(n);
+    return r;
+  } catch (e) {
+    if (notSent(e)) return skipped(b, all);
+    const failed = () => ({state:'error', metrics:all.map(n => metricState(n, 'error', errorClass(e)))});
+    // this post's own throttle or token error stops everything; anything else that is not Meta's answer is its error
+    // (a halt caused by another post meanwhile shows up below as not_fetched with reason meta-throttled)
+    if (!(e instanceof MetaError) || HALT_CODES.has(e.metaCode)) return failed();
+    // Meta refused or failed the call with the open extras: the known part first, then each open extra alone, so only
+    // the extra that fails counts (a persistent error on the extras must not cost every post its base metrics)
+    const known = await withExtras(b, id, accepted);
+    if (known.state === 'error' && e.metaCode !== 100) return failed();
+    if (known.state !== 'ok' && known.state !== 'partial') return known;
+    const read = insightReader(b, id);
+    const probed = [];
+    for (const name of open) {
+      if (b.remaining() < 1) { probed.push(metricState(name, 'not_fetched')); continue; }
+      try { probed.push(...fromEntries([name], await read([name]))); k.accepted.add(name); }
+      catch (err) {
+        if (notSent(err)) { probed.push(metricState(name, 'not_fetched')); continue; }
+        if (err instanceof MetaError && err.metaCode === 100) { probed.push(refusedMetric(name)); k.refused.add(name); continue; }
+        probed.push(metricState(name, 'error', errorClass(err)));
+        const tries = (k.failures.get(name) ?? 0) + 1;
+        k.failures.set(name, tries);
+        if (tries >= PROBE_TRIES) k.givenUp.add(name);
+      }
+    }
+    return summarize([...known.metrics, ...probed], b);
+  }
+}
+async function mediaInsights(b, id, productType = null) {
+  const wanted = Object.hasOwn(EXTRA_METRICS, productType ?? '') ? EXTRA_METRICS[productType] : [];
+  if (!wanted.length) return baseInsights(b, id);
+  const k = extraKnowledge(b, productType);
+  let release = null;
+  while (openExtras(k, wanted).length && k.lock) await k.lock;
+  if (openExtras(k, wanted).length) k.lock = new Promise(r => { release = () => { k.lock = null; r(); }; });
+  let r;
+  try { r = await readWithExtras(b, id, wanted, k); }
+  finally { release?.(); }
+  // extras this post did not get back: cut with the post, refused with a post that has no insights, or as known
+  const absent = n => r.state === 'not_fetched' ? metricState(n, 'not_fetched')
+    : r.state === 'unavailable' || k.refused.has(n) ? refusedMetric(n)
+    : k.givenUp.has(n) ? metricState(n, 'error', 'extra-not-learned')
+    : metricState(n, r.state === 'error' ? 'error' : 'not_fetched', r.state === 'error' ? 'post-error' : undefined);
+  const metrics = [...r.metrics.filter(m => MEDIA_INSIGHT_METRICS.includes(m.name)), ...wanted.map(n => r.metrics.find(m => m.name === n) ?? absent(n))];
+  return r.state === 'not_fetched' ? {...r, metrics} : summarize(metrics, b);
+}
 // A budget shortfall is never an error: only a Meta error is.
-function summarize(metrics) {
+function summarize(metrics, b = null) {
   const count = s => metrics.filter(m => m.state === s).length;
   if (count('ok') === metrics.length) return {state:'ok', metrics};
   if (count('ok') > 0) return {state:'partial', metrics};
   if (count('error') > 0) return {state:'error', metrics};
-  if (count('not_fetched') > 0) return {state:'not_fetched', reason:'subrequest-budget', metrics};
+  if (count('not_fetched') > 0) return {state:'not_fetched', reason:b?.halted ? 'meta-throttled' : 'subrequest-budget', metrics};
   return {state:'unavailable', metrics};
 }
 async function accountMetrics(b, userId) {
@@ -543,7 +648,7 @@ async function readSocialSnapshot(req,env,url) {
   const insights=new Array(media.items.length);
   for (let i=0;i<order.length;i+=SNAPSHOT_INSIGHT_CONCURRENCY) {
     const chunk=order.slice(i,i+SNAPSHOT_INSIGHT_CONCURRENCY);
-    const results=await Promise.all(chunk.map(k=>mediaInsights(b,media.items[k].id)));
+    const results=await Promise.all(chunk.map(k=>mediaInsights(b,media.items[k].id,media.items[k].media_product_type)));
     results.forEach((r,j)=>{insights[chunk[j]]=r;});
   }
   const followers=identity.extras?countOrNull(identity.me.followers_count):null;
@@ -553,9 +658,9 @@ async function readSocialSnapshot(req,env,url) {
       followers_count:{value:followers, state:followers===null?'unavailable':'ok'},
       media_count:{value:identity.extras?countOrNull(identity.me.media_count):null, state:identity.extras&&countOrNull(identity.me.media_count)!==null?'ok':'unavailable'},
       metrics:account_metrics},
-    media:{requested_max:+maxRaw, returned:media.items.length, pages_fetched:media.pages, has_more:media.hasMore, optional_fields_state:media.optional, picture_field_state:media.picture,
+    media:{requested_max:+maxRaw, returned:media.items.length, pages_fetched:media.pages, has_more:media.hasMore, optional_fields_state:media.optional, picture_field_state:media.picture, feed_field_state:media.feed,
       items:media.items.map((m,i)=>({...m, insights:insights[i]}))},
-    insights:{requested_metrics:MEDIA_INSIGHT_METRICS, priority:'mature-first', mature_days:SNAPSHOT_MATURE_DAYS, halted:b.halted,
+    insights:{requested_metrics:MEDIA_INSIGHT_METRICS, extra_metrics:EXTRA_METRICS, priority:'mature-first', mature_days:SNAPSHOT_MATURE_DAYS, halted:b.halted,
       posts_with_insights:insights.filter(x=>x.state==='ok'||x.state==='partial').length, budget:{limit:b.limit, used:b.used}}
   });
 }
@@ -628,8 +733,20 @@ const AUDIENCE_READS = [
   ['engaged_audience_demographics', 'age,gender', 'this_month'],
   ['follower_demographics', 'age', 'this_month'], ['follower_demographics', 'gender', 'this_month'],
 ];
+// Account signals (ANA-56), additive to the audience answer: reach split into followers and non-followers, and taps on
+// the profile's contact buttons. Meta describes profile_links_taps as taps on the business address, call, email and text
+// buttons: it does NOT count the bio link (Meta has no account-level bio-link metric; per post it is profile_activity,
+// action_type BIO_LINK_CLICKED, FEED and STORY only). Same window as the snapshot's account metrics.
+const SIGNAL_READS = [['reach', 'follow_type'], ['profile_links_taps', 'contact_button_type']];
+// online_followers appears in Meta's documentation only as a limitation (last 30 days, nothing under 100 followers), not
+// in its metric table: one attempt per call, a refusal is a state. The time zone of Meta's hour keys is not documented
+// either and must be read off live data before the dashboard shows hours.
+const ONLINE_FOLLOWERS_WINDOW_DAYS = 28;
 // identity read(s) plus one read per entry above
-const AUDIENCE_SUBREQUEST_BUDGET = AUDIENCE_READS.length + 3;
+// + 1 for follows_and_unfollows of the last 24 hours (Meta: day period, follow_type breakdown, up to 48 h delayed)
+// + one per account signal + 1 for online_followers
+const AUDIENCE_SUBREQUEST_BUDGET = AUDIENCE_READS.length + 4 + SIGNAL_READS.length + 1;
+const FOLLOWS_WINDOW_SECONDS = 86400;
 // The caller has already checked INTERNAL_READ_KEY.
 async function internalIdentity(env, budget) {
   const token=await usableToken(env);
@@ -690,10 +807,62 @@ async function readSocialAudience(req,env) {
   };
   // The four original reads run one after another as before (a throttle stops the rest); the additive reads then run
   // in parallel, so the whole answer stays well inside the dashboard's request timeout even when Meta is slow.
+  // follows and unfollows of the last 24 hours (FOLLOWER = followed, NON_FOLLOWER = unfollowed or left Instagram)
+  const follows=async () => {
+    const until=nowSeconds(), since=until-FOLLOWS_WINDOW_SECONDS;
+    const base={name:'follows_and_unfollows', breakdown:'follow_type', period:'day', since, until};
+    try {
+      const data=await ctx.b.fetch(`/${userId}/insights`,{metric:'follows_and_unfollows', period:'day', metric_type:'total_value', breakdown:'follow_type', since, until});
+      const entry=(Array.isArray(data?.data)?data.data:[]).find(x=>x?.name==='follows_and_unfollows');
+      const results=demographicResults(entry, 'follow_type');
+      return results.length?{...base, state:'ok', results}:{...base, state:'unavailable', error_class:'empty-response', results:[]};
+    } catch(e) {
+      const cls=notSent(e)?e.message:errorClass(e);
+      return {...base, state:e instanceof MetaError&&e.metaCode===100?'unavailable':notSent(e)?'not_fetched':'error', error_class:cls, results:[]};
+    }
+  };
   const metrics=[];
   for (const r of AUDIENCE_READS.slice(0, 4)) metrics.push(await read(r));
-  metrics.push(...await Promise.all(AUDIENCE_READS.slice(4).map(read)));
-  return json({audience_version:1, fetched_at:new Date().toISOString(), provider:'instagram', api_version:GRAPH_VERSION, metrics});
+  const [rest, followsResult, signals, online]=await Promise.all([Promise.all(AUDIENCE_READS.slice(4).map(read)), follows(),
+    Promise.all(SIGNAL_READS.map(s=>signalRead(ctx.b,userId,s))), onlineFollowersRead(ctx.b,userId)]);
+  metrics.push(...rest);
+  return json({audience_version:1, fetched_at:new Date().toISOString(), provider:'instagram', api_version:GRAPH_VERSION, metrics, follows:followsResult,
+    signals, online_followers:online});
+}
+const failedState = e => e instanceof MetaError&&e.metaCode===100?'unavailable':notSent(e)?'not_fetched':'error';
+const failedClass = e => notSent(e)?e.message:errorClass(e);
+// Daily totals over the window with Meta's breakdown. An explicit 0 from Meta is a real 0; no data is an empty answer.
+async function signalRead(b, userId, [name, breakdown]) {
+  const until=nowSeconds(), since=until-ACCOUNT_WINDOW_DAYS*86400;
+  const base={name, breakdown, period:'day', metric_type:'total_value', window_days:ACCOUNT_WINDOW_DAYS, since, until};
+  try {
+    const data=await b.fetch(`/${userId}/insights`,{metric:name, period:'day', metric_type:'total_value', breakdown, since, until});
+    const entry=(Array.isArray(data?.data)?data.data:[]).find(x=>x?.name===name);
+    const total=countOrNull(entry?.total_value?.value);
+    const results=demographicResults(entry, breakdown);
+    return total!==null||results.length?{...base, state:'ok', total, results}:{...base, state:'unavailable', error_class:'empty-response', total:null, results:[]};
+  } catch(e) { return {...base, state:failedState(e), error_class:failedClass(e), total:null, results:[]}; }
+}
+// Meta's lifetime shape: one entry per day, value = {"0": n, ..., "23": n}. Only well-formed days are kept.
+function onlineFollowerDays(entry) {
+  const values=Array.isArray(entry?.values)?entry.values:[];
+  return values.slice(0, 31).map(v=>{
+    const obj=v?.value;
+    if(!obj || typeof obj!=='object' || Array.isArray(obj))return null;
+    const hours=Array.from({length:24},(_,h)=>countOrNull(obj[String(h)]));
+    if(hours.every(x=>x===null))return null;
+    const end=typeof v?.end_time==='string' && v.end_time.length<=40 && !Number.isNaN(Date.parse(v.end_time))?v.end_time:null;
+    return {end_time:end, hours};
+  }).filter(Boolean);
+}
+async function onlineFollowersRead(b, userId) {
+  const until=nowSeconds(), since=until-ONLINE_FOLLOWERS_WINDOW_DAYS*86400;
+  const base={name:'online_followers', period:'lifetime', since, until, hours_timezone:'unverified'};
+  try {
+    const data=await b.fetch(`/${userId}/insights`,{metric:'online_followers', period:'lifetime', since, until});
+    const days=onlineFollowerDays((Array.isArray(data?.data)?data.data:[]).find(x=>x?.name==='online_followers'));
+    return days.length?{...base, state:'ok', days}:{...base, state:'unavailable', error_class:'empty-response', days:[]};
+  } catch(e) { return {...base, state:failedState(e), error_class:failedClass(e), days:[]}; }
 }
 async function refresh(env,force=false) {
   const row=await findToken(env);
@@ -787,4 +956,4 @@ export default {
     })());
   }
 };
-export const testing={randomUrlSafe,digest,constantTimeEquals,seal,openSealed,metaOAuthURL,configured,refresh,unwrapSingle,parsePermissions,MAX_ATTEMPTS_PER_INVITE};
+export const testing={EXTRA_METRICS,randomUrlSafe,digest,constantTimeEquals,seal,openSealed,metaOAuthURL,configured,refresh,unwrapSingle,parsePermissions,MAX_ATTEMPTS_PER_INVITE};

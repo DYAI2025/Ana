@@ -17,7 +17,7 @@ import { AudiencePanel, CommentsPanel, ContentMap, StreamPanel } from "./Panels"
 import { PatternsPanel } from "./Patterns";
 import type { FamilyOf } from "./offers";
 import { assignTheme, type ThemeOverrides } from "./themes";
-import type { CockpitState, PostFormat, SocialResult, SocialSnapshot } from "./types";
+import type { CockpitState, PostFormat, SocialCategories, SocialResult, SocialSnapshot } from "./types";
 import styles from "./social.module.css";
 
 export function InstagramCockpit() {
@@ -88,7 +88,7 @@ export function InstagramCockpit() {
 
         {state === "LOADING" ? <Loading /> : null}
         {result && !result.ok ? <Failure code={result.failure.code} permission={result.failure.state === "PERMISSION_REQUIRED"} onRetry={() => load(true)} /> : null}
-        {snapshot && result?.ok ? <Loaded snapshot={snapshot} stale={result.stale} /> : null}
+        {snapshot && result?.ok ? <Loaded snapshot={snapshot} stale={result.stale} categories={result.categories ?? null} /> : null}
       </div>
     </InspectorProvider>
   );
@@ -143,7 +143,7 @@ function Coverage({ snapshot }: { snapshot: SocialSnapshot }) {
   );
 }
 
-function Loaded({ snapshot, stale }: { snapshot: SocialSnapshot; stale: boolean }) {
+function Loaded({ snapshot, stale, categories }: { snapshot: SocialSnapshot; stale: boolean; categories: SocialCategories | null }) {
   const { t, locale } = useI18n();
   const [overrides, setOverrides] = useState<ThemeOverrides>({});
   const [open, setOpen] = useState<{ id: string | null; seq: number }>({ id: null, seq: 0 });
@@ -176,7 +176,7 @@ function Loaded({ snapshot, stale }: { snapshot: SocialSnapshot; stale: boolean 
           <StreamPanel />
           <ContentMap analysis={analysis} format={mapFormat} onFormat={setMapFormat} onSelect={setOpenId} selectedId={openId} />
           <AudiencePanel />
-          <ContentRows snapshot={snapshot} analysis={analysis} overrides={overrides} onOverride={onOverride} openId={openId} openSeq={open.seq} onOpen={setOpenId} />
+          <ContentRows snapshot={snapshot} analysis={analysis} categories={categories} overrides={overrides} onOverride={onOverride} openId={openId} openSeq={open.seq} onOpen={setOpenId} />
           <PatternsPanel analysis={analysis} themeOf={themeOf} familyOf={familyOf} onSelect={setOpenId} />
           <CommentsPanel />
         </div>

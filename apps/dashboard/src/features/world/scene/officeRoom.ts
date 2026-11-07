@@ -1,27 +1,36 @@
 /**
  * Ana's office as a small 3D room (same comic kit as the world): a cut-away diorama with a desk, a lamp, a computer and
- * a topic board on the wall. The things you can use glow softly and react to the pointer; a click calls onPick. The
+ * a topic board on the wall, and a vintage register on the desk (its display shows what a Reel costs; it opens Ana's
+ * internal rate card). The things you can use glow softly and react to the pointer; a click calls onPick. The
  * board shows the topic matrix as dots in the colours of their quadrant, so the data is visible before anything opens.
  *
  * ROOM_THEME holds the colours of the room: Ana is meant to style her office later (a later step, not built yet).
+ * Until then the room wears her brand (../brand.ts): cream walls, olive lines and textiles, gold only as the rare accent
+ * (pins, the mug, the markers of what you can use), and her original banner in an olive frame above the desk.
  */
 import * as THREE from "three";
 import type { AvatarSpec } from "../people";
 import { ROOM_SPOTS, type BoardDot, type OfficeQuadrant, type RoomSpot } from "../office";
+import { ANA_BANNER, ANA_BRAND } from "../brand";
 import { buildAvatar } from "./avatar";
 import { canvasTexture, disposeGeometry, hex, inked, mesh, PALETTE, toon } from "./kit";
 
 export type { BoardDot, RoomSpot };
 
 export const ROOM_THEME = {
-  wall: 0xf4dccb,
-  sideWall: 0xe6def0,
-  floor: 0xc99a6b,
-  floorLine: 0xa97b50,
-  rug: 0xe8a598,
-  rugInner: 0xf6d4c7,
+  wall: ANA_BRAND.cream,
+  // one step darker than cream, so the corner still reads in the flat light
+  sideWall: 0xe4dfc4,
+  // light oak: warm under cream and olive, without the orange that fought the brand colours
+  floor: 0xcdb08a,
+  floorLine: 0xa98c64,
+  rug: ANA_BRAND.olive,
+  rugInner: ANA_BRAND.cream,
   desk: PALETTE.wood,
-  accent: 0x3d63b8,
+  accent: ANA_BRAND.olive,
+  line: ANA_BRAND.olive,
+  trim: ANA_BRAND.cream,
+  highlight: ANA_BRAND.gold,
 } as const;
 
 const QUADRANT_FILL: Record<OfficeQuadrant, string> = { starter: "#dcefe3", test: "#f6e8cf", niche: "#e2e1f1", skip: "#eceef1" };
@@ -32,6 +41,8 @@ export interface RoomScene {
   focus(spot: RoomSpot | null): void;
   setLamp(on: boolean): void;
   setBoard(dots: readonly BoardDot[]): void;
+  /** what the register's display shows (the Reel's quote); null: an empty display */
+  setRegister(text: string | null): void;
   /** screen position (CSS px inside the canvas) of each spot, for the HTML labels; null when behind the camera */
   anchors(): Record<RoomSpot, { x: number; y: number } | null>;
   resize(): void;
@@ -49,14 +60,25 @@ const POSES: Record<RoomSpot | "room", Pose> = {
   board: { pos: new THREE.Vector3(2.2, 1.8, 1.5), look: new THREE.Vector3(2.15, 1.7, -2.5) },
   computer: { pos: new THREE.Vector3(-0.35, 1.5, 0.2), look: new THREE.Vector3(-0.3, 1.0, -2.2) },
   lamp: { pos: new THREE.Vector3(0.6, 1.9, 0.6), look: new THREE.Vector3(-0.5, 1.0, -2.0) },
+  // the register sits in the left half, like the board: the drawer with the rate card covers the right one
+  register: { pos: new THREE.Vector3(-1.66, 1.45, -0.45), look: new THREE.Vector3(-1.58, 0.95, -1.8) },
 };
+
+const REGISTER_AT = new THREE.Vector3(-1.93, 0.8, -1.8);
 
 /** On a tall screen the camera steps back, and for a spot the thing sits in the upper part (the sheet covers the rest). */
 function poseFor(spot: RoomSpot | null, aspect: number): Pose {
   const base = POSES[spot ?? "room"];
   if (aspect >= 0.9) return base;
   if (!spot) return { pos: base.look.clone().add(base.pos.clone().sub(base.look).multiplyScalar(1.3)), look: base.look.clone().add(new THREE.Vector3(-0.45, -0.3, 0)) };
-  const target = spot === "board" ? new THREE.Vector3(0.9, 1.7, -2.5) : spot === "computer" ? new THREE.Vector3(-1.4, 1.05, -2.2) : new THREE.Vector3(-0.5, 1.0, -2.0);
+  const target =
+    spot === "board"
+      ? new THREE.Vector3(0.9, 1.7, -2.5)
+      : spot === "computer"
+        ? new THREE.Vector3(-1.4, 1.05, -2.2)
+        : spot === "register"
+          ? new THREE.Vector3(REGISTER_AT.x, 0.95, REGISTER_AT.z)
+          : new THREE.Vector3(-0.5, 1.0, -2.0);
   // look below the thing, so it lands in the top quarter of the screen
   return { pos: new THREE.Vector3(target.x, target.y + 0.2, target.z + 3.2), look: new THREE.Vector3(target.x, target.y - 1.0, target.z) };
 }
@@ -117,24 +139,53 @@ function windowView(): THREE.CanvasTexture {
 
 function screenTexture(): THREE.CanvasTexture {
   return canvasTexture(256, (ctx, s) => {
-    ctx.fillStyle = "#1f2a44";
+    // the media kit on the screen (ANA-59): warm paper, a title line, three numbers, two Reel covers
+    ctx.fillStyle = "#fbf8f3";
     ctx.fillRect(0, 0, s, s);
-    // two chat bubbles: the computer will become the place to ask Claude
-    ctx.fillStyle = "#5b8def";
-    ctx.beginPath();
-    ctx.roundRect(s * 0.12, s * 0.2, s * 0.56, s * 0.18, 18);
-    ctx.fill();
-    ctx.fillStyle = "#f6c6d0";
-    ctx.beginPath();
-    ctx.roundRect(s * 0.32, s * 0.48, s * 0.56, s * 0.18, 18);
-    ctx.fill();
-    ctx.fillStyle = "#ffd66b";
+    ctx.fillStyle = "#1d2226";
+    ctx.fillRect(s * 0.08, s * 0.14, s * 0.4, s * 0.07);
+    ctx.fillStyle = "#85592a";
+    ctx.fillRect(s * 0.08, s * 0.07, s * 0.18, s * 0.025);
     for (let k = 0; k < 3; k++) {
+      ctx.fillStyle = "#1d2226";
+      ctx.fillRect(s * (0.08 + k * 0.15), s * 0.32, s * 0.11, s * 0.06);
+      ctx.fillStyle = "#9aa1a6";
+      ctx.fillRect(s * (0.08 + k * 0.15), s * 0.41, s * 0.11, s * 0.02);
+    }
+    ctx.fillStyle = "#2c6e8a";
+    for (const [x, y, r] of [[0.14, 0.7, 0.03], [0.24, 0.66, 0.022], [0.36, 0.74, 0.04], [0.3, 0.8, 0.018]] as const) {
       ctx.beginPath();
-      ctx.arc(s * (0.4 + k * 0.1), s * 0.82, s * 0.03, 0, Math.PI * 2);
+      ctx.arc(s * x, s * y, s * r, 0, Math.PI * 2);
       ctx.fill();
     }
+    ctx.fillStyle = "#d8bb8f";
+    ctx.beginPath();
+    ctx.roundRect(s * 0.58, s * 0.1, s * 0.16, s * 0.42, 10);
+    ctx.fill();
+    ctx.fillStyle = "#cfe1e8";
+    ctx.beginPath();
+    ctx.roundRect(s * 0.77, s * 0.18, s * 0.16, s * 0.42, 10);
+    ctx.fill();
   });
+}
+
+/** The register's display: amber digits on a dark glass, like an old shop till. */
+function drawRegister(ctx: CanvasRenderingContext2D, w: number, h: number, text: string | null) {
+  ctx.fillStyle = "#1c2420";
+  ctx.fillRect(0, 0, w, h);
+  ctx.fillStyle = "#26302b";
+  ctx.fillRect(w * 0.04, h * 0.1, w * 0.92, h * 0.8);
+  ctx.fillStyle = "#ffcf6b";
+  ctx.textAlign = "right";
+  ctx.textBaseline = "middle";
+  const label = text ?? "$ —";
+  let size = h * 0.62;
+  ctx.font = `700 ${size}px ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace`;
+  while (size > 12 && ctx.measureText(label).width > w * 0.84) {
+    size -= 2;
+    ctx.font = `700 ${size}px ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace`;
+  }
+  ctx.fillText(label, w * 0.9, h * 0.53);
 }
 
 /** The board face: four quadrants and one dot per topic, numbered like the list. */
@@ -215,17 +266,17 @@ export function createRoomScene(canvas: HTMLCanvasElement, options: { reducedMot
   const side = mesh(new THREE.BoxGeometry(0.12, 3.2, 5), ROOM_THEME.sideWall);
   side.position.set(-3.06, 1.6, 0);
   room.add(side);
-  const skirting = mesh(new THREE.BoxGeometry(6, 0.12, 0.04), 0xfbfcfd);
+  const skirting = mesh(new THREE.BoxGeometry(6, 0.12, 0.04), ROOM_THEME.line);
   skirting.position.set(0, 0.06, -2.49);
   room.add(skirting);
   const win = new THREE.Group();
-  const winFrame = mesh(new THREE.BoxGeometry(0.08, 1.15, 1.55), 0xfbfcfd, 1.03);
+  const winFrame = mesh(new THREE.BoxGeometry(0.08, 1.15, 1.55), ROOM_THEME.trim, 1.03);
   win.add(winFrame);
   const view = new THREE.Mesh(new THREE.PlaneGeometry(1.35, 0.95), new THREE.MeshBasicMaterial({ map: windowView() }));
   view.rotation.y = Math.PI / 2;
   view.position.x = 0.05;
   win.add(view);
-  const bar = mesh(new THREE.BoxGeometry(0.06, 0.05, 1.4), 0xfbfcfd);
+  const bar = mesh(new THREE.BoxGeometry(0.06, 0.05, 1.4), ROOM_THEME.trim);
   bar.position.x = 0.06;
   win.add(bar);
   win.position.set(-2.98, 1.7, -0.4);
@@ -241,7 +292,7 @@ export function createRoomScene(canvas: HTMLCanvasElement, options: { reducedMot
   rugIn.position.set(0.5, 0.012, 0.3);
   room.add(rugIn);
   const plant = new THREE.Group();
-  const pot = mesh(new THREE.CylinderGeometry(0.22, 0.17, 0.42, 16), 0xe8d6c0, 1.06);
+  const pot = mesh(new THREE.CylinderGeometry(0.22, 0.17, 0.42, 16), ROOM_THEME.trim, 1.06);
   pot.position.y = 0.21;
   plant.add(pot);
   for (let k = 0; k < 7; k++) {
@@ -257,7 +308,7 @@ export function createRoomScene(canvas: HTMLCanvasElement, options: { reducedMot
   const shelf = new THREE.Group();
   const board = mesh(new THREE.BoxGeometry(0.28, 0.05, 1.2), ROOM_THEME.desk, 1.05);
   shelf.add(board);
-  const bookColors = [0xc8584a, 0x5b8def, 0xe0a92e, 0x3aa76d, 0x8a6fc0];
+  const bookColors = [ANA_BRAND.olive, ROOM_THEME.trim, ANA_BRAND.logoOlive, ROOM_THEME.highlight, ANA_BRAND.olive];
   bookColors.forEach((c, k) => {
     const b = mesh(new THREE.BoxGeometry(0.18, 0.26 + (k % 2) * 0.05, 0.07), c, 1.06);
     b.position.set(0, 0.16, -0.45 + k * 0.09);
@@ -311,11 +362,47 @@ export function createRoomScene(canvas: HTMLCanvasElement, options: { reducedMot
   const keys = mesh(new THREE.BoxGeometry(0.5, 0.025, 0.16), 0xe9ecf1, 1.06);
   keys.position.set(0, -0.01, 0.3);
   computer.add(keys);
-  const mug = mesh(new THREE.CylinderGeometry(0.05, 0.045, 0.11, 12), PALETTE.coral, 1.08);
+  const mug = mesh(new THREE.CylinderGeometry(0.05, 0.045, 0.11, 12), ROOM_THEME.highlight, 1.08);
   mug.position.set(0.48, 0.04, 0.22);
   computer.add(mug);
   computer.position.set(-1.4, 0.8, -2.15);
   room.add(computer);
+
+  // ---------- Ana's banner above the desk: the original image, unchanged, in a thin olive frame ----------
+  const bannerW = 1.9;
+  const bannerH = bannerW * (ANA_BANNER.height / ANA_BANNER.width);
+  const banner = new THREE.Group();
+  banner.add(mesh(new THREE.BoxGeometry(bannerW + 0.06, bannerH + 0.06, 0.03), ROOM_THEME.line, 1.02));
+  const bannerMat = new THREE.MeshBasicMaterial({ color: ROOM_THEME.trim });
+  const bannerFace = new THREE.Mesh(new THREE.PlaneGeometry(bannerW, bannerH), bannerMat);
+  bannerFace.position.z = 0.017;
+  banner.add(bannerFace);
+  let bannerTex: THREE.Texture | null = null;
+  let disposed = false;
+  new THREE.TextureLoader().load(
+    ANA_BANNER.src,
+    (tex) => {
+      if (disposed) {
+        tex.dispose();
+        return;
+      }
+      tex.colorSpace = THREE.SRGBColorSpace;
+      tex.anisotropy = Math.min(4, renderer.capabilities.getMaxAnisotropy());
+      bannerTex = tex;
+      // white, so the image keeps its own colours (a basic material is not shaded by the room light)
+      bannerMat.color.setHex(0xffffff);
+      bannerMat.map = tex;
+      bannerMat.needsUpdate = true;
+      canvas.dataset.banner = "loaded";
+    },
+    undefined,
+    () => {
+      // without the image the frame stays cream: nothing breaks, the wall just has an empty frame
+      canvas.dataset.banner = "missing";
+    },
+  );
+  banner.position.set(-1.3, 2.47, -2.485);
+  room.add(banner);
 
   const lamp = new THREE.Group();
   const base = mesh(new THREE.CylinderGeometry(0.11, 0.13, 0.04, 16), PALETTE.ink);
@@ -340,9 +427,64 @@ export function createRoomScene(canvas: HTMLCanvasElement, options: { reducedMot
   lamp.position.set(-0.5, 0.8, -2.1);
   room.add(lamp);
 
+  // ---------- the register: Ana's rate card (the display shows what a Reel costs) ----------
+  const register = new THREE.Group();
+  const till = mesh(new THREE.BoxGeometry(0.36, 0.05, 0.28), PALETTE.woodDark, 1.04);
+  till.position.y = 0.025;
+  register.add(till);
+  const body = mesh(new THREE.BoxGeometry(0.33, 0.1, 0.24), ROOM_THEME.accent, 1.04);
+  body.position.set(0, 0.1, -0.01);
+  register.add(body);
+  const pad = mesh(new THREE.BoxGeometry(0.27, 0.02, 0.12), ROOM_THEME.trim, 1.05);
+  pad.position.set(0, 0.155, 0.04);
+  pad.rotation.x = 0.32;
+  register.add(pad);
+  for (let row = 0; row < 3; row++) {
+    for (let col = 0; col < 4; col++) {
+      const key = mesh(new THREE.BoxGeometry(0.038, 0.016, 0.026), row === 0 && col === 3 ? ROOM_THEME.highlight : PALETTE.ink);
+      key.position.set(-0.09 + col * 0.06, 0.168 - row * 0.012, 0.075 - row * 0.034);
+      key.rotation.x = 0.32;
+      register.add(key);
+    }
+  }
+  const head = mesh(new THREE.BoxGeometry(0.22, 0.095, 0.05), 0x2b2f38, 1.05);
+  head.position.set(0, 0.235, -0.085);
+  register.add(head);
+  const rw = 256;
+  const rh = 96;
+  const registerCanvas = document.createElement("canvas");
+  registerCanvas.width = rw;
+  registerCanvas.height = rh;
+  const registerCtx = registerCanvas.getContext("2d");
+  const registerTex = new THREE.CanvasTexture(registerCanvas);
+  registerTex.colorSpace = THREE.SRGBColorSpace;
+  const display = new THREE.Mesh(new THREE.PlaneGeometry(0.19, 0.072), new THREE.MeshBasicMaterial({ map: registerTex }));
+  display.position.set(0, 0.235, -0.059);
+  register.add(display);
+  const crank = mesh(new THREE.CylinderGeometry(0.008, 0.008, 0.11, 6), PALETTE.chrome);
+  crank.position.set(0.2, 0.12, 0.02);
+  crank.rotation.z = -0.5;
+  register.add(crank);
+  const knob = mesh(new THREE.SphereGeometry(0.018, 10, 8), ROOM_THEME.highlight, 1.1);
+  knob.position.set(0.225, 0.165, 0.02);
+  register.add(knob);
+  register.position.copy(REGISTER_AT);
+  register.scale.setScalar(1.25);
+  // turned a little towards the door, so the display faces whoever comes in
+  register.rotation.y = 0.4;
+  room.add(register);
+  const setRegister = (text: string | null) => {
+    if (!registerCtx) return;
+    drawRegister(registerCtx, rw, rh, text);
+    registerTex.needsUpdate = true;
+    canvas.dataset.register = text ?? "";
+  };
+  setRegister(null);
+
   // ---------- the topic board ----------
   const boardGroup = new THREE.Group();
-  const cork = mesh(new THREE.BoxGeometry(2.0, 1.32, 0.06), 0xc79a63, 1.02);
+  // the board's frame draws the olive line of the brand; the four fields inside keep the colours of their quadrant
+  const cork = mesh(new THREE.BoxGeometry(2.0, 1.32, 0.06), ROOM_THEME.line, 1.02);
   boardGroup.add(cork);
   const bw = 1024;
   const bh = 672;
@@ -356,7 +498,7 @@ export function createRoomScene(canvas: HTMLCanvasElement, options: { reducedMot
   face.position.z = 0.032;
   boardGroup.add(face);
   for (const [x, y] of [[-0.86, 0.55], [0.86, 0.55]] as const) {
-    const pin = mesh(new THREE.SphereGeometry(0.035, 10, 8), PALETTE.coral, 1.1);
+    const pin = mesh(new THREE.SphereGeometry(0.035, 10, 8), ROOM_THEME.highlight, 1.1);
     pin.position.set(x, y, 0.05);
     boardGroup.add(pin);
   }
@@ -372,13 +514,19 @@ export function createRoomScene(canvas: HTMLCanvasElement, options: { reducedMot
   room.add(ana.root);
 
   // ---------- picking and hover ----------
-  const spots: Record<RoomSpot, THREE.Object3D> = { board: boardGroup, computer, lamp };
+  const spots: Record<RoomSpot, THREE.Object3D> = { board: boardGroup, computer, register, lamp };
+  const HALO_AT: Record<RoomSpot, THREE.Vector3> = {
+    board: new THREE.Vector3(0.9, 2.55, -2.4),
+    computer: new THREE.Vector3(-1.5, 1.72, -2.1),
+    register: new THREE.Vector3(REGISTER_AT.x, 1.27, REGISTER_AT.z),
+    lamp: new THREE.Vector3(-0.42, 1.55, -2.0),
+  };
   const glow: Record<RoomSpot, THREE.Mesh> = {} as Record<RoomSpot, THREE.Mesh>;
   // a soft halo marks what can be used; it pulses gently (still under reduced motion)
   for (const s of ROOM_SPOTS) {
-    const halo = new THREE.Mesh(new THREE.RingGeometry(0.16, 0.22, 32), new THREE.MeshBasicMaterial({ color: PALETTE.glow, transparent: true, opacity: 0.85, depthTest: false }));
+    const halo = new THREE.Mesh(new THREE.RingGeometry(0.16, 0.22, 32), new THREE.MeshBasicMaterial({ color: ROOM_THEME.highlight, transparent: true, opacity: 0.9, depthTest: false }));
     halo.renderOrder = 10;
-    halo.position.copy(s === "board" ? new THREE.Vector3(0.9, 2.55, -2.4) : s === "computer" ? new THREE.Vector3(-1.5, 1.72, -2.1) : new THREE.Vector3(-0.42, 1.55, -2.0));
+    halo.position.copy(HALO_AT[s]);
     room.add(halo);
     glow[s] = halo;
   }
@@ -482,6 +630,7 @@ export function createRoomScene(canvas: HTMLCanvasElement, options: { reducedMot
       canvas.dataset.spot = spot ?? "room";
     },
     setLamp,
+    setRegister,
     setBoard(dots) {
       if (!boardCtx) return;
       drawBoard(boardCtx, bw, bh, dots);
@@ -498,10 +647,13 @@ export function createRoomScene(canvas: HTMLCanvasElement, options: { reducedMot
     resize,
     dispose() {
       cancelAnimationFrame(raf);
+      disposed = true;
+      bannerTex?.dispose();
       canvas.removeEventListener("pointermove", onMove);
       canvas.removeEventListener("click", onClick as EventListener);
       disposeGeometry(scene);
       boardTex.dispose();
+      registerTex.dispose();
       renderer.dispose();
       // three keeps cached materials (shared with the world) pointing at this renderer: release the GL context itself,
       // or every visit to the office would hold one more until the browser drops the world's

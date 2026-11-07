@@ -2,6 +2,7 @@
  * Social Intelligence data model (Jira ANA-38). Client-safe: these types describe what the dashboard server returns
  * from GET /api/social/instagram. Provider responses never reach the browser; only this normalized shape does.
  */
+import type { Theme } from "@/features/world/postTags";
 
 /** How trustworthy one value is. A missing value is never 0: it carries one of the non-VERIFIED states and `value: null`. */
 export type Availability = "VERIFIED" | "UNAVAILABLE" | "NOT_FETCHED" | "ERROR";
@@ -17,7 +18,8 @@ export interface Observation {
   /** The field or insight name Instagram used. */
   native_metric_name: string;
   value: number | null;
-  unit: "accounts" | "count";
+  /** "ms" for a Reel's average watch time, "percent" (0-100) for its skip rate */
+  unit: "accounts" | "count" | "ms" | "percent";
   /** "lifetime" for per-post insights, "28d" for account totals, "snapshot" for counts read at observed_at. */
   period: "lifetime" | "28d" | "snapshot";
   availability_state: Availability;
@@ -37,6 +39,9 @@ export type CanonicalMetric =
   | "likes"
   | "comments"
   | "total_interactions"
+  /** Reels only (ANA-51): average watch time in ms, share of views skipped in the first 3 s in percent */
+  | "avg_watch_time"
+  | "skip_rate"
   | "accounts_engaged"
   | "followers"
   | "media_count"
@@ -56,6 +61,12 @@ export interface SocialPost {
   thumbnail_url: string | null;
   /** the picture of a photo post or carousel (Meta gives thumbnail_url only for videos); absent from older workers */
   image_url?: string | null;
+  /**
+   * Meta's is_shared_to_feed (Reels only): true = may appear in Feed and Reels tab, false = Reels tab only. Read to tell
+   * trial Reels from feed Reels; whether false really means "trial" is still to be verified. null = Meta sent no
+   * boolean; absent from older workers.
+   */
+  shared_to_feed?: boolean | null;
   published_at: string | null;
   insights_state: "ok" | "partial" | "unavailable" | "error" | "not_fetched";
   observations: Observation[];
@@ -105,8 +116,17 @@ export interface SocialFailure {
   detail?: string;
 }
 
+/**
+ * Post categories for the cockpit (ANA-60): the Haiku readings the world already keeps (only the theme and the model's
+ * confidence of each post in this snapshot; never a caption). "off" = no model key on the server, so no categories.
+ */
+export interface SocialCategories {
+  state: "on" | "off";
+  tags: Readonly<Record<string, { theme: Theme; confidence: number }>>;
+}
+
 export type SocialResult =
-  | { ok: true; snapshot: SocialSnapshot; stale: false }
+  | { ok: true; snapshot: SocialSnapshot; stale: false; categories?: SocialCategories }
   /** A refresh failed but an earlier snapshot exists: shown with its age, never as current. */
-  | { ok: true; snapshot: SocialSnapshot; stale: true; failure: SocialFailure }
+  | { ok: true; snapshot: SocialSnapshot; stale: true; failure: SocialFailure; categories?: SocialCategories }
   | { ok: false; failure: SocialFailure };

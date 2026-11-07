@@ -58,6 +58,76 @@ export interface WorldAudience extends WorldSourceStatus {
   who: { engaged_week: WhoSeries; engaged_month: WhoSeries; follower: WhoSeries };
   /** days of stored audience snapshots, the base for later comparisons of posts and audience shifts */
   history: { days: number; since: string | null };
+  /** follows and unfollows of the last 24 hours (Meta follows_and_unfollows, up to 48 h delayed; ANA-52) */
+  follows: WorldFollows;
+  /** reach of the last 28 days split into followers and people who do not follow (ANA-56) */
+  reach_split: WorldReachSplit;
+  /** taps on the profile's contact buttons (address, call, email, text), not the bio link (ANA-56) */
+  contact_taps: WorldContactTaps;
+  /** when Ana's followers are online (ANA-56) */
+  online: WorldOnlineHours;
+}
+
+/**
+ * How long people watch Ana's Reels and how many skip in the first 3 s (ANA-52): medians over the measured Reels of
+ * the snapshot, and the stored value of the day before (null on the first day). Missing values are null, never 0.
+ */
+export interface WorldReelViewing {
+  state: "on" | "off";
+  /** Reels with a measured watch time, and with a measured skip rate */
+  reels: number;
+  skip_reels: number;
+  watch_ms: number | null;
+  /** percent 0-100 */
+  skip_pct: number | null;
+  previous: { day: string; watch_ms: number | null; skip_pct: number | null } | null;
+  store_error: boolean;
+}
+
+export const REEL_VIEWING_OFF: WorldReelViewing = { state: "off", reels: 0, skip_reels: 0, watch_ms: null, skip_pct: null, previous: null, store_error: false };
+
+/** A side Meta did not return is null (unknown), never 0. */
+export interface WorldFollows {
+  state: AudienceSeriesState;
+  reason: string | null;
+  /** the window Meta was asked for */
+  since: string | null;
+  until: string | null;
+  gained: number | null;
+  lost: number | null;
+}
+
+/**
+ * Meta reach by follow_type over 28 days. The two groups are what Meta reports for each; their sum can exceed Meta's
+ * deduplicated total (live 2026-11-05: +0.8 %), so a share is taken from the two groups, never against the total.
+ */
+export interface WorldReachSplit {
+  state: AudienceSeriesState;
+  reason: string | null;
+  since: string | null;
+  until: string | null;
+  followers: number | null;
+  non_followers: number | null;
+}
+
+/** Meta profile_links_taps over 28 days; an explicit 0 from Meta is a real 0. */
+export interface WorldContactTaps {
+  state: AudienceSeriesState;
+  reason: string | null;
+  total: number | null;
+}
+
+/**
+ * Meta online_followers: the mean number of followers online per hour over the days Meta returned. Meta counts its
+ * days and hours in US Pacific time (live 2026-11-05: the day boundary moved from 07:00 to 08:00 UTC when US daylight
+ * saving time ended on 1 Nov 2026); here every hour is already moved to its UTC hour, index 0-23.
+ */
+export interface WorldOnlineHours {
+  state: AudienceSeriesState;
+  reason: string | null;
+  days: number;
+  /** 24 entries, index = UTC hour; null where no day had a value for that hour */
+  utc_hours: (number | null)[];
 }
 
 /** age band ("25-34", "65+"), gender ("F", "M", "U" = not stated) and both ("25-34|F") */
@@ -118,6 +188,8 @@ export interface WorldPayload {
   newsletters: WorldNewsletters;
   /** Ana's last 200 posts with their lifetime saves, shares and reach, for the office board (older than the snapshot) */
   post_history: WorldPostHistory;
+  /** median watch time and skip rate of Ana's Reels, with the day before (ANA-52) */
+  reel_viewing: WorldReelViewing;
   /** whether "Was läuft" is written into the ANA Brain (once per Berlin day, see brainWriter.ts) */
   brain: WorldBrainSync;
   /** the brief "Das Wichtigste fürs Geschäft" (features/world/brief.ts); "off" without a model key */

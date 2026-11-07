@@ -5,13 +5,15 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { useI18n } from "@/components/providers/I18nProvider";
 import { useReducedMotion } from "@/lib/hooks/useReducedMotion";
 import { channelStatuses, ORBIT_MAX, instagramView, orbitCount, pulseEvents, shares, trends, TREND_POINTS, whoView, type ChannelView, type PulseEvent, type ShareEntry, type WhoView } from "./model";
+import { ContactTapsTile, FollowsLine, OnlineTile, ReachSplitTile, ViewingTiles } from "./kpiTiles";
 import { BEN_ACTIVITIES, berlinDay, VINCE_ACTIVITIES, type BenActivity, type VinceActivity } from "./berlinDay";
 import { ANA_ACTIVITIES, ANA_OUTFITS, colorHex, currentActivity, SWATCHES, type AnaActivity, type AnaLookId, type ManualLook } from "./looks";
 import { PEOPLE, PROJECTS, type WorldPersonId } from "./people";
 import type { AudienceSeries, WorldPayload } from "./types";
 import { postsWith, TAG_FIELDS, TAG_MIN_CONFIDENCE, topPosts, whatWorks, type PostTags, type RateKind, type TagField } from "./postTags";
 import type { SceneData, SceneRef, StationStatus, ViewName, WorldScene } from "./scene/world";
-import { pulseDigest } from "./pulse";
+import { pulseDigest, SETTLED_DAYS as REEL_SETTLED_DAYS } from "./pulse";
+import { clearSignals, LAB_MIN_AGE_DAYS, LAB_MIN_DIFF, LAB_MIN_N, pairState, pairSummary, reelPairs, strangerSignals, type StrangerRow } from "./trialLab";
 import { BriefBlock } from "./BriefBlock";
 import { BerlinRoom } from "@/features/office/BerlinRoom";
 import { OfficeRoom } from "./OfficeRoom";
@@ -266,7 +268,9 @@ export function WorldView() {
   }, [world, layer, country, t]);
   const who = useMemo(() => (world ? whoView(whoOf(world, layer)) : null), [world, layer]);
   const whoTitle = t(layer === "week" ? "world.who.week" : layer === "engaged" ? "world.who.month" : "world.who.followers");
-  const anaPlaceLabel = world?.places.ana?.label ?? null;
+  // a two-letter country code (WORLD_ANA_PLACE=TH;...) is shown as the country's name in the dashboard language
+  const anaPlaceRaw = world?.places.ana?.label ?? null;
+  const anaPlaceLabel = anaPlaceRaw && /^[A-Z]{2}$/.test(anaPlaceRaw) ? country(anaPlaceRaw) : anaPlaceRaw;
 
   // the look as the panel last saved it (until a world read from after the save arrives)
   const effectiveLook = useMemo(() => {
@@ -389,6 +393,13 @@ export function WorldView() {
   // "Was läuft": the same digest the Brain gets once a day
   const digest = useMemo(() => (world ? pulseDigest(world, Date.parse(world.generated_at)) : null), [world]);
   const freshPosts = useMemo(() => (ig && digest ? digest.fresh.flatMap((f) => ig.posts.filter((p) => p.id === f.id)) : []), [ig, digest]);
+  // trial lab: trial and feed version of the same video, and what does better with strangers than with the community
+  const lab = useMemo(() => {
+    if (!world || !ig || !ig.posts.some((p) => typeof p.trial === "boolean")) return null;
+    const nowMs = Date.parse(world.generated_at);
+    const pairs = reelPairs(ig.posts, nowMs);
+    return { pairs, summary: pairSummary(pairs), signals: strangerSignals(ig.posts, world.post_tags.tags, nowMs) };
+  }, [world, ig]);
   const pickedAll = useMemo(() => {
     if (!world || !ig || !worksPick) return null;
     return worksPick === "top" ? top : worksPick === "fresh" ? freshPosts : postsWith(ig.posts, world.post_tags.tags, worksPick.field, worksPick.value, rateKind);
@@ -420,11 +431,16 @@ export function WorldView() {
     );
   };
   const pct1 = (v: number | null) => (v === null ? "—" : `${pf.format(v * 100)} %`);
-  const postRow = (p: { id: string; format: string; er: number | null; ssr: number | null; reach: number | null; permalink: string | null }, extra?: string | null) => (
-    <li key={p.id} className={styles.postRow}>
+  const postRow = (p: { id: string; format: string; er: number | null; ssr: number | null; reach: number | null; permalink: string | null; trial?: boolean | null }, extra?: string | null) => (
+    <li key={p.id} className={styles.postRow} data-trial={p.trial === true ? "true" : undefined}>
       <button type="button" className={styles.postTitle} onClick={() => { setSelected({ type: "post", id: p.id }); setTab("selection"); }}>
         {postTitle(p.id)}
       </button>
+      {p.trial === true ? (
+        <span className={styles.trialBadge} data-testid="post-trial">
+          {t("world.hot.trialBadge")}
+        </span>
+      ) : null}
       <span className={styles.muted}>
         {t("world.works.meta", { format: t(`world.works.values.format.${p.format}` as never), er: pct1(p.er), ssr: pct1(p.ssr), reach: num(p.reach) })}
       </span>
@@ -615,7 +631,8 @@ export function WorldView() {
                   <ol className={styles.postList}>
                     {freshPosts.map((p) => {
                       const f = digest.fresh.find((x) => x.id === p.id);
-                      return postRow(p, f?.vsMedian != null ? t("world.hot.vsMedian", { x: pf.format(f.vsMedian) }) : null);
+                      const key = f?.trial === true ? "world.hot.vsMedianTrial" : f?.trial === false ? "world.hot.vsMedianFeed" : "world.hot.vsMedian";
+                      return postRow(p, f?.vsMedian != null ? t(key, { x: pf.format(f.vsMedian) }) : null);
                     })}
                   </ol>
                   <button type="button" className={styles.linkButton} aria-pressed={pick === "fresh"} onClick={() => setWorksPick(pick === "fresh" ? null : "fresh")}>
@@ -627,6 +644,93 @@ export function WorldView() {
                 <p className={styles.muted}>{t("world.hot.freshNone")}</p>
               )}
             </div>
+            {digest.reels ? (
+              <div className={styles.audienceGroup} data-testid="world-hot-reels">
+                <h4>{t("world.hot.reels.title")}</h4>
+                {(["feed", "trial"] as const).map((kind) => {
+                  const g = digest.reels![kind];
+                  return (
+                    <p key={kind} data-testid={`world-hot-reels-${kind}`}>
+                      <b>{t(`world.hot.reels.${kind}`)}</b>{" "}
+                      {g.n ? t("world.hot.reels.line", { n: g.n, views: num(g.views), reach: num(g.reach), er: pct1(g.er) }) : <span className={styles.muted}>{t("world.hot.reels.none", { days: REEL_SETTLED_DAYS })}</span>}
+                    </p>
+                  );
+                })}
+                <p className={styles.note}>{t("world.hot.reels.note", { days: REEL_SETTLED_DAYS })}</p>
+              </div>
+            ) : null}
+            {lab ? (
+              <details className={styles.more} data-testid="world-trial-lab">
+                <summary>{t("world.lab.title")}</summary>
+                <p className={styles.muted}>{t("world.lab.lead")}</p>
+                <div className={styles.audienceGroup} data-testid="world-lab-pairs">
+                  <h4>{t("world.lab.pairs")}</h4>
+                  {lab.summary.n > 0 && lab.summary.reachX !== null && lab.summary.erShare !== null ? (
+                    <p data-testid="world-lab-pairs-summary">
+                      {t("world.lab.pairsSummary", { n: lab.summary.n, x: pf.format(lab.summary.reachX), share: `${Math.round(lab.summary.erShare * 100)} %` })}
+                    </p>
+                  ) : null}
+                  {lab.pairs.length ? (
+                    <ol className={styles.postList}>
+                      {lab.pairs.map((p) => (
+                        <li key={p.feed.id} className={styles.postRow} data-testid="world-lab-pair">
+                          <button type="button" className={styles.postTitle} onClick={() => { setSelected({ type: "post", id: p.feed.id }); setTab("selection"); }}>
+                            {postTitle(p.feed.id)}
+                          </button>
+                          <span className={styles.muted}>{t("world.lab.pairLine", { tReach: num(p.trial.reach), tEr: pct1(p.trial.er), fReach: num(p.feed.reach), fEr: pct1(p.feed.er) })}</span>
+                          {(() => {
+                            const state = pairState(p);
+                            return (
+                              <span className={state === "ready" ? styles.hotBadge : styles.trialBadge} data-state={state}>
+                                {state === "ready" ? t("world.lab.pairShare", { share: `${Math.round(p.erShare! * 100)} %` }) : state === "missing" ? t("world.lab.pairNoData") : t("world.lab.pairYoung")}
+                              </span>
+                            );
+                          })()}
+                        </li>
+                      ))}
+                    </ol>
+                  ) : (
+                    <p className={styles.muted}>{t("world.lab.pairsNone")}</p>
+                  )}
+                  <p className={styles.note}>{t("world.lab.pairNote", { days: LAB_MIN_AGE_DAYS })}</p>
+                </div>
+                <div className={styles.audienceGroup} data-testid="world-lab-signals">
+                  {(() => {
+                    const line = (r: StrangerRow) => (
+                      <li key={`${r.field}-${r.value}`} data-testid="world-lab-signal">
+                        {t("world.lab.row", {
+                          field: t(`world.works.fields.${r.field}`),
+                          value: t(`world.works.values.${r.field}.${r.value}` as never),
+                          trial: `${pf.format(r.trial.index)}×`,
+                          tn: r.trial.n,
+                          feed: `${pf.format(r.feed.index)}×`,
+                          fn: r.feed.n,
+                        })}
+                      </li>
+                    );
+                    const { better, worse } = clearSignals(lab.signals);
+                    if (!better.length && !worse.length) return <p className={styles.muted}>{t("world.lab.none", { n: LAB_MIN_N, days: LAB_MIN_AGE_DAYS, gap: Math.round(LAB_MIN_DIFF * 100) })}</p>;
+                    return (
+                      <>
+                        {better.length ? (
+                          <>
+                            <h4>{t("world.lab.better")}</h4>
+                            <ul className={styles.plain}>{better.map(line)}</ul>
+                          </>
+                        ) : null}
+                        {worse.length ? (
+                          <>
+                            <h4>{t("world.lab.worse")}</h4>
+                            <ul className={styles.plain}>{worse.map(line)}</ul>
+                          </>
+                        ) : null}
+                      </>
+                    );
+                  })()}
+                  <p className={styles.note}>{t("world.lab.note")}</p>
+                </div>
+              </details>
+            ) : null}
             {digest.brand.n > 0 ? (
               <p data-testid="world-hot-brand">
                 <b>{t("world.hot.brand")}</b> {t("world.hot.brandLine", { n: digest.brand.n, er: pct1(digest.brand.er), other: digest.brand.otherN, otherEr: pct1(digest.brand.otherEr) })}
@@ -660,6 +764,7 @@ export function WorldView() {
         <div data-testid="world-kpi-followers">
           <span>{t("world.kpi.followers")}</span>
           <b>{num(ig?.followers ?? null)}</b>
+          {world ? <FollowsLine follows={world.audience.follows} current={world.audience.state === "ok"} t={t} locale={locale} /> : null}
         </div>
         <div>
           <span>{t("world.kpi.reach28")}</span>
@@ -669,11 +774,20 @@ export function WorldView() {
           <span>{t("world.kpi.interactions28")}</span>
           <b>{num(ig?.interactions28 ?? null)}</b>
         </div>
+        {world ? <ReachSplitTile split={world.audience.reach_split} current={world.audience.state === "ok"} t={t} locale={locale} /> : null}
+        {world ? <OnlineTile online={world.audience.online} current={world.audience.state === "ok"} place={world.places.ana} placeLabel={anaPlaceLabel} t={t} locale={locale} /> : null}
+        {world ? <ContactTapsTile taps={world.audience.contact_taps} current={world.audience.state === "ok"} t={t} locale={locale} /> : null}
         <div data-testid="world-kpi-posts">
           <span>{t("world.kpi.posts")}</span>
           <b>{num(ig ? orbitCount(ig.posts) : null)}</b>
         </div>
+        {world ? <ViewingTiles viewing={world.reel_viewing} t={t} locale={locale} /> : null}
       </div>
+      {world?.reel_viewing.state === "on" ? (
+        <p className={styles.note} data-testid="world-kpi-note">
+          {t("world.kpi.note")}
+        </p>
+      ) : null}
       <section className={styles.section} aria-labelledby="world-feed">
         <h3 id="world-feed">{t("world.feed.title")}</h3>
         {events.length === 0 ? (
@@ -823,7 +937,7 @@ export function WorldView() {
       return (
         <div className={styles.pane}>
           <h3 className={styles.selTitle} style={{ ["--tint" as string]: p.tint }}>{p.name}</h3>
-          <p>{s.id === "ana" ? (place ? place.label : t("world.places.anaUnknown")) : t("world.places.berlin")}</p>
+          <p>{s.id === "ana" ? (place ? anaPlaceLabel ?? place.label : t("world.places.anaUnknown")) : t("world.places.berlin")}</p>
           {s.id !== "ana" || place ? <p className={styles.muted}>{s.id === "ana" && !place?.tz ? t("world.people.localTimeEstimated", { time: local }) : t("world.people.localTime", { time: local })}</p> : null}
           {s.id === "ana" ? (
             <button type="button" className={styles.officeOpen} onClick={() => setOffice(true)} data-testid="office-open">
@@ -903,6 +1017,11 @@ export function WorldView() {
           <p className={styles.muted}>{p.published_at ? t("world.post.published", { time: ago(p.published_at) }) : null}</p>
           {tagChips(p.id)}
           {p.fresh ? <p className={styles.note}>{t("world.post.fresh")}</p> : null}
+          {p.trial === true ? (
+            <p className={styles.note} data-testid="world-post-trial">
+              <span className={styles.trialBadge}>{t("world.hot.trialBadge")}</span> {t("world.post.trial")}
+            </p>
+          ) : null}
           <div className={styles.kpis}>
             {(["reach", "views", "likes", "comments", "saves", "shares"] as const).map((k) => (
               <div key={k}>
@@ -911,6 +1030,18 @@ export function WorldView() {
               </div>
             ))}
           </div>
+          {p.format === "reel" ? (
+            <div className={styles.kpis} data-testid="world-post-viewing">
+              <div>
+                <span>{t("world.post.watchTime")}</span>
+                <b>{p.watchSeconds == null ? "—" : `${pf.format(p.watchSeconds)} s`}</b>
+              </div>
+              <div>
+                <span>{t("world.post.skipRate")}</span>
+                <b>{pct1(p.skipRate ?? null)}</b>
+              </div>
+            </div>
+          ) : null}
           <p>{p.er !== null && ig.erMedian !== null ? t("world.post.er", { value: `${pf.format(p.er * 100)} %`, median: `${pf.format(ig.erMedian * 100)} %` }) : p.er !== null ? t("world.post.er", { value: `${pf.format(p.er * 100)} %`, median: "—" }) : t("world.post.erNone")}</p>
           {p.ssr !== null ? <p data-testid="world-post-ssr">{t("world.post.ssr", { value: pct1(p.ssr) })}</p> : null}
           <p className={styles.muted}>{t("world.post.countersAt", { time: ago(p.counters_at) })}</p>

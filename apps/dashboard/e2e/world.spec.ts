@@ -2,6 +2,9 @@
  * ANA-48 — the 3D world end to end through the production build, /api/world and the local fake worker (synthetic data
  * only, see e2e/fake-social/core.mjs). WebGL runs in headless Chromium (SwiftShader).
  */
+import AxeBuilder from "@axe-core/playwright";
+import { mkdir, rm, writeFile } from "node:fs/promises";
+import path from "node:path";
 import type { Page } from "@playwright/test";
 import { PNG } from "pngjs";
 import { expect, FAKE_BRAIN, FAKE_SOCIAL, test } from "./fixtures";
@@ -61,6 +64,18 @@ test.describe("ANA World — 3D view over real dashboard data", () => {
     await expect(page.getByTestId("world-canvas")).toHaveAttribute("data-arcs", "4");
     await expect(page.getByTestId("world-canvas")).toHaveAttribute("data-rising", "1");
     await expect(page.getByTestId("world-kpi-followers")).toContainText("12,400");
+    // ANA-52: followed / unfollowed in 24 h, and the Reel medians (20 measured synthetic Reels), first day without a comparison
+    await expect(page.getByTestId("world-kpi-follows")).toHaveText("▲+120 / −45 in 24 h");
+    await expect(page.getByTestId("world-kpi-watch")).toContainText("26.3 s");
+    await expect(page.getByTestId("world-kpi-skip")).toContainText("29.0 %");
+    await expect(page.getByTestId("world-kpi-watch-delta")).toHaveText("Comparison from tomorrow");
+    await expect(page.getByTestId("world-kpi-note")).toContainText("up to 48 h late");
+    // ANA-56: share of new people from the two reach groups; the online peak (Pacific hour 7, PST) in the place's time (Nairobi)
+    await expect(page.getByTestId("world-kpi-new-people")).toContainText("90 %");
+    await expect(page.getByTestId("world-kpi-new-people-split")).toHaveText("9K new · 1K followers");
+    await expect(page.getByTestId("world-kpi-online")).toContainText("18:00");
+    await expect(page.getByTestId("world-kpi-online-where")).toHaveText("Testregion time · about 3,300 online");
+    await expect(page.getByTestId("world-kpi-contact-taps")).toHaveCount(0);
     const countries = page.getByTestId("world-audience-country");
     await expect(countries).toContainText("Spain");
     await expect(countries).toContainText("150");
@@ -133,9 +148,11 @@ test.describe("ANA World — 3D view over real dashboard data", () => {
     const n = await list.locator("li").count();
     expect(n).toBeGreaterThan(0);
     await expect(canvas).not.toHaveAttribute("data-highlight", "none");
-    // a post in the list opens its numbers
+    // a post in the list opens its numbers; a Reel also how it is watched (ANA-51)
     await list.locator("li").first().locator("button").first().click();
     await expect(page.getByTestId("world-post")).toBeVisible();
+    await expect(page.getByTestId("world-post-viewing")).toContainText(/Avg\. watch time\s*\d+(\.\d)? s/);
+    await expect(page.getByTestId("world-post-viewing")).toContainText(/Skipped in the first 3 s\s*\d+(\.\d)? %/);
   });
 
   test("works · ranking by saves + shares (the Substack hint) relabels the top posts, the counts and the note", async ({ page }) => {
@@ -396,7 +413,7 @@ test.describe("ANA World — 3D view over real dashboard data", () => {
     // the room is drawn (WebGL) and the three things float as buttons over it
     await page.locator('[data-testid="office-canvas"][data-ready="true"]').waitFor({ timeout: 20_000 });
     await expect(office).toHaveAttribute("data-spot", "room");
-    for (const s of ["board", "computer", "lamp"]) await expect(page.getByTestId(`office-spot-${s}`)).toBeVisible();
+    for (const s of ["board", "computer", "register", "lamp"]) await expect(page.getByTestId(`office-spot-${s}`)).toBeVisible();
     // only one 3D view draws: the world rests behind the office
     await expect(page.getByTestId("world-canvas")).toHaveAttribute("data-paused", "true");
     // the lamp switches
@@ -433,7 +450,28 @@ test.describe("ANA World — 3D view over real dashboard data", () => {
     await page.keyboard.press("Escape");
     await expect(office).toHaveAttribute("data-spot", "room");
     await expect(page.getByTestId("office-drawer")).toHaveCount(0);
-    // the computer holds the analyst (e2e/analyst.spec.ts)
+    // the computer shows Ana's media kit (ANA-59): the kit page itself, inside the room, and full size in a new tab
+    await page.getByTestId("office-spot-computer").click();
+    await expect(page.getByTestId("office-computer")).toBeVisible();
+    await expect(page.getByTestId("office-kit")).toHaveAttribute("src", "/kit");
+    await expect(page.frameLocator("[data-testid='office-kit']").getByTestId("kit")).toBeVisible({ timeout: 20_000 });
+    await expect(page.frameLocator("[data-testid='office-kit']").getByRole("heading", { level: 1 })).toHaveText("Ana Savu");
+    await expect(page.getByTestId("office-kit-open")).toHaveAttribute("href", "/kit");
+    const kitFrame = page.frameLocator("[data-testid='office-kit']");
+    // Tab from the link goes into the kit (the frame is a stop of the room's Tab order)
+    await page.getByTestId("office-kit-open").focus();
+    await page.keyboard.press("Tab");
+    expect(await page.evaluate(() => document.activeElement?.getAttribute("data-testid"))).toBe("office-kit");
+    // a preset picked inside the frame goes along to "Open full size"
+    await kitFrame.getByTestId("kit-preset-asia").click();
+    await expect(kitFrame.getByTestId("kit")).toHaveAttribute("data-preset", "asia");
+    await page.getByTestId("office-kit-open").dispatchEvent("click");
+    await expect(page.getByTestId("office-kit-open")).toHaveAttribute("href", "/kit?for=asia");
+    // Escape inside the kit steps back into the room, like everywhere in the office
+    await kitFrame.getByTestId("kit-preset-west").focus();
+    await page.keyboard.press("Escape");
+    await expect(office).toHaveAttribute("data-spot", "room");
+    await expect(page.getByTestId("office-spot-computer")).toBeFocused();
     await page.getByTestId("office-spot-computer").click();
     await expect(page.getByTestId("office-computer")).toBeVisible();
     await page.getByTestId("office-back").click();
@@ -462,6 +500,104 @@ test.describe("ANA World — 3D view over real dashboard data", () => {
     await page.getByTestId("office-close").click();
     await expect(page.getByTestId("office")).toHaveCount(0);
     await expect(page.getByTestId("office-open")).toBeFocused();
+  });
+
+  test("office · the register on Ana's desk shows the Reel's quote and opens her internal rate card", async ({ page }) => {
+    test.skip(Boolean(process.env.E2E_BASE_URL), "writes rate-card.json into the e2e server's state directory");
+    test.setTimeout(90_000);
+    const file = path.join(process.cwd(), "test-results/.world-state", "rate-card.json");
+    await mkdir(path.dirname(file), { recursive: true });
+    await writeFile(
+      file,
+      JSON.stringify({
+        currency: "USD",
+        rates: [
+          { id: "reel", name: "Instagram Reel", quote: 1500, includes: ["Crossposted to TikTok, Facebook and YouTube Shorts"], note: "Fixed rate" },
+          { id: "bundle", name: "Reel + 3 Stories", quote: 1950, minimum: 1750 },
+        ],
+        addons: [{ name: "Usage rights", tiers: [{ label: "30 days", value: "+30 %" }, { label: "90 days", value: "+50 %" }], note: "Of the content fee" }],
+        tips: ["Name our price first."],
+      }),
+    );
+    try {
+      await page.emulateMedia({ reducedMotion: "reduce" });
+      await openWorld(page);
+      await page.getByTestId("world-view-ana").click();
+      await page.locator(".world-label.office").click();
+      const office = page.getByTestId("office");
+      const canvas = page.locator('[data-testid="office-canvas"][data-ready="true"]');
+      await canvas.waitFor({ timeout: 20_000 });
+      // the data is visible before anything opens: the register's display shows what a Reel costs
+      await expect(page.getByTestId("office-canvas")).toHaveAttribute("data-register", "$1,500");
+      await page.getByTestId("office-spot-register").click();
+      await expect(office).toHaveAttribute("data-spot", "register");
+      await expect(page.locator("#office-drawer-title")).toBeFocused();
+      const rates = page.getByTestId("office-rates");
+      await expect(page.getByTestId("office-rate-reel-quote")).toHaveText("$1,500");
+      // a rate without a minimum shows none; the bundle shows the lowest we accept
+      await expect(page.getByTestId("office-rate-reel-minimum")).toHaveCount(0);
+      await expect(page.getByTestId("office-rate-bundle-quote")).toHaveText("$1,950");
+      await expect(page.getByTestId("office-rate-bundle-minimum")).toContainText("$1,750");
+      await expect(page.getByTestId("office-rate-addons")).toContainText("+50 %");
+      await expect(page.getByTestId("office-rate-tips")).toContainText("Name our price first.");
+      await expect(rates).toContainText("Crossposted to TikTok, Facebook and YouTube Shorts");
+      const axe = await new AxeBuilder({ page }).include("[data-testid='office-drawer']").withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"]).analyze();
+      expect(axe.violations.filter((v) => v.impact === "serious" || v.impact === "critical").map((v) => `${v.id}: ${v.nodes.map((n) => n.target.join(" ")).join(", ")}`)).toEqual([]);
+      // the team edits the card right there: a new quote for the Reel, a new format; the register follows
+      await page.getByTestId("office-rates-edit").click();
+      const editor = page.getByTestId("office-rates-editor");
+      await expect(editor).toBeVisible();
+      // Escape inside the editor does not leave the room (the edits would be lost)
+      await editor.getByLabel(/Quote|Angebot|Proposta/).first().focus();
+      await page.keyboard.press("Escape");
+      await expect(office).toHaveAttribute("data-spot", "register");
+      await editor.getByLabel(/Quote|Angebot|Proposta/).first().fill("1725");
+      await editor.getByLabel(/Lowest|Mindestens|Minimo/).first().fill("1500");
+      await page.getByTestId("office-rates-add-rate").click();
+      const added = page.getByTestId("office-rates-edit-rate-2");
+      await added.getByLabel(/^(Name|Nome)$/).fill("TikTok video");
+      await added.getByLabel(/Quote|Angebot|Proposta/).fill("900");
+      await page.getByTestId("office-rates-edit-tips").fill("");
+      const axeEdit = await new AxeBuilder({ page }).include("[data-testid='office-drawer']").withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"]).analyze();
+      expect(axeEdit.violations.filter((v) => v.impact === "serious" || v.impact === "critical").map((v) => v.id)).toEqual([]);
+      await page.getByTestId("office-rates-save").click();
+      await expect(page.getByTestId("office-rate-reel-quote")).toHaveText("$1,725");
+      await expect(page.getByTestId("office-rate-reel-minimum")).toContainText("$1,500");
+      await expect(page.getByTestId("office-rate-tiktok-video-quote")).toHaveText("$900");
+      await expect(page.getByTestId("office-rate-tips")).toHaveCount(0);
+      await expect(page.getByTestId("office-rates-edited")).toBeVisible();
+      await expect(page.getByTestId("office-canvas")).toHaveAttribute("data-register", "$1,725");
+      const stored = (await (await page.request.get("/api/rate-card")).json()).card;
+      expect(stored.rates.map((r: { id: string; quote: number }) => `${r.id}:${r.quote}`)).toEqual(["reel:1725", "bundle:1950", "tiktok-video:900"]);
+      // a save that started from an older version is refused, the newer one stays
+      const stale = await page.request.put("/api/rate-card", { data: { card: { rates: [{ id: "reel", name: "Reel", quote: 1 }] }, base: null } });
+      expect(stale.status()).toBe(409);
+      expect((await stale.json()).card.rates[0].quote).toBe(1725);
+      // invalid input is refused whole; another site and a request without login cannot write
+      expect((await page.request.put("/api/rate-card", { data: { card: { rates: [{ id: "reel", name: "", quote: -1 }] }, base: stored.updated_at } })).status()).toBe(400);
+      expect((await page.request.put("/api/rate-card", { data: { card: stored, base: stored.updated_at }, headers: { "sec-fetch-site": "cross-site" } })).status()).toBe(403);
+      expect([401, 403]).toContain((await page.request.put("/api/rate-card", { data: { card: stored, base: stored.updated_at }, headers: { host: "kit.brand.example" } })).status());
+      expect((await (await page.request.get("/api/rate-card")).json()).card.rates[0].quote).toBe(1725);
+      // a cancelled edit changes nothing
+      await page.getByTestId("office-rates-edit").click();
+      await editor.getByLabel(/Quote|Angebot|Proposta/).first().fill("1");
+      await page.getByTestId("office-rates-cancel").click();
+      await expect(page.getByTestId("office-rates-edit")).toBeFocused();
+      await expect(page.getByTestId("office-rate-reel-quote")).toHaveText("$1,725");
+      await page.keyboard.press("Escape");
+      await expect(office).toHaveAttribute("data-spot", "room");
+      await expect(page.getByTestId("office-spot-register")).toBeFocused();
+      // without the file the register stays empty and the drawer says where the card goes
+      await rm(file, { force: true });
+      await page.getByTestId("office-close").click();
+      await page.locator(".world-label.office").click();
+      await canvas.waitFor({ timeout: 20_000 });
+      await page.getByTestId("office-spot-register").click();
+      await expect(page.getByTestId("office-rates-empty")).toContainText("rate-card.json");
+      await expect(page.getByTestId("office-canvas")).toHaveAttribute("data-register", "");
+    } finally {
+      await rm(file, { force: true });
+    }
   });
 
   test("office · twenty visits leave the world's 3D alive (each room releases its WebGL context)", async ({ page }) => {

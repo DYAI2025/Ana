@@ -55,12 +55,20 @@ export interface WorldPost {
    * long-form reading (Substack) than a like
    */
   ssr: number | null;
+  /** Reels only: average watch time in seconds and the share of views skipped in the first 3 s (0-1), when measured */
+  watchSeconds?: number | null;
+  skipRate?: number | null;
   /** true when the post is in the pulse but not yet in the snapshot (no insights yet) */
   fresh: boolean;
   /** cover picture on Meta's CDN (video thumbnail or photo), null when unknown */
   cover?: string | null;
   /** one of Ana's older posts from the history list (not in the world view, so it cannot be opened there) */
   history?: boolean;
+  /**
+   * Reels only: true = trial Reel (Meta's is_shared_to_feed false: Reels tab only, shown to non-followers, not on the
+   * profile), false = feed Reel, null = unknown (no flag from the worker, or not a Reel)
+   */
+  trial?: boolean | null;
 }
 
 export interface ChannelView {
@@ -139,6 +147,9 @@ export function instagramView(world: WorldPayload): ChannelView {
       ssr: reach && value(p, "saves") !== null && value(p, "shares") !== null ? ((value(p, "saves") as number) + (value(p, "shares") as number)) / reach : null,
       fresh: false,
       cover: p.thumbnail_url ?? p.image_url ?? null,
+      watchSeconds: value(p, "avg_watch_time") === null ? null : (value(p, "avg_watch_time") as number) / 1000,
+      skipRate: value(p, "skip_rate") === null ? null : (value(p, "skip_rate") as number) / 100,
+      trial: p.format === "reel" && typeof p.shared_to_feed === "boolean" ? !p.shared_to_feed : null,
     };
   });
   const known = new Set(posts.map((p) => p.id));

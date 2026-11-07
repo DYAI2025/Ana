@@ -196,6 +196,11 @@
   font-size: 11px;
 }
 
+/* the door to Ana's office: the one place in the world that wears her brand, so its sign carries a gold edge */
+.labels :global(.world-label.office) {
+  border-left: 4px solid #dec84f;
+}
+
 .labels :global(.world-label.country-up) {
   border-left: 4px solid #f0a02c;
 }
@@ -471,6 +476,25 @@
   font: 700 19px/1.15 var(--font);
   color: var(--text);
   font-variant-numeric: tabular-nums;
+}
+
+/* ANA-52: what changed since yesterday or in the last 24 h */
+.kpis .kpiDelta {
+  font: 500 11px/1.3 var(--font);
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.kpis .kpiDelta[data-good="true"] > span {
+  color: #1f7a4a;
+}
+
+.kpis .kpiDelta[data-good="false"] > span {
+  color: #b3362c;
+}
+
+.kpis .kpiDelta > span {
+  margin-right: 3px;
 }
 
 .feed {
@@ -851,6 +875,16 @@ button.barLabel {
   border: 1px solid var(--ink-coral);
   font: 600 11px/1.5 var(--font);
   color: var(--ink-coral);
+}
+
+/* a trial Reel (shown to non-followers only): a quiet label, not a warning */
+.trialBadge {
+  align-self: flex-start;
+  padding: 1px 7px;
+  border-radius: 999px;
+  border: 1px dashed var(--ink-cool);
+  font: 600 11px/1.5 var(--font);
+  color: var(--ink-cool);
 }
 
 .barValue[data-dir="up"] {
@@ -1416,18 +1450,23 @@ button.barLabel {
   max-width: 90ch;
 }
 
-/* Ana's office as a 3D room: the stage fills the dialog, the things float as buttons, the board opens in a drawer */
+/* Ana's office as a 3D room: the stage fills the dialog, the things float as buttons, the board opens in a drawer.
+   The room wears Ana's brand (brand.ts): cream ground, 1 px olive lines, almost square corners, no shadows, labels in
+   spaced capitals; gold only as a fill behind black text or as an edge, never as text on cream. */
 .officeRoom {
+  --ana-cream: #f2efdc;
+  --ana-gold: #dec84f;
+  --ana-olive: #5f5722;
+  --ana-ink: #000000;
   width: min(1320px, 100%);
   height: calc(100dvh - 32px);
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
-  background: linear-gradient(180deg, #fdf3ea, #f4e6da);
-  border: 1px solid var(--glass-edge);
-  border-radius: 22px;
-  box-shadow: var(--glass-shadow-raised);
+  background: var(--ana-cream);
+  border: 1px solid var(--ana-olive);
+  border-radius: 6px;
   overflow: hidden;
-  color: var(--text);
+  color: var(--ana-ink);
 }
 
 .officeBar {
@@ -1436,17 +1475,18 @@ button.barLabel {
   align-items: center;
   gap: 12px;
   padding: 14px 20px;
-  border-bottom: 1px solid var(--hairline);
+  border-bottom: 1px solid var(--ana-olive);
 }
 
 .officeBar h2 {
   margin: 0;
   font: 650 22px/1.2 var(--font);
+  color: var(--ana-olive);
 }
 
 .officeBar p {
   margin: 2px 0 0;
-  color: var(--text-secondary);
+  color: var(--ana-ink);
   font-size: 14px;
 }
 
@@ -1454,18 +1494,25 @@ button.barLabel {
 .officeBack {
   flex: none;
   padding: 8px 14px;
-  border: 1px solid var(--hairline-strong);
-  border-radius: 999px;
-  background: var(--pearl);
-  color: var(--text);
-  font: 600 14px/1.2 var(--font);
+  border: 1px solid var(--ana-olive);
+  border-radius: 3px;
+  background: var(--ana-olive);
+  color: var(--ana-cream);
+  font: 650 12px/1.2 var(--font);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
   cursor: pointer;
+}
+
+.officeExit:hover,
+.officeBack:hover {
+  background: #4b4418;
 }
 
 .officeExit:focus-visible,
 .officeBack:focus-visible,
 .officeSpot:focus-visible {
-  outline: 2px solid var(--accent);
+  outline: 2px solid var(--ana-olive);
   outline-offset: 2px;
 }
 
@@ -1499,20 +1546,23 @@ button.barLabel {
   top: 0;
   pointer-events: auto;
   padding: 7px 12px;
-  border: 2px solid #f2b84b;
-  border-radius: 999px;
-  background: rgba(255, 252, 245, 0.95);
-  color: var(--text);
-  font: 650 14px/1.2 var(--font);
+  border: 1px solid var(--ana-olive);
+  border-radius: 3px;
+  background: var(--ana-cream);
+  color: var(--ana-ink);
+  font: 650 12px/1.2 var(--font);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
   white-space: nowrap;
   cursor: pointer;
-  box-shadow: 0 6px 16px rgba(60, 72, 90, 0.18);
   transition: background 120ms ease;
   visibility: hidden;
 }
 
+/* gold as a fill behind black text: the one place gold meets text */
+.officeSpot:hover,
 .officeSpot[data-active="true"] {
-  background: #ffe7ac;
+  background: var(--ana-gold);
 }
 
 .officeDrawer {
@@ -1523,10 +1573,9 @@ button.barLabel {
   width: min(560px, calc(100% - 24px));
   overflow: auto;
   padding: 16px 18px;
-  background: var(--surface-solid);
-  border: 1px solid var(--glass-edge);
-  border-radius: 18px;
-  box-shadow: var(--glass-shadow-raised);
+  background: var(--ana-cream);
+  border: 1px solid var(--ana-olive);
+  border-radius: 4px;
   animation: officeSlide 220ms ease-out;
 }
 
@@ -1552,8 +1601,8 @@ button.barLabel {
   top: -16px;
   margin: -16px -18px 8px;
   padding: 12px 18px;
-  background: var(--surface-solid);
-  border-bottom: 1px solid var(--hairline);
+  background: var(--ana-cream);
+  border-bottom: 1px solid var(--ana-olive);
   z-index: 1;
 }
 
@@ -1561,6 +1610,7 @@ button.barLabel {
   outline: none;
   margin: 0;
   font: 650 18px/1.2 var(--font);
+  color: var(--ana-olive);
 }
 
 /* in the drawer the board is one column */
@@ -1572,8 +1622,23 @@ button.barLabel {
   position: static;
 }
 
+.officeComputer {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 10px;
+  min-height: 0;
+}
+
+.focusGuard {
+  width: 0;
+  height: 0;
+  overflow: hidden;
+}
+
 .officeComputer p {
-  font-size: 15px;
+  margin: 0;
+  font-size: 14px;
   line-height: 1.5;
   overflow-wrap: anywhere;
 }
@@ -1689,6 +1754,23 @@ button.barLabel {
   font-weight: 650;
 }
 
+/* the media kit fills the drawer: a wider drawer for the computer, the kit's own page inside */
+.officeDrawerWide {
+  display: flex;
+  flex-direction: column;
+  width: min(820px, calc(100% - 24px));
+  overflow: hidden;
+}
+
+.officeKit {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  border: 1px solid var(--ana-olive);
+  border-radius: 3px;
+  background: var(--ana-cream);
+}
+
 @media (max-width: 700px) {
   .officeBackdrop {
     padding: 0;
@@ -1722,4 +1804,232 @@ button.barLabel {
     height: 78%;
     border-radius: 18px 18px 0 0;
   }
+}
+
+/* the register's drawer: Ana's internal rate card (quote first, the lowest we accept beneath it) */
+.rateCard {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.rateCard h4 {
+  margin: 0;
+  font-size: 15px;
+}
+.rateList {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.rate {
+  padding: 12px 14px;
+  background: #fff;
+  border: 1px solid var(--ana-olive);
+  border-radius: 4px;
+}
+.rateHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 4px 12px;
+}
+.rateQuote {
+  margin: 0;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+.rateQuote strong {
+  color: var(--ana-olive);
+  font-size: 20px;
+  font-variant-numeric: tabular-nums;
+}
+.rateMin {
+  margin: 4px 0 0;
+  font-size: 13px;
+}
+.rateMin strong {
+  font-variant-numeric: tabular-nums;
+}
+.rateIncludes {
+  margin: 8px 0 0;
+  padding-left: 18px;
+  font-size: 13px;
+  line-height: 1.45;
+}
+.rateNote {
+  margin: 6px 0 0;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.rateAddons ul {
+  display: grid;
+  gap: 8px;
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.rateAddons li {
+  display: grid;
+  gap: 2px;
+  font-size: 13px;
+}
+.rateAddonName {
+  font-weight: 700;
+}
+.rateTiers {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+}
+.rateTiers strong {
+  color: var(--ana-olive);
+  font-variant-numeric: tabular-nums;
+}
+.rateAddons small {
+  color: var(--text-muted);
+}
+.rateTips {
+  padding: 10px 12px;
+  background: color-mix(in srgb, var(--ana-gold) 22%, #fff);
+  border-left: 3px solid var(--ana-olive);
+  border-radius: 2px;
+  font-size: 13px;
+}
+.rateTips p {
+  margin: 0;
+}
+.rateTips p + p {
+  margin-top: 6px;
+}
+
+/* editing the rate card in the office */
+.rateCardHead {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+.rateEditOpen,
+.rateEditAdd,
+.rateEditCancel,
+.rateEditRemove,
+.rateEditRemoveSmall {
+  font: inherit;
+  font-size: 13px;
+  color: var(--ana-olive);
+  background: #fff;
+  border: 1px solid var(--ana-olive);
+  border-radius: 4px;
+  padding: 6px 10px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.rateEditOpen:hover,
+.rateEditAdd:hover,
+.rateEditCancel:hover {
+  background: color-mix(in srgb, var(--ana-gold) 22%, #fff);
+}
+.rateEditAdd:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.rateEditRemove {
+  align-self: flex-start;
+  color: #8a2b20;
+  border-color: #8a2b20;
+}
+.rateEditRemoveSmall {
+  align-self: flex-end;
+  padding: 6px 9px;
+  color: #8a2b20;
+  border-color: #8a2b20;
+}
+.rateEditor {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.rateEditGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.rateEditGroup legend {
+  margin-bottom: 8px;
+  padding: 0;
+  font-size: 15px;
+  font-weight: 700;
+}
+.rateEditItem {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 14px;
+  background: #fff;
+  border: 1px solid var(--ana-olive);
+  border-radius: 4px;
+}
+.rateEditRow {
+  display: flex;
+  gap: 10px;
+}
+.rateEditRow > .rateField {
+  flex: 1;
+}
+.rateField {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+.rateField label {
+  font-size: 12px;
+  font-weight: 600;
+}
+.rateField input,
+.rateField textarea {
+  font: inherit;
+  font-size: 14px;
+  padding: 6px 8px;
+  border: 1px solid #8b8466;
+  border-radius: 3px;
+  background: #fff;
+  color: var(--ana-ink);
+}
+.rateField input:focus-visible,
+.rateField textarea:focus-visible,
+.rateEditOpen:focus-visible,
+.rateEditAdd:focus-visible,
+.rateEditCancel:focus-visible,
+.rateEditRemove:focus-visible,
+.rateEditRemoveSmall:focus-visible {
+  outline: 3px solid var(--ana-olive);
+  outline-offset: 1px;
+}
+.rateEditStatus:empty {
+  display: none;
+}
+.rateEditStatus {
+  padding: 8px 10px;
+  border-left: 3px solid #8a2b20;
+  background: #fff;
+  font-size: 13px;
+}
+.rateEditStatus ul {
+  margin: 4px 0 0;
+  padding-left: 18px;
+}
+.rateEditActions {
+  position: sticky;
+  bottom: -16px;
+  display: flex;
+  gap: 10px;
+  padding: 10px 0 2px;
+  background: var(--ana-cream);
 }
