@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { WorldPost } from "./model";
 import type { PostTags } from "./postTags";
-import { captionKey, clearSignals, LAB_MIN_AGE_DAYS, pairSummary, reelPairs, strangerSignals, type StrangerRow } from "./trialLab";
+import { captionKey, clearSignals, LAB_MIN_AGE_DAYS, pairState, pairSummary, reelPairs, strangerSignals, type StrangerRow } from "./trialLab";
 
 const NOW = Date.parse("2026-11-06T10:00:00.000Z");
 const ago = (days: number, minutes = 0) => new Date(NOW - days * 86_400_000 - minutes * 60_000).toISOString();
@@ -40,6 +40,15 @@ describe("trial lab — pairs", () => {
     expect(pairs[1]!.erShare).toBeCloseTo(0.4);
     // a pair younger than the minimum age is shown but not yet compared
     expect(pairs[0]!.settled).toBe(1 >= LAB_MIN_AGE_DAYS);
+  });
+
+  it("a pair is young while either Reel is under 3 days old, and missing when an old pair has no Instagram numbers", () => {
+    const posts = [
+      reel("t1", true, ago(1, 5), "young pair caption", 1_000, 0.01), reel("f1", false, ago(1), "young pair caption", 9_000, 0.05),
+      reel("t2", true, ago(6, 5), "old pair without numbers", null, null), reel("f2", false, ago(6), "old pair without numbers", 9_000, 0.05),
+      reel("t3", true, ago(7, 5), "old pair with numbers", 2_000, 0.02), reel("f3", false, ago(7), "old pair with numbers", 9_000, 0.05),
+    ];
+    expect(reelPairs(posts, NOW).map((p) => [p.trial.id, pairState(p)])).toEqual([["t1", "young"], ["t2", "missing"], ["t3", "ready"]]);
   });
 
   it("each Reel is in at most one pair: the closest in time wins", () => {

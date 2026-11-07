@@ -309,6 +309,7 @@ export const worldEn = {
     pairLine: "Trial: {tReach} reached · engagement {tEr} → Feed: {fReach} reached · engagement {fEr}",
     pairShare: "strangers {share} of the community",
     pairYoung: "still growing",
+    pairNoData: "Instagram numbers missing",
     pairNote: "A pair is found by the same caption start, the trial posted shortly before the feed Reel. Compared once both are at least {days} days old.",
     better: "Does better with strangers",
     worse: "Does better in the community",
