@@ -1,0 +1,44 @@
+{
+  "drs_version": "1.0",
+  "jira": "ANAK-2",
+  "state": "IN_PROGRESS",
+  "delivery_profile": "STANDARD_CODE",
+  "ic": {
+    "definition": "All blocking acceptance criteria AC-01 to AC-08 of Jira ANAK-2 are implemented and each has at least one automated test or named oracle. AC-01: two different timestamped real or synthetic Instagram samples persist across process restart; a query returns both with source ID, metric definition/unit, observation and fetch times, freshness/coverage. AC-02: reingest of identical input creates no new active measurement; changed input adds retrievable history. AC-03: one H1/H4-style hypothesis persists with derivation version, source refs and at least one counterevidence/UNKNOWN field; source evidence and AI interpretation are distinguishable. AC-04: a human reject/revise appends an attributed immutable event; the historic hypothesis and observation survive unchanged. AC-05: an authenticated bounded API returns relevant current/history and source locators; an unauthenticated or out-of-scope caller cannot read private data; a missing or stale source returns BLOCKED/UNKNOWN. AC-06: stable hypothesis identity and provenance correspond to the single canonical Markdown Brain with rebuildable Qdrant; deleting the Qdrant collection cannot remove canonical knowledge. AC-07: automatic off-VPS backup and isolated restore/restart are tested before private production records are stored; secret and privacy scans are clean. AC-08: exact-code-revision tests, CI, implementation/delivery/rollback docs, runtime smoke evidence; IC, R2G and R4M on one exact candidate SHA; G4 separate. This candidate is a partial increment and does not meet this definition: see implementer_ac_mapping.",
+    "state": "NOT_EVALUATED",
+    "claimed": null,
+    "evidence": []
+  },
+  "r2g": {
+    "definition": "On the exact candidate SHA, once IC is met: (1) GitHub Actions workflow 'dashboard' green (npm ci, lint, typecheck, vitest, production build, client bundle scan, full Playwright e2e). (2) GitHub Actions workflow 'dashboard-image' green. (3) GitHub Actions workflow 'drs' green. (4) The real-parts suite apps/dashboard/src/server/brain/insight.real.test.ts passes on that SHA with synthetic data, recorded with its counts, because CI skips it (it needs Qdrant 1.19.2, Ollama bge-m3 and a built apps/brain). (5) The diff contains no secret, no real Instagram data and no caption; secret and privacy scans clean. (6) No production Brain write and no deployment happened. Stale evidence (a run on another SHA) is not evidence; a new commit invalidates R2G.",
+    "state": "NOT_EVALUATED",
+    "claimed": null,
+    "candidate_sha": null,
+    "evidence": [],
+    "allowed_paths": [
+      "apps/dashboard/src/**/*.test.ts",
+      "docs/ana-knowledge/**",
+      ".drs/ANAK-2.json"
+    ]
+  },
+  "r4m": {
+    "definition": "The unchanged R2G candidate has: an independent acceptor (the PO or a separate reviewer session outside the implementing lineage) that verified IC and R2G evidence on the exact candidate SHA with 0 open blocking findings; the PO decisions of docs/ana-knowledge/ANAK-2-PAYLOAD-DECISION.md recorded (post-level metrics, class of theme reading and hypothesis, purpose, retention, correction and deletion path), because a deploy arms the writes and the blocks are append-only; a readback immediately before the merge of base SHA, head SHA (= candidate) and that the head contains the current base (git merge-base --is-ancestor); the rollback target read from the host and recorded. R4M is not merge authority and not a release. MERGED is not Production Verified; G4 is separate.",
+    "state": "NOT_EVALUATED",
+    "claimed": null,
+    "evidence": []
+  },
+  "implementer_ac_mapping": {
+    "note": "Claims of the implementing session, not acceptance states. PARTIAL and OPEN mean the AC is not met. Measured against the code of this branch on 2026-11-03.",
+    "AC-01": "PARTIAL: one block per Berlin day in the note, survives a restart (real suite). The API returns only the current block plus a history count and corrected block ids, so a query does not return both samples. The block holds observed_at and data age, no separate fetch time. Only derived groups are stored, no raw snapshot.",
+    "AC-02": "PARTIAL: a repeat on the same day adds nothing, also after a restart. Changed values on the same day with the same derivation version are not stored (insightWriter.ts:87). Identical values on the next day add a new block.",
+    "AC-03": "PARTIAL: derivation version, source refs, BELEGE dagegen and UNBEKANNT fields, SOURCE/DERIVED/CANDIDATE labels. The Substack hypothesis is a rule-worded line inside a block, only from a lead of 1.25, without its own identity or lifecycle. The H1/H4 logic of ANA-39 is not on main and is not connected.",
+    "AC-04": "OPEN: no human reject/revise event, no review path. Corrections exist only as a machine correction on a higher derivation version; a person's block on an insight note withholds that note from retrieval.",
+    "AC-05": "PARTIAL: GET /api/brain/context sits behind refuseUnauthorized and a same-origin check, bounds q to 500 characters and limit to 10, returns the current block, history count, corrected ids and source locators, and withholds foreign notes fail-closed. No older block contents. A stale source gets no BLOCKED/UNKNOWN answer (retrieval.ts does not evaluate age); a missing source is withheld, not reported. No caller exists in the UI.",
+    "AC-06": "PARTIAL: stable note id, canonical Markdown, no second store; the collection deleted and rebuilt from Markdown in the real suite. The hypothesis itself has no stable identity of its own.",
+    "AC-07": "OPEN: the Brain backup unit keeps 30 days on the host only; off-host is an operator decision (deploy/ana-brain). No isolated restore test for these records in this change. Must hold before private production records are stored.",
+    "AC-08": "OPEN: unit, e2e and real-suite tests exist, CI pending on the exact SHA. No ANAK-2 delivery or rollback document (only the general kit README), no runtime smoke on a deployed system, no IC/R2G/R4M decision."
+  },
+  "scope_note": "Contract written after the implementation commits (8d60a54, ed5ef3c) on the PO instruction of 2026-11-03 that authorized push and pull request only; the DRS contract-first rule was therefore not followed for this slice, and the gate definitions are not yet mirrored into a Jira comment because that instruction excludes Jira changes. Jira ANAK-2 is in Backlog with readiness DRAFT_REQUIRES_RECONCILIATION. Its proposed PostgreSQL persistence, review events and timeline are not part of this candidate. Not authorized: merge, deployment, production Brain writes, new provider calls, Jira or Confluence changes.",
+  "synced_at": "2026-11-03T19:55:00Z",
+  "source": "offline: ANA Jira has no DRS custom fields; acceptance criteria live in Jira ANAK-2, gate states are recorded in the pull request and Jira, not in this file"
+}
