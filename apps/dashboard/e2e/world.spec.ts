@@ -543,6 +543,47 @@ test.describe("ANA World — 3D view over real dashboard data", () => {
       await expect(rates).toContainText("Crossposted to TikTok, Facebook and YouTube Shorts");
       const axe = await new AxeBuilder({ page }).include("[data-testid='office-drawer']").withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"]).analyze();
       expect(axe.violations.filter((v) => v.impact === "serious" || v.impact === "critical").map((v) => `${v.id}: ${v.nodes.map((n) => n.target.join(" ")).join(", ")}`)).toEqual([]);
+      // the team edits the card right there: a new quote for the Reel, a new format; the register follows
+      await page.getByTestId("office-rates-edit").click();
+      const editor = page.getByTestId("office-rates-editor");
+      await expect(editor).toBeVisible();
+      // Escape inside the editor does not leave the room (the edits would be lost)
+      await editor.getByLabel(/Quote|Angebot|Proposta/).first().focus();
+      await page.keyboard.press("Escape");
+      await expect(office).toHaveAttribute("data-spot", "register");
+      await editor.getByLabel(/Quote|Angebot|Proposta/).first().fill("1725");
+      await editor.getByLabel(/Lowest|Mindestens|Minimo/).first().fill("1500");
+      await page.getByTestId("office-rates-add-rate").click();
+      const added = page.getByTestId("office-rates-edit-rate-2");
+      await added.getByLabel(/^(Name|Nome)$/).fill("TikTok video");
+      await added.getByLabel(/Quote|Angebot|Proposta/).fill("900");
+      await page.getByTestId("office-rates-edit-tips").fill("");
+      const axeEdit = await new AxeBuilder({ page }).include("[data-testid='office-drawer']").withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"]).analyze();
+      expect(axeEdit.violations.filter((v) => v.impact === "serious" || v.impact === "critical").map((v) => v.id)).toEqual([]);
+      await page.getByTestId("office-rates-save").click();
+      await expect(page.getByTestId("office-rate-reel-quote")).toHaveText("$1,725");
+      await expect(page.getByTestId("office-rate-reel-minimum")).toContainText("$1,500");
+      await expect(page.getByTestId("office-rate-tiktok-video-quote")).toHaveText("$900");
+      await expect(page.getByTestId("office-rate-tips")).toHaveCount(0);
+      await expect(page.getByTestId("office-rates-edited")).toBeVisible();
+      await expect(page.getByTestId("office-canvas")).toHaveAttribute("data-register", "$1,725");
+      const stored = (await (await page.request.get("/api/rate-card")).json()).card;
+      expect(stored.rates.map((r: { id: string; quote: number }) => `${r.id}:${r.quote}`)).toEqual(["reel:1725", "bundle:1950", "tiktok-video:900"]);
+      // a save that started from an older version is refused, the newer one stays
+      const stale = await page.request.put("/api/rate-card", { data: { card: { rates: [{ id: "reel", name: "Reel", quote: 1 }] }, base: null } });
+      expect(stale.status()).toBe(409);
+      expect((await stale.json()).card.rates[0].quote).toBe(1725);
+      // invalid input is refused whole; another site and a request without login cannot write
+      expect((await page.request.put("/api/rate-card", { data: { card: { rates: [{ id: "reel", name: "", quote: -1 }] }, base: stored.updated_at } })).status()).toBe(400);
+      expect((await page.request.put("/api/rate-card", { data: { card: stored, base: stored.updated_at }, headers: { "sec-fetch-site": "cross-site" } })).status()).toBe(403);
+      expect([401, 403]).toContain((await page.request.put("/api/rate-card", { data: { card: stored, base: stored.updated_at }, headers: { host: "kit.brand.example" } })).status());
+      expect((await (await page.request.get("/api/rate-card")).json()).card.rates[0].quote).toBe(1725);
+      // a cancelled edit changes nothing
+      await page.getByTestId("office-rates-edit").click();
+      await editor.getByLabel(/Quote|Angebot|Proposta/).first().fill("1");
+      await page.getByTestId("office-rates-cancel").click();
+      await expect(page.getByTestId("office-rates-edit")).toBeFocused();
+      await expect(page.getByTestId("office-rate-reel-quote")).toHaveText("$1,725");
       await page.keyboard.press("Escape");
       await expect(office).toHaveAttribute("data-spot", "room");
       await expect(page.getByTestId("office-spot-register")).toBeFocused();

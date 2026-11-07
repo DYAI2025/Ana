@@ -1784,3 +1784,132 @@ button.barLabel {
 .rateTips p + p {
   margin-top: 6px;
 }
+
+/* editing the rate card in the office */
+.rateCardHead {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+.rateEditOpen,
+.rateEditAdd,
+.rateEditCancel,
+.rateEditRemove,
+.rateEditRemoveSmall {
+  font: inherit;
+  font-size: 13px;
+  color: var(--ana-olive);
+  background: #fff;
+  border: 1px solid var(--ana-olive);
+  border-radius: 4px;
+  padding: 6px 10px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.rateEditOpen:hover,
+.rateEditAdd:hover,
+.rateEditCancel:hover {
+  background: color-mix(in srgb, var(--ana-gold) 22%, #fff);
+}
+.rateEditAdd:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.rateEditRemove {
+  align-self: flex-start;
+  color: #8a2b20;
+  border-color: #8a2b20;
+}
+.rateEditRemoveSmall {
+  align-self: flex-end;
+  padding: 6px 9px;
+  color: #8a2b20;
+  border-color: #8a2b20;
+}
+.rateEditor {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.rateEditGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.rateEditGroup legend {
+  margin-bottom: 8px;
+  padding: 0;
+  font-size: 15px;
+  font-weight: 700;
+}
+.rateEditItem {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 14px;
+  background: #fff;
+  border: 1px solid var(--ana-olive);
+  border-radius: 4px;
+}
+.rateEditRow {
+  display: flex;
+  gap: 10px;
+}
+.rateEditRow > .rateField {
+  flex: 1;
+}
+.rateField {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+.rateField label {
+  font-size: 12px;
+  font-weight: 600;
+}
+.rateField input,
+.rateField textarea {
+  font: inherit;
+  font-size: 14px;
+  padding: 6px 8px;
+  border: 1px solid #8b8466;
+  border-radius: 3px;
+  background: #fff;
+  color: var(--ana-ink);
+}
+.rateField input:focus-visible,
+.rateField textarea:focus-visible,
+.rateEditOpen:focus-visible,
+.rateEditAdd:focus-visible,
+.rateEditCancel:focus-visible,
+.rateEditRemove:focus-visible,
+.rateEditRemoveSmall:focus-visible {
+  outline: 3px solid var(--ana-olive);
+  outline-offset: 1px;
+}
+.rateEditStatus:empty {
+  display: none;
+}
+.rateEditStatus {
+  padding: 8px 10px;
+  border-left: 3px solid #8a2b20;
+  background: #fff;
+  font-size: 13px;
+}
+.rateEditStatus ul {
+  margin: 4px 0 0;
+  padding-left: 18px;
+}
+.rateEditActions {
+  position: sticky;
+  bottom: -16px;
+  display: flex;
+  gap: 10px;
+  padding: 10px 0 2px;
+  background: var(--ana-cream);
+}
