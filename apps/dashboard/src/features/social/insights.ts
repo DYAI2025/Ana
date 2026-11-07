@@ -27,9 +27,10 @@ export function median(values: readonly number[]): number | null {
   return s.length % 2 ? s[mid]! : (s[mid - 1]! + s[mid]!) / 2;
 }
 
-export type RateName = "saves_per_reach" | "shares_per_reach" | "comments_per_reach" | "high_intent_rate";
+export type RateName = "likes_per_reach" | "saves_per_reach" | "shares_per_reach" | "comments_per_reach" | "high_intent_rate";
 /** Instagram fields each rate is computed from (inspector provenance). */
 export const RATE_INPUTS: Readonly<Record<RateName, string>> = {
+  likes_per_reach: "likes, reach",
   saves_per_reach: "saved, reach",
   shares_per_reach: "shares, reach",
   comments_per_reach: "comments, reach",
@@ -87,9 +88,11 @@ export function analyze(snapshot: SocialSnapshot): Analysis {
     const saves = verified(post, "saves");
     const shares = verified(post, "shares");
     const comments = verified(post, "comments");
+    const likes = verified(post, "likes");
     const published = post.published_at ? Date.parse(post.published_at) : NaN;
     const ageDays = Number.isNaN(published) ? null : Math.max(0, (observed - published) / DAY_MS);
     const rates = {
+      likes_per_reach: ratio(likes, reach),
       saves_per_reach: ratio(saves, reach),
       shares_per_reach: ratio(shares, reach),
       comments_per_reach: ratio(comments, reach),

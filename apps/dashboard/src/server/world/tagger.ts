@@ -90,6 +90,8 @@ export interface PostTagger {
   idle(): Promise<void>;
   /** whether the stored categories have been read (right after a restart they have not) */
   ready(): boolean;
+  /** resolves once the stored categories have been read (never rejects, never waits for the model) */
+  loaded(): Promise<void>;
 }
 
 export const BATCH = 4;
@@ -160,5 +162,6 @@ export function createPostTagger(config: VisionConfig, file: string = tagsFile()
     },
     idle: () => running,
     ready: () => isLoaded,
+    loaded: () => load().catch(() => undefined),
   };
 }

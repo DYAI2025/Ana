@@ -8,7 +8,7 @@ import { readManual } from "./lookStore";
 import { readHistory, recordHistory } from "./audienceHistory";
 import { createWorldService, type WorldService } from "./service";
 import { createVisionReader, visionConfigFromEnv } from "./vision";
-import { createPostTagger } from "./tagger";
+import { createPostTagger, type PostTagger } from "./tagger";
 import { createTopicTagger } from "./topicTagger";
 import { createNewsletterReader, type NewsletterReader } from "./newsletterReader";
 import { createPostHistory } from "./postHistory";
@@ -17,6 +17,25 @@ import { brainCaller, brainWriterConfigFromEnv, createBrainWriter } from "./brai
 import { createBriefService, type BriefService } from "./briefService";
 
 let shared: { key: string; service: WorldService; brief: BriefService | null } | null = null;
+// one category reader per process: the world and the Social cockpit (ANA-60) share it, so the stored categories file
+// has a single writer. Kept on globalThis: the two routes may load separate copies of this module.
+const TAGGER = Symbol.for("ana.world.postTagger");
+const taggers = globalThis as typeof globalThis & { [TAGGER]?: { key: string; tagger: PostTagger } | null };
+
+/** The process-wide reader of the post categories, or null when no model key is configured (categories off). */
+export function postTaggerFromEnv(): PostTagger | null {
+  const vision = visionConfigFromEnv();
+  if (!vision) {
+    taggers[TAGGER] = null;
+    return null;
+  }
+  const key = `${vision.model}|${vision.key.length}`;
+  const current = taggers[TAGGER];
+  if (current && current.key === key) return current.tagger;
+  const next = { key, tagger: createPostTagger(vision) };
+  taggers[TAGGER] = next;
+  return next.tagger;
+}
 // the newsletter feeds are read on a clock too, not only when someone opens the world: a busy feed holds a few days
 // kept on globalThis: a reloaded module (dev hot reload) must still stop the clock the earlier copy started. Only the
 // clock is shared, not the reader: two live copies of this module would each keep their own reader.
@@ -68,7 +87,7 @@ export function worldServiceFromEnv(): WorldService {
         vision: vision ? createVisionReader(vision) : null,
         history: { read: () => readHistory(), record: (e) => recordHistory(e) },
         // same key and model as the look reader; Ana agreed to the categories on 2026-11-02
-        tagger: vision ? createPostTagger(vision) : null,
+        tagger: postTaggerFromEnv(),
         // the office topics: same model, same agreement (cover + caption in, only topic ids kept)
         topicTagger: vision ? createTopicTagger(vision) : null,
         newsletters,
@@ -94,4 +113,5 @@ export function worldBriefFromEnv(): BriefService | null {
 export function resetWorldService(): void {
   setNewsletterTimer(null);
   shared = null;
+  taggers[TAGGER] = null;
 }

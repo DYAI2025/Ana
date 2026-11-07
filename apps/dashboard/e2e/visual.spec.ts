@@ -32,6 +32,26 @@ const SHOTS: {
     },
   },
   {
+    // ANA-60: the rates overview with an active sort (share rate) and an active category filter
+    name: "instagram-rates-sorted-filtered",
+    route: "/pulse/social/instagram",
+    prepare: async (page) => {
+      await page.getByTestId("sort-shares_per_reach").click();
+      await page.getByTestId("category-filter").selectOption("lifestyle");
+      await page.getByTestId("content-rows").scrollIntoViewIfNeeded();
+      await page.getByTestId("category-filter").scrollIntoViewIfNeeded();
+    },
+  },
+  {
+    // ANA-60: the category summary, incl. categories below n = 3 ("too few posts")
+    name: "instagram-rates-summary",
+    route: "/pulse/social/instagram",
+    prepare: async (page) => {
+      await page.locator('[data-testid="summary-category"][data-category="city"]').waitFor();
+      await page.getByTestId("category-summary").scrollIntoViewIfNeeded();
+    },
+  },
+  {
     name: "instagram-offer-signals",
     route: "/pulse/social/instagram",
     prepare: async (page) => {

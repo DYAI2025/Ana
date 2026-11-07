@@ -11,6 +11,11 @@ export function formatCompact(value: number, locale: Locale): string {
   return new Intl.NumberFormat(INTL[locale], { notation: "compact", maximumFractionDigits: 1 }).format(value);
 }
 
+/** A plain number with up to `digits` decimals (4.2 / 4,2), for "x of 100" sentences. */
+export function formatDecimal(value: number, locale: Locale, digits = 1): string {
+  return new Intl.NumberFormat(INTL[locale], { maximumFractionDigits: digits }).format(value);
+}
+
 export function formatPercent(rate: number, locale: Locale, digits = 2): string {
   return new Intl.NumberFormat(INTL[locale], { style: "percent", minimumFractionDigits: digits, maximumFractionDigits: digits }).format(rate);
 }
