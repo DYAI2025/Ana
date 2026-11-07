@@ -2,6 +2,7 @@
  * Social Intelligence data model (Jira ANA-38). Client-safe: these types describe what the dashboard server returns
  * from GET /api/social/instagram. Provider responses never reach the browser; only this normalized shape does.
  */
+import type { Theme } from "@/features/world/postTags";
 
 /** How trustworthy one value is. A missing value is never 0: it carries one of the non-VERIFIED states and `value: null`. */
 export type Availability = "VERIFIED" | "UNAVAILABLE" | "NOT_FETCHED" | "ERROR";
@@ -115,8 +116,17 @@ export interface SocialFailure {
   detail?: string;
 }
 
+/**
+ * Post categories for the cockpit (ANA-60): the Haiku readings the world already keeps (only the theme and the model's
+ * confidence of each post in this snapshot; never a caption). "off" = no model key on the server, so no categories.
+ */
+export interface SocialCategories {
+  state: "on" | "off";
+  tags: Readonly<Record<string, { theme: Theme; confidence: number }>>;
+}
+
 export type SocialResult =
-  | { ok: true; snapshot: SocialSnapshot; stale: false }
+  | { ok: true; snapshot: SocialSnapshot; stale: false; categories?: SocialCategories }
   /** A refresh failed but an earlier snapshot exists: shown with its age, never as current. */
-  | { ok: true; snapshot: SocialSnapshot; stale: true; failure: SocialFailure }
+  | { ok: true; snapshot: SocialSnapshot; stale: true; failure: SocialFailure; categories?: SocialCategories }
   | { ok: false; failure: SocialFailure };

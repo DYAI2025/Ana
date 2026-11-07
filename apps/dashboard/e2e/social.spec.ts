@@ -7,6 +7,7 @@ import { expect, socialSettled, test } from "./fixtures";
 
 const ROUTE = "/pulse/social/instagram";
 const row = (page: Page, id: string) => page.locator(`[data-testid="content-row"][data-media-id="${id}"]`);
+const rateText = (page: Page, id: string, rate: string) => row(page, id).locator(`[data-rate="${rate}"]`);
 
 async function openCockpit(page: Page) {
   await page.goto(ROUTE);
@@ -69,9 +70,13 @@ test.describe("Instagram cockpit — real-data shape, honest states", () => {
 
   test("AC8 · missing values are named, never shown as 0; no synthetic history", async ({ page }) => {
     await openCockpit(page);
-    await expect(row(page, "syn007").locator('[data-metric="views"]')).toHaveText(/Unavailable/);
+    // ANA-60 moved views and the reach index from the row into the detail: they are checked there
+    await row(page, "syn007").getByTestId("row-toggle").click();
+    await expect(row(page, "syn007").getByTestId("row-detail").locator('[data-metric="views"]')).toHaveText(/Unavailable/);
     for (const id of ["syn025", "syn026", "syn027"]) {
+      // reach and the four rates of the row: named, never 0
       await expect(row(page, id).locator('[data-availability="NOT_FETCHED"]')).toHaveCount(5);
+      await row(page, id).getByTestId("row-toggle").click();
       await expect(row(page, id).getByTestId("row-index")).toHaveText("No insights");
     }
     await expect(page.getByTestId("cluster-engaged28")).toHaveAttribute("data-availability", "UNAVAILABLE");
@@ -88,7 +93,9 @@ test.describe("Instagram cockpit — real-data shape, honest states", () => {
     await openCockpit(page);
     await expect(page.getByTestId("content-map")).toContainText("Reel posts at least 7 days old, n = 18. Other formats are not mixed in.");
     await expect(page.getByTestId("map-point")).toHaveCount(18);
+    await row(page, "syn000").getByTestId("row-toggle").click();
     await expect(row(page, "syn000").getByTestId("row-index")).toHaveText("Too young to compare");
+    await row(page, "syn020").getByTestId("row-toggle").click();
     await expect(row(page, "syn020").getByTestId("row-index")).toHaveText("Format group too small");
     await page.getByTestId("content-filter-carousel").click();
     await expect(page.getByTestId("content-count")).toHaveText("3 of 28 posts");
@@ -210,7 +217,8 @@ test.describe("Instagram cockpit — real-data shape, honest states", () => {
     const cell = row(page, "syn002").locator('[data-metric="reach"]');
     await expect(cell).toContainText("Reach");
     expect(await cell.locator("span").first().evaluate((e) => getComputedStyle(e).display)).not.toBe("none");
-    await expect(row(page, "syn002").getByText("Reach index", { exact: true })).toHaveCount(1);
+    // ANA-60: the four rates carry their own label (the reach index moved into the detail)
+    await expect(row(page, "syn002").getByText("Like rate", { exact: true })).toHaveCount(1);
     const missing = await page.getByRole("tab").evaluateAll((tabs) => tabs.filter((t) => !document.getElementById(t.getAttribute("aria-controls") ?? "")).length);
     expect(missing).toBe(0);
   });
@@ -246,6 +254,175 @@ test.describe("Instagram cockpit — real-data shape, honest states", () => {
     await row(page, "syn004").getByTestId("row-toggle").click();
     await page.getByTestId("inspect-rate-saves_per_reach").click();
     await expect(page.getByTestId("metric-inspector")).toContainText("Gespeichert ÷ Reichweite");
+  });
+});
+
+test.describe("ANA-60 · Reel rates overview", () => {
+  test("AC-1 · each row shows like, share, save and comment rate in percent; missing inputs are named, never 0", async ({ page }) => {
+    await openCockpit(page);
+    // syn004: reach 2100, likes 141, shares 52, saved 88, comments 7
+    await expect(rateText(page, "syn004", "likes_per_reach")).toContainText("6.7%");
+    await expect(rateText(page, "syn004", "shares_per_reach")).toContainText("2.5%");
+    await expect(rateText(page, "syn004", "saves_per_reach")).toContainText("4.2%");
+    await expect(rateText(page, "syn004", "comments_per_reach")).toContainText("0.3%");
+    await expect(row(page, "syn004").locator('[data-metric="reach"]')).toContainText("2.1k");
+    for (const r of ["likes_per_reach", "shares_per_reach", "saves_per_reach", "comments_per_reach"]) {
+      await expect(rateText(page, "syn025", r)).toHaveText(/Not fetched/);
+      await expect(rateText(page, "syn025", r)).not.toContainText(/\b0(\.0)?%/);
+    }
+    // the head: Post | Category | Reach | four rates; views and the reach index live in the detail now
+    await expect(page.locator('[data-testid="content-rows"] [role="group"][aria-label="Sort by"]')).toHaveText(/Post.*Category.*Reach.*Like rate.*Share rate.*Save rate.*Comment rate/);
+    await row(page, "syn004").getByTestId("row-toggle").click();
+    const detail = row(page, "syn004").getByTestId("row-detail");
+    await expect(detail.getByTestId("plain-shares_per_reach")).toHaveText("2.5 of 100 reached people shared it");
+    await expect(detail.getByTestId("plain-comments_per_reach")).toHaveText("0.3 comments per 100 reached people");
+    await expect(detail.getByTestId("rate-likes_per_reach")).toContainText("6.71%");
+    await detail.getByTestId("inspect-rate-likes_per_reach").click();
+    await expect(page.getByTestId("metric-inspector")).toContainText("likes ÷ reach");
+    await expect(page.getByTestId("metric-inspector")).toContainText("likes, reach");
+    await page.keyboard.press("Escape");
+    await expect(detail.getByTestId("row-index")).toContainText("×");
+    await expect(detail.locator('[data-metric="views"]')).toContainText("4,300");
+    await page.getByTestId("rates-explained").locator("summary").click();
+    await expect(page.getByTestId("rates-explained")).toContainText("of 100 people the post reached, this many shared it");
+  });
+
+  test("AC-2 · the category is the Haiku theme (confidence ≥ 0.5); otherwise 'Not categorised'", async ({ page }) => {
+    await openCockpit(page);
+    await expect(row(page, "syn004").getByTestId("row-category")).toHaveText(/Everyday life/);
+    await expect(row(page, "syn020").getByTestId("row-category")).toHaveText(/Everyday life/); // exactly 0.5
+    await expect(row(page, "syn008").getByTestId("row-category")).toHaveText(/Not categorised/); // 0.3
+    await expect(row(page, "syn013").getByTestId("row-category")).toHaveText(/Not categorised/); // invalid record
+    await expect(row(page, "syn001").getByTestId("row-category")).toHaveText(/Not categorised/); // never read
+    // only themes that occur, then "not categorised"
+    const options = await page.getByTestId("category-filter").locator("option").allTextContents();
+    expect(options).toEqual(["All categories", "Beach & sea", "City & street", "Accommodation", "On the way", "Friends & people", "Everyday life", "Not categorised"]);
+    // the browser gets theme and confidence only, for the snapshot's own posts
+    const body = await (await page.request.get("/api/social/instagram")).json();
+    expect(body.categories.state).toBe("on");
+    expect(body.categories.tags.syn004).toEqual({ theme: "lifestyle", confidence: 0.9 });
+    expect(body.categories.tags.syn999).toBeUndefined();
+  });
+
+  test("AC-2 · tagger off: 'Category not available', no category filter, no summary groups", async ({ page }) => {
+    expect((await page.request.get("/api/social/instagram?__categories=off")).status()).toBe(204);
+    await openCockpit(page);
+    await expect(row(page, "syn004").getByTestId("row-category")).toHaveText(/Category not available/);
+    await expect(page.getByTestId("category-filter")).toHaveCount(0);
+    await expect(page.getByTestId("category-summary")).toHaveAttribute("data-state", "unavailable");
+    await expect(page.getByTestId("category-summary")).toContainText("Category not available");
+    await expect(page.getByTestId("summary-category")).toHaveCount(0);
+  });
+
+  test("AC-3 · sorting by each rate, missing values last; filters combine with an exact count", async ({ page }) => {
+    await openCockpit(page);
+    const order = () => page.locator('[data-testid="content-row"]').evaluateAll((els) => els.map((e) => e.getAttribute("data-media-id")));
+    expect((await order()).slice(0, 3)).toEqual(["syn000", "syn001", "syn002"]); // default: newest first
+    await page.getByTestId("sort-select").selectOption("likes_per_reach:desc");
+    let o = await order();
+    expect(o.slice(0, 3)).toEqual(["syn024", "syn023", "syn004"]);
+    expect(o.slice(-3)).toEqual(["syn025", "syn026", "syn027"]);
+    await page.getByTestId("sort-select").selectOption("likes_per_reach:asc");
+    o = await order();
+    expect(o.slice(0, 3)).toEqual(["syn000", "syn020", "syn005"]);
+    expect(o.slice(-3)).toEqual(["syn025", "syn026", "syn027"]);
+    // column heads sort too: first click highest first, second click lowest first
+    await page.getByTestId("sort-shares_per_reach").click();
+    await expect(page.getByTestId("sort-shares_per_reach")).toHaveAttribute("data-dir", "desc");
+    expect((await order()).slice(0, 3)).toEqual(["syn004", "syn010", "syn018"]);
+    await page.getByTestId("sort-shares_per_reach").click();
+    await expect(page.getByTestId("sort-status")).toHaveText("Sorted by Share rate, lowest first. Posts without this value are listed last.");
+    expect((await order()).slice(-3)).toEqual(["syn025", "syn026", "syn027"]);
+    await page.getByTestId("sort-saves_per_reach").click();
+    expect((await order())[0]).toBe("syn004");
+    await page.getByTestId("sort-comments_per_reach").click();
+    // 7 ÷ 2100 and 8 ÷ 2400 are both exactly 1 ÷ 300: the newer post first
+    expect((await order()).slice(0, 2)).toEqual(["syn004", "syn010"]);
+  });
+
+  test("AC-3 · category, format and feed/trial filters combine", async ({ page }) => {
+    await openCockpit(page);
+    await page.getByTestId("category-filter").selectOption("lifestyle");
+    await expect(page.getByTestId("content-count")).toHaveText("8 of 28 posts");
+    await page.getByTestId("content-filter-reel").click();
+    await expect(page.getByTestId("content-count")).toHaveText("7 of 28 posts");
+    await page.getByTestId("distribution-filter-trial").click();
+    await expect(page.getByTestId("content-count")).toHaveText("0 of 28 posts");
+    await page.getByTestId("category-filter").selectOption("uncategorised");
+    await expect(page.getByTestId("content-count")).toHaveText("1 of 28 posts");
+    await expect(page.getByTestId("content-row")).toHaveAttribute("data-media-id", "syn001");
+    await page.getByTestId("content-filter-all").click();
+    await page.getByTestId("distribution-filter-feed").click();
+    await page.getByTestId("category-filter").selectOption("all");
+    await expect(page.getByTestId("content-count")).toHaveText("5 of 28 posts");
+    await expect(page.getByTestId("content-rows")).toContainText("still to be verified");
+  });
+
+  test("AC-4 · category summary: n, median per rate, too few posts below 3, formats shown, click filters", async ({ page }) => {
+    await openCockpit(page);
+    const beach = page.locator('[data-testid="summary-category"][data-category="beach"]');
+    await expect(beach.getByTestId("summary-n")).toHaveText("3 posts");
+    // median of 305/6100, 289/5600, 91/1100 → 289/5600 = 5.16%
+    await expect(beach.getByTestId("summary-likes_per_reach")).toContainText("5.2%");
+    await expect(beach.getByTestId("summary-saves_per_reach")).toContainText("0.8%");
+    await expect(beach.getByTestId("summary-formats")).toHaveText("Formats: Reel 2 · Image 1");
+    const city = page.locator('[data-testid="summary-category"][data-category="city"]');
+    await expect(city.getByTestId("summary-n")).toHaveText("2 posts");
+    for (const r of ["likes_per_reach", "shares_per_reach", "saves_per_reach", "comments_per_reach"]) await expect(city.getByTestId(`summary-${r}`)).toContainText("Too few posts");
+    await expect(page.locator('[data-testid="summary-category"][data-category="lifestyle"]').getByTestId("summary-formats")).toContainText("including 1 still growing");
+    await expect(page.getByTestId("category-summary")).toContainText("over the 28 posts shown");
+    // the summary follows the filters
+    await page.getByTestId("content-filter-reel").click();
+    await expect(beach.getByTestId("summary-n")).toHaveText("2 posts");
+    await expect(beach.getByTestId("summary-likes_per_reach")).toContainText("Too few posts");
+    await page.getByTestId("content-filter-all").click();
+    // a click on a category sets the category filter; a second click clears it
+    await beach.getByTestId("summary-pick").click();
+    await expect(page.getByTestId("category-filter")).toHaveValue("beach");
+    await expect(page.getByTestId("content-count")).toHaveText("3 of 28 posts");
+    await expect(page.getByTestId("summary-category")).toHaveCount(1);
+    await beach.getByTestId("summary-pick").click();
+    await expect(page.getByTestId("category-filter")).toHaveValue("all");
+    await expect(page.getByTestId("content-count")).toHaveText("28 of 28 posts");
+  });
+
+  test("AC-5 · posts younger than 7 days are marked 'still growing'", async ({ page }) => {
+    await openCockpit(page);
+    await expect(page.getByTestId("row-growing")).toHaveCount(2);
+    await expect(row(page, "syn000").getByTestId("row-growing")).toContainText("still growing");
+    await expect(row(page, "syn001").getByTestId("row-growing")).toContainText("still growing");
+    await expect(row(page, "syn002").getByTestId("row-growing")).toHaveCount(0);
+  });
+
+  test("AC-6 · keyword themes only in the detail, renamed, with the session override", async ({ page }) => {
+    await openCockpit(page);
+    const keyword = /Travel \/ Freedom|Creator \/ UGC|Money \/ Work|Personal experience|Opportunities \/ Practical resources/;
+    // row head and both filter groups (format, feed/trial)
+    expect((await page.locator('[data-testid="content-rows"] [role="group"]').allTextContents()).join("|")).not.toMatch(keyword);
+    await expect(page.getByTestId("category-summary")).not.toContainText(keyword);
+    expect((await page.getByTestId("category-filter").locator("option").allTextContents()).join("|")).not.toMatch(keyword);
+    await expect(page.getByTestId("row-category").filter({ hasText: keyword })).toHaveCount(0);
+    const r = row(page, "syn004");
+    await r.getByTestId("row-toggle").click();
+    await expect(r.getByTestId("row-detail")).toContainText("Offer signal themes (keyword-based, for H1/H4)");
+    await expect(r.getByTestId("offer-themes")).toContainText("Creator / UGC");
+    await r.getByTestId("edit-themes").click();
+    await r.getByLabel("Creator / UGC").uncheck();
+    await expect(r.getByTestId("offer-themes")).not.toContainText("Creator / UGC");
+    await expect(r.getByTestId("theme-provenance")).toHaveAttribute("data-source", "manual-session");
+  });
+
+  test("German: plain language, the renamed themes and the categories", async ({ page }) => {
+    await page.addInitScript(() => window.localStorage.setItem("ana.locale", "de"));
+    await openCockpit(page);
+    await expect(rateText(page, "syn004", "shares_per_reach")).toContainText("2,5");
+    await expect(row(page, "syn004").getByTestId("row-category")).toHaveText(/Alltag/);
+    await expect(row(page, "syn008").getByTestId("row-category")).toHaveText(/Nicht eingeordnet/);
+    await expect(row(page, "syn000").getByTestId("row-growing")).toContainText("wächst noch");
+    await expect(page.locator('[data-testid="summary-category"][data-category="city"]')).toContainText("Zu wenige Posts");
+    await row(page, "syn004").getByTestId("row-toggle").click();
+    await expect(row(page, "syn004").getByTestId("row-detail")).toContainText("Angebots-Signal-Themen (stichwortbasiert, für H1/H4)");
+    await expect(row(page, "syn004").getByTestId("plain-shares_per_reach")).toHaveText("2,5 von 100 erreichten Personen haben geteilt");
   });
 });
 
@@ -338,7 +515,8 @@ test.describe("Instagram cockpit — mobile 390×844", () => {
     expect(overflow).toBeLessThanOrEqual(0);
     await expect(page.getByTestId("content-map").locator("svg")).toBeHidden();
     await expect(page.getByRole("list", { name: "Ranked by reach index" })).toBeVisible();
-    await expect(row(page, "syn002").getByText("Reach index", { exact: true })).toBeVisible();
+    await expect(row(page, "syn002").getByText("Share rate", { exact: true })).toBeVisible();
+    await expect(row(page, "syn002").getByTestId("row-category")).toContainText("Everyday life");
     await page.getByTestId("inspect-followers").click();
     const box = await page.getByTestId("metric-inspector").boundingBox();
     expect(box).not.toBeNull();
@@ -351,6 +529,16 @@ test.describe("Instagram cockpit — mobile 390×844", () => {
       await page.screenshot({ path: `${dir}/390x844-instagram-cockpit.png` });
       await page.getByTestId("content-rows").scrollIntoViewIfNeeded();
       await page.screenshot({ path: `${dir}/390x844-instagram-content.png` });
+      // ANA-60: summary, then an active sort and category filter, then an open detail
+      await page.getByTestId("category-summary").scrollIntoViewIfNeeded();
+      await page.screenshot({ path: `${dir}/390x844-instagram-rates-summary.png` });
+      await page.getByTestId("sort-select").selectOption("shares_per_reach:desc");
+      await page.getByTestId("category-filter").selectOption("lifestyle");
+      await page.getByTestId("category-filter").scrollIntoViewIfNeeded();
+      await page.screenshot({ path: `${dir}/390x844-instagram-rates-sorted-filtered.png` });
+      await row(page, "syn004").getByTestId("row-toggle").click();
+      await row(page, "syn004").getByTestId("row-detail").scrollIntoViewIfNeeded();
+      await page.screenshot({ path: `${dir}/390x844-instagram-rates-detail.png` });
     }
   });
 });

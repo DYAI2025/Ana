@@ -1,9 +1,14 @@
 import type { SocialResult } from "@/features/social/types";
 import { refuseUnauthorized } from "@/server/http";
+import { CATEGORIES_OFF, cockpitCategories, e2eCategories } from "@/server/social/categories";
 import { NOT_CONFIGURED, socialServiceFromEnv } from "@/server/social/service";
+import { postTaggerFromEnv } from "@/server/world/shared";
 
 // always answered by the server process: never a build-time copy
 export const dynamic = "force-dynamic";
+
+// e2e only (SOCIAL_IG_E2E_CONTROLS=1): "?__categories=off" plays a server without a model key until the next reset
+let e2eCategoriesOff = false;
 
 const json = (body: SocialResult) => Response.json(body, { headers: { "Cache-Control": "no-store" } });
 
@@ -30,10 +35,21 @@ export async function GET(request: Request) {
   if (!service) return json({ ok: false, failure: NOT_CONFIGURED });
   const params = new URL(request.url).searchParams;
   // test control for the Playwright suite only: never enabled outside e2e (playwright.config.ts sets it)
-  if (process.env.SOCIAL_IG_E2E_CONTROLS === "1" && params.has("__reset")) {
+  const e2e = process.env.SOCIAL_IG_E2E_CONTROLS === "1";
+  if (e2e && params.has("__reset")) {
     service.reset();
+    e2eCategoriesOff = false;
+    return new Response(null, { status: 204 });
+  }
+  if (e2e && params.get("__categories") === "off") {
+    e2eCategoriesOff = true;
     return new Response(null, { status: 204 });
   }
   const refresh = params.get("refresh") === "1";
-  return json(await service.read({ refresh }));
+  const result = await service.read({ refresh });
+  if (!result.ok) return json(result);
+  // the Haiku categories of the world (ANA-60); in e2e a synthetic stored file stands in for the model
+  const tagsFile = e2e ? process.env.SOCIAL_IG_E2E_TAGS_FILE : undefined;
+  const categories = tagsFile ? (e2eCategoriesOff ? CATEGORIES_OFF : await e2eCategories(result.snapshot.posts, tagsFile)) : await cockpitCategories(result.snapshot.posts, postTaggerFromEnv());
+  return json({ ...result, categories });
 }

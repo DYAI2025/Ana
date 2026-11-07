@@ -254,7 +254,7 @@ describe("createWorldService — caches, back-off and honest states", () => {
     const w = fakeWorker({ [PULSE_PATH]: () => Response.json(pulseBody(10)), [AUDIENCE_PATH]: () => Response.json(audienceBody) });
     let ready = false;
     const scheduled: string[] = [];
-    const tagger = { current: () => ({}), schedule: () => undefined, idle: () => Promise.resolve(), ready: () => ready };
+    const tagger = { current: () => ({}), schedule: () => undefined, idle: () => Promise.resolve(), ready: () => ready, loaded: () => Promise.resolve() };
     const brain = { schedule: (p: { generated_at: string }) => void scheduled.push(p.generated_at), status: () => ({ state: "on" as const, last_day: null, note: null, reason: null }), idle: () => Promise.resolve() };
     const service = createWorldService({ social, socialConfig: config, readWork: null, workKeys: [], fetchImpl: w.impl, tagger, brain });
     expect((await service.read()).brain.state).toBe("on");

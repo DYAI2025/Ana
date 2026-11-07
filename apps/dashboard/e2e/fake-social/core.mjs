@@ -48,7 +48,10 @@ const iso = (daysAgo) => new Date(Date.parse(FAKE_OBSERVED_AT) - daysAgo * 86_40
 export function buildSnapshot({ count = POSTS.length, observedAt = FAKE_OBSERVED_AT } = {}) {
   const items = POSTS.slice(0, count).map(([type, daysAgo, reach, saved, shares, comments, caption], i) => {
     const notFetched = reach === 0;
-    const values = { reach, views: reach * 2 + 100, saved, shares, likes: Math.round(reach * 0.05), comments, total_interactions: saved + shares + comments + Math.round(reach * 0.05) };
+    const likeCount = Math.round(reach * 0.05);
+    // the insights "likes" varies per post (ANA-60 sorts by like rate); the public like_count counter stays as it was
+    const likes = likeCount + (i % 5) * 9;
+    const values = { reach, views: reach * 2 + 100, saved, shares, likes, comments, total_interactions: saved + shares + comments + likes };
     // Reels also carry watch time (ms) and skip rate (percent 0-100), as the worker reads them (ANA-51)
     const extras = type === "REELS" ? { ig_reels_avg_watch_time: 12000 + i * 1500, reels_skip_rate: 20 + (i % 5) * 4.5 } : {};
     const metrics = [...METRICS, ...Object.keys(extras)].map((name) => {
@@ -65,7 +68,7 @@ export function buildSnapshot({ count = POSTS.length, observedAt = FAKE_OBSERVED
       // no real images: tests render the format glyph fallback
       thumbnail_url: null,
       caption,
-      like_count: values.likes,
+      like_count: likeCount,
       comments_count: comments,
       // one trial Reel (Meta: is_shared_to_feed false); the others carry no flag, as from an older worker
       ...(i === TRIAL_INDEX ? { shared_to_feed: false } : {}),
