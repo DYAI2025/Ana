@@ -64,6 +64,8 @@ export default defineConfig({
             SOCIAL_IG_TIMEOUT_MS: "5000",
             SOCIAL_IG_MIN_REFRESH_MS: "0",
             SOCIAL_IG_E2E_CONTROLS: "1",
+            // ANA-60: synthetic stored post categories stand in for the Haiku reader (no model key in e2e)
+            SOCIAL_IG_E2E_TAGS_FILE: "e2e/fake-social/tags.json",
             WORLD_PULSE_MS: "0",
             WORLD_ANA_PLACE: "Testregion;-1.29;36.82;Africa/Nairobi",
             // the team's manual look pick (POST /api/world/look); /api/world?__reset removes it
