@@ -310,6 +310,7 @@ export const worldDe: Messages["world"] = {
     pairLine: "Trial: {tReach} erreicht · Engagement {tEr} → Feed: {fReach} erreicht · Engagement {fEr}",
     pairShare: "Fremde {share} der Community",
     pairYoung: "wächst noch",
+    pairNoData: "Instagram-Zahlen fehlen",
     pairNote: "Ein Paar erkennt das Dashboard am gleichen Caption-Anfang, das Trial kurz vor dem Feed-Reel gepostet. Verglichen wird, sobald beide mindestens {days} Tage alt sind.",
     better: "Kommt bei Fremden besser an",
     worse: "Kommt in der Community besser an",

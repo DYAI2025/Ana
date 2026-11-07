@@ -13,7 +13,7 @@ import type { AudienceSeries, WorldPayload } from "./types";
 import { postsWith, TAG_FIELDS, TAG_MIN_CONFIDENCE, topPosts, whatWorks, type PostTags, type RateKind, type TagField } from "./postTags";
 import type { SceneData, SceneRef, StationStatus, ViewName, WorldScene } from "./scene/world";
 import { pulseDigest, SETTLED_DAYS as REEL_SETTLED_DAYS } from "./pulse";
-import { clearSignals, LAB_MIN_AGE_DAYS, LAB_MIN_DIFF, LAB_MIN_N, pairSummary, reelPairs, strangerSignals, type StrangerRow } from "./trialLab";
+import { clearSignals, LAB_MIN_AGE_DAYS, LAB_MIN_DIFF, LAB_MIN_N, pairState, pairSummary, reelPairs, strangerSignals, type StrangerRow } from "./trialLab";
 import { BriefBlock } from "./BriefBlock";
 import { BerlinRoom } from "@/features/office/BerlinRoom";
 import { OfficeRoom } from "./OfficeRoom";
@@ -678,9 +678,14 @@ export function WorldView() {
                             {postTitle(p.feed.id)}
                           </button>
                           <span className={styles.muted}>{t("world.lab.pairLine", { tReach: num(p.trial.reach), tEr: pct1(p.trial.er), fReach: num(p.feed.reach), fEr: pct1(p.feed.er) })}</span>
-                          <span className={p.settled ? styles.hotBadge : styles.trialBadge}>
-                            {p.settled && p.erShare !== null ? t("world.lab.pairShare", { share: `${Math.round(p.erShare * 100)} %` }) : t("world.lab.pairYoung")}
-                          </span>
+                          {(() => {
+                            const state = pairState(p);
+                            return (
+                              <span className={state === "ready" ? styles.hotBadge : styles.trialBadge} data-state={state}>
+                                {state === "ready" ? t("world.lab.pairShare", { share: `${Math.round(p.erShare! * 100)} %` }) : state === "missing" ? t("world.lab.pairNoData") : t("world.lab.pairYoung")}
+                              </span>
+                            );
+                          })()}
                         </li>
                       ))}
                     </ol>

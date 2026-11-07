@@ -83,6 +83,16 @@ export function reelPairs(posts: readonly WorldPost[], nowMs: number): ReelPair[
   return pairs.sort((x, y) => at(y.feed) - at(x.feed));
 }
 
+/**
+ * What a pair can show: "young" while either Reel is under LAB_MIN_AGE_DAYS old; "missing" when both are old enough
+ * but Instagram returned no reach or engagement for one of them (the worker reads insights for part of the posts per
+ * call); "ready" otherwise.
+ */
+export function pairState(p: ReelPair): "young" | "missing" | "ready" {
+  if (!p.settled) return "young";
+  return p.erShare === null ? "missing" : "ready";
+}
+
 /** what the settled pairs say together: medians over pairs with both numbers */
 export function pairSummary(pairs: readonly ReelPair[]): { n: number; reachX: number | null; erShare: number | null } {
   const settled = pairs.filter((p) => p.settled);
