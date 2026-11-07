@@ -30,6 +30,7 @@ The app in this folder is **ASADA** — Ana Savu Dashboard (Jira ANA-4 visual sh
     "tagline": "a line in Ana's own words",
     "contact": { "email": "…", "label": "Work with Ana", "subject": "Collaboration" },
     "partners": [{ "name": "…", "kind": "paid | gifted | ugc | affiliate | partnership (optional)", "current": true }],
+    "partners_more": true,
     "reels": { "<media id>": { "kind": "organic | partnership | ugc | concept", "brand": "…" } },
     "cases": [{ "id": "…", "brand": "…", "title": "…", "summary": "…", "role": "…", "deliverables": ["…"], "period": "…", "source": "…", "results": [{ "label": "…", "value": "…" }], "link": "https://…" }],
     "packages": [{ "name": "…", "price": "from …", "includes": ["…"], "note": "…" }],
@@ -45,6 +46,7 @@ The app in this folder is **ASADA** — Ana Savu Dashboard (Jira ANA-4 visual sh
   that leads down to the one button, whose e-mail opens with a short briefing; the preset's market share in the hero;
   "live" only for a reading of at most 26 h. A case's id defaults to its brand as a slug ("Nomad eSIM" →
   `nomad-esim`, a second case of the same brand `nomad-esim-2`); the preview bar lists the ids.
+  `"partners_more": true` ends the last partner list with "and more" (Ana names a selection, not every brand).
   ANA-55: a partner with `"current": true` is listed under "Currently working with", the others under "Also worked with"
   (no claim that those ended; "Worked with" when none is current).
 
@@ -53,7 +55,23 @@ The app in this folder is **ASADA** — Ana Savu Dashboard (Jira ANA-4 visual sh
   cream ground, 1 px olive lines, no shadows, and the "Ana Savu Management" signature in the footer. The contact
   address appears there as text, so the button stays the only mailto link. Assets: `src/features/kit/brand/`.
 
-  Public per-brand links without the dashboard login, open tracking and revocation are a later slice.
+  **Public brand links** (no dashboard login): `/kit/b/<token>` shows the kit of one preset to a brand. The links live in
+  `kit-links.json` next to `media-kit.json` (never in git):
+
+  ```json
+  { "links": [{ "id": "west-1", "token": "<43 chars: 32 random bytes, base64url>", "preset": "west",
+                "label": "English-speaking markets", "brand": null, "created_at": "2026-11-06T16:00:00Z", "revoked": false }] }
+  ```
+
+  A token is made with `node -e "console.log(require('crypto').randomBytes(32).toString('base64url'))"`. Revoke with
+  `"revoked": true` (the link answers 404 at once, like an unknown one). `src/proxy.ts` lets only `/kit/b/<43 chars>`
+  and `/_next/static/…` through without the access check (`src/server/kit/publicPath.ts`); every other page and every API
+  route still needs the login. The brand page has no preview bar, no other presets, no case ids, and loads nothing of
+  the dashboard; it is sent with `Referrer-Policy: no-referrer`, `X-Robots-Tag: noindex, nofollow` and
+  `Cache-Control: private, no-store`. Opens are counted in `kit-link-opens.json`: views apart from link previews
+  (Slack, WhatsApp, mail scanners), first and last view; no IP address, user agent or cookie is stored, and a team
+  member logged in to the dashboard is not counted. The internal preview (`/kit`) lists the links with their counts.
+  Which hostname brands use is a Cloudflare setting (deploy/ana-dashboard/README.md, "Public brand links").
 - **Everything else is local prototype data**: Sessions, Whiteboard, Calendar, Pulse, Vault and Toolbox are not
   connected to Confluence, Drive, a calendar, an AI provider or a database. Whiteboard notes and calendar events live
   in memory for the browser tab and reset on reload. Only the chosen language is remembered (localStorage

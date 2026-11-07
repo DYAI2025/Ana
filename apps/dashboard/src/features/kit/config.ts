@@ -56,8 +56,8 @@ export interface KitReelLabel {
 
 export interface KitPackage {
   name: string;
-  /** as Ana writes it, e.g. "from €1,500" */
-  price: string;
+  /** as Ana writes it, e.g. "from €1,500"; null: the kit shows the format only ("Rates on request") */
+  price: string | null;
   includes: string[];
   note: string | null;
 }
@@ -84,6 +84,8 @@ export interface KitConfig {
   contact: KitContact | null;
   /** brands Ana has worked with, names only (no logos) */
   partners: KitPartner[];
+  /** Ana worked with more brands than the list names: the partner list ends with "and more" */
+  partners_more: boolean;
   /** labels of Reels by media id */
   reels: Record<string, KitReelLabel>;
   cases: KitCase[];
@@ -92,7 +94,7 @@ export interface KitConfig {
   presets: Record<string, KitPresetInput>;
 }
 
-export const EMPTY_KIT_CONFIG: KitConfig = { name: null, website: null, tagline: null, contact: null, partners: [], reels: {}, cases: [], packages: [], addons: [], presets: {} };
+export const EMPTY_KIT_CONFIG: KitConfig = { name: null, website: null, tagline: null, contact: null, partners: [], partners_more: false, reels: {}, cases: [], packages: [], addons: [], presets: {} };
 
 const MAX_ITEMS = 12;
 const str = (v: unknown, max = 400): string | null => {
@@ -193,9 +195,8 @@ function parseCase(v: unknown): KitCase | null {
 function parsePackage(v: unknown): KitPackage | null {
   const o = obj(v);
   const name = str(o?.name, 60);
-  const price = str(o?.price, 40);
-  if (!o || !name || !price) return null;
-  return { name, price, includes: list(o.includes, (x) => str(x, 120), 8), note: str(o.note, 200) };
+  if (!o || !name) return null;
+  return { name, price: str(o.price, 40), includes: list(o.includes, (x) => str(x, 120), 8), note: str(o.note, 200) };
 }
 
 function parseAddon(v: unknown): KitAddon | null {
@@ -248,6 +249,7 @@ export function parseKitConfig(raw: unknown): KitConfig {
     tagline: str(o.tagline, 200),
     contact: parseContact(o.contact),
     partners: list(o.partners, parsePartner, 12),
+    partners_more: o.partners_more === true,
     reels: parseReelLabels(o.reels),
     cases: uniqueIds(list(o.cases, parseCase, 6)),
     packages: list(o.packages, parsePackage, 6),

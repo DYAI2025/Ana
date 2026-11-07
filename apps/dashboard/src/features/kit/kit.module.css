@@ -683,6 +683,14 @@ a.reel:focus-visible {
   outline: 2px solid var(--olive);
   outline-offset: 3px;
 }
+/* a kit without prices: the formats, and this one quiet line under the heading */
+.ratesOnRequest {
+  margin: 0 0 clamp(20px, 3vw, 28px);
+  color: var(--olive);
+  font-family: var(--serif);
+  font-size: 20px;
+  font-style: italic;
+}
 .price {
   margin: 6px 0 0;
   color: var(--olive);
@@ -758,6 +766,13 @@ a.reel:focus-visible {
   font-family: var(--serif);
   font-size: 21px;
   line-height: 1.2;
+}
+.partnersMore {
+  color: var(--ink-3);
+  font-family: var(--serif);
+  font-size: 18px;
+  font-style: italic;
+  line-height: 1.3;
 }
 .partners small {
   color: var(--ink-3);
@@ -979,4 +994,10 @@ a.reel:focus-visible {
   .ring {
     display: none;
   }
+}
+
+/* brand links in the internal preview: the path can be selected and copied */
+.hidden code {
+  font-size: 12px;
+  user-select: all;
 }
