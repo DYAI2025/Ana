@@ -310,6 +310,7 @@ export const worldIt: Messages["world"] = {
     pairLine: "Prova: {tReach} raggiunti · engagement {tEr} → Feed: {fReach} raggiunti · engagement {fEr}",
     pairShare: "sconosciuti {share} della community",
     pairYoung: "ancora in crescita",
+    pairNoData: "numeri Instagram mancanti",
     pairNote: "Una coppia si riconosce dallo stesso inizio di didascalia, con il Reel di prova pubblicato poco prima di quello nel feed. Il confronto parte quando entrambi hanno almeno {days} giorni.",
     better: "Funziona meglio con gli sconosciuti",
     worse: "Funziona meglio nella community",
