@@ -81,10 +81,21 @@ You get back a link valid for **30 minutes** that allows up to **3 attempts**. I
 
 ```sh
 H="Authorization: Bearer ${ANA_ADMIN_API_KEY}"
-curl --fail-with-body -sS -H "$H" https://login.dyai.cloud/admin/status          # CONNECTED, expiry, permissions, last refresh error
+curl --fail-with-body -sS -H "$H" https://login.dyai.cloud/admin/status          # status + health of the last base-token check, expiry, permissions, last refresh error
 curl --fail-with-body -sS -H "$H" https://login.dyai.cloud/admin/probe           # real media sample; caption_field ACCEPTED | REJECTED_BY_META
 curl --fail-with-body -sS -H "$H" https://login.dyai.cloud/admin/insights-probe  # insights PASS | FAILED (reach, period=day)
 ```
+
+`/admin/status` makes no Meta call. Its `status` is evaluated in this order (Jira ANA-40):
+
+| `status` | Condition | `connected` |
+|---|---|---|
+| `NOT_AUTHORIZED` | no token stored | false |
+| `REAUTH_REQUIRED` | D1 `REAUTH_REQUIRED`, or `expires_at <= now` | false |
+| `UNVERIFIED` | D1 `CONNECTED`, but no successful check yet or the last one is at least 36 h old | false |
+| `CONNECTED` | D1 `CONNECTED` and a successful check less than 36 h ago | true |
+
+`UNVERIFIED` means availability unknown, not a confirmed revocation; it is computed on read and never stored, and it does not block `/admin/probe`, `/admin/insights-probe` or the internal reads. The `health` object reports `scope: "basic-token-and-account-id"`, `last_check_at`, `last_check_result` (`OK | TOKEN_INVALID | EXPIRED | UNVERIFIABLE`), `last_check_error_class` (an error class such as `meta-4`, `TimeoutError` or `wrong-account`, never a token, code or URL), `last_ok_at`, `last_ok_source` (`callback | cron | refresh`) and `fresh_until` (`last_ok_at` + 36 h). A health OK only confirms that the base token is valid and belongs to `EXPECTED_IG_USER_ID`. It does **not** confirm media reads, Insights or single permissions; `/admin/probe` and `/admin/insights-probe` remain the evidence for those. `last_refresh_*` keep their previous meaning: the last refresh attempt and its error class, plus the marker `expired` when the cron finds an expired token.
 
 Insights support may be claimed only after `insights-probe` returns `PASS` against the live account. Meta's IG Media reference marks `caption` as "Instagram API with Facebook Login only", so the media reads fall back to requesting no caption and report which outcome occurred.
 
@@ -113,7 +124,7 @@ Insights support may be claimed only after `insights-probe` returns `PASS` again
 - `/instagram/callback` requires one-time `state` bound to a `__Secure-` HttpOnly SameSite=Lax cookie. A forged callback link (`?error=` or `?code=` without the matching state and cookie) neither cancels, consumes nor clears an attempt. The token is stored only after `user_id` and `username` match. Storing the token and spending the invitation commit in one D1 batch.
 - Tokens are encrypted with AES-256-GCM using a random IV, and the ciphertext is bound to its `account_id` via AAD. If the key is lost, stored tokens become undecryptable. If it is changed, Ana must re-authorize.
 - Graph calls pass the token via the documented `access_token` query parameter. The App Secret goes only to `api.instagram.com` and `graph.instagram.com`. Because Meta mandates query-string credentials, `wrangler.toml` disables invocation logs and traces and redacts query strings. The worker's own logs carry event names, error classes and non-secret metadata (expiry timestamps, granted scopes, refresh status, request path), never URLs, query strings, codes, tokens or secrets.
-- Cron `0 5 * * *` refreshes tokens when ≤ 15 days remain (never before 24 h). A transient failure keeps the old token and records `last_refresh_error`. Meta error 190 (revoked) sets `REAUTH_REQUIRED`. Expired invitations and attempts are removed in FK-safe order.
+- Cron `0 5 * * *` runs one token check per run with at most one Meta call. An expired token becomes `REAUTH_REQUIRED` (`EXPIRED`) without a call, and a token already `REAUTH_REQUIRED` is never sent to Meta again. A token with ≤ 15 days left (and older than 24 h) is refreshed, and the refresh is the check. Otherwise the cron calls `GET /v26.0/me?fields=user_id` and accepts only `EXPECTED_IG_USER_ID`. Meta error 190 (token invalid, whatever the HTTP status) sets `REAUTH_REQUIRED` with `TOKEN_INVALID`. Every other failure (timeout, network, 5xx, non-JSON, rate limit, codes 10/200 and others, a missing or different `user_id`, an invalid refresh payload) is `UNVERIFIABLE` and keeps the status. A failed refresh also keeps the old token and records its error class in `last_refresh_error`. A successful OAuth callback or refresh makes the token fresh at once without an extra call. Every health write is bound to the ciphertext that was checked, so a result for an old token never touches a re-authorized one. Expired invitations and attempts are removed in FK-safe order.
 
 ## Tests / known limitations
 
@@ -127,6 +138,8 @@ Not implemented: rate limiting on `/admin/*` (add a Cloudflare rate-limiting rul
 2. Remove the custom domain `login.dyai.cloud` from the Worker; the callback then stops working.
 3. Optionally, have Ana remove the app in Instagram → Settings → Apps and websites.
 4. Delete the Worker and the D1 database only with explicit approval.
+
+Rolling the Worker back to a version before ANA-40 needs no schema change. Migration `0002_token_health.sql` only adds nullable columns, which older code ignores. Do not drop them. For a deploy, apply the migration before the code, because the ANA-40 code reads and writes those columns.
 
 Never delete the Meta app or other Workers.
 
