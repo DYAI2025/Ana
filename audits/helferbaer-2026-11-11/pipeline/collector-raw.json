@@ -1,0 +1,1019 @@
+{
+  "collector_version": "1.0.0",
+  "requested_url": "https://www.xn--helferbr-6za.de/",
+  "started_at": "2026-11-11T20:19:57Z",
+  "pages": {
+    "https://www.xn--helferbr-6za.de/": {
+      "kind": "home",
+      "status": 200,
+      "transfer_bytes": 36067,
+      "content_encoding": "gzip",
+      "title": "Helferbär - Entlastungsdienst | Pflegekasse zahlt"
+    },
+    "https://www.xn--helferbr-6za.de/impressum": {
+      "kind": "impressum",
+      "status": 200,
+      "transfer_bytes": 22232,
+      "content_encoding": "gzip",
+      "title": "Helferbär - Wir unterstützen Menschen mit Pflegegrad"
+    },
+    "https://www.xn--helferbr-6za.de/privacyb505f5ef": {
+      "kind": "datenschutz",
+      "status": 200,
+      "transfer_bytes": 29068,
+      "content_encoding": "gzip",
+      "title": "Helferbär - Wir unterstützen Menschen mit Pflegegrad"
+    },
+    "https://www.xn--helferbr-6za.de/kontakt": {
+      "kind": "kontakt",
+      "status": 200,
+      "transfer_bytes": 32271,
+      "content_encoding": "gzip",
+      "title": "Kontakt | Helferbär – Alltagshilfe & Seniorenbetreuung"
+    },
+    "https://www.xn--helferbr-6za.de/unsere-dienstleistungen": {
+      "kind": "leistungen",
+      "status": 200,
+      "transfer_bytes": 33756,
+      "content_encoding": "gzip",
+      "title": "Unsere Leistungen im Überblick | Helferbär"
+    },
+    "https://www.xn--helferbr-6za.de/ueber-uns": {
+      "kind": "ueber",
+      "status": 200,
+      "transfer_bytes": 36557,
+      "content_encoding": "gzip",
+      "title": "Lernen Sie das Team von Helferbär kennen!"
+    }
+  },
+  "errors": [],
+  "home_fetch": {
+    "ok": true,
+    "url": "https://www.xn--helferbr-6za.de/",
+    "final_url": "https://www.xn--helferbr-6za.de/",
+    "status": 200,
+    "headers": {
+      "content-type": "text/html;charset=utf-8",
+      "content-length": "36067",
+      "connection": "close",
+      "x-ws-origin": "available",
+      "x-ws-ratelimit-limit": "1000",
+      "x-ws-ratelimit-remaining": "999",
+      "date": "Wed, 11 Nov 2026 20:19:57 GMT",
+      "server": "nginx",
+      "etag": "\"-1210642674\"",
+      "d-cache": "from-cache",
+      "strict-transport-security": "max-age=15768000; preload",
+      "content-security-policy": "frame-ancestors https://*.ionos.com https://*.ionos.at https://*.ionos.co.uk https://*.ionos.de https://*.ionos.es https://*.ionos.fr https://*.ionos.it https://*.ionos.ca https://*.ionos.mx https://*.ionos.us https://*.website-editor.net https://*.mywebsite-editor.com www.xn--helferbr-6za.de",
+      "x-content-type-options": "nosniff",
+      "vary": "Accept-Encoding",
+      "cache-control": "no-cache, must-revalidate",
+      "expires": "Thu, 01 Jan 1970 00:00:00 GMT",
+      "speculation-rules": "\"https://static-cdn.website-editor.net/speculations/rules/prerender-1.0.3.json\"",
+      "content-encoding": "gzip",
+      "d-geo": "EU"
+    },
+    "chain": [],
+    "transfer_bytes": 36067,
+    "body_bytes": 137031,
+    "content_type": "text/html;charset=utf-8"
+  },
+  "target_url": "https://www.xn--helferbr-6za.de/",
+  "http_variant": {
+    "ok": true,
+    "url": "http://www.xn--helferbr-6za.de/",
+    "final_url": "https://www.xn--helferbr-6za.de/",
+    "status": 200,
+    "headers": {
+      "content-type": "text/html;charset=utf-8",
+      "content-length": "36067",
+      "connection": "close",
+      "x-ws-origin": "available",
+      "x-ws-ratelimit-limit": "1000",
+      "x-ws-ratelimit-remaining": "999",
+      "date": "Wed, 11 Nov 2026 20:19:58 GMT",
+      "server": "nginx",
+      "etag": "\"-1210642674\"",
+      "d-cache": "from-cache",
+      "strict-transport-security": "max-age=15768000; preload",
+      "content-security-policy": "frame-ancestors https://*.ionos.com https://*.ionos.at https://*.ionos.co.uk https://*.ionos.de https://*.ionos.es https://*.ionos.fr https://*.ionos.it https://*.ionos.ca https://*.ionos.mx https://*.ionos.us https://*.website-editor.net https://*.mywebsite-editor.com www.xn--helferbr-6za.de",
+      "x-content-type-options": "nosniff",
+      "vary": "Accept-Encoding",
+      "cache-control": "no-cache, must-revalidate",
+      "expires": "Thu, 01 Jan 1970 00:00:00 GMT",
+      "speculation-rules": "\"https://static-cdn.website-editor.net/speculations/rules/prerender-1.0.3.json\"",
+      "content-encoding": "gzip",
+      "d-geo": "EU"
+    },
+    "chain": [
+      {
+        "url": "http://www.xn--helferbr-6za.de/",
+        "status": 301
+      }
+    ],
+    "transfer_bytes": 36067,
+    "body_bytes": 137031,
+    "content_type": "text/html;charset=utf-8"
+  },
+  "home_internal_links": [
+    "https://www.xn--helferbr-6za.de/",
+    "https://www.xn--helferbr-6za.de/ueber-uns",
+    "https://www.xn--helferbr-6za.de/faq",
+    "https://www.xn--helferbr-6za.de/unsere-dienstleistungen",
+    "https://www.xn--helferbr-6za.de/leistungen-alltagshilfe",
+    "https://www.xn--helferbr-6za.de/pflegeberatung",
+    "https://www.xn--helferbr-6za.de/reisebegleitung",
+    "https://www.xn--helferbr-6za.de/soziale-teilhabe",
+    "https://www.xn--helferbr-6za.de/ratgeber",
+    "https://www.xn--helferbr-6za.de/blog",
+    "https://www.xn--helferbr-6za.de/jetzt-helferbaer-werden",
+    "https://www.xn--helferbr-6za.de/kontakt",
+    "https://www.xn--helferbr-6za.de/berlin",
+    "https://www.xn--helferbr-6za.de/potsdam",
+    "https://www.xn--helferbr-6za.de/leipzig",
+    "https://www.xn--helferbr-6za.de/magdeburg",
+    "https://www.xn--helferbr-6za.de/halle",
+    "https://www.xn--helferbr-6za.de/dresden",
+    "https://www.xn--helferbr-6za.de/privacyb505f5ef",
+    "https://www.xn--helferbr-6za.de/impressum"
+  ],
+  "key_pages": {
+    "impressum": "https://www.xn--helferbr-6za.de/impressum",
+    "datenschutz": "https://www.xn--helferbr-6za.de/privacyb505f5ef",
+    "kontakt": "https://www.xn--helferbr-6za.de/kontakt",
+    "leistungen": "https://www.xn--helferbr-6za.de/unsere-dienstleistungen",
+    "ueber": "https://www.xn--helferbr-6za.de/ueber-uns"
+  },
+  "robots": {
+    "status": 200,
+    "error": null,
+    "bytes": 167,
+    "disallow_all_for_star": false,
+    "sitemaps": [
+      {
+        "url": "https://www.xn--helferbr-6za.de/sitemap.xml",
+        "status": 200,
+        "error": null,
+        "loc_count": 64
+      }
+    ]
+  },
+  "home_assets": {
+    "discovered": 25,
+    "fetched": 25,
+    "rows": [
+      {
+        "type": "css",
+        "url": "https://cdn.website-editor.net/fonts/css2?family=Abril+Fatface:ital,wght@0,400&family=Work+Sans:ital,wght@0,100..900;1,100..900&family=Shadows+Into+Light:ital,wght@0,400&family=Prata:ital,wght@0,400&family=Roboto:ital,wght@0,100;0,300;0,400;0,500;0,700;0,900;1,100;1,300;1,400;1,500;1,700;1,900&family=Amiri:ital,wght@0,400;0,700;1,400;1,700&family=Montserrat:ital,wght@0,100..900;1,100..900&family=Cabin:ital,wght@0,400..700;1,400..700&family=Poppins:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&family=Outfit:ital,wght@0,100..900;1,100..900&family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=Source+Sans+Pro:ital,wght@0,200;0,300;0,400;0,600;0,700;0,900;1,200;1,300;1,400;1,600;1,700;1,900&subset=latin-ext&display=swap",
+        "status": 200,
+        "error": null,
+        "transfer_bytes": 5706,
+        "content_type": "text/css; charset=utf-8",
+        "content_encoding": "gzip",
+        "cache_control": "max-age=2592000",
+        "etag": false,
+        "same_host": false
+      },
+      {
+        "type": "css",
+        "url": "https://static-cdn.website-editor.net/mnlt/production/6926/_dm/s/rt/dist/css/d-css-runtime-desktop-one-package-structured-global.min.css",
+        "status": 200,
+        "error": null,
+        "transfer_bytes": 33745,
+        "content_type": "text/css",
+        "content_encoding": "gzip",
+        "cache_control": "max-age=604800",
+        "etag": true,
+        "same_host": false
+      },
+      {
+        "type": "css",
+        "url": "https://cdn.website-editor.net/WIDGET_CSS/199069c11699d9ed87f3b9ce20d67187.css",
+        "status": 200,
+        "error": null,
+        "transfer_bytes": 17049,
+        "content_type": "text/css",
+        "content_encoding": "gzip",
+        "cache_control": "max-age=604800",
+        "etag": true,
+        "same_host": false
+      },
+      {
+        "type": "css",
+        "url": "https://cdn.website-editor.net/s/b532111ae84b45109a2f2df5c635fb3b/files/b532111ae84b45109a2f2df5c635fb3b_withFlex_1.min.css?v=2e070c42da72584ef4870b7c070d35d3&Expires=1797019292&Signature=JgILcBTh6YpKp6CP7C-qnBHjK7i2kiyu~JnN-g3pMX43e~AuLBieuTpg7DxiI~19-ANXEpvENM4YMFCK6j0JiUGVJiREFOUPgNRpMAhrih05rCHyVZ9Ycmgp3lUznoh511qlKNEEmlZUOWOCmGBIVuTWQZq3BAVrsAW8O6a6gJZ3aIznL1UkzktIBHW5MSsyz~ylpRc4GEWUR7RIK1zw87lJiaUROxBefrDcP04tSTAxuUllrY4eoNK6KO1pSd~EOsiV21CKkQqk-6sgmIXKlMuVDCDa2C51f~~I3zPacXAy4E7YZ9XQkRrpoM86kDGwDTRoHpuE-zSAermTYgDBBw__&Key-Pair-Id=K2NXBXLF010TJW",
+        "status": 200,
+        "error": null,
+        "transfer_bytes": 38960,
+        "content_type": "text/css",
+        "content_encoding": "gzip",
+        "cache_control": "max-age=864000",
+        "etag": false,
+        "same_host": false
+      },
+      {
+        "type": "css",
+        "url": "https://www.xn--helferbr-6za.de/_dm/s/rt/css/oneUndOne/1and1-runtime.css?version=2026-11-11T13_48_56",
+        "status": 200,
+        "error": null,
+        "transfer_bytes": 324,
+        "content_type": "text/css",
+        "content_encoding": "gzip",
+        "cache_control": "max-age=864000",
+        "etag": false,
+        "same_host": true
+      },
+      {
+        "type": "css",
+        "url": "https://cdn.website-editor.net/s/b532111ae84b45109a2f2df5c635fb3b/files/b532111ae84b45109a2f2df5c635fb3b_home_withFlex_1.min.css?v=673b7ce2f22f13962acebbc75037a167&Expires=1797019292&Signature=hU~Y2WZQAs4IzfUYXE2vrG0~ygHresaMSUYPhqCW1jv08i4BlWKFDQrTJsybl2qY5nU38URA~5ZCOo-I3h-AfFy8xjOCIk1vebAGPWXOj~LoyMYWFOAA9akNIwPcczjqQqjjvuc2yLxeyxUtnTDb77FcbqiYJjhKyWtcKctFSAKZY1J-p4op2O0ycl0B0APcUh9ZYDV4xgYROZhnyteJpw7donxssm3dTg-XL9-eQBVTS2fdQC9H09Y-keSC1bw6GXhnGNutSErInCNGmKqwsTN8KXIOiGHeBA1f5Ngtk5VC48p3U9jAkmNLg-RKVjsjiIwFfCRe7WZ6YZdCzIdiRA__&Key-Pair-Id=K2NXBXLF010TJW",
+        "status": 200,
+        "error": null,
+        "transfer_bytes": 5613,
+        "content_type": "text/css",
+        "content_encoding": "gzip",
+        "cache_control": "max-age=864000",
+        "etag": false,
+        "same_host": false
+      },
+      {
+        "type": "js",
+        "url": "https://app.termly.io/resource-blocker/ec3677b9-9cf2-4773-9f75-9bfb72e7fdd8",
+        "status": 200,
+        "error": null,
+        "transfer_bytes": 154318,
+        "content_type": "text/javascript;charset=UTF-8",
+        "content_encoding": "gzip",
+        "cache_control": "max-age=14400, public",
+        "etag": true,
+        "same_host": false
+      },
+      {
+        "type": "js",
+        "url": "https://www.googletagmanager.com/gtag/js?id=G-M9HNP2VLP3",
+        "status": 200,
+        "error": null,
+        "transfer_bytes": 595406,
+        "content_type": "application/javascript; charset=UTF-8",
+        "content_encoding": null,
+        "cache_control": "private, max-age=900",
+        "etag": false,
+        "same_host": false
+      },
+      {
+        "type": "js",
+        "url": "https://elfsightcdn.com/platform.js",
+        "status": 200,
+        "error": null,
+        "transfer_bytes": 11822,
+        "content_type": "application/javascript",
+        "content_encoding": "gzip",
+        "cache_control": "max-age=3600",
+        "etag": true,
+        "same_host": false
+      },
+      {
+        "type": "js",
+        "url": "https://elfsightcdn.com/platform.js",
+        "status": 200,
+        "error": null,
+        "transfer_bytes": 11822,
+        "content_type": "application/javascript",
+        "content_encoding": "gzip",
+        "cache_control": "max-age=3600",
+        "etag": true,
+        "same_host": false
+      },
+      {
+        "type": "js",
+        "url": "https://static-cdn.website-editor.net/libs/jquery/2.2.4/jquery.min.js",
+        "status": 200,
+        "error": null,
+        "transfer_bytes": 30399,
+        "content_type": "text/javascript",
+        "content_encoding": "gzip",
+        "cache_control": "max-age=604800",
+        "etag": true,
+        "same_host": false
+      },
+      {
+        "type": "js",
+        "url": "https://static-cdn.website-editor.net/mnlt/production/6926/_dm/s/rt/dist/scripts/d-js-one-runtime-unified-desktop.min.js",
+        "status": 200,
+        "error": null,
+        "transfer_bytes": 106278,
+        "content_type": "text/javascript",
+        "content_encoding": "gzip",
+        "cache_control": "max-age=604800",
+        "etag": true,
+        "same_host": false
+      },
+      {
+        "type": "img",
+        "url": "https://le-cdn.website-editor.net/s/b532111ae84b45109a2f2df5c635fb3b/dms3rep/multi/opt/HB+Logo+f%C3%BCr+Webseite-1920w.jpg?Expires=1797019292&Signature=TGGTd8yIvaEyQIt8210FEL8BNqAYomMvckMRm5DKaPywrsNaCBgwP1pRIPcmCcHJ3WU0ROghcK4nYQAC5Mq08ztrYM5~lMuStWDHU~E5pCBpbtUxswhjHaHZYztJOzrP2FXJNp8GXMGAHHWfemQo5DGRXmEYaBVA~a5klNZx579m0Ukq6qnAbG9iGNC2u2IKHRbKFBybvYzF~2VYyPyBDmUd1ZVgLyMsFyDWOKWo8UpKq5a6WEYQCIsW6PrnKZWJaCoV2JcO74zVtNN7F3wmUtAEyUYenNwOUqLGp7wQUsTg1-en-agXej8vgvt7ECHQclSzIiGagP7c3fb4G~eNtA__&Key-Pair-Id=K2NXBXLF010TJW",
+        "status": 200,
+        "error": null,
+        "transfer_bytes": 223655,
+        "content_type": "image/jpg",
+        "content_encoding": null,
+        "cache_control": "public, max-age=31536000",
+        "etag": true,
+        "same_host": false
+      },
+      {
+        "type": "img",
+        "url": "https://le-cdn.website-editor.net/s/b532111ae84b45109a2f2df5c635fb3b/dms3rep/multi/opt/Pflegeberatung+Webseite+V2-1920w.png?Expires=1797019292&Signature=NduKBAEWhyjSA168LTwKJnnCKdHF3N0szPyrFOc8FZJlS9wdRkIAQK-yNbyH9MyNjGZT5vUH00JyC2pH5zbceMfZH5FaO5dAtppTzmC-rmoyJcD~Y0LXcuD~iMbD3ThloUahPqch00TAHeqQkI8BvzYG7yRkmDbO12vQoN3MVFDP~eSncQE-K36OwfbF6gurmn11tQ6aqpmLIU3DfTEEiCPkvJdPBT8x6UlNWwcir3qXG2YpwgsuoqJkCvH9HiwF-8jL9vtpjumUPol9GpC4-wzsIcfRMNynLtd8MAgZLj08kIXpz12ZkC2eYd-OXstLyulGn-VFyeYNZ6w-PtLw5A__&Key-Pair-Id=K2NXBXLF010TJW",
+        "status": 200,
+        "error": null,
+        "transfer_bytes": 2966224,
+        "content_type": "image/png",
+        "content_encoding": null,
+        "cache_control": "public, max-age=31536000",
+        "etag": true,
+        "same_host": false
+      },
+      {
+        "type": "img",
+        "url": "https://le-cdn.website-editor.net/s/b532111ae84b45109a2f2df5c635fb3b/dms3rep/multi/opt/ChatGPT-Image-1.-Apr.-2026--16_19_40-1920w.png?Expires=1797019292&Signature=Mh1OBNS3XPmotbp3M77wXO25anq0s6U3-ad7ijcsx7B~MZrH81VZN1x8zTJuxrJ-PsGoWHt73OxJiVR3KrM5AugjuMe4lCqi8OSd-rvxFxYM69U2nutYEnjlOKfpPpkP9GZvBxmgKRGAl3zOxkFXVqx4D2LYBED4PrEdYtuAkzWW1UkeBc3IN06NlYZw~lZdA3PD4EIzdWYHnRZPdFfx44HE9wvsq3YEmRxcjHvPGJA5ezeVYJuyBXLviiFhww2XXlZ4R4Q5rTvH4PL01Ac-SSniss533-f0BTmRsn9y7g5euqzVACks00MaiKycMhSZyky5qxqDHz-49k1FUqX7cQ__&Key-Pair-Id=K2NXBXLF010TJW",
+        "status": 200,
+        "error": null,
+        "transfer_bytes": 2207079,
+        "content_type": "image/png",
+        "content_encoding": null,
+        "cache_control": "public, max-age=31536000",
+        "etag": true,
+        "same_host": false
+      },
+      {
+        "type": "img",
+        "url": "https://le-cdn.website-editor.net/s/b532111ae84b45109a2f2df5c635fb3b/dms3rep/multi/opt/Einkaufen-mit-einem-freundlichen-B-C3-A4ren-c0586d60-1920w.png?Expires=1797019292&Signature=JKKsZu3hM33PtHw145ZOuGxTirZCeMPWLpMP9XL48r80pcoKI5rVQHZpUNvFU2opWQIX0dNWhFtNj0Ob07BAPE2K--xWa4aZgVCRmeL5cY30XY8hqVRE6g2L7GeW3L7hHNp7GrN7yjoU3UJfNgrVCTXGidwcucHI~X~ARkxkQPmtUSSYIkh3dFjaka3gT36K3Sr1WHEZ2uh4cfW37AFTegDMun9Swcm7Y-HZwNKFt5-IRXbiI4ntK0Qpwtohj~z5x0KTsskxD9er2bT4XdmO0rbG0tnzBHZrH7kR~S1nYi4lM0G2H08vQQ4X9NjCB5d3dxwg7Qc8lzLZ4wMF5ePA0g__&Key-Pair-Id=K2NXBXLF010TJW",
+        "status": 200,
+        "error": null,
+        "transfer_bytes": 2314190,
+        "content_type": "image/png",
+        "content_encoding": null,
+        "cache_control": "public, max-age=31536000",
+        "etag": true,
+        "same_host": false
+      },
+      {
+        "type": "img",
+        "url": "https://le-cdn.website-editor.net/s/b532111ae84b45109a2f2df5c635fb3b/dms3rep/multi/opt/csm_KPU_Logo_2015_Pfeile_Kopie_94a3b28d4f-1920w.png?Expires=1797019292&Signature=bfudLDPRKnuJDBtXzJeC5jzqLgaTbtyrGHq4udZ~AviRwLS3wxpDiriBJOHomxCdObecEg0qXZu-z-iwOWWWw-72NzqE7FDUYWXSSgIDg2H-u6NSJpLXCsGCC9CWuyLmDsBgsN9vN9M4S5NxGau1LbgSalTJ10SYF3wthdFV1fXg1yAVBIjjWpPNWUmZc9rOKa8c~0Ul0C7n0Alqbu0jHPI0CkUsW0xni24pv1GQxpT4w8QSDz4PZiZMytZNO9i8BknUWOp-wiCpEIOo9mGjYfJiaHUof6S-0BOul7oAjKBzxBIlkisLmOJfctSUD~IBD-HArC9jya8NsWAaWQYoeQ__&Key-Pair-Id=K2NXBXLF010TJW",
+        "status": 200,
+        "error": null,
+        "transfer_bytes": 89176,
+        "content_type": "image/png",
+        "content_encoding": null,
+        "cache_control": "public, max-age=31536000",
+        "etag": true,
+        "same_host": false
+      },
+      {
+        "type": "img",
+        "url": "https://cdn.website-editor.net/s/b532111ae84b45109a2f2df5c635fb3b/dms3rep/multi/Good-News-Magazin-Logo.svg?Expires=1797019292&Signature=HtVr~j8fV6Kz9tZJx4TGi46VV7447FnF2QQTRKBpGuNh3jv37UsGY6zh2SQJu72jAlPCjgkB4YNveQg8rc5y4qgIo2s-jCM2dnYZrmUQyJuExaqlB1dCDLbrLx2aqtTZOE07dBDuHHjGtLTkS2H-ekUioXzCVdg5XGmp8eM6v2afbc5N0x3ivuMWrc85nv3yTk3p9ennObxhmx~RB07QmoxFqO8cztGVTGTOtH-bq3f9rkflg23F3YgqwnZcupCYUf-Wb0xDdHlamAtH0CStoC7TZ-TQYcabLnRgQrfdYDa30qk5O0QwsWDWaCjjZCcUKiD0J2r9GDAJrhmUBUn3hA__&Key-Pair-Id=K2NXBXLF010TJW",
+        "status": 200,
+        "error": null,
+        "transfer_bytes": 2898,
+        "content_type": "image/svg+xml",
+        "content_encoding": "gzip",
+        "cache_control": "604800",
+        "etag": true,
+        "same_host": false
+      },
+      {
+        "type": "img",
+        "url": "https://le-cdn.website-editor.net/s/b532111ae84b45109a2f2df5c635fb3b/dms3rep/multi/opt/logo+WELT-1920w.png?Expires=1797019292&Signature=k4bjZrICkiRMD2Fk8Ebdknu~Wb8G5QLLBXA9~BrxU4m78ZCJioochCt3vaNft9MVeMhPZSztXKdcihdX-8VdWNxtlsiENgoocOZxvtp8to5DOKkXIUm~PP8Al2Q-~U7p-ASMF8jVmqK06RIci1sEcvm~N4JwrKrJzd2BfyVF8qdQUXEo~FjMYERBi9OfMlRe2BCEPFi3MBsi4ZN4DwPPB~HrLbKTZe4ZNGwdLBNwKHGGFFUMzZzzS171rhPtQVDxpI09cXe7AyTSHqDZsOqCe~I94IAKdF86YiA1VZ2N-~VcArYETfapkkxZAD7b~qbar3LM4lithCBXZItbGaZKng__&Key-Pair-Id=K2NXBXLF010TJW",
+        "status": 200,
+        "error": null,
+        "transfer_bytes": 18112,
+        "content_type": "image/png",
+        "content_encoding": null,
+        "cache_control": "public, max-age=31536000",
+        "etag": true,
+        "same_host": false
+      },
+      {
+        "type": "img",
+        "url": "https://le-cdn.website-editor.net/s/b532111ae84b45109a2f2df5c635fb3b/dms3rep/multi/opt/berliner_morgenpost_logo_kontur-1920w.jpg?Expires=1797019292&Signature=H0FDsWZp3ZKJOSTCdmVSq0f9DXw3hOzf4gmbhT3JScbDb9PDXMVbm8k53C8jZwZyrBrJjKDlHf~VwSgZA4Y5Rdp0KPtb1Y1oOCPSvMijgcmJvOVuyKzepEeRorNHNPv48TByn9UeeVGDaTCOIS44OltqbNCCydCe3Qcu5X7IjmeOfAWsc8vOjAienh1dGmo5kU6G3vH~63oSsIqemn7yTo8Prv8Hw-6gXVVDjyPC9X9ACTJoAVmamznAtVk02OdKcvG0OYoB7ufuzOFKTiXzDSdrDRytuJR70lvREBdzvl8-2dqn4MfCLTDEbADov4vxT2XgbzFVxpbACMo4lO~1Dw__&Key-Pair-Id=K2NXBXLF010TJW",
+        "status": 200,
+        "error": null,
+        "transfer_bytes": 16254,
+        "content_type": "image/jpg",
+        "content_encoding": null,
+        "cache_control": "public, max-age=31536000",
+        "etag": true,
+        "same_host": false
+      },
+      {
+        "type": "img",
+        "url": "https://cdn.website-editor.net/s/b532111ae84b45109a2f2df5c635fb3b/dms3rep/multi/nd-website-logo-regular.svg?Expires=1797019292&Signature=HS-ZOSV0qyRFIojDN2YFkteF4D-naBWVYmpO292QZWqROieMiDsxwEES84xps6XL~~byZLqLi3SlLJ2GdLBuK4deAlzQVthBFb~TA50aqqEQ-UQk5K6gEIocte~aFeHgKVWiX-IwnIfbCLot~GpYUcW20XRRaHMDWG5yASkjoQ66YGfHTVEtF9539cJ9gauweGxDGGuqLmkeyhpc-TqsBivyRhb9v9dliKaPmVUgzdod2RohOf4Od75XKETpT0NI5GuaggbRzMiwjq1fDOyTOxOlcM4CfFT5PUMILeKj0Zi9XBmCLQmh6lZ6y~NH3hK5-kGvMrBA0wNUYQJO0mNwcQ__&Key-Pair-Id=K2NXBXLF010TJW",
+        "status": 200,
+        "error": null,
+        "transfer_bytes": 4548,
+        "content_type": "image/svg+xml",
+        "content_encoding": "gzip",
+        "cache_control": "604800",
+        "etag": true,
+        "same_host": false
+      },
+      {
+        "type": "img",
+        "url": "https://le-cdn.website-editor.net/s/b532111ae84b45109a2f2df5c635fb3b/dms3rep/multi/opt/Logo%2BHelferba-E2-95-A0-C3-AAr-1920w.png?Expires=1797019292&Signature=TNOQiW8Mkurtw4LXFVWxUPueJdb~9hxoHHwAtj8WJi7thvUPFyVQ1uZvCqSgm9psT1j0FmWuWmmtlr2OJ4FWASDXt2NQTPQQ0f3uKmXIstTpt4kaLkHI9WAajyf7kOubu8QoEdJrD7vGGpAYc8-EkbJqoe-F0d3y9MaJz1dew4ooqPJnkTb6DPMy4kpNqvFWfIZQwlA-TBjr0C4h8N2m46YnwosGwaDpRUzxgmpfPAB5sAjpdcO1NRfS83NOiow3xagrJ83sxSg9vATELgOwcNIPouNawTSTvBibNm7Dp3g621-ZzDP1r2FnSu2OlA4u4IZVLAbckH~cfpVEVuYGJA__&Key-Pair-Id=K2NXBXLF010TJW",
+        "status": 200,
+        "error": null,
+        "transfer_bytes": 289096,
+        "content_type": "image/png",
+        "content_encoding": null,
+        "cache_control": "public, max-age=31536000",
+        "etag": true,
+        "same_host": false
+      },
+      {
+        "type": "img",
+        "url": "https://le-cdn.website-editor.net/s/b532111ae84b45109a2f2df5c635fb3b/dms3rep/multi/opt/ILB+Logo-1920w.png?Expires=1797019292&Signature=lyEERlym06COFhuZkCJcbm-6cRrJCpEtXfR~eI2N-bHkw9nrT6I5l~EWPcpq1RtW1Mor-k4aM04DoFEE6l5UTS0h~etITIichDkvhcQbavl6A5QSWw4QrMHOwwnm~9TnmOhe~Car3YtDbPqUr4ODc~qF0DHNdYh3oOskcmWWYht9xqIvNOkCWXMLimqophB5cQozykB0ZQsAT0PkdenRFvbEffyj~ALvEerJrGI8M6mBCRRFOS0Attj~WaPb8A-5IB1LbTh-W-qNHp7LaVdsJV14dUSJw-qMxNAYgrW-A~cCcmvPrN0CNzg3TxirI8KfX20f4DHNVimnZk-O656r8Q__&Key-Pair-Id=K2NXBXLF010TJW",
+        "status": 200,
+        "error": null,
+        "transfer_bytes": 5138,
+        "content_type": "image/png",
+        "content_encoding": null,
+        "cache_control": "public, max-age=31536000",
+        "etag": true,
+        "same_host": false
+      },
+      {
+        "type": "img",
+        "url": "https://le-cdn.website-editor.net/s/b532111ae84b45109a2f2df5c635fb3b/dms3rep/multi/opt/BVB-Logo_pos_1920x1080_RGB-4e3fa052-1920w.png?Expires=1797019292&Signature=oL2cUzb~kfsCudJ95i0qVtgCRpGVuWwAXu7GfTJ85EmyR7c3YcSvrmMlh10CVWtgEAwL43oF1Y0-d26CfC8jwLpDCyboJvffe-4GDtcJYrufR4haLJFJQCXJYcSpfHKyTBv2eISFmW3zjNf0KTf-8z5en-NLhdLWgqHVL9TqEO3HXdbYTQL3~eOiu6regMk7YSn2Hvi2wgca8N-cUlNKpocFAe0gCigLyZRLXkL~j6-5AdAvhv28NJQQmPKnLTQ-eSE9IEnD7tP9ZGhgz9M255yx3AiL6YxD4SkyxDskRPbiTSKs0t~J1Dlps4DiqnKJbpgD3AofMY3sHrrsBl-NZQ__&Key-Pair-Id=K2NXBXLF010TJW",
+        "status": 200,
+        "error": null,
+        "transfer_bytes": 55023,
+        "content_type": "image/png",
+        "content_encoding": null,
+        "cache_control": "public, max-age=31536000",
+        "etag": true,
+        "same_host": false
+      },
+      {
+        "type": "img",
+        "url": "https://le-cdn.website-editor.net/s/b532111ae84b45109a2f2df5c635fb3b/dms3rep/multi/opt/EU-Logomit_EU-und_ESF_Schriftzg_rechts-oben_neben_der_Fahne-a6f985bc-1920w.jpg?Expires=1797019292&Signature=bYBnGOhU3qdb-QZIvNmDZTs8Y~burdh2PS5abn0HjhBh01QrcqBUkyZWqwU08cgADdhmRdaCdL9QXWGTxo8fVvqJ-qe-KhTNkWd4I7FxZAoGzLkcerOIiByFGUwIFPG85AVRUgH9wJ~JP1lm7VccZ48ial29y4BE3dagofp05GJkIJEYx8j7WE8u4MkrxwtpkHafCAAnSMJsgDUpzAeAzzHwoXmqT-beRH0XErrE~NVTWqBVNmn5msG0geBMUf1M9PbFkq3RyjTIk6BNyufTKOyNAn7lbCRMlMzDngf9LYJU5lkN~lpIYGN-JAMR8MrD6FE3arjOAD2U1SHpXIEo~A__&Key-Pair-Id=K2NXBXLF010TJW",
+        "status": 200,
+        "error": null,
+        "transfer_bytes": 224231,
+        "content_type": "image/png",
+        "content_encoding": null,
+        "cache_control": "public, max-age=31536000",
+        "etag": true,
+        "same_host": false
+      }
+    ]
+  },
+  "sitemap_sample": [
+    "https://www.xn--helferbr-6za.de/unsere-standorte",
+    "https://www.xn--helferbr-6za.de/alltagshilfe-werden-in-berlin-moabit",
+    "https://www.xn--helferbr-6za.de/blog",
+    "https://www.xn--helferbr-6za.de/unsere-dienstleistungen",
+    "https://www.xn--helferbr-6za.de/unsere-kooperationspartner",
+    "https://www.xn--helferbr-6za.de/kontakt",
+    "https://www.xn--helferbr-6za.de/leitung-und-koordination-der-einzelfallhilfe",
+    "https://www.xn--helferbr-6za.de/stellenanzeige-lohnbuchhaltung",
+    "https://www.xn--helferbr-6za.de/reisebegleitung",
+    "https://www.xn--helferbr-6za.de/hamburg",
+    "https://www.xn--helferbr-6za.de/stellenanzeige-teamleitung",
+    "https://www.xn--helferbr-6za.de/reisebegleitung-menschen-mit-behinderung",
+    "https://www.xn--helferbr-6za.de",
+    "https://www.xn--helferbr-6za.de/ratgeber",
+    "https://www.xn--helferbr-6za.de/ueber-uns",
+    "https://www.xn--helferbr-6za.de/praktikum-sozialdienst-/-pflegeberatung",
+    "https://www.xn--helferbr-6za.de/pflegeberatung-im-sozialdienst-BERLIN",
+    "https://www.xn--helferbr-6za.de/reisebegleitung-senioren",
+    "https://www.xn--helferbr-6za.de/faq",
+    "https://www.xn--helferbr-6za.de/einzelfallhelfer-werden-in-werder",
+    "https://www.xn--helferbr-6za.de/leistungen-alltagshilfe",
+    "https://www.xn--helferbr-6za.de/potsdam",
+    "https://www.xn--helferbr-6za.de/leipzig",
+    "https://www.xn--helferbr-6za.de/berlin",
+    "https://www.xn--helferbr-6za.de/alltagshilfe-werden-in-berlin-friedrichshain",
+    "https://www.xn--helferbr-6za.de/unsere-dienste",
+    "https://www.xn--helferbr-6za.de/alltagshilfe-werden-in-berlin-zehlendorf",
+    "https://www.xn--helferbr-6za.de/magdeburg",
+    "https://www.xn--helferbr-6za.de/kopie-kopie-stellenanzeige-pflegefachkraft-hamburg",
+    "https://www.xn--helferbr-6za.de/alltagshilfe-werden-in-halle-saale",
+    "https://www.xn--helferbr-6za.de/alltagshilfe-werden-in-berlin-pankow",
+    "https://www.xn--helferbr-6za.de/dresden",
+    "https://www.xn--helferbr-6za.de/alltagshilfe-werden-POTSDAM",
+    "https://www.xn--helferbr-6za.de/berlin---neu-in-bearbeitung",
+    "https://www.xn--helferbr-6za.de/standorte",
+    "https://www.xn--helferbr-6za.de/alltagshilfe-werden-MAGDEBURG",
+    "https://www.xn--helferbr-6za.de/alltagshilfe-werden-DRESDEN",
+    "https://www.xn--helferbr-6za.de/pflegeberatung-im-sozialdienst-POTSDAM",
+    "https://www.xn--helferbr-6za.de/soziale-teilhabe",
+    "https://www.xn--helferbr-6za.de/alltagshilfe-werden-LEIPZIG",
+    "https://www.xn--helferbr-6za.de/privacyb505f5ef",
+    "https://www.xn--helferbr-6za.de/fachkraft",
+    "https://www.xn--helferbr-6za.de/reisebegleitung-familien",
+    "https://www.xn--helferbr-6za.de/leistungen---pflegeberatung--alt",
+    "https://www.xn--helferbr-6za.de/unser-team-alt",
+    "https://www.xn--helferbr-6za.de/impressum",
+    "https://www.xn--helferbr-6za.de/startseite",
+    "https://www.xn--helferbr-6za.de/kontakt-alt",
+    "https://www.xn--helferbr-6za.de/jetzt-einzelfallhelfer-werden",
+    "https://www.xn--helferbr-6za.de/halle"
+  ],
+  "finished_at": "2026-11-11T20:20:07Z",
+  "decisions": {
+    "FIND-01": {
+      "state": "MEASURED",
+      "status": "strong",
+      "unit": null,
+      "confidence": 5,
+      "value": {
+        "requested_url": "https://www.xn--helferbr-6za.de/",
+        "final_url": "https://www.xn--helferbr-6za.de/",
+        "http_status": 200,
+        "redirect_hops": 0,
+        "redirect_chain": [],
+        "https_final": true
+      },
+      "rule": "4xx/5xx=blocking; final URL not HTTPS=mixed; >2 redirect hops=minor_gaps; else strong"
+    },
+    "FIND-02": {
+      "state": "MEASURED",
+      "status": "strong",
+      "unit": null,
+      "confidence": 5,
+      "value": {
+        "robots_status": 200,
+        "disallow_all_for_user_agent_star": false,
+        "sitemaps": [
+          {
+            "url": "https://www.xn--helferbr-6za.de/sitemap.xml",
+            "status": 200,
+            "error": null,
+            "loc_count": 64
+          }
+        ],
+        "sitemap_url_count": 64
+      },
+      "rule": "Disallow:/ for *=blocking; robots 200 and sitemap with URLs=strong; one of both=minor_gaps; none=weak"
+    },
+    "FIND-03": {
+      "state": "OBSERVED",
+      "status": "strong",
+      "unit": null,
+      "confidence": 4,
+      "value": {
+        "pages": [
+          {
+            "url": "https://www.xn--helferbr-6za.de/",
+            "kind": "home",
+            "noindex": false,
+            "canonical": "https://www.xn--helferbr-6za.de/",
+            "canonical_same_host": true,
+            "canonical_self": true
+          },
+          {
+            "url": "https://www.xn--helferbr-6za.de/impressum",
+            "kind": "impressum",
+            "noindex": false,
+            "canonical": "https://www.xn--helferbr-6za.de/impressum",
+            "canonical_same_host": true,
+            "canonical_self": true
+          },
+          {
+            "url": "https://www.xn--helferbr-6za.de/privacyb505f5ef",
+            "kind": "datenschutz",
+            "noindex": false,
+            "canonical": "https://www.xn--helferbr-6za.de/privacyb505f5ef",
+            "canonical_same_host": true,
+            "canonical_self": true
+          },
+          {
+            "url": "https://www.xn--helferbr-6za.de/kontakt",
+            "kind": "kontakt",
+            "noindex": false,
+            "canonical": "https://www.xn--helferbr-6za.de/kontakt",
+            "canonical_same_host": true,
+            "canonical_self": true
+          },
+          {
+            "url": "https://www.xn--helferbr-6za.de/unsere-dienstleistungen",
+            "kind": "leistungen",
+            "noindex": false,
+            "canonical": "https://www.xn--helferbr-6za.de/unsere-dienstleistungen",
+            "canonical_same_host": true,
+            "canonical_self": true
+          },
+          {
+            "url": "https://www.xn--helferbr-6za.de/ueber-uns",
+            "kind": "ueber",
+            "noindex": false,
+            "canonical": "https://www.xn--helferbr-6za.de/ueber-uns",
+            "canonical_same_host": true,
+            "canonical_self": true
+          }
+        ],
+        "pages_with_canonical": 6,
+        "sampled_pages": 6
+      },
+      "rule": "homepage noindex=blocking; content page noindex or foreign canonical=mixed; canonical on all sampled pages=strong; else minor_gaps"
+    },
+    "FIND-06": {
+      "state": "OBSERVED",
+      "status": "minor_gaps",
+      "unit": "share",
+      "confidence": 4,
+      "value": {
+        "check_pass_share": 0.833,
+        "pages": [
+          {
+            "url": "https://www.xn--helferbr-6za.de/",
+            "title_len": 49,
+            "title_ok": true,
+            "title_unique": true,
+            "description_len": 136,
+            "description_ok": true,
+            "h1_count": 3,
+            "h1_ok": false
+          },
+          {
+            "url": "https://www.xn--helferbr-6za.de/impressum",
+            "title_len": 52,
+            "title_ok": true,
+            "title_unique": false,
+            "description_len": 148,
+            "description_ok": true,
+            "h1_count": 1,
+            "h1_ok": true
+          },
+          {
+            "url": "https://www.xn--helferbr-6za.de/privacyb505f5ef",
+            "title_len": 52,
+            "title_ok": true,
+            "title_unique": false,
+            "description_len": 148,
+            "description_ok": true,
+            "h1_count": 1,
+            "h1_ok": true
+          },
+          {
+            "url": "https://www.xn--helferbr-6za.de/kontakt",
+            "title_len": 54,
+            "title_ok": true,
+            "title_unique": true,
+            "description_len": 173,
+            "description_ok": false,
+            "h1_count": 1,
+            "h1_ok": true
+          },
+          {
+            "url": "https://www.xn--helferbr-6za.de/unsere-dienstleistungen",
+            "title_len": 42,
+            "title_ok": true,
+            "title_unique": true,
+            "description_len": 156,
+            "description_ok": true,
+            "h1_count": 1,
+            "h1_ok": true
+          },
+          {
+            "url": "https://www.xn--helferbr-6za.de/ueber-uns",
+            "title_len": 41,
+            "title_ok": true,
+            "title_unique": true,
+            "description_len": 107,
+            "description_ok": true,
+            "h1_count": 1,
+            "h1_ok": true
+          }
+        ]
+      },
+      "rule": "per page: title 15-65 chars, unique title, meta description 70-165 chars, exactly one h1; pass share >=0.9 strong, >=0.75 minor_gaps, >=0.5 mixed, >=0.25 weak"
+    },
+    "FIND-07": {
+      "state": "OBSERVED",
+      "status": "strong",
+      "unit": null,
+      "confidence": 4,
+      "value": {
+        "jsonld_types": [
+          "MedicalBusiness",
+          "WebSite"
+        ],
+        "invalid_jsonld_blocks": 0,
+        "microdata_types": [],
+        "business_entity_present": true
+      },
+      "rule": "valid JSON-LD with business entity type=strong; business entity via microdata or with invalid blocks=minor_gaps/mixed; only non-business types=mixed; none=weak"
+    },
+    "AI-04": {
+      "state": "OBSERVED",
+      "status": "strong",
+      "unit": "share",
+      "confidence": 4,
+      "value": {
+        "business_entity_fields_present": [
+          "name",
+          "url",
+          "telephone",
+          "address",
+          "openingHoursSpecification|openingHours",
+          "sameAs"
+        ],
+        "business_entity_fields_checked": [
+          "name",
+          "url",
+          "telephone",
+          "address",
+          "openingHoursSpecification|openingHours",
+          "sameAs",
+          "description"
+        ],
+        "completeness_share": 0.857,
+        "entity_types": [
+          "MedicalBusiness"
+        ]
+      },
+      "rule": "completeness of the strongest business JSON-LD entity over name,url,telephone,address,opening hours,sameAs,description; >=0.85 strong, >=0.7 minor_gaps, >=0.5 mixed, >=0.2 weak; no entity=weak"
+    },
+    "FIND-08": {
+      "state": "MEASURED",
+      "status": "strong",
+      "unit": "share",
+      "confidence": 4,
+      "value": {
+        "homepage_internal_links": 20,
+        "key_pages_linked_from_homepage": {
+          "kontakt": true,
+          "impressum": true,
+          "datenschutz": true,
+          "leistungen": true
+        },
+        "nav_landmark": true
+      },
+      "rule": "six checks: contact/imprint/privacy/service page linked from homepage, nav landmark, >=8 internal links; all=strong, >=0.8 minor_gaps, >=0.6 mixed, >=0.3 weak"
+    },
+    "FIND-09": {
+      "state": "OBSERVED",
+      "status": "mixed",
+      "unit": "share",
+      "confidence": 4,
+      "value": {
+        "images_sampled": 62,
+        "descriptive_alt_share": 0.677,
+        "explicit_dimensions_share": 0.452
+      },
+      "rule": "mean of descriptive-alt share and width/height share over sampled <img>; >=0.9 strong, >=0.75 minor_gaps, >=0.5 mixed, >=0.25 weak"
+    },
+    "A11Y-03": {
+      "state": "OBSERVED",
+      "status": "mixed",
+      "unit": "share",
+      "confidence": 4,
+      "value": {
+        "images_sampled": 62,
+        "alt_attribute_share": 0.823,
+        "missing_alt_examples": [
+          "https://le-cdn.website-editor.net/s/b532111ae84b45109a2f2df5c635fb3b/dms3rep/multi/opt/DSC04869-1920w.png?Expires=179701",
+          "https://le-cdn.website-editor.net/s/b532111ae84b45109a2f2df5c635fb3b/dms3rep/multi/opt/DSC04851-35e5ddc8-1920w.png?Expir",
+          "https://le-cdn.website-editor.net/s/b532111ae84b45109a2f2df5c635fb3b/dms3rep/multi/opt/DSC04880-1920w.jpg?Expires=179701",
+          "https://le-cdn.website-editor.net/s/b532111ae84b45109a2f2df5c635fb3b/dms3rep/multi/opt/Alex-1920w.jpg?Expires=1797019594",
+          "https://le-cdn.website-editor.net/s/b532111ae84b45109a2f2df5c635fb3b/dms3rep/multi/opt/yannik-1920w.png?Expires=17970195",
+          "https://le-cdn.website-editor.net/s/b532111ae84b45109a2f2df5c635fb3b/dms3rep/multi/opt/patrizia_v2-b6cd5efc-1920w.png?Ex",
+          "https://le-cdn.website-editor.net/s/b532111ae84b45109a2f2df5c635fb3b/dms3rep/multi/opt/DSC04828-1920w.jpg?Expires=179701",
+          "https://le-cdn.website-editor.net/s/b532111ae84b45109a2f2df5c635fb3b/dms3rep/multi/opt/DSC04865-1920w.jpg?Expires=179701"
+        ]
+      },
+      "rule": "share of sampled <img> with an alt attribute (empty alt counts as decorative); >=0.95 strong, >=0.85 minor_gaps, >=0.6 mixed, >=0.3 weak"
+    },
+    "PERF-05": {
+      "state": "MEASURED",
+      "status": "weak",
+      "unit": "share",
+      "confidence": 4,
+      "value": {
+        "images_sampled": 62,
+        "modern_format_images": 0,
+        "responsive_srcset_images": 0,
+        "lazy_loaded_images": 0,
+        "pipeline_share": 0.0
+      },
+      "rule": "mean of modern-format share (WebP/AVIF), srcset share and lazy-loading share (first two images exempt); >=0.8 strong, >=0.6 minor_gaps, >=0.4 mixed, >=0.2 weak"
+    },
+    "FIND-10": {
+      "state": "OBSERVED",
+      "status": "strong",
+      "unit": "share",
+      "confidence": 4,
+      "value": {
+        "checks": {
+          "html_lang": true,
+          "postal_address_visible_or_structured": true,
+          "phone_visible_or_structured": true,
+          "hreflang_if_multilingual": true
+        },
+        "html_lang": "de",
+        "hreflang_alternates": []
+      },
+      "rule": "html lang, postal address, phone, consistent hreflang when alternates exist; all=strong, >=0.75 minor_gaps, >=0.5 mixed, >=0.25 weak"
+    },
+    "PERF-04": {
+      "state": "MEASURED",
+      "status": "weak",
+      "unit": "bytes",
+      "confidence": 4,
+      "value": {
+        "homepage_transfer_bytes_static": 9463133,
+        "html_bytes": 36067,
+        "by_type": {
+          "css": {
+            "count": 6,
+            "bytes": 101397
+          },
+          "js": {
+            "count": 6,
+            "bytes": 910045
+          },
+          "img": {
+            "count": 13,
+            "bytes": 8415624
+          }
+        },
+        "assets_discovered_in_html": 25,
+        "assets_fetched": 25
+      },
+      "rule": "static homepage transfer (HTML + referenced CSS/JS/IMG, max 45 assets, no JS execution): <=1.5 MB strong, <=3 MB minor_gaps, <=5 MB mixed, else weak"
+    },
+    "PERF-06": {
+      "state": "MEASURED",
+      "status": "strong",
+      "unit": "share",
+      "confidence": 4,
+      "value": {
+        "html_compressed": true,
+        "text_asset_compression_share": 1.0,
+        "static_asset_long_cache_share": 1.0,
+        "same_host_static_assets": 1,
+        "html_cache_control": "no-cache, must-revalidate"
+      },
+      "rule": "compression share over HTML+same-host CSS/JS and share of same-host static assets with max-age>=7d or immutable: >=0.9&>=0.8 strong, >=0.7&>=0.5 minor_gaps, >=0.5|>=0.3 mixed, else weak"
+    },
+    "PERF-07": {
+      "state": "MEASURED",
+      "status": "minor_gaps",
+      "unit": "count",
+      "confidence": 4,
+      "value": {
+        "render_blocking_scripts_in_head": 1,
+        "blocking_script_examples": [
+          "https://app.termly.io/resource-blocker/ec3677b9-9cf2-4773-9f75-9bfb72e7fdd8"
+        ],
+        "head_stylesheets": 6
+      },
+      "rule": "synchronous <script src> in <head> without async/defer/module and head stylesheets: 0 & <=3 strong, <=2 & <=6 minor_gaps, <=5 mixed, else weak"
+    },
+    "PERF-09": {
+      "state": "OBSERVED",
+      "status": "strong",
+      "unit": null,
+      "confidence": 3,
+      "value": {
+        "generator": null,
+        "detected_stack": [
+          "Divi",
+          "jQuery"
+        ],
+        "jquery_version": null,
+        "version_exposing_headers": {},
+        "server": "nginx"
+      },
+      "rule": "publicly visible jQuery < 3.5=mixed; software versions exposed via generator/server/x-powered-by=minor_gaps; else strong"
+    },
+    "TRUST-03": {
+      "state": "MEASURED",
+      "status": "minor_gaps",
+      "unit": "count",
+      "confidence": 5,
+      "value": {
+        "https_final": true,
+        "http_redirects_to_https": true,
+        "headers_present": {
+          "strict-transport-security": true,
+          "content-security-policy": true,
+          "x-content-type-options": true,
+          "referrer-policy": false,
+          "permissions-policy": false,
+          "frame_protection": true
+        },
+        "headers_present_count": 4
+      },
+      "rule": "no HTTPS=blocking; HTTP not redirected to HTTPS=weak; of HSTS, CSP, X-Content-Type-Options, Referrer-Policy, Permissions-Policy, frame protection: >=5 strong, 4 minor_gaps, 2-3 mixed, <=1 weak"
+    },
+    "A11Y-02": {
+      "state": "OBSERVED",
+      "status": "weak",
+      "unit": "share",
+      "confidence": 4,
+      "value": {
+        "homepage_checks": {
+          "main_landmark": true,
+          "nav_landmark": true,
+          "header_or_footer": false,
+          "html_lang": true,
+          "single_h1": false,
+          "no_heading_level_skips": false
+        },
+        "heading_levels": [
+          1,
+          1,
+          2,
+          2,
+          2,
+          2,
+          4,
+          4,
+          4,
+          4,
+          2,
+          1,
+          2,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          2,
+          2,
+          4,
+          4,
+          4
+        ],
+        "heading_level_skips": 2
+      },
+      "rule": "homepage: main, nav, header/footer landmark, html lang, one h1, no heading level skips; all=strong, >=0.8 minor_gaps, >=0.6 mixed, >=0.3 weak"
+    },
+    "A11Y-05": {
+      "state": "OBSERVED",
+      "status": "strong",
+      "unit": "share",
+      "confidence": 4,
+      "value": {
+        "form_controls_sampled": 8,
+        "accessible_name_share": 1.0,
+        "placeholder_only_controls": 0
+      },
+      "rule": "share of visible form controls with label/aria-label/aria-labelledby/title (placeholder alone does not count); 1.0 strong, >=0.85 minor_gaps, >=0.6 mixed, >=0.3 weak"
+    },
+    "TRUST-01": {
+      "state": "OBSERVED",
+      "status": "strong",
+      "unit": null,
+      "confidence": 4,
+      "family": "RULE_BASED_QUALITATIVE_OBSERVATION",
+      "value": {
+        "imprint_url": "https://www.xn--helferbr-6za.de/impressum",
+        "signals": {
+          "page_linked": true,
+          "page_reachable": true,
+          "provider_heading": true,
+          "address_visible": true,
+          "contact_visible": true
+        }
+      },
+      "rule": "presence check only: linked+reachable+provider heading+address+contact=strong; reachable with heading=minor_gaps; linked but unreachable=weak; no link found=blocking. Not a legal assessment."
+    },
+    "TRUST-02": {
+      "state": "OBSERVED",
+      "status": "strong",
+      "unit": null,
+      "confidence": 3,
+      "family": "RULE_BASED_QUALITATIVE_OBSERVATION",
+      "value": {
+        "privacy_url": "https://www.xn--helferbr-6za.de/privacyb505f5ef",
+        "privacy_page_reachable": true,
+        "tracker_markers_in_static_html": [
+          "googletagmanager.com",
+          "gtag("
+        ],
+        "consent_tool_marker_in_static_html": true
+      },
+      "rule": "presence check only: privacy page reachable and (consent tool marker present or no tracker markers)=strong; reachable but trackers without consent marker=minor_gaps; linked but unreachable=weak; none=blocking. Consent behaviour and legality are not assessed."
+    },
+    "TRUST-07": {
+      "state": "OBSERVED",
+      "status": "strong",
+      "unit": "share",
+      "confidence": 4,
+      "family": "RULE_BASED_QUALITATIVE_OBSERVATION",
+      "value": {
+        "checks": {
+          "contact_page_reachable": true,
+          "phone": true,
+          "email": true,
+          "postal_address": true
+        }
+      },
+      "rule": "contact page, phone, email, postal address on sampled pages; 4/4 strong, 3 minor_gaps, 2 mixed, 1 weak, 0 blocking"
+    }
+  }
+}

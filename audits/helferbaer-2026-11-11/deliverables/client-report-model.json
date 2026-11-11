@@ -1,0 +1,253 @@
+{
+  "template_version": "8.0",
+  "brand": "Pixelkiez",
+  "meta": {
+    "customer": "Helferbär GmbH",
+    "url": "https://www.xn--helferbr-6za.de/",
+    "date": "11.11.2026",
+    "language": "de",
+    "industry": {
+      "label": "Lokale Dienstleistung",
+      "focus_line": "Gefunden werden in der Region, schnell Vertrauen aufbauen und einfach anfragen lassen."
+    }
+  },
+  "cover": {
+    "eyebrow": "01 · WEBSITE-ANALYSE",
+    "title": "Was Ihre Website heute bremst - und was zuerst zählt.",
+    "customer": "Helferbär GmbH",
+    "url": "https://www.xn--helferbr-6za.de/",
+    "date": "11.11.2026",
+    "score_label": "Pixelkiez Score",
+    "score": 76,
+    "verdict": "Auf dem Handy lassen sich die Telefonnummern auf Start- und Kontaktseite nicht antippen.",
+    "blocker_note": ""
+  },
+  "executive": {
+    "takeaway": "Wichtigster Hebel: Mobil fehlt der direkte Anruf: Telefonnummern sind nicht antippbar",
+    "strengths": [],
+    "priorities": [
+      "Mobil fehlt der direkte Anruf: Telefonnummern sind nicht antippbar",
+      "Standorte und Kontaktdaten widersprechen sich zwischen den Seiten",
+      "Die Haupt-Buttons sind für schwächere Augen schwer lesbar (Kontrast 2,03:1)"
+    ],
+    "recommended_route": "Gezielt pflegen"
+  },
+  "categories": [
+    {
+      "category": "findability_seo",
+      "label": "Auffindbarkeit in Suchmaschinen",
+      "score": 93,
+      "summary": "in der Stichprobe sehr stark."
+    },
+    {
+      "category": "performance_technology",
+      "label": "Ladegeschwindigkeit & Technik",
+      "score": 64,
+      "summary": "Solide Basis, gezielte Hebel sind sichtbar."
+    },
+    {
+      "category": "ux_conversion",
+      "label": "Nutzerführung & Anfragen",
+      "score": 78,
+      "summary": "Auf dem Handy lassen sich die Telefonnummern auf Start- und Kontaktseite nicht antippen."
+    },
+    {
+      "category": "accessibility",
+      "label": "Barrierefreiheit",
+      "score": 54,
+      "summary": "Die orangen Anfrage-Buttons haben nur 2,03:1 Kontrast – empfohlen sind mindestens 4,5:1."
+    },
+    {
+      "category": "trust_privacy_content",
+      "label": "Vertrauen, Datenschutz & Inhalt",
+      "score": 78,
+      "summary": "Die Seiten nennen andere Städte – mal Dresden, mal Hamburg; die Dresden-Seite trägt den Titel „Hamburg“."
+    },
+    {
+      "category": "ai_readiness",
+      "label": "KI-Verständlichkeit",
+      "score": 78,
+      "summary": "Kennzahlen und Google-Bewertungen werden erst per Skript geladen und fehlen im lesbaren Seitentext."
+    }
+  ],
+  "client_story": {
+    "mode": "marketing_summary",
+    "selected_lever_ids": [
+      "F-002",
+      "F-003",
+      "F-001",
+      "F-007"
+    ],
+    "max_levers": 4,
+    "real_chart_count": 4,
+    "target_real_charts": "4-7",
+    "quantitative_opportunities": 4,
+    "visual_story_status": "PASS",
+    "technical_appendix_rendered": false,
+    "max_customer_pages": 12,
+    "semantic_candidate_chart_count": 0,
+    "visualization_plan_is_canonical": true,
+    "visualization_plan_source": "visualization-plan.json"
+  },
+  "semantic_story": {
+    "policy_version": "1.0",
+    "status": "PASS",
+    "finding_count": 4,
+    "presentation_mode_counts": {
+      "EVIDENCE_VISUAL": 3,
+      "NUMBER_FIRST": 0,
+      "SHORT_TEXT": 1
+    },
+    "quantitative_signal_count": 0,
+    "scan_first_limits": {
+      "headline": 110,
+      "observation": 130,
+      "impact": 135,
+      "action": 125
+    },
+    "errors": []
+  },
+  "visualizations": [],
+  "findings": [
+    {
+      "id": "F-002",
+      "severity": "high",
+      "category": "ux_conversion",
+      "headline": "Mobil fehlt der direkte Anruf: Telefonnummern sind nicht antippbar",
+      "observation": "Auf dem Handy lassen sich die Telefonnummern auf Start- und Kontaktseite nicht antippen.",
+      "impact": "Angehörige und Senioren, die lieber anrufen, müssen Nummern abtippen – das kann den Anruf erschweren.",
+      "action": "Alle Telefonnummern als Anruf-Link hinterlegen und mobil oben einen „Jetzt anrufen“-Button zeigen.",
+      "evidence_refs": [
+        "E-103",
+        "E-104"
+      ],
+      "visual_asset": null,
+      "presentation_mode": "EVIDENCE_VISUAL",
+      "numeric_signal": null,
+      "specificity_basis": [
+        "metric:UX-02",
+        "metric:UX-04",
+        "evidence:E-103",
+        "url:https://www.xn--helferbr-6za.de/kontakt",
+        "evidence:E-104",
+        "url:https://www.xn--helferbr-6za.de/"
+      ]
+    },
+    {
+      "id": "F-003",
+      "severity": "high",
+      "category": "trust_privacy_content",
+      "headline": "Standorte und Kontaktdaten widersprechen sich zwischen den Seiten",
+      "observation": "Die Seiten nennen andere Städte – mal Dresden, mal Hamburg; die Dresden-Seite trägt den Titel „Hamburg“.",
+      "impact": "Interessenten in Dresden oder Hamburg können nicht sicher erkennen, ob Helferbär bei ihnen hilft.",
+      "action": "Eine verbindliche Standortliste festlegen und auf Über uns, Stadtseiten, Seitentiteln und Footer angleichen.",
+      "evidence_refs": [
+        "E-105",
+        "E-106"
+      ],
+      "visual_asset": null,
+      "presentation_mode": "EVIDENCE_VISUAL",
+      "numeric_signal": null,
+      "specificity_basis": [
+        "metric:TRUST-04",
+        "metric:AI-06",
+        "metric:AI-02",
+        "evidence:E-105",
+        "url:https://www.xn--helferbr-6za.de/ueber-uns",
+        "evidence:E-106"
+      ]
+    },
+    {
+      "id": "F-001",
+      "severity": "high",
+      "category": "accessibility",
+      "headline": "Die Haupt-Buttons sind für schwächere Augen schwer lesbar (Kontrast 2,03:1)",
+      "observation": "Die orangen Anfrage-Buttons haben nur 2,03:1 Kontrast – empfohlen sind mindestens 4,5:1.",
+      "impact": "Senioren mit nachlassender Sehkraft können „Jetzt Alltagshilfe anfragen“ schlechter erkennen – genau dort, wo sie anfragen.",
+      "action": "Button-Schrift dunkel setzen oder das Orange abdunkeln, bis 4,5:1 erreicht ist; dann erneut prüfen.",
+      "evidence_refs": [
+        "E-101",
+        "E-102"
+      ],
+      "visual_asset": null,
+      "presentation_mode": "EVIDENCE_VISUAL",
+      "numeric_signal": null,
+      "specificity_basis": [
+        "metric:A11Y-04",
+        "metric:A11Y-06",
+        "evidence:E-101",
+        "url:https://www.xn--helferbr-6za.de/",
+        "evidence:E-102",
+        "url:https://www.xn--helferbr-6za.de/kontakt"
+      ]
+    },
+    {
+      "id": "F-007",
+      "severity": "medium",
+      "category": "ai_readiness",
+      "headline": "Kennzahlen und Bewertungen stehen nicht im lesbaren Seitentext",
+      "observation": "Kennzahlen und Google-Bewertungen werden erst per Skript geladen und fehlen im lesbaren Seitentext.",
+      "impact": "Dienste, die Seiten ohne Skripte lesen, sehen die stärksten Belege (4,9 Sterne, 917 Klienten) nicht.",
+      "action": "Kennzahlen und eine kurze Bewertungszusammenfassung als normalen Text in die Startseite schreiben.",
+      "evidence_refs": [
+        "E-111"
+      ],
+      "visual_asset": null,
+      "presentation_mode": "SHORT_TEXT",
+      "numeric_signal": null,
+      "specificity_basis": [
+        "metric:AI-05",
+        "metric:AI-01",
+        "evidence:E-111",
+        "url:https://www.xn--helferbr-6za.de/"
+      ]
+    }
+  ],
+  "roadmap": {
+    "now": [
+      {
+        "finding_ref": "F-002",
+        "action": "Alle Telefonnummern als Anruf-Link hinterlegen und mobil oben einen „Jetzt anrufen“-Button zeigen.",
+        "owner": "Website-Pflege"
+      },
+      {
+        "finding_ref": "F-001",
+        "action": "Button-Schrift dunkel setzen oder das Orange abdunkeln, bis 4,5:1 erreicht ist; dann erneut prüfen.",
+        "owner": "Design / Website-Pflege"
+      }
+    ],
+    "next_30_days": [
+      {
+        "finding_ref": "F-003",
+        "action": "Eine verbindliche Standortliste festlegen und auf Über uns, Stadtseiten, Seitentiteln und Footer angleichen.",
+        "owner": "Inhalte / Website-Pflege"
+      }
+    ],
+    "next_quarter": [
+      {
+        "finding_ref": "F-007",
+        "action": "Kennzahlen und eine kurze Bewertungszusammenfassung als normalen Text in die Startseite schreiben.",
+        "owner": "Inhalte / Website-Pflege"
+      }
+    ]
+  },
+  "recommendation": {
+    "route": "Gezielt pflegen",
+    "reason": "Auf dem Handy lassen sich die Telefonnummern auf Start- und Kontaktseite nicht antippen.",
+    "next_step": "Alle Telefonnummern als Anruf-Link hinterlegen und mobil oben einen „Jetzt anrufen“-Button zeigen."
+  },
+  "closing": {
+    "eyebrow": "NÄCHSTER SCHRITT",
+    "title": "Aus Analyse wird Umsetzung.",
+    "summary": "Die wichtigsten Stellschrauben sind klar. Jetzt geht es darum, sie in der richtigen Reihenfolge umzusetzen und die geschäftliche Wirkung zu verbessern.",
+    "actions": [
+      "Alle Telefonnummern als Anruf-Link hinterlegen und mobil oben einen „Jetzt anrufen“-Button zeigen.",
+      "Button-Schrift dunkel setzen oder das Orange abdunkeln, bis 4,5:1 erreicht ist; dann erneut prüfen.",
+      "Eine verbindliche Standortliste festlegen und auf Über uns, Stadtseiten, Seitentiteln und Footer angleichen.",
+      "Kennzahlen und eine kurze Bewertungszusammenfassung als normalen Text in die Startseite schreiben."
+    ],
+    "cta": "Prioritäten bestätigen. Umsetzung starten.",
+    "next_step": "Gemeinsam priorisieren wir die vier Hebel und starten mit dem ersten konkreten Umsetzungspaket.",
+    "measurement_highlights": []
+  }
+}

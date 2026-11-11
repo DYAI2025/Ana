@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="480" viewBox="0 0 900 480" role="img" aria-label="Stärken und Schwächen nach Bereich">
+<rect width="900" height="480" rx="18" fill="#FFFFFF"/>
+<text x="42" y="46" font-family="PixelkiezDisplay, Schibsted Grotesk, IBM Plex Sans, Noto Sans, DejaVu Sans, sans-serif" font-size="24" fill="#0E1414" font-weight="700"><tspan x="42" dy="0">Stärken und Schwächen nach Bereich</tspan></text>
+<text x="42" y="78" font-family="PixelkiezDisplay, Schibsted Grotesk, IBM Plex Sans, Noto Sans, DejaVu Sans, sans-serif" font-size="14.5" fill="#566360"><tspan x="42" dy="0">Wie die wichtigsten Bereiche der Website heute abschneiden; ohne Bereiche mit rechtlichem Prüfbedarf</tspan></text>
+<text x="42" y="148.8" font-family="PixelkiezDisplay, Schibsted Grotesk, IBM Plex Sans, Noto Sans, DejaVu Sans, sans-serif" font-size="13.5" fill="#0E1414"><tspan x="42" dy="0">Auffindbarkeit in Suchmaschinen</tspan></text>
+<rect x="335" y="132.0" width="485" height="24.0" rx="5" fill="#C6D4D1"/>
+<rect x="335" y="132.0" width="451.1" height="24.0" rx="5" fill="#EC5E43"/>
+<text x="796.0" y="149.3" font-family="PixelkiezData, IBM Plex Mono, Noto Sans Mono, DejaVu Sans Mono, monospace" font-size="13.5" font-weight="700" fill="#0E1414">93</text>
+<text x="42" y="197.8" font-family="PixelkiezDisplay, Schibsted Grotesk, IBM Plex Sans, Noto Sans, DejaVu Sans, sans-serif" font-size="13.5" fill="#0E1414"><tspan x="42" dy="0">Ladegeschwindigkeit &amp; Technik</tspan></text>
+<rect x="335" y="181.0" width="485" height="24.0" rx="5" fill="#C6D4D1"/>
+<rect x="335" y="181.0" width="310.4" height="24.0" rx="5" fill="#EC5E43"/>
+<text x="655.4" y="198.3" font-family="PixelkiezData, IBM Plex Mono, Noto Sans Mono, DejaVu Sans Mono, monospace" font-size="13.5" font-weight="700" fill="#0E1414">64</text>
+<text x="42" y="246.8" font-family="PixelkiezDisplay, Schibsted Grotesk, IBM Plex Sans, Noto Sans, DejaVu Sans, sans-serif" font-size="13.5" fill="#0E1414"><tspan x="42" dy="0">Nutzerführung &amp; Anfragen</tspan></text>
+<rect x="335" y="230.0" width="485" height="24.0" rx="5" fill="#C6D4D1"/>
+<rect x="335" y="230.0" width="378.3" height="24.0" rx="5" fill="#EC5E43"/>
+<text x="723.3" y="247.3" font-family="PixelkiezData, IBM Plex Mono, Noto Sans Mono, DejaVu Sans Mono, monospace" font-size="13.5" font-weight="700" fill="#0E1414">78</text>
+<text x="42" y="295.8" font-family="PixelkiezDisplay, Schibsted Grotesk, IBM Plex Sans, Noto Sans, DejaVu Sans, sans-serif" font-size="13.5" fill="#0E1414"><tspan x="42" dy="0">Barrierefreiheit</tspan></text>
+<rect x="335" y="279.0" width="485" height="24.0" rx="5" fill="#C6D4D1"/>
+<rect x="335" y="279.0" width="261.9" height="24.0" rx="5" fill="#EC5E43"/>
+<text x="606.9" y="296.3" font-family="PixelkiezData, IBM Plex Mono, Noto Sans Mono, DejaVu Sans Mono, monospace" font-size="13.5" font-weight="700" fill="#0E1414">54</text>
+<text x="42" y="344.8" font-family="PixelkiezDisplay, Schibsted Grotesk, IBM Plex Sans, Noto Sans, DejaVu Sans, sans-serif" font-size="13.5" fill="#0E1414"><tspan x="42" dy="0">KI-Verständlichkeit</tspan></text>
+<rect x="335" y="328.0" width="485" height="24.0" rx="5" fill="#C6D4D1"/>
+<rect x="335" y="328.0" width="378.3" height="24.0" rx="5" fill="#EC5E43"/>
+<text x="723.3" y="345.3" font-family="PixelkiezData, IBM Plex Mono, Noto Sans Mono, DejaVu Sans Mono, monospace" font-size="13.5" font-weight="700" fill="#0E1414">78</text>
+<line x1="42" y1="407" x2="858" y2="407" stroke="#C6D4D1"/>
+</svg>

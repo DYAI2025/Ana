@@ -1,0 +1,85 @@
+{
+  "schema_version": "1.0",
+  "quality_contract_version": "1.0",
+  "quality_status": "PASS",
+  "non_compensatory": true,
+  "passed_hard_gates": 14,
+  "hard_gate_count": 14,
+  "pending_gates": [],
+  "failed_gates": [],
+  "pdf_sha256": "cb11cff45004ebad3d240a85b94c388bacc69d201cb6ce71caab2f437546e02b",
+  "client_model_sha256": "9408ea4f32dfe1669998ca89d94c4b9dad7ce489b2b22121e27b349f32aa5834",
+  "scored_report_sha256": "e6d9aed69df22e661cc539b89aee79bff12f1426e22d5e3f91bf06360a05bd9b",
+  "gates": [
+    {
+      "id": "artifact_binding",
+      "status": "PASS",
+      "detail": "all QA/render receipts must bind to final digests"
+    },
+    {
+      "id": "score_projection",
+      "status": "PASS",
+      "detail": "status=FULL_SCORE expected_label='Pixelkiez Score'"
+    },
+    {
+      "id": "cover_integrity",
+      "status": "PASS",
+      "detail": "cover text + explicit visual checks"
+    },
+    {
+      "id": "four_lever_completeness",
+      "status": "PASS",
+      "detail": "exactly four levers with observation/impact/action"
+    },
+    {
+      "id": "sentence_integrity",
+      "status": "PASS",
+      "detail": "no truncation markers; four terminated closing actions"
+    },
+    {
+      "id": "business_impact_visibility",
+      "status": "PASS",
+      "detail": "four-lever template must render impact"
+    },
+    {
+      "id": "privacy_claim_scope",
+      "status": "PASS",
+      "detail": "bounded"
+    },
+    {
+      "id": "legal_internal_metadata_leakage",
+      "status": "PASS",
+      "detail": "bounded"
+    },
+    {
+      "id": "legal_risk_projection_completeness",
+      "status": "PASS",
+      "detail": "PASS: legal projection priority=ELIGIBLE required=False"
+    },
+    {
+      "id": "no_synthetic_priority_magnitude",
+      "status": "PASS",
+      "detail": "V03 may contain rank but no magnitude field"
+    },
+    {
+      "id": "page_budget",
+      "status": "PASS",
+      "detail": "pages=9"
+    },
+    {
+      "id": "customer_language_guardrails",
+      "status": "PASS",
+      "detail": "PASS: customer business language firewall"
+    },
+    {
+      "id": "visual_qa",
+      "status": "PASS",
+      "detail": "PASS: visual QA bound to PDF (9 pages, 4 chart pages)"
+    },
+    {
+      "id": "semantic_qa",
+      "status": "PASS",
+      "detail": "PASS: semantic customer QA bound to final artifacts (9 pages)"
+    }
+  ]
+}

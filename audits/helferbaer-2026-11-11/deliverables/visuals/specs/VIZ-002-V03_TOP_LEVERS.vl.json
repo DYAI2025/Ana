@@ -1,0 +1,126 @@
+{
+  "$schema": "https://vega.github.io/schema/vega-lite/v6.json",
+  "description": "Pixelkiez approved template V03_TOP_LEVERS: ordinal Top-4-Hebel without synthetic magnitude",
+  "usermeta": {
+    "template_id": "V03_TOP_LEVERS",
+    "name": "Top-4-Hebel",
+    "purpose": "Vier priorisierte Hebel als reine Rangfolge",
+    "brand_contract": "pixelkiez-v1",
+    "visual_id": "VIZ-002",
+    "metric_refs": [
+      "UX-02",
+      "UX-04",
+      "TRUST-04",
+      "AI-06",
+      "AI-02",
+      "A11Y-04",
+      "A11Y-06",
+      "AI-05",
+      "AI-01"
+    ],
+    "finding_refs": [
+      "F-002",
+      "F-003",
+      "F-001",
+      "F-007"
+    ],
+    "evidence_class": "DERIVED_FROM_FINDINGS",
+    "population": "Vier priorisierte Website-Hebel",
+    "method": "Interne Priorisierung",
+    "does_not_prove": "Die Rangfolge ist ordinal. Sie enthält keine gemessene Größe, Umsatz- oder Aufwandsschätzung.",
+    "brand_font_status": "EXACT",
+    "resolved_fonts": {
+      "display": "Schibsted Grotesk",
+      "data": "IBM Plex Mono"
+    }
+  },
+  "width": 620,
+  "height": 310,
+  "data": {
+    "values": [
+      {
+        "label": "Auf dem Handy lassen sich die Telefonnummern auf Start- und Kontaktseite nicht antippen.",
+        "priority": 1
+      },
+      {
+        "label": "Die Seiten nennen andere Städte – mal Dresden, mal Hamburg; die Dresden-Seite trägt den Titel „Hamburg“.",
+        "priority": 2
+      },
+      {
+        "label": "Die orangen Anfrage-Buttons haben nur 2,03:1 Kontrast – empfohlen sind mindestens 4,5:1.",
+        "priority": 3
+      },
+      {
+        "label": "Kennzahlen und Google-Bewertungen werden erst per Skript geladen und fehlen im lesbaren Seitentext.",
+        "priority": 4
+      }
+    ]
+  },
+  "mark": {
+    "type": "text",
+    "align": "center",
+    "baseline": "middle",
+    "fontSize": 18,
+    "fontWeight": 700,
+    "color": "#EC5E43"
+  },
+  "encoding": {
+    "y": {
+      "field": "label",
+      "type": "nominal",
+      "sort": {
+        "field": "priority"
+      },
+      "axis": {
+        "title": null,
+        "labelLimit": 440,
+        "labelPadding": 16
+      }
+    },
+    "x": {
+      "value": 40
+    },
+    "text": {
+      "field": "priority",
+      "type": "ordinal"
+    }
+  },
+  "config": {
+    "background": "#FFFFFF",
+    "font": "Schibsted Grotesk",
+    "title": {
+      "font": "Schibsted Grotesk",
+      "fontSize": 18,
+      "fontWeight": 700,
+      "color": "#0E1414",
+      "anchor": "start"
+    },
+    "axis": {
+      "labelFont": "IBM Plex Mono",
+      "labelFontSize": 11,
+      "titleFont": "Schibsted Grotesk",
+      "titleFontSize": 12,
+      "labelColor": "#0E1414",
+      "titleColor": "#0E1414",
+      "gridColor": "#C6D4D1",
+      "domainColor": "#566360",
+      "tickColor": "#566360"
+    },
+    "legend": {
+      "labelFont": "Schibsted Grotesk",
+      "labelFontSize": 11,
+      "titleFont": "Schibsted Grotesk",
+      "titleFontSize": 12,
+      "labelColor": "#0E1414",
+      "titleColor": "#0E1414"
+    },
+    "view": {
+      "stroke": null
+    }
+  },
+  "title": {
+    "text": "Die vier wichtigsten Hebel",
+    "subtitle": "Nach geschäftlicher Bedeutung geordnet; die Reihenfolge der Umsetzung zeigt der Fahrplan",
+    "anchor": "start"
+  }
+}

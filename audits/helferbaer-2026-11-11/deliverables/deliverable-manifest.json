@@ -1,0 +1,136 @@
+{
+  "schema_version": "1.0",
+  "status": "CUSTOMER_RELEASE_READY",
+  "release_mode": "customer",
+  "source_input_sha256": "e6d9aed69df22e661cc539b89aee79bff12f1426e22d5e3f91bf06360a05bd9b",
+  "source_report_sha256": "e6d9aed69df22e661cc539b89aee79bff12f1426e22d5e3f91bf06360a05bd9b",
+  "required_artifacts": [
+    {
+      "path": "diagnosis-report.json",
+      "sha256": "e6d9aed69df22e661cc539b89aee79bff12f1426e22d5e3f91bf06360a05bd9b",
+      "bytes": 94098
+    },
+    {
+      "path": "analysis_report.json",
+      "sha256": "a24b6a1a0657c9124e32dfe3ef99f68b102a05bdc0a274c0ba8589eec46d7b4f",
+      "bytes": 196299
+    },
+    {
+      "path": "analysis_report.md",
+      "sha256": "81fb6a32e69e6cb003e39110094dcc8766d10c78562b5bd6e516fdbaea8db0b3",
+      "bytes": 134123
+    },
+    {
+      "path": "client-report-model.json",
+      "sha256": "9408ea4f32dfe1669998ca89d94c4b9dad7ce489b2b22121e27b349f32aa5834",
+      "bytes": 9455
+    },
+    {
+      "path": "customer-claim-bindings.json",
+      "sha256": "6499019b410de982292613c820e437953f5e242bd1f1d21c82a20c6d1e8be977",
+      "bytes": 2053
+    },
+    {
+      "path": "visualization-plan.json",
+      "sha256": "b474a3389c04b1709befdcc6298b0f6d2bd2a2d1ced8a5eb9733671b953f3227",
+      "bytes": 9018
+    },
+    {
+      "path": "visualization-render-receipt.json",
+      "sha256": "5dafc292a7b1da30e8d347c0f5eb785b942f6cd2dc4cb99d2f1e979ad8ff2a6a",
+      "bytes": 2116
+    },
+    {
+      "path": "customer_presentation.html",
+      "sha256": "4cd362d4671035a4d5b6e038dc01ab9b789968f1ebf7d8a23228ed0a1f0cd836",
+      "bytes": 37502
+    },
+    {
+      "path": "presentation-render-receipt.json",
+      "sha256": "78f1586ec2ba557c097d38c5054e892e06cf110055deb90e28ce8e2805452cca",
+      "bytes": 6313
+    },
+    {
+      "path": "customer_presentation.pdf",
+      "sha256": "cb11cff45004ebad3d240a85b94c388bacc69d201cb6ce71caab2f437546e02b",
+      "bytes": 54829
+    },
+    {
+      "path": "customer_presentation.visual-qa.json",
+      "sha256": "05dca55b1cedf41682370e882a387a0177b7c2ab21626d1825702cbf4595c3fc",
+      "bytes": 6164
+    },
+    {
+      "path": "customer_presentation.semantic-qa.json",
+      "sha256": "b737d4fa70010a000fbae65fbfe0565b3af6f65c81f5ac9f720877a2b10b9fb1",
+      "bytes": 5847
+    },
+    {
+      "path": "customer-presentation-quality-report.json",
+      "sha256": "15c64541db0fa1e68e38d1f8f0a756146979ab88cf60fd4e0f4889f25b5b82e8",
+      "bytes": 2354
+    },
+    {
+      "path": "impressum-compliance.json",
+      "sha256": "cbf22c40b81e2b658c95381a3cb51a5a4e847ab39beaa43bea9b87059bae0978",
+      "bytes": 1739
+    },
+    {
+      "path": "legal-customer-projection.json",
+      "sha256": "8a8df70b6386d5bb66503b43ea9884857acf9023dd2908177ecf9038eed63764",
+      "bytes": 295
+    }
+  ],
+  "visual_files": [
+    {
+      "path": "visuals/VIZ-001-V02_CATEGORY_BARS.svg",
+      "sha256": "f307a41dab55e74a9b37d180e1214c79bfdb5aa39a06cd6e597c5bdf58aaa632"
+    },
+    {
+      "path": "visuals/VIZ-002-V03_TOP_LEVERS.svg",
+      "sha256": "3e11593c5d2e318d7bf9cd724d683df54f91553fedebdfed9c56e2906bf2dc14"
+    },
+    {
+      "path": "visuals/VIZ-003-V08_AI_ANSWERABILITY.svg",
+      "sha256": "3fecc14294ec0d0a2d74b20cf27618954033bd2635cd633ef1f8134331faec06"
+    },
+    {
+      "path": "visuals/VIZ-004-V10_TRUST_MATRIX.svg",
+      "sha256": "e02bc38998f8d4b62b37ae984603dfab67678d430114e5f5f84f0e019e79afbd"
+    }
+  ],
+  "font_resolution": {
+    "status": "EXACT",
+    "requested": {
+      "data": "IBM Plex Mono",
+      "display": "Schibsted Grotesk"
+    },
+    "resolved": {
+      "data": "IBM Plex Mono",
+      "display": "Schibsted Grotesk"
+    },
+    "customer_release_ready": true,
+    "source": {
+      "data": "PACKAGED",
+      "display": "PACKAGED"
+    },
+    "package_fonts_status": "VERIFIED",
+    "package_manifest_sha256": "4b8a2e8ca39cdb5a1a3b6b0221d3e6afe9fdf2ec451390ac58a4c7a1255e1e16",
+    "pdf_font_embedding_status": "VERIFIED"
+  },
+  "qa_status": {
+    "visual": "PASS",
+    "semantic": "PASS"
+  },
+  "quality_gate_status": "PASS",
+  "customer_release_ready": true,
+  "legal_enabled": true,
+  "impressum_compliance_sha256": "cbf22c40b81e2b658c95381a3cb51a5a4e847ab39beaa43bea9b87059bae0978",
+  "legal_customer_projection_sha256": "8a8df70b6386d5bb66503b43ea9884857acf9023dd2908177ecf9038eed63764",
+  "does_not_prove": [
+    "customer approval",
+    "commercial outcome",
+    "exact production font parity when font status is not EXACT",
+    "live provider or telephony behavior"
+  ]
+}

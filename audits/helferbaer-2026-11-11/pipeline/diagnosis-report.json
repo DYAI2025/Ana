@@ -1,0 +1,2262 @@
+{
+  "meta": {
+    "report_title": "Website-Analyse 2026",
+    "customer_name": "Helferbär GmbH",
+    "audited_url": "https://www.xn--helferbr-6za.de/",
+    "audit_date": "11.11.2026",
+    "timezone": "Europe/Berlin",
+    "language": "de",
+    "auditor": "Pixelkiez",
+    "audit_mode": "measured_public",
+    "scope_summary": "Öffentliches Read-only-Audit von helferbär.de: Live-HTTP/HTML-Collector, Browser-Rendering (mobil/desktop) von 13 Seiten, Lighthouse-Labormessung, axe-core, Kontrast- und Tastatur-Stichprobe, Inhaltslesen. Keine Felddaten, keine Search Console/Analytics, keine repräsentative deutsche Suchstichprobe.",
+    "audit_id": "pxk-helferbaer-2026-11-11",
+    "website_language": "de"
+  },
+  "public_business": {
+    "display_name": "Helferbär GmbH",
+    "phone_number": "+493062939453",
+    "city": "Potsdam",
+    "business_category": "Entlastungsdienst / Alltagshilfe für Menschen mit Pflegegrad",
+    "verified_contact": {
+      "name": "Alessandro Nobbe",
+      "role": "Geschäftsführer (laut Impressum, einer von zwei)",
+      "evidence_pointer": "https://www.xn--helferbr-6za.de/impressum"
+    },
+    "evidence_pointers": {
+      "display_name": "https://www.xn--helferbr-6za.de/impressum",
+      "phone_number": "https://www.xn--helferbr-6za.de/impressum",
+      "city": "https://www.xn--helferbr-6za.de/impressum"
+    }
+  },
+  "coverage": {
+    "sampled_pages": [
+      {
+        "page_type": "Startseite",
+        "url": "https://www.xn--helferbr-6za.de/",
+        "accessed_at": "2026-11-11T21:20:00+01:00"
+      },
+      {
+        "page_type": "Leistungsübersicht",
+        "url": "https://www.xn--helferbr-6za.de/unsere-dienstleistungen",
+        "accessed_at": "2026-11-11T21:20:00+01:00"
+      },
+      {
+        "page_type": "Leistung Alltagshilfe",
+        "url": "https://www.xn--helferbr-6za.de/leistungen-alltagshilfe",
+        "accessed_at": "2026-11-11T21:20:00+01:00"
+      },
+      {
+        "page_type": "Standortseite Berlin",
+        "url": "https://www.xn--helferbr-6za.de/berlin",
+        "accessed_at": "2026-11-11T21:20:00+01:00"
+      },
+      {
+        "page_type": "Kontakt",
+        "url": "https://www.xn--helferbr-6za.de/kontakt",
+        "accessed_at": "2026-11-11T21:20:00+01:00"
+      },
+      {
+        "page_type": "Über uns",
+        "url": "https://www.xn--helferbr-6za.de/ueber-uns",
+        "accessed_at": "2026-11-11T21:20:00+01:00"
+      },
+      {
+        "page_type": "FAQ",
+        "url": "https://www.xn--helferbr-6za.de/faq",
+        "accessed_at": "2026-11-11T21:20:00+01:00"
+      },
+      {
+        "page_type": "Ratgeber",
+        "url": "https://www.xn--helferbr-6za.de/ratgeber",
+        "accessed_at": "2026-11-11T21:20:00+01:00"
+      },
+      {
+        "page_type": "Pflegeberatung",
+        "url": "https://www.xn--helferbr-6za.de/pflegeberatung",
+        "accessed_at": "2026-11-11T21:20:00+01:00"
+      },
+      {
+        "page_type": "Impressum",
+        "url": "https://www.xn--helferbr-6za.de/impressum",
+        "accessed_at": "2026-11-11T21:20:00+01:00"
+      },
+      {
+        "page_type": "Datenschutz",
+        "url": "https://www.xn--helferbr-6za.de/privacyb505f5ef",
+        "accessed_at": "2026-11-11T21:20:00+01:00"
+      },
+      {
+        "page_type": "Standortseite Hamburg",
+        "url": "https://www.xn--helferbr-6za.de/hamburg",
+        "accessed_at": "2026-11-11T21:20:00+01:00"
+      },
+      {
+        "page_type": "Standortseite Dresden",
+        "url": "https://www.xn--helferbr-6za.de/dresden",
+        "accessed_at": "2026-11-11T21:20:00+01:00"
+      }
+    ],
+    "not_tested": [
+      "Core-Web-Vitals-Felddaten (CrUX)",
+      "repräsentative deutsche Suchstichprobe (Marke, site:, Non-Brand)",
+      "Search Console / Analytics",
+      "Formular-Fehlerzustände (kein Absenden)",
+      "Screenreader- und vollständige WCAG-Prüfung",
+      "Blog-Artikel im Einzelnen",
+      "Login-Bereich app.helferbaer.de"
+    ],
+    "tools_available": [
+      "Live-HTTP/HTML-Collector",
+      "Playwright/Chromium-Rendering mobil/desktop",
+      "Lighthouse 12.8.2 (Labor)",
+      "axe-core 4.14.0",
+      "Websuche (US-only)"
+    ],
+    "tools_unavailable": [
+      "CrUX/PageSpeed-API (kein Schlüssel, HTTP 429)",
+      "Search Console",
+      "Analytics",
+      "lokalisierte DE-SERP-Abfrage"
+    ],
+    "capabilities": [
+      {
+        "id": "public_http_fetch",
+        "status": "available",
+        "note": "derived from active core execution bundle"
+      },
+      {
+        "id": "public_page_render",
+        "status": "available",
+        "note": "derived from active core execution bundle; browser_rendering_source_declared=true; browser_execution_independently_verified=false; scoreable_source_families=BROWSER_RENDERING,RULE_BASED_QUALITATIVE_OBSERVATION"
+      },
+      {
+        "id": "html_inspection",
+        "status": "available",
+        "note": "derived from active core execution bundle"
+      },
+      {
+        "id": "crawl_sample",
+        "status": "available",
+        "note": "derived from active core execution bundle"
+      },
+      {
+        "id": "search_sample",
+        "status": "unavailable",
+        "note": "derived from active core execution bundle"
+      },
+      {
+        "id": "structured_data_inspection",
+        "status": "available",
+        "note": "derived from active core execution bundle"
+      },
+      {
+        "id": "performance_field",
+        "status": "unavailable",
+        "note": "derived from active core execution bundle"
+      },
+      {
+        "id": "performance_lab",
+        "status": "available",
+        "note": "derived from active core execution bundle"
+      },
+      {
+        "id": "asset_inspection",
+        "status": "available",
+        "note": "derived from active core execution bundle"
+      },
+      {
+        "id": "header_inspection",
+        "status": "available",
+        "note": "derived from active core execution bundle"
+      },
+      {
+        "id": "accessibility_manual_sample",
+        "status": "available",
+        "note": "derived from active core execution bundle"
+      },
+      {
+        "id": "accessibility_automation",
+        "status": "available",
+        "note": "derived from active core execution bundle"
+      },
+      {
+        "id": "content_inspection",
+        "status": "available",
+        "note": "derived from active core execution bundle"
+      },
+      {
+        "id": "private_measurement_export",
+        "status": "unavailable",
+        "note": "derived from active core execution bundle"
+      }
+    ]
+  },
+  "metrics": [
+    {
+      "id": "FIND-01",
+      "applicable": true,
+      "measurement_class": "measured",
+      "evidence_grade": "E4",
+      "status": "strong",
+      "value": {
+        "requested_url": "https://www.xn--helferbr-6za.de/",
+        "final_url": "https://www.xn--helferbr-6za.de/",
+        "http_status": 200,
+        "redirect_hops": 0,
+        "redirect_chain": [],
+        "https_final": true,
+        "status_rule": "4xx/5xx=blocking; final URL not HTTPS=mixed; >2 redirect hops=minor_gaps; else strong",
+        "collector_version": "1.0.0"
+      },
+      "unit": null,
+      "score": 100,
+      "confidence": 5,
+      "source_or_method": "Fetch canonical public URL and record status/final URL. Pixelkiez evidence collector 1.0.0: 4xx/5xx=blocking; final URL not HTTPS=mixed; >2 redirect hops=minor_gaps; else strong",
+      "threshold_source": null,
+      "evidence_refs": [
+        "E-2001"
+      ],
+      "does_not_prove": "Reachability does not prove indexation or search demand. Sampled public pages only; static HTML without JavaScript execution.",
+      "note": "LIVE_PUBLIC_COLLECTOR"
+    },
+    {
+      "id": "FIND-02",
+      "applicable": true,
+      "measurement_class": "measured",
+      "evidence_grade": "E4",
+      "status": "strong",
+      "value": {
+        "robots_status": 200,
+        "disallow_all_for_user_agent_star": false,
+        "sitemaps": [
+          {
+            "url": "https://www.xn--helferbr-6za.de/sitemap.xml",
+            "status": 200,
+            "error": null,
+            "loc_count": 64
+          }
+        ],
+        "sitemap_url_count": 64,
+        "status_rule": "Disallow:/ for *=blocking; robots 200 and sitemap with URLs=strong; one of both=minor_gaps; none=weak",
+        "collector_version": "1.0.0"
+      },
+      "unit": null,
+      "score": 100,
+      "confidence": 5,
+      "source_or_method": "Fetch robots.txt and sitemap locations when public. Pixelkiez evidence collector 1.0.0: Disallow:/ for *=blocking; robots 200 and sitemap with URLs=strong; one of both=minor_gaps; none=weak",
+      "threshold_source": null,
+      "evidence_refs": [
+        "E-2002"
+      ],
+      "does_not_prove": "Presence does not prove complete crawl coverage or indexation. Sampled public pages only; static HTML without JavaScript execution.",
+      "note": "LIVE_PUBLIC_COLLECTOR"
+    },
+    {
+      "id": "FIND-03",
+      "applicable": true,
+      "measurement_class": "observed",
+      "evidence_grade": "E4",
+      "status": "strong",
+      "value": {
+        "pages": [
+          {
+            "url": "https://www.xn--helferbr-6za.de/",
+            "kind": "home",
+            "noindex": false,
+            "canonical": "https://www.xn--helferbr-6za.de/",
+            "canonical_same_host": true,
+            "canonical_self": true
+          },
+          {
+            "url": "https://www.xn--helferbr-6za.de/impressum",
+            "kind": "impressum",
+            "noindex": false,
+            "canonical": "https://www.xn--helferbr-6za.de/impressum",
+            "canonical_same_host": true,
+            "canonical_self": true
+          },
+          {
+            "url": "https://www.xn--helferbr-6za.de/privacyb505f5ef",
+            "kind": "datenschutz",
+            "noindex": false,
+            "canonical": "https://www.xn--helferbr-6za.de/privacyb505f5ef",
+            "canonical_same_host": true,
+            "canonical_self": true
+          },
+          {
+            "url": "https://www.xn--helferbr-6za.de/kontakt",
+            "kind": "kontakt",
+            "noindex": false,
+            "canonical": "https://www.xn--helferbr-6za.de/kontakt",
+            "canonical_same_host": true,
+            "canonical_self": true
+          },
+          {
+            "url": "https://www.xn--helferbr-6za.de/unsere-dienstleistungen",
+            "kind": "leistungen",
+            "noindex": false,
+            "canonical": "https://www.xn--helferbr-6za.de/unsere-dienstleistungen",
+            "canonical_same_host": true,
+            "canonical_self": true
+          },
+          {
+            "url": "https://www.xn--helferbr-6za.de/ueber-uns",
+            "kind": "ueber",
+            "noindex": false,
+            "canonical": "https://www.xn--helferbr-6za.de/ueber-uns",
+            "canonical_same_host": true,
+            "canonical_self": true
+          }
+        ],
+        "pages_with_canonical": 6,
+        "sampled_pages": 6,
+        "status_rule": "homepage noindex=blocking; content page noindex or foreign canonical=mixed; canonical on all sampled pages=strong; else minor_gaps",
+        "collector_version": "1.0.0"
+      },
+      "unit": null,
+      "score": 100,
+      "confidence": 4,
+      "source_or_method": "Inspect index directives, canonical tags and redirect behavior on sampled templates. Pixelkiez evidence collector 1.0.0: homepage noindex=blocking; content page noindex or foreign canonical=mixed; canonical on all sampled pages=strong; else minor_gaps",
+      "threshold_source": null,
+      "evidence_refs": [
+        "E-2003"
+      ],
+      "does_not_prove": "Sampled directives do not prove full-domain index state. Sampled public pages only; static HTML without JavaScript execution.",
+      "note": "LIVE_PUBLIC_COLLECTOR"
+    },
+    {
+      "id": "FIND-04",
+      "applicable": true,
+      "measurement_class": "not_assessed",
+      "evidence_grade": "E8",
+      "status": "not_assessed",
+      "value": null,
+      "unit": null,
+      "score": null,
+      "confidence": 1,
+      "source_or_method": "Agent-Versuch, siehe note",
+      "threshold_source": null,
+      "evidence_refs": [],
+      "does_not_prove": "nicht gemessen; keine Aussage über die Website",
+      "note": "Versuch 2026-11-11: verfügbares Suchwerkzeug ist US-only mit nicht offengelegtem Index; Markenabfrage „Helferbär Entlastungsdienst“ zeigte nur Verzeichnisse. Für den deutschen Zielmarkt nicht repräsentativ -> nicht gewertet. Bing-de-Abfrage per HTTP durch Laufzeit-Policy blockiert."
+    },
+    {
+      "id": "FIND-05",
+      "applicable": true,
+      "measurement_class": "not_assessed",
+      "evidence_grade": "E8",
+      "status": "not_assessed",
+      "value": null,
+      "unit": null,
+      "score": null,
+      "confidence": 1,
+      "source_or_method": "Agent-Versuch, siehe note",
+      "threshold_source": null,
+      "evidence_refs": [],
+      "does_not_prove": "nicht gemessen; keine Aussage über die Website",
+      "note": "Versuch 2026-11-11: 5 Non-Brand-Abfragen (Berlin/Leipzig/Potsdam/Magdeburg/Halle) im US-only-Suchwerkzeug ohne eigene Domain; Werkzeug für DE-Markt nicht repräsentativ -> nicht gewertet."
+    },
+    {
+      "id": "FIND-06",
+      "applicable": true,
+      "measurement_class": "observed",
+      "evidence_grade": "E4",
+      "status": "minor_gaps",
+      "value": {
+        "check_pass_share": 0.833,
+        "pages": [
+          {
+            "url": "https://www.xn--helferbr-6za.de/",
+            "title_len": 49,
+            "title_ok": true,
+            "title_unique": true,
+            "description_len": 136,
+            "description_ok": true,
+            "h1_count": 3,
+            "h1_ok": false
+          },
+          {
+            "url": "https://www.xn--helferbr-6za.de/impressum",
+            "title_len": 52,
+            "title_ok": true,
+            "title_unique": false,
+            "description_len": 148,
+            "description_ok": true,
+            "h1_count": 1,
+            "h1_ok": true
+          },
+          {
+            "url": "https://www.xn--helferbr-6za.de/privacyb505f5ef",
+            "title_len": 52,
+            "title_ok": true,
+            "title_unique": false,
+            "description_len": 148,
+            "description_ok": true,
+            "h1_count": 1,
+            "h1_ok": true
+          },
+          {
+            "url": "https://www.xn--helferbr-6za.de/kontakt",
+            "title_len": 54,
+            "title_ok": true,
+            "title_unique": true,
+            "description_len": 173,
+            "description_ok": false,
+            "h1_count": 1,
+            "h1_ok": true
+          },
+          {
+            "url": "https://www.xn--helferbr-6za.de/unsere-dienstleistungen",
+            "title_len": 42,
+            "title_ok": true,
+            "title_unique": true,
+            "description_len": 156,
+            "description_ok": true,
+            "h1_count": 1,
+            "h1_ok": true
+          },
+          {
+            "url": "https://www.xn--helferbr-6za.de/ueber-uns",
+            "title_len": 41,
+            "title_ok": true,
+            "title_unique": true,
+            "description_len": 107,
+            "description_ok": true,
+            "h1_count": 1,
+            "h1_ok": true
+          }
+        ],
+        "status_rule": "per page: title 15-65 chars, unique title, meta description 70-165 chars, exactly one h1; pass share >=0.9 strong, >=0.75 minor_gaps, >=0.5 mixed, >=0.25 weak",
+        "collector_version": "1.0.0"
+      },
+      "unit": "share",
+      "score": 75,
+      "confidence": 4,
+      "source_or_method": "Inspect sampled titles, descriptions, H1/H2 structure and intent alignment. Pixelkiez evidence collector 1.0.0: per page: title 15-65 chars, unique title, meta description 70-165 chars, exactly one h1; pass share >=0.9 strong, >=0.75 minor_gaps, >=0.5 mixed, >=0.25 weak",
+      "threshold_source": null,
+      "evidence_refs": [
+        "E-2004"
+      ],
+      "does_not_prove": "Sample quality does not prove rankings. Sampled public pages only; static HTML without JavaScript execution.",
+      "note": "LIVE_PUBLIC_COLLECTOR"
+    },
+    {
+      "id": "FIND-07",
+      "applicable": true,
+      "measurement_class": "observed",
+      "evidence_grade": "E4",
+      "status": "strong",
+      "value": {
+        "jsonld_types": [
+          "MedicalBusiness",
+          "WebSite"
+        ],
+        "invalid_jsonld_blocks": 0,
+        "microdata_types": [],
+        "business_entity_present": true,
+        "status_rule": "valid JSON-LD with business entity type=strong; business entity via microdata or with invalid blocks=minor_gaps/mixed; only non-business types=mixed; none=weak",
+        "collector_version": "1.0.0"
+      },
+      "unit": null,
+      "score": 100,
+      "confidence": 4,
+      "source_or_method": "Inspect public structured data for syntax, entity fit and visible-content consistency. Pixelkiez evidence collector 1.0.0: valid JSON-LD with business entity type=strong; business entity via microdata or with invalid blocks=minor_gaps/mixed; only non-business types=mixed; none=weak",
+      "threshold_source": null,
+      "evidence_refs": [
+        "E-2005"
+      ],
+      "does_not_prove": "Markup presence does not guarantee rich results. Sampled public pages only; static HTML without JavaScript execution.",
+      "note": "LIVE_PUBLIC_COLLECTOR"
+    },
+    {
+      "id": "FIND-08",
+      "applicable": true,
+      "measurement_class": "measured",
+      "evidence_grade": "E4",
+      "status": "strong",
+      "value": {
+        "homepage_internal_links": 20,
+        "key_pages_linked_from_homepage": {
+          "kontakt": true,
+          "impressum": true,
+          "datenschutz": true,
+          "leistungen": true
+        },
+        "nav_landmark": true,
+        "status_rule": "six checks: contact/imprint/privacy/service page linked from homepage, nav landmark, >=8 internal links; all=strong, >=0.8 minor_gaps, >=0.6 mixed, >=0.3 weak",
+        "collector_version": "1.0.0"
+      },
+      "unit": "share",
+      "score": 100,
+      "confidence": 4,
+      "source_or_method": "Inspect navigation depth, contextual links, descriptive anchors, breadcrumbs and orphan-risk patterns in bounded sample. Pixelkiez evidence collector 1.0.0: six checks: contact/imprint/privacy/service page linked from homepage, nav landmark, >=8 internal links; all=strong, >=0.8 minor_gaps, >=0.6 mixed, >=0.3 weak",
+      "threshold_source": null,
+      "evidence_refs": [
+        "E-2006"
+      ],
+      "does_not_prove": "Bounded crawl does not prove complete link graph. Sampled public pages only; static HTML without JavaScript execution.",
+      "note": "LIVE_PUBLIC_COLLECTOR"
+    },
+    {
+      "id": "FIND-09",
+      "applicable": true,
+      "measurement_class": "observed",
+      "evidence_grade": "E4",
+      "status": "mixed",
+      "value": {
+        "images_sampled": 62,
+        "descriptive_alt_share": 0.677,
+        "explicit_dimensions_share": 0.452,
+        "status_rule": "mean of descriptive-alt share and width/height share over sampled <img>; >=0.9 strong, >=0.75 minor_gaps, >=0.5 mixed, >=0.25 weak",
+        "collector_version": "1.0.0"
+      },
+      "unit": "share",
+      "score": 50,
+      "confidence": 4,
+      "source_or_method": "Inspect sampled image alt text, context, filenames and responsive image delivery. Pixelkiez evidence collector 1.0.0: mean of descriptive-alt share and width/height share over sampled <img>; >=0.9 strong, >=0.75 minor_gaps, >=0.5 mixed, >=0.25 weak",
+      "threshold_source": null,
+      "evidence_refs": [
+        "E-2007"
+      ],
+      "does_not_prove": "Sample does not prove image-search performance. Sampled public pages only; static HTML without JavaScript execution.",
+      "note": "LIVE_PUBLIC_COLLECTOR"
+    },
+    {
+      "id": "FIND-10",
+      "applicable": true,
+      "measurement_class": "observed",
+      "evidence_grade": "E4",
+      "status": "strong",
+      "value": {
+        "checks": {
+          "html_lang": true,
+          "postal_address_visible_or_structured": true,
+          "phone_visible_or_structured": true,
+          "hreflang_if_multilingual": true
+        },
+        "html_lang": "de",
+        "hreflang_alternates": [],
+        "status_rule": "html lang, postal address, phone, consistent hreflang when alternates exist; all=strong, >=0.75 minor_gaps, >=0.5 mixed, >=0.25 weak",
+        "collector_version": "1.0.0"
+      },
+      "unit": "share",
+      "score": 100,
+      "confidence": 4,
+      "source_or_method": "Inspect applicable local entity and language-alternate signals. Pixelkiez evidence collector 1.0.0: html lang, postal address, phone, consistent hreflang when alternates exist; all=strong, >=0.75 minor_gaps, >=0.5 mixed, >=0.25 weak",
+      "threshold_source": null,
+      "evidence_refs": [
+        "E-2008"
+      ],
+      "does_not_prove": "Signals do not prove local rankings or international targeting success. Sampled public pages only; static HTML without JavaScript execution.",
+      "note": "LIVE_PUBLIC_COLLECTOR"
+    },
+    {
+      "id": "PERF-01",
+      "applicable": true,
+      "measurement_class": "not_assessed",
+      "evidence_grade": "E8",
+      "status": "not_assessed",
+      "value": null,
+      "unit": null,
+      "score": null,
+      "confidence": 1,
+      "source_or_method": "Agent-Versuch, siehe note",
+      "threshold_source": null,
+      "evidence_refs": [],
+      "does_not_prove": "nicht gemessen; keine Aussage über die Website",
+      "note": "Keine CrUX-/PSI-Felddaten: PSI-API ohne Schlüssel HTTP 429 (2026-11-11), kein CrUX-API-Schlüssel."
+    },
+    {
+      "id": "PERF-02",
+      "applicable": true,
+      "measurement_class": "measured",
+      "evidence_grade": "E2",
+      "status": "mixed",
+      "value": {
+        "tool": "Lighthouse 12.8.2",
+        "form_factor": "mobile",
+        "throttling": "simulate",
+        "runs": 3,
+        "performance_score_median": 53,
+        "performance_score_runs": [
+          53,
+          53,
+          53
+        ],
+        "lcp_ms_median": 5893.562,
+        "lcp_ms_runs": [
+          5710.642,
+          5910.457,
+          5893.562
+        ],
+        "fcp_ms_median": 3993.397,
+        "tbt_ms_median": 534,
+        "cls_median": 0.007,
+        "speed_index_ms_median": 5281.787,
+        "total_byte_weight_median": 1849375,
+        "url": "https://www.xn--helferbr-6za.de/"
+      },
+      "unit": null,
+      "score": 50,
+      "confidence": 4,
+      "source_or_method": "Lighthouse CLI mobil, 3 Läufe, Median",
+      "threshold_source": "web.dev/articles/vitals (LCP ≤ 2,5 s, CLS ≤ 0,1 „good“; zuletzt aktualisiert 2024-10-31) und developer.chrome.com/docs/lighthouse/performance/performance-scoring (0–49 poor, 50–89 needs improvement, 90–100 good), abgerufen 2026-11-11; Pixelkiez-Abbildung: ≥90 strong, 75–89 minor_gaps, 50–74 mixed, <50 weak",
+      "evidence_refs": [
+        "E-5006"
+      ],
+      "does_not_prove": "Labormessung aus Rechenzentrum; keine realen Nutzerdaten",
+      "note": null
+    },
+    {
+      "id": "PERF-03",
+      "applicable": true,
+      "measurement_class": "measured",
+      "evidence_grade": "E2",
+      "status": "minor_gaps",
+      "value": {
+        "tool": "Lighthouse 12.8.2",
+        "form_factor": "desktop",
+        "runs": 3,
+        "performance_score_median": 89,
+        "performance_score_runs": [
+          75,
+          89,
+          89
+        ],
+        "lcp_ms_median": 1587.074,
+        "lcp_ms_runs": [
+          1587.074,
+          1640.393,
+          1498.129
+        ],
+        "fcp_ms_median": 1239.01,
+        "tbt_ms_median": 3.5,
+        "cls_median": 0.025,
+        "cls_runs": [
+          0.286,
+          0.024,
+          0.025
+        ],
+        "speed_index_ms_median": 1641.42,
+        "total_byte_weight_median": 2743641,
+        "url": "https://www.xn--helferbr-6za.de/"
+      },
+      "unit": null,
+      "score": 75,
+      "confidence": 4,
+      "source_or_method": "Lighthouse CLI desktop, 3 Läufe, Median",
+      "threshold_source": "web.dev/articles/vitals (LCP ≤ 2,5 s, CLS ≤ 0,1 „good“; zuletzt aktualisiert 2024-10-31) und developer.chrome.com/docs/lighthouse/performance/performance-scoring (0–49 poor, 50–89 needs improvement, 90–100 good), abgerufen 2026-11-11; Pixelkiez-Abbildung: ≥90 strong, 75–89 minor_gaps, 50–74 mixed, <50 weak",
+      "evidence_refs": [
+        "E-5007"
+      ],
+      "does_not_prove": "Labormessung; ein Lauf mit CLS 0,286 (Ausreißer)",
+      "note": null
+    },
+    {
+      "id": "PERF-04",
+      "applicable": true,
+      "measurement_class": "measured",
+      "evidence_grade": "E4",
+      "status": "weak",
+      "value": {
+        "homepage_transfer_bytes_static": 9463133,
+        "html_bytes": 36067,
+        "by_type": {
+          "css": {
+            "count": 6,
+            "bytes": 101397
+          },
+          "js": {
+            "count": 6,
+            "bytes": 910045
+          },
+          "img": {
+            "count": 13,
+            "bytes": 8415624
+          }
+        },
+        "assets_discovered_in_html": 25,
+        "assets_fetched": 25,
+        "status_rule": "static homepage transfer (HTML + referenced CSS/JS/IMG, max 45 assets, no JS execution): <=1.5 MB strong, <=3 MB minor_gaps, <=5 MB mixed, else weak",
+        "collector_version": "1.0.0"
+      },
+      "unit": "bytes",
+      "score": 25,
+      "confidence": 4,
+      "source_or_method": "Measure sampled transfer/resource weight and identify dominant resource classes. Pixelkiez evidence collector 1.0.0: static homepage transfer (HTML + referenced CSS/JS/IMG, max 45 assets, no JS execution): <=1.5 MB strong, <=3 MB minor_gaps, <=5 MB mixed, else weak",
+      "threshold_source": null,
+      "evidence_refs": [
+        "E-2009"
+      ],
+      "does_not_prove": "Asset weight alone does not prove user-perceived speed. Sampled public pages only; static HTML without JavaScript execution.",
+      "note": "LIVE_PUBLIC_COLLECTOR"
+    },
+    {
+      "id": "PERF-05",
+      "applicable": true,
+      "measurement_class": "measured",
+      "evidence_grade": "E4",
+      "status": "weak",
+      "value": {
+        "images_sampled": 62,
+        "modern_format_images": 0,
+        "responsive_srcset_images": 0,
+        "lazy_loaded_images": 0,
+        "pipeline_share": 0.0,
+        "status_rule": "mean of modern-format share (WebP/AVIF), srcset share and lazy-loading share (first two images exempt); >=0.8 strong, >=0.6 minor_gaps, >=0.4 mixed, >=0.2 weak",
+        "collector_version": "1.0.0"
+      },
+      "unit": "share",
+      "score": 25,
+      "confidence": 4,
+      "source_or_method": "Inspect formats, responsive images, lazy loading and media delivery on sampled templates. Pixelkiez evidence collector 1.0.0: mean of modern-format share (WebP/AVIF), srcset share and lazy-loading share (first two images exempt); >=0.8 strong, >=0.6 minor_gaps, >=0.4 mixed, >=0.2 weak",
+      "threshold_source": null,
+      "evidence_refs": [
+        "E-2010"
+      ],
+      "does_not_prove": "Observed media pipeline does not prove field performance. Sampled public pages only; static HTML without JavaScript execution.",
+      "note": "LIVE_PUBLIC_COLLECTOR"
+    },
+    {
+      "id": "PERF-06",
+      "applicable": true,
+      "measurement_class": "measured",
+      "evidence_grade": "E4",
+      "status": "strong",
+      "value": {
+        "html_compressed": true,
+        "text_asset_compression_share": 1.0,
+        "static_asset_long_cache_share": 1.0,
+        "same_host_static_assets": 1,
+        "html_cache_control": "no-cache, must-revalidate",
+        "status_rule": "compression share over HTML+same-host CSS/JS and share of same-host static assets with max-age>=7d or immutable: >=0.9&>=0.8 strong, >=0.7&>=0.5 minor_gaps, >=0.5|>=0.3 mixed, else weak",
+        "collector_version": "1.0.0"
+      },
+      "unit": "share",
+      "score": 100,
+      "confidence": 4,
+      "source_or_method": "Inspect public caching/compression headers or reproducible response behavior. Pixelkiez evidence collector 1.0.0: compression share over HTML+same-host CSS/JS and share of same-host static assets with max-age>=7d or immutable: >=0.9&>=0.8 strong, >=0.7&>=0.5 minor_gaps, >=0.5|>=0.3 mixed, else weak",
+      "threshold_source": null,
+      "evidence_refs": [
+        "E-2011"
+      ],
+      "does_not_prove": "Headers alone do not prove end-to-end caching effectiveness. Sampled public pages only; static HTML without JavaScript execution.",
+      "note": "LIVE_PUBLIC_COLLECTOR"
+    },
+    {
+      "id": "PERF-07",
+      "applicable": true,
+      "measurement_class": "measured",
+      "evidence_grade": "E4",
+      "status": "minor_gaps",
+      "value": {
+        "render_blocking_scripts_in_head": 1,
+        "blocking_script_examples": [
+          "https://app.termly.io/resource-blocker/ec3677b9-9cf2-4773-9f75-9bfb72e7fdd8"
+        ],
+        "head_stylesheets": 6,
+        "status_rule": "synchronous <script src> in <head> without async/defer/module and head stylesheets: 0 & <=3 strong, <=2 & <=6 minor_gaps, <=5 mixed, else weak",
+        "collector_version": "1.0.0"
+      },
+      "unit": "count",
+      "score": 75,
+      "confidence": 4,
+      "source_or_method": "Inspect sampled blocking CSS/JS/resource dependencies with available lab or page tooling. Pixelkiez evidence collector 1.0.0: synchronous <script src> in <head> without async/defer/module and head stylesheets: 0 & <=3 strong, <=2 & <=6 minor_gaps, <=5 mixed, else weak",
+      "threshold_source": null,
+      "evidence_refs": [
+        "E-2012"
+      ],
+      "does_not_prove": "Static inspection does not prove exact blocking time. Sampled public pages only; static HTML without JavaScript execution.",
+      "note": "LIVE_PUBLIC_COLLECTOR"
+    },
+    {
+      "id": "PERF-08",
+      "applicable": true,
+      "measurement_class": "observed",
+      "evidence_grade": "E4",
+      "status": "minor_gaps",
+      "value": {
+        "observation": "Kein horizontales Überlaufen auf 10 Seiten bei 390 px und 1440 px; Hosting liefert eigene Mobilvariante. Mobile H1 der Startseite bricht mitten im Wort („Entlastung|sdienst“), zwei Cookie-Hinweise überdecken den unteren Teil des ersten Bildschirms.",
+        "pages_without_overflow": "10/10 je Viewport"
+      },
+      "unit": null,
+      "score": 75,
+      "confidence": 4,
+      "source_or_method": "Gerendertes Layout in zwei Viewports, Screenshots",
+      "threshold_source": null,
+      "evidence_refs": [
+        "E-5001",
+        "E-5002"
+      ],
+      "does_not_prove": "Viewport-Stichprobe, keine echten Geräte",
+      "note": null
+    },
+    {
+      "id": "PERF-09",
+      "applicable": true,
+      "measurement_class": "observed",
+      "evidence_grade": "E4",
+      "status": "strong",
+      "value": {
+        "generator": null,
+        "detected_stack": [
+          "Divi",
+          "jQuery"
+        ],
+        "jquery_version": null,
+        "version_exposing_headers": {},
+        "server": "nginx",
+        "status_rule": "publicly visible jQuery < 3.5=mixed; software versions exposed via generator/server/x-powered-by=minor_gaps; else strong",
+        "collector_version": "1.0.0"
+      },
+      "unit": null,
+      "score": 100,
+      "confidence": 3,
+      "source_or_method": "Record observable delivery/CMS/framework hints without asserting private architecture. Pixelkiez evidence collector 1.0.0: publicly visible jQuery < 3.5=mixed; software versions exposed via generator/server/x-powered-by=minor_gaps; else strong",
+      "threshold_source": null,
+      "evidence_refs": [
+        "E-2013"
+      ],
+      "does_not_prove": "Public hints do not prove repository, backend or deployment quality. Sampled public pages only; static HTML without JavaScript execution.",
+      "note": "LIVE_PUBLIC_COLLECTOR"
+    },
+    {
+      "id": "UX-01",
+      "applicable": true,
+      "measurement_class": "observed",
+      "evidence_grade": "E6",
+      "status": "minor_gaps",
+      "value": {
+        "observation": "Desktop: erster Bildschirm nennt Angebot (Entlastungsdienst für Senioren), Leistungen, Abrechnung über Pflegekasse und sechs Städte. Mobil: Überschrift bricht mitten im Wort, Leistung/Städte erst nach Scrollen.",
+        "quote": "Entlastungsdienst für Senioren · Abrechenbar über Ihre Pflegekasse"
+      },
+      "unit": null,
+      "score": 75,
+      "confidence": 4,
+      "source_or_method": "Erster Sichtbereich Startseite, mobil und Desktop",
+      "threshold_source": null,
+      "evidence_refs": [
+        "E-5001",
+        "E-5002"
+      ],
+      "does_not_prove": "Heuristik, kein Nutzertest",
+      "note": null
+    },
+    {
+      "id": "UX-02",
+      "applicable": true,
+      "measurement_class": "observed",
+      "evidence_grade": "E6",
+      "status": "mixed",
+      "value": {
+        "observation": "Desktop: zwei klare Anfrage-Buttons. Mobil: kein Anfrage-Button und keine Telefonnummer im ersten Sichtbereich; Telefonnummern auf Start- und Kontaktseite sind nicht antippbar (0 tel:-Links).",
+        "tel_links_home": 0,
+        "tel_links_kontakt": 0,
+        "tel_links_berlin": 1
+      },
+      "unit": null,
+      "score": 50,
+      "confidence": 4,
+      "source_or_method": "Prüfung Hauptaktion und Kontaktwege mobil/desktop",
+      "threshold_source": null,
+      "evidence_refs": [
+        "E-5001",
+        "E-5002"
+      ],
+      "does_not_prove": "CTA-Klarheit misst keine Anfragen",
+      "note": null
+    },
+    {
+      "id": "UX-03",
+      "applicable": true,
+      "measurement_class": "observed",
+      "evidence_grade": "E6",
+      "status": "strong",
+      "value": {
+        "observation": "Klare Navigation: Über uns, Leistungen (4 Unterseiten), Ratgeber, Jetzt Helferbär werden, Kontakt; mobil zusätzlich alle Standortseiten."
+      },
+      "unit": null,
+      "score": 100,
+      "confidence": 4,
+      "source_or_method": "Navigationslabels und Pfade der Stichprobe",
+      "threshold_source": null,
+      "evidence_refs": [
+        "E-5001",
+        "E-5002"
+      ],
+      "does_not_prove": "Stichprobe, kein Aufgabentest",
+      "note": null
+    },
+    {
+      "id": "UX-04",
+      "applicable": true,
+      "measurement_class": "observed",
+      "evidence_grade": "E6",
+      "status": "minor_gaps",
+      "value": {
+        "observation": "Mobil gut lesbare Schriftgrößen, aber H1 bricht mitten im Wort, schwebender Button „Zum Kontaktformular“ überdeckt auf /kontakt Text, 15–28 Klickflächen pro Seite unter 24 px.",
+        "small_targets_per_page_mobile": "15–28"
+      },
+      "unit": null,
+      "score": 75,
+      "confidence": 3,
+      "source_or_method": "iPhone-13-Emulation und 390-px-Viewport",
+      "threshold_source": null,
+      "evidence_refs": [
+        "E-5001",
+        "E-5002"
+      ],
+      "does_not_prove": "Viewport-Review, kein Gerätetest",
+      "note": null
+    },
+    {
+      "id": "UX-05",
+      "applicable": true,
+      "measurement_class": "observed",
+      "evidence_grade": "E6",
+      "status": "minor_gaps",
+      "value": {
+        "observation": "Kontaktformular mit 8 Feldern (Vorname, Nachname, E-Mail, Rückrufnummer, Anliegen, Standort, Nachricht, Checkbox „Opt-In“); keine Pflichtfeld-Kennzeichnung, alle Felder beschriftet; Formular nicht abgeschickt.",
+        "fields": 8
+      },
+      "unit": null,
+      "score": 75,
+      "confidence": 4,
+      "source_or_method": "Formularoberfläche /kontakt ohne Absenden",
+      "threshold_source": null,
+      "evidence_refs": [
+        "E-5001"
+      ],
+      "does_not_prove": "misst keine Abschlussrate",
+      "note": null
+    },
+    {
+      "id": "UX-06",
+      "applicable": true,
+      "measurement_class": "observed",
+      "evidence_grade": "E6",
+      "status": "strong",
+      "value": {
+        "observation": "Nahe den Anfrage-Buttons: Google-Bewertungen 4,9 (31), Kennzahlen (seit 2019, 6 Standorte, 274 Helfer, 917 Klienten), Presse-Logos mit Artikel-Links, 3-Schritte-Ablauf, Förderlogos."
+      },
+      "unit": null,
+      "score": 100,
+      "confidence": 4,
+      "source_or_method": "Gerenderte Startseite nach Scrollen",
+      "threshold_source": null,
+      "evidence_refs": [
+        "E-5008"
+      ],
+      "does_not_prove": "Belege nicht unabhängig verifiziert",
+      "note": null
+    },
+    {
+      "id": "UX-07",
+      "applicable": true,
+      "measurement_class": "observed",
+      "evidence_grade": "E6",
+      "status": "minor_gaps",
+      "value": {
+        "observation": "Startseite gut gegliedert in Abschnitte, aber drei H1-Überschriften und Ebenensprünge; FAQ und Leistungsseiten gut scanbar."
+      },
+      "unit": null,
+      "score": 75,
+      "confidence": 3,
+      "source_or_method": "Hierarchie auf Start-, Leistungs-, FAQ-Seite",
+      "threshold_source": null,
+      "evidence_refs": [
+        "E-5001"
+      ],
+      "does_not_prove": "Heuristik",
+      "note": null
+    },
+    {
+      "id": "UX-08",
+      "applicable": true,
+      "measurement_class": "not_assessed",
+      "evidence_grade": "E8",
+      "status": "not_assessed",
+      "value": null,
+      "unit": null,
+      "score": null,
+      "confidence": 1,
+      "source_or_method": "Agent-Versuch, siehe note",
+      "threshold_source": null,
+      "evidence_refs": [],
+      "does_not_prove": "nicht gemessen; keine Aussage über die Website",
+      "note": "Fehler-/Validierungszustände nur durch Absenden auslösbar; Formular wurde bewusst nicht abgeschickt."
+    },
+    {
+      "id": "A11Y-01",
+      "applicable": true,
+      "measurement_class": "observed",
+      "evidence_grade": "E4",
+      "status": "minor_gaps",
+      "value": {
+        "observation": "Tab-Reihenfolge logisch; Startseite 23 von 30 Tab-Stopps mit sichtbarem Fokusstil, 7 Stopps (Karussell-Container) ohne Fokusanzeige; Kontakt 29 von 30.",
+        "home_with_indicator": 23,
+        "kontakt_with_indicator": 29,
+        "stops_per_page": 30
+      },
+      "unit": null,
+      "score": 75,
+      "confidence": 3,
+      "source_or_method": "Automatisierte Tab-Stichprobe mit Fokus-Stilprüfung",
+      "threshold_source": null,
+      "evidence_refs": [
+        "E-5003"
+      ],
+      "does_not_prove": "keine WCAG-Konformitätsaussage; kein Screenreader",
+      "note": null
+    },
+    {
+      "id": "A11Y-02",
+      "applicable": true,
+      "measurement_class": "observed",
+      "evidence_grade": "E4",
+      "status": "weak",
+      "value": {
+        "homepage_checks": {
+          "main_landmark": true,
+          "nav_landmark": true,
+          "header_or_footer": false,
+          "html_lang": true,
+          "single_h1": false,
+          "no_heading_level_skips": false
+        },
+        "heading_levels": [
+          1,
+          1,
+          2,
+          2,
+          2,
+          2,
+          4,
+          4,
+          4,
+          4,
+          2,
+          1,
+          2,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          2,
+          2,
+          4,
+          4,
+          4
+        ],
+        "heading_level_skips": 2,
+        "status_rule": "homepage: main, nav, header/footer landmark, html lang, one h1, no heading level skips; all=strong, >=0.8 minor_gaps, >=0.6 mixed, >=0.3 weak",
+        "collector_version": "1.0.0"
+      },
+      "unit": "share",
+      "score": 25,
+      "confidence": 4,
+      "source_or_method": "Inspect landmarks, headings, labels and semantic structure in sampled HTML. Pixelkiez evidence collector 1.0.0: homepage: main, nav, header/footer landmark, html lang, one h1, no heading level skips; all=strong, >=0.8 minor_gaps, >=0.6 mixed, >=0.3 weak",
+      "threshold_source": null,
+      "evidence_refs": [
+        "E-2014"
+      ],
+      "does_not_prove": "Sample does not establish WCAG conformance. Sampled public pages only; static HTML without JavaScript execution.",
+      "note": "LIVE_PUBLIC_COLLECTOR"
+    },
+    {
+      "id": "A11Y-03",
+      "applicable": true,
+      "measurement_class": "observed",
+      "evidence_grade": "E4",
+      "status": "mixed",
+      "value": {
+        "images_sampled": 62,
+        "alt_attribute_share": 0.823,
+        "missing_alt_examples": [
+          "https://le-cdn.website-editor.net/s/b532111ae84b45109a2f2df5c635fb3b/dms3rep/multi/opt/DSC04869-1920w.png?Expires=179701",
+          "https://le-cdn.website-editor.net/s/b532111ae84b45109a2f2df5c635fb3b/dms3rep/multi/opt/DSC04851-35e5ddc8-1920w.png?Expir",
+          "https://le-cdn.website-editor.net/s/b532111ae84b45109a2f2df5c635fb3b/dms3rep/multi/opt/DSC04880-1920w.jpg?Expires=179701",
+          "https://le-cdn.website-editor.net/s/b532111ae84b45109a2f2df5c635fb3b/dms3rep/multi/opt/Alex-1920w.jpg?Expires=1797019594",
+          "https://le-cdn.website-editor.net/s/b532111ae84b45109a2f2df5c635fb3b/dms3rep/multi/opt/yannik-1920w.png?Expires=17970195",
+          "https://le-cdn.website-editor.net/s/b532111ae84b45109a2f2df5c635fb3b/dms3rep/multi/opt/patrizia_v2-b6cd5efc-1920w.png?Ex",
+          "https://le-cdn.website-editor.net/s/b532111ae84b45109a2f2df5c635fb3b/dms3rep/multi/opt/DSC04828-1920w.jpg?Expires=179701",
+          "https://le-cdn.website-editor.net/s/b532111ae84b45109a2f2df5c635fb3b/dms3rep/multi/opt/DSC04865-1920w.jpg?Expires=179701"
+        ],
+        "status_rule": "share of sampled <img> with an alt attribute (empty alt counts as decorative); >=0.95 strong, >=0.85 minor_gaps, >=0.6 mixed, >=0.3 weak",
+        "collector_version": "1.0.0"
+      },
+      "unit": "share",
+      "score": 50,
+      "confidence": 4,
+      "source_or_method": "Inspect representative informative/decorative image alternatives. Pixelkiez evidence collector 1.0.0: share of sampled <img> with an alt attribute (empty alt counts as decorative); >=0.95 strong, >=0.85 minor_gaps, >=0.6 mixed, >=0.3 weak",
+      "threshold_source": null,
+      "evidence_refs": [
+        "E-2015"
+      ],
+      "does_not_prove": "Sample does not establish complete alternative-text quality. Sampled public pages only; static HTML without JavaScript execution.",
+      "note": "LIVE_PUBLIC_COLLECTOR"
+    },
+    {
+      "id": "A11Y-04",
+      "applicable": true,
+      "measurement_class": "observed",
+      "evidence_grade": "E4",
+      "status": "weak",
+      "value": {
+        "observation": "Haupt-Buttons weiße Schrift auf Orange (#E2AC66) = 2,03:1; Ziel nach WCAG 2.2 SC 1.4.3 mind. 4,5:1 (große Schrift 3:1). Startseite 11 von 24, Kontakt 8 von 21 geprüften Farbkombinationen unter Ziel.",
+        "primary_cta_ratio": 2.03,
+        "home_fail": 11,
+        "home_total": 24,
+        "kontakt_fail": 8,
+        "kontakt_total": 21
+      },
+      "unit": null,
+      "score": 25,
+      "confidence": 4,
+      "source_or_method": "Berechnete Kontrastverhältnisse (WCAG-2-Formel); axe color-contrast bestätigend (siehe A11Y-06)",
+      "threshold_source": "W3C WCAG 2.2, SC 1.4.3 Contrast (Minimum), https://www.w3.org/TR/WCAG22/#contrast-minimum",
+      "evidence_refs": [
+        "E-5004"
+      ],
+      "does_not_prove": "Stichprobe 2 Seiten; keine Konformitätsaussage",
+      "note": null
+    },
+    {
+      "id": "A11Y-05",
+      "applicable": true,
+      "measurement_class": "observed",
+      "evidence_grade": "E4",
+      "status": "strong",
+      "value": {
+        "form_controls_sampled": 8,
+        "accessible_name_share": 1.0,
+        "placeholder_only_controls": 0,
+        "status_rule": "share of visible form controls with label/aria-label/aria-labelledby/title (placeholder alone does not count); 1.0 strong, >=0.85 minor_gaps, >=0.6 mixed, >=0.3 weak",
+        "collector_version": "1.0.0"
+      },
+      "unit": "share",
+      "score": 100,
+      "confidence": 4,
+      "source_or_method": "Inspect public form labels/names/instructions without submission. Pixelkiez evidence collector 1.0.0: share of visible form controls with label/aria-label/aria-labelledby/title (placeholder alone does not count); 1.0 strong, >=0.85 minor_gaps, >=0.6 mixed, >=0.3 weak",
+      "threshold_source": null,
+      "evidence_refs": [
+        "E-2016"
+      ],
+      "does_not_prove": "Sample does not establish complete accessible form behavior. Sampled public pages only; static HTML without JavaScript execution.",
+      "note": "LIVE_PUBLIC_COLLECTOR"
+    },
+    {
+      "id": "A11Y-06",
+      "applicable": true,
+      "measurement_class": "measured",
+      "evidence_grade": "E5",
+      "status": "mixed",
+      "value": {
+        "tool": "axe-core 4.14.0",
+        "tags": [
+          "wcag2a",
+          "wcag2aa",
+          "wcag21a",
+          "wcag21aa"
+        ],
+        "home": {
+          "version": "4.14.0",
+          "violations": [
+            {
+              "id": "color-contrast",
+              "impact": "serious",
+              "nodes": 34,
+              "help": "Elements must meet minimum color contrast ratio thresholds"
+            }
+          ],
+          "passes": 28,
+          "incomplete": 2
+        },
+        "kontakt": {
+          "version": "4.14.0",
+          "violations": [
+            {
+              "id": "color-contrast",
+              "impact": "serious",
+              "nodes": 41,
+              "help": "Elements must meet minimum color contrast ratio thresholds"
+            },
+            {
+              "id": "link-name",
+              "impact": "serious",
+              "nodes": 2,
+              "help": "Links must have discernible text"
+            }
+          ],
+          "passes": 32,
+          "incomplete": 1
+        }
+      },
+      "unit": null,
+      "score": 50,
+      "confidence": 4,
+      "source_or_method": "axe-core im gerenderten Browser",
+      "threshold_source": null,
+      "evidence_refs": [
+        "E-5005"
+      ],
+      "does_not_prove": "Automatisierung deckt nur Teil der Kriterien ab",
+      "note": null
+    },
+    {
+      "id": "TRUST-01",
+      "applicable": true,
+      "measurement_class": "observed",
+      "evidence_grade": "E4",
+      "status": "strong",
+      "value": {
+        "imprint_url": "https://www.xn--helferbr-6za.de/impressum",
+        "signals": {
+          "page_linked": true,
+          "page_reachable": true,
+          "provider_heading": true,
+          "address_visible": true,
+          "contact_visible": true
+        },
+        "status_rule": "presence check only: linked+reachable+provider heading+address+contact=strong; reachable with heading=minor_gaps; linked but unreachable=weak; no link found=blocking. Not a legal assessment.",
+        "collector_version": "1.0.0"
+      },
+      "unit": null,
+      "score": 100,
+      "confidence": 4,
+      "source_or_method": "Check visible imprint/legal surface presence and accessibility. Pixelkiez evidence collector 1.0.0: presence check only: linked+reachable+provider heading+address+contact=strong; reachable with heading=minor_gaps; linked but unreachable=weak; no link found=blocking. Not a legal assessment.",
+      "threshold_source": null,
+      "evidence_refs": [
+        "E-2017"
+      ],
+      "does_not_prove": "Presence does not establish legal compliance. Sampled public pages only; static HTML without JavaScript execution.",
+      "note": "LIVE_PUBLIC_COLLECTOR"
+    },
+    {
+      "id": "TRUST-02",
+      "applicable": true,
+      "measurement_class": "observed",
+      "evidence_grade": "E4",
+      "status": "strong",
+      "value": {
+        "privacy_url": "https://www.xn--helferbr-6za.de/privacyb505f5ef",
+        "privacy_page_reachable": true,
+        "tracker_markers_in_static_html": [
+          "googletagmanager.com",
+          "gtag("
+        ],
+        "consent_tool_marker_in_static_html": true,
+        "status_rule": "presence check only: privacy page reachable and (consent tool marker present or no tracker markers)=strong; reachable but trackers without consent marker=minor_gaps; linked but unreachable=weak; none=blocking. Consent behaviour and legality are not assessed.",
+        "collector_version": "1.0.0"
+      },
+      "unit": null,
+      "score": 100,
+      "confidence": 3,
+      "source_or_method": "Inspect visible privacy/consent surface and consistency with observed public behavior where possible. Pixelkiez evidence collector 1.0.0: presence check only: privacy page reachable and (consent tool marker present or no tracker markers)=strong; reachable but trackers without consent marker=minor_gaps; linked but unreachable=weak; none=blocking. Consent behaviour and legality are not assessed.",
+      "threshold_source": null,
+      "evidence_refs": [
+        "E-2018"
+      ],
+      "does_not_prove": "Surface review is not legal advice or compliance proof. Sampled public pages only; static HTML without JavaScript execution.",
+      "note": "LIVE_PUBLIC_COLLECTOR"
+    },
+    {
+      "id": "TRUST-03",
+      "applicable": true,
+      "measurement_class": "measured",
+      "evidence_grade": "E4",
+      "status": "minor_gaps",
+      "value": {
+        "https_final": true,
+        "http_redirects_to_https": true,
+        "headers_present": {
+          "strict-transport-security": true,
+          "content-security-policy": true,
+          "x-content-type-options": true,
+          "referrer-policy": false,
+          "permissions-policy": false,
+          "frame_protection": true
+        },
+        "headers_present_count": 4,
+        "status_rule": "no HTTPS=blocking; HTTP not redirected to HTTPS=weak; of HSTS, CSP, X-Content-Type-Options, Referrer-Policy, Permissions-Policy, frame protection: >=5 strong, 4 minor_gaps, 2-3 mixed, <=1 weak",
+        "collector_version": "1.0.0"
+      },
+      "unit": "count",
+      "score": 75,
+      "confidence": 5,
+      "source_or_method": "Check HTTPS and selected public security headers without active exploitation. Pixelkiez evidence collector 1.0.0: no HTTPS=blocking; HTTP not redirected to HTTPS=weak; of HSTS, CSP, X-Content-Type-Options, Referrer-Policy, Permissions-Policy, frame protection: >=5 strong, 4 minor_gaps, 2-3 mixed, <=1 weak",
+      "threshold_source": null,
+      "evidence_refs": [
+        "E-2019"
+      ],
+      "does_not_prove": "Header presence/absence does not prove security posture. Sampled public pages only; static HTML without JavaScript execution.",
+      "note": "LIVE_PUBLIC_COLLECTOR"
+    },
+    {
+      "id": "TRUST-04",
+      "applicable": true,
+      "measurement_class": "observed",
+      "evidence_grade": "E4",
+      "status": "mixed",
+      "value": {
+        "observation": "Standortangaben widersprechen sich: Startseite/FAQ/Alltagshilfe nennen Berlin, Potsdam, Dresden, Leipzig, Halle, Magdeburg; „Über uns“ nennt Hamburg statt Dresden und an anderer Stelle nur 4 Städte; /hamburg ist öffentlich, /dresden trägt den Seitentitel „Alltagshilfe Hamburg“. E-Mail-Link der Startseite ist defekt („mailto:il: berlin@…“), mobiler Header nutzt info@helferbär.de statt info@helferbaer.de.",
+        "contradictions": [
+          "Standortliste Startseite vs. Über uns",
+          "Seitentitel /dresden = Hamburg",
+          "defekter mailto-Link Startseite",
+          "zwei Schreibweisen der Info-E-Mail"
+        ]
+      },
+      "unit": null,
+      "score": 50,
+      "confidence": 5,
+      "source_or_method": "Abgleich Standort-, E-Mail- und Telefonangaben über 6 Seiten",
+      "threshold_source": null,
+      "evidence_refs": [
+        "E-5009"
+      ],
+      "does_not_prove": "Konsistenz beweist keine Richtigkeit",
+      "note": null
+    },
+    {
+      "id": "TRUST-05",
+      "applicable": true,
+      "measurement_class": "observed",
+      "evidence_grade": "E6",
+      "status": "mixed",
+      "value": {
+        "observation": "Aktuelle Signale (Team-Eintrag März 2026, Entlastungsbetrag 131 €, Sitemap-Änderungen Nov 2026), aber 8 alte/Entwurfs-/Kopie-Seiten öffentlich in der Sitemap (z. B. /kontakt-alt, /berlin---neu-in-bearbeitung, /kopie-kopie-stellenanzeige…) und „Ab 2025 begleiten wir Sie“ auf /berlin.",
+        "legacy_pages_public": 8
+      },
+      "unit": null,
+      "score": 50,
+      "confidence": 4,
+      "source_or_method": "Sichtbare Daten und Sitemap-Seiten",
+      "threshold_source": null,
+      "evidence_refs": [
+        "E-5008",
+        "E-5013"
+      ],
+      "does_not_prove": "sichtbare Aktualität ≠ betriebliche Aktualität",
+      "note": null
+    },
+    {
+      "id": "TRUST-06",
+      "applicable": true,
+      "measurement_class": "observed",
+      "evidence_grade": "E6",
+      "status": "minor_gaps",
+      "value": {
+        "observation": "Team mit Namen und Rollen, Google-Bewertungen 4,9 (31), verlinkte Presseberichte, Förderlogos. Bewertungen und Kennzahlen erscheinen nur per JavaScript."
+      },
+      "unit": null,
+      "score": 75,
+      "confidence": 4,
+      "source_or_method": "Belege auf Start- und Über-uns-Seite",
+      "threshold_source": null,
+      "evidence_refs": [
+        "E-5008",
+        "E-5012"
+      ],
+      "does_not_prove": "Belege nicht unabhängig geprüft",
+      "note": null
+    },
+    {
+      "id": "TRUST-07",
+      "applicable": true,
+      "measurement_class": "observed",
+      "evidence_grade": "E4",
+      "status": "strong",
+      "value": {
+        "checks": {
+          "contact_page_reachable": true,
+          "phone": true,
+          "email": true,
+          "postal_address": true
+        },
+        "status_rule": "contact page, phone, email, postal address on sampled pages; 4/4 strong, 3 minor_gaps, 2 mixed, 1 weak, 0 blocking",
+        "collector_version": "1.0.0"
+      },
+      "unit": "share",
+      "score": 100,
+      "confidence": 4,
+      "source_or_method": "Inspect public contact identity, channels and location transparency. Pixelkiez evidence collector 1.0.0: contact page, phone, email, postal address on sampled pages; 4/4 strong, 3 minor_gaps, 2 mixed, 1 weak, 0 blocking",
+      "threshold_source": null,
+      "evidence_refs": [
+        "E-2020"
+      ],
+      "does_not_prove": "Transparency does not prove responsiveness or service quality. Sampled public pages only; static HTML without JavaScript execution.",
+      "note": "LIVE_PUBLIC_COLLECTOR"
+    },
+    {
+      "id": "TRUST-08",
+      "applicable": true,
+      "measurement_class": "not_assessed",
+      "evidence_grade": "E8",
+      "status": "not_assessed",
+      "value": null,
+      "unit": null,
+      "score": null,
+      "confidence": 1,
+      "source_or_method": "Agent-Versuch, siehe note",
+      "threshold_source": null,
+      "evidence_refs": [],
+      "does_not_prove": "nicht gemessen; keine Aussage über die Website",
+      "note": "Kein vom Inhaber autorisierter Zugriff auf Analytics/Search Console. Öffentlich sichtbar: GTM- und GA4-Tags (nur Notiz, nicht gewertet)."
+    },
+    {
+      "id": "AI-01",
+      "applicable": true,
+      "measurement_class": "observed",
+      "evidence_grade": "E6",
+      "status": "minor_gaps",
+      "value": {
+        "observation": "Marke „Helferbär“ durchgängig, Rechtsträger Helferbär GmbH im Impressum, JSON-LD mit Name/Adresse/Telefon; JSON-LD-Typ MedicalBusiness passt nicht zur nicht-medizinischen Alltagshilfe."
+      },
+      "unit": null,
+      "score": 75,
+      "confidence": 4,
+      "source_or_method": "Sichtbarer Text + strukturierte Daten",
+      "threshold_source": null,
+      "evidence_refs": [
+        "E-5008",
+        "E-5012"
+      ],
+      "does_not_prove": "Extrahierbarkeit beweist keine KI-Zitate",
+      "note": null
+    },
+    {
+      "id": "AI-02",
+      "applicable": true,
+      "measurement_class": "observed",
+      "evidence_grade": "E6",
+      "status": "minor_gaps",
+      "value": {
+        "observation": "Leistung, Zielgruppe (Senioren, Pflegegrad ab 1, Angehörige), Finanzierung (§ 45b SGB XI, 131 €) und Städte explizit; Städteliste aber seitenweise widersprüchlich."
+      },
+      "unit": null,
+      "score": 75,
+      "confidence": 4,
+      "source_or_method": "Lesen Leistungs-, FAQ-, Standortseiten",
+      "threshold_source": null,
+      "evidence_refs": [
+        "E-5008",
+        "E-5009"
+      ],
+      "does_not_prove": "Klarheit beweist keine KI-Sichtbarkeit",
+      "note": null
+    },
+    {
+      "id": "AI-03",
+      "applicable": true,
+      "measurement_class": "observed",
+      "evidence_grade": "E6",
+      "status": "strong",
+      "value": {
+        "observation": "FAQ-Seite mit 4 Themenblöcken in Frage-Antwort-Form, FAQ-Block auf Alltagshilfe-Seite, Ratgeber mit Stundenrechner."
+      },
+      "unit": null,
+      "score": 100,
+      "confidence": 4,
+      "source_or_method": "Lesen FAQ/Alltagshilfe/Ratgeber",
+      "threshold_source": null,
+      "evidence_refs": [
+        "E-5008"
+      ],
+      "does_not_prove": "beweist keine Chatbot-Aufnahme",
+      "note": null
+    },
+    {
+      "id": "AI-04",
+      "applicable": true,
+      "measurement_class": "observed",
+      "evidence_grade": "E4",
+      "status": "strong",
+      "value": {
+        "business_entity_fields_present": [
+          "name",
+          "url",
+          "telephone",
+          "address",
+          "openingHoursSpecification|openingHours",
+          "sameAs"
+        ],
+        "business_entity_fields_checked": [
+          "name",
+          "url",
+          "telephone",
+          "address",
+          "openingHoursSpecification|openingHours",
+          "sameAs",
+          "description"
+        ],
+        "completeness_share": 0.857,
+        "entity_types": [
+          "MedicalBusiness"
+        ],
+        "status_rule": "completeness of the strongest business JSON-LD entity over name,url,telephone,address,opening hours,sameAs,description; >=0.85 strong, >=0.7 minor_gaps, >=0.5 mixed, >=0.2 weak; no entity=weak",
+        "collector_version": "1.0.0"
+      },
+      "unit": "share",
+      "score": 100,
+      "confidence": 4,
+      "source_or_method": "Inspect summaries, schema and machine-readable organization of key facts. Pixelkiez evidence collector 1.0.0: completeness of the strongest business JSON-LD entity over name,url,telephone,address,opening hours,sameAs,description; >=0.85 strong, >=0.7 minor_gaps, >=0.5 mixed, >=0.2 weak; no entity=weak",
+      "threshold_source": null,
+      "evidence_refs": [
+        "E-2021"
+      ],
+      "does_not_prove": "Structure does not guarantee AI or search presentation. Sampled public pages only; static HTML without JavaScript execution.",
+      "note": "LIVE_PUBLIC_COLLECTOR"
+    },
+    {
+      "id": "AI-05",
+      "applicable": true,
+      "measurement_class": "observed",
+      "evidence_grade": "E6",
+      "status": "mixed",
+      "value": {
+        "observation": "Aussage „Unsere Zahlen sprechen für sich“ und Kundenstimmen: Werte und Bewertungen fehlen im statischen HTML (nur per JavaScript); „Der einzige Entlastungsdienst, den Sie brauchen“ ohne Beleg."
+      },
+      "unit": null,
+      "score": 50,
+      "confidence": 4,
+      "source_or_method": "Statisches HTML vs. gerenderte Seite",
+      "threshold_source": null,
+      "evidence_refs": [
+        "E-5008",
+        "E-5012"
+      ],
+      "does_not_prove": "beweist keine Wahrheit der Aussagen",
+      "note": null
+    },
+    {
+      "id": "AI-06",
+      "applicable": true,
+      "measurement_class": "observed",
+      "evidence_grade": "E6",
+      "status": "mixed",
+      "value": {
+        "observation": "Kernfakten (Städte, E-Mail-Adresse, Seitentitel /dresden) über Seiten hinweg widersprüchlich; Telefonnummern konsistent."
+      },
+      "unit": null,
+      "score": 50,
+      "confidence": 4,
+      "source_or_method": "Abgleich Kernfakten über Stichprobenseiten",
+      "threshold_source": null,
+      "evidence_refs": [
+        "E-5009"
+      ],
+      "does_not_prove": "Stichprobe",
+      "note": null
+    },
+    {
+      "id": "AI-07",
+      "applicable": true,
+      "measurement_class": "observed",
+      "evidence_grade": "E6",
+      "status": "strong",
+      "value": {
+        "observation": "Themen rund um Entlastungsbetrag, Pflegegrad, Abrechnung, Verhinderungspflege, Reisebegleitung, Einzelfallhilfe abgedeckt (FAQ, Ratgeber, Blog, Stadtseiten)."
+      },
+      "unit": null,
+      "score": 100,
+      "confidence": 3,
+      "source_or_method": "Lesen der Stichprobe",
+      "threshold_source": null,
+      "evidence_refs": [
+        "E-5008"
+      ],
+      "does_not_prove": "Tiefe beweist keine Autorität",
+      "note": null
+    }
+  ],
+  "score_summary": {
+    "label": "Score nicht belastbar",
+    "score": null,
+    "display_status": "NO_SCORE",
+    "coverage_percent": 0,
+    "confidence": "LOW",
+    "interpretation": "wird durch compute_score ersetzt",
+    "blocker_present": false,
+    "category_scores": [],
+    "does_not_prove": [
+      "Kein universeller Qualitätsstandard.",
+      "Keine Ranking-, Umsatz- oder Anfrageprognose."
+    ],
+    "policy_version": "2.0.0",
+    "registry_version": "1.0.0"
+  },
+  "executive_summary": {
+    "overall_status": "needs_action",
+    "decision": "Solide Basis mit klarem Angebot. Größte Hebel: lesbare Anfrage-Buttons, antippbare Telefonnummern, einheitliche Standortangaben.",
+    "recommended_route": "maintenance",
+    "top_risks": [
+      "Anfrage-Buttons haben nur 2,03:1 Kontrast.",
+      "Telefonnummern sind mobil nicht antippbar.",
+      "Standortangaben widersprechen sich zwischen den Seiten."
+    ],
+    "top_strengths": [
+      "Angebot, Pflegekassen-Abrechnung und Ablauf sind klar erklärt.",
+      "Google-Bewertungen 4,9 (31) und Presseberichte stärken Vertrauen.",
+      "Technische Basis mit HTTPS, Sitemap und Firmendaten ist solide."
+    ]
+  },
+  "pillar_summary": [],
+  "findings": [
+    {
+      "id": "F-001",
+      "category": "accessibility",
+      "title": "Die Haupt-Buttons sind für schwächere Augen schwer lesbar (Kontrast 2,03:1)",
+      "severity": "high",
+      "observation": "Weiße Schrift auf Orange (#E2AC66) bei „Jetzt Alltagshilfe anfragen“, „Kostenfrei anfragen“ und „Mehr Erfahren“ erreicht 2,03:1; WCAG 2.2 SC 1.4.3 nennt 4,5:1 (große Schrift 3:1). Startseite 11/24, Kontakt 8/21 geprüfte Farbkombinationen unter Ziel; axe-core meldet color-contrast an 34 bzw. 41 Elementen.",
+      "evidence": [
+        {
+          "id": "E-101",
+          "type": "measurement",
+          "detail": "[Bundle-Evidenz E-5004] Berechnetes Kontrastverhältnis 2,03:1 für weiße Schrift auf rgb(226,172,102)",
+          "url": "https://www.xn--helferbr-6za.de/",
+          "observed_at": "2026-11-11T21:20:00+01:00",
+          "method": "WCAG-2-Kontrastformel über getComputedStyle (Playwright/Chromium)",
+          "asset_path": null
+        },
+        {
+          "id": "E-102",
+          "type": "measurement",
+          "detail": "[Bundle-Evidenz E-5005] axe-core 4.14.0: color-contrast serious, 34 Knoten (/) und 41 Knoten (/kontakt)",
+          "url": "https://www.xn--helferbr-6za.de/kontakt",
+          "observed_at": "2026-11-11T21:20:00+01:00",
+          "method": "axe-core wcag2a/aa",
+          "asset_path": null
+        }
+      ],
+      "business_relevance": {
+        "classification": "inference",
+        "text": "Zielgruppe sind Senioren und Angehörige; schlecht lesbare Anfrage-Buttons können den wichtigsten Schritt erschweren. Wirkung auf Anfragen ist ohne Nutzungsdaten nicht messbar."
+      },
+      "client_observation": "Die orangen Anfrage-Buttons haben nur 2,03:1 Kontrast – empfohlen sind mindestens 4,5:1.",
+      "client_impact": "Senioren mit nachlassender Sehkraft können „Jetzt Alltagshilfe anfragen“ schlechter erkennen – genau dort, wo sie anfragen.",
+      "client_action": "Button-Schrift dunkel setzen oder das Orange abdunkeln, bis 4,5:1 erreicht ist; dann erneut prüfen.",
+      "recommendation": {
+        "action": "Farbwerte der Haupt-Buttons und orangen Textlinks auf mindestens 4,5:1 anheben.",
+        "owner": "Design / Website-Pflege",
+        "horizon": "now",
+        "acceptance_test": "Kontrast weißer bzw. dunkler Button-Text gegen Button-Hintergrund ≥ 4,5:1; axe color-contrast auf / und /kontakt ohne Treffer bei Buttons."
+      },
+      "confidence": 5,
+      "visual_asset": null,
+      "metric_refs": [
+        "A11Y-04",
+        "A11Y-06"
+      ]
+    },
+    {
+      "id": "F-002",
+      "category": "ux_conversion",
+      "title": "Mobil fehlt der direkte Anruf: Telefonnummern sind nicht antippbar",
+      "severity": "high",
+      "observation": "Auf Startseite und Kontaktseite sind 0 Telefonnummern als tel:-Link hinterlegt (nur /berlin hat einen). Im mobilen Kopfbereich gibt es nur Menü und E-Mail-Symbol; im ersten Sichtbereich weder Anruf- noch Anfrage-Button. Geschäftszeiten Mo–Fr 9–17 Uhr werden prominent genannt.",
+      "evidence": [
+        {
+          "id": "E-103",
+          "type": "visible_observation",
+          "detail": "[Bundle-Evidenz E-5002] iPhone-13-Emulation: tel-Links / = 0, /kontakt = 0, /berlin = 1; Kopfzeile nur Menü + Mail-Symbol",
+          "url": "https://www.xn--helferbr-6za.de/kontakt",
+          "observed_at": "2026-11-11T21:20:00+01:00",
+          "method": "Playwright devices['iPhone 13'] DOM-Auswertung",
+          "asset_path": null
+        },
+        {
+          "id": "E-104",
+          "type": "visible_observation",
+          "detail": "[Bundle-Evidenz E-5001] 390-px-Rendering aller 10 Stichprobenseiten, tel-Links gezählt",
+          "url": "https://www.xn--helferbr-6za.de/",
+          "observed_at": "2026-11-11T21:20:00+01:00",
+          "method": "Playwright/Chromium",
+          "asset_path": null
+        }
+      ],
+      "business_relevance": {
+        "classification": "inference",
+        "text": "Bei Seniorenhilfe rufen Interessenten und Angehörige häufig lieber an; abzutippende Nummern sind eine vermeidbare Hürde. Effekt auf Anrufzahlen nicht gemessen."
+      },
+      "client_observation": "Auf dem Handy lassen sich die Telefonnummern auf Start- und Kontaktseite nicht antippen.",
+      "client_impact": "Angehörige und Senioren, die lieber anrufen, müssen Nummern abtippen – das kann den Anruf erschweren.",
+      "client_action": "Alle Telefonnummern als Anruf-Link hinterlegen und mobil oben einen „Jetzt anrufen“-Button zeigen.",
+      "recommendation": {
+        "action": "tel:-Links für alle Standortnummern; mobiler Anruf-Button im Kopfbereich.",
+        "owner": "Website-Pflege",
+        "horizon": "now",
+        "acceptance_test": "Auf / und /kontakt ist jede Telefonnummer ein tel:-Link; bei 390 px ist ein Anruf- oder Anfrage-Button ohne Scrollen sichtbar."
+      },
+      "confidence": 5,
+      "visual_asset": null,
+      "metric_refs": [
+        "UX-02",
+        "UX-04"
+      ]
+    },
+    {
+      "id": "F-003",
+      "category": "trust_privacy_content",
+      "title": "Standorte und Kontaktdaten widersprechen sich zwischen den Seiten",
+      "severity": "high",
+      "observation": "Startseite, FAQ und Alltagshilfe nennen Berlin, Potsdam, Dresden, Leipzig, Halle, Magdeburg. „Über uns“ nennt Hamburg statt Dresden und an anderer Stelle nur 4 Städte; /hamburg ist öffentlich; /dresden trägt den Seitentitel „Alltagshilfe Hamburg“. Der E-Mail-Link der Startseite ist defekt („mailto:il: berlin@…“); mobil verlinkt der Kopf auf info@helferbär.de, das Impressum nennt info@helferbaer.de.",
+      "evidence": [
+        {
+          "id": "E-105",
+          "type": "visible_observation",
+          "detail": "[Bundle-Evidenz E-5009] Städtelisten /, /faq, /leistungen-alltagshilfe vs. /ueber-uns; Titel von /dresden = 'Alltagshilfe Hamburg | Helferbär'",
+          "url": "https://www.xn--helferbr-6za.de/ueber-uns",
+          "observed_at": "2026-11-11T21:20:00+01:00",
+          "method": "Textabgleich gerenderter Seiten + HTML-Titel",
+          "asset_path": null
+        },
+        {
+          "id": "E-106",
+          "type": "visible_observation",
+          "detail": "[Bundle-Evidenz E-5009] href='mailto:il: berlin@helferbaer.de' auf der Startseite; mobiler Header href='mailto:info@helferbär.de'",
+          "url": "https://www.xn--helferbr-6za.de/",
+          "observed_at": "2026-11-11T21:20:00+01:00",
+          "method": "DOM-Auswertung",
+          "asset_path": null
+        }
+      ],
+      "business_relevance": {
+        "classification": "inference",
+        "text": "Bei einem Anbieter mit sechs Standorten entscheidet die Standortfrage über die Anfrage; widersprüchliche Angaben können Rückfragen oder Abbruch auslösen und Vertrauen mindern."
+      },
+      "client_observation": "Die Seiten nennen andere Städte – mal Dresden, mal Hamburg; die Dresden-Seite trägt den Titel „Hamburg“.",
+      "client_impact": "Interessenten in Dresden oder Hamburg können nicht sicher erkennen, ob Helferbär bei ihnen hilft.",
+      "client_action": "Eine verbindliche Standortliste festlegen und auf Über uns, Stadtseiten, Seitentiteln und Footer angleichen.",
+      "recommendation": {
+        "action": "Standortliste, Seitentitel /dresden, Footer-Logo-Text, defekten mailto-Link und E-Mail-Schreibweise vereinheitlichen.",
+        "owner": "Inhalte / Website-Pflege",
+        "horizon": "0_30_days",
+        "acceptance_test": "Alle Stichprobenseiten nennen dieselbe Standortliste; /dresden-Titel nennt Dresden; kein mailto mit 'il:'; eine einheitliche Info-Adresse."
+      },
+      "confidence": 5,
+      "visual_asset": null,
+      "metric_refs": [
+        "TRUST-04",
+        "AI-06",
+        "AI-02"
+      ]
+    },
+    {
+      "id": "F-004",
+      "category": "performance_technology",
+      "title": "Mobil erscheint der Hauptinhalt der Startseite im Labortest erst nach 5,9 s",
+      "severity": "medium",
+      "observation": "Lighthouse 12.8.2 mobil (3 Läufe, Median): Performance 53/100, LCP 5,9 s (Ziel ≤ 2,5 s laut web.dev), Total Blocking Time 534 ms. Desktop: 89/100, LCP 1,6 s. 0 % der Bilder in WebP/AVIF, kein srcset, kein Lazy Loading; Cookie-Skript blockiert das Rendern im Head.",
+      "evidence": [
+        {
+          "id": "E-107",
+          "type": "measurement",
+          "detail": "[Bundle-Evidenz E-5006] Lighthouse mobil Median: Score 53, LCP 5894 ms, TBT 534 ms, CLS 0,007",
+          "url": "https://www.xn--helferbr-6za.de/",
+          "observed_at": "2026-11-11T21:20:00+01:00",
+          "method": "Lighthouse CLI 12.8.2, simulierte Drosselung, 3 Läufe",
+          "asset_path": null
+        },
+        {
+          "id": "E-108",
+          "type": "measurement",
+          "detail": "[Bundle-Evidenz E-5007] Lighthouse desktop Median: Score 89, LCP 1587 ms",
+          "url": "https://www.xn--helferbr-6za.de/",
+          "observed_at": "2026-11-11T21:20:00+01:00",
+          "method": "Lighthouse CLI 12.8.2 --preset=desktop, 3 Läufe",
+          "asset_path": null
+        }
+      ],
+      "business_relevance": {
+        "classification": "inference",
+        "text": "Langsame mobile Darstellung verzögert den ersten Eindruck des Angebots; Laborwerte sind keine Felddaten und belegen keinen Besucherverlust."
+      },
+      "client_observation": "Auf dem Handy erscheint der Hauptinhalt der Startseite im Labortest nach 5,9 s – Ziel sind 2,5 s.",
+      "client_impact": "Wer mobil mit schwacher Verbindung sucht, wartet spürbar, bevor Angebot und Anfrage-Button sichtbar werden.",
+      "client_action": "Startseiten-Bilder als WebP in passender Größe ausliefern, Cookie-Skript nicht blockierend laden, neu messen.",
+      "recommendation": {
+        "action": "Bildformate/-größen optimieren, Lazy Loading unterhalb des ersten Bildschirms, Render-Blocker im Head reduzieren.",
+        "owner": "Website-Pflege / Hosting",
+        "horizon": "31_90_days",
+        "acceptance_test": "Lighthouse mobil (3 Läufe, Median) LCP ≤ 2,5 s oder Performance ≥ 75."
+      },
+      "confidence": 4,
+      "visual_asset": null,
+      "metric_refs": [
+        "PERF-02",
+        "PERF-05",
+        "PERF-07"
+      ]
+    },
+    {
+      "id": "F-005",
+      "category": "trust_privacy_content",
+      "title": "Acht alte Entwurfs- und Kopie-Seiten sind öffentlich und stehen in der Sitemap",
+      "severity": "medium",
+      "observation": "In sitemap.xml stehen u. a. /startseite, /kontakt-alt, /unser-team-alt, /leistungen---pflegeberatung--alt, /berlin---neu-in-bearbeitung, /kopie-kopie-stellenanzeige-pflegefachkraft-hamburg, /unsere-dienste, /standorte – alle Status 200, ohne noindex, Canonical auf sich selbst.",
+      "evidence": [
+        {
+          "id": "E-109",
+          "type": "http_observation",
+          "detail": "[Bundle-Evidenz E-5010] 8 URLs: HTTP 200, kein robots-Meta, self-canonical",
+          "url": "https://www.xn--helferbr-6za.de/kontakt-alt",
+          "observed_at": "2026-11-11T21:20:00+01:00",
+          "method": "HTTP-Abruf + HTML-Meta-Prüfung",
+          "asset_path": null
+        }
+      ],
+      "business_relevance": {
+        "classification": "inference",
+        "text": "Veraltete Seiten können über Suche oder Links gefunden werden und widersprüchliche Informationen liefern; tatsächliche Indexierung nicht geprüft."
+      },
+      "client_observation": "8 alte Entwurfs- und Kopie-Seiten (z. B. „kontakt-alt“) sind öffentlich und stehen in der Sitemap.",
+      "client_impact": "Suchende können auf veraltete Kontakt- oder Teamseiten gelangen und dort andere Angaben finden.",
+      "client_action": "Alte Seiten löschen oder auf die aktuelle Seite weiterleiten und aus der Sitemap entfernen.",
+      "recommendation": {
+        "action": "Alt-/Entwurfsseiten entfernen oder 301 weiterleiten; Sitemap bereinigen.",
+        "owner": "Website-Pflege",
+        "horizon": "0_30_days",
+        "acceptance_test": "Keine URL mit -alt, neu-in-bearbeitung oder kopie in sitemap.xml; die 8 URLs liefern 301 oder 404/410."
+      },
+      "confidence": 5,
+      "visual_asset": null,
+      "metric_refs": [
+        "TRUST-05"
+      ]
+    },
+    {
+      "id": "F-006",
+      "category": "ux_conversion",
+      "title": "Zwei Cookie-Hinweise gleichzeitig, einer davon auf Englisch",
+      "severity": "medium",
+      "observation": "Beim ersten Aufruf erscheinen ein englischsprachiger Termly-Consent-Banner und zusätzlich ein deutscher Cookie-Hinweis des Baukastens. Mobil überdecken beide den unteren Teil des ersten Bildschirms.",
+      "evidence": [
+        {
+          "id": "E-110",
+          "type": "visible_observation",
+          "detail": "[Bundle-Evidenz E-5001] Screenshots / mobil und desktop: Termly-Banner (englisch) + schwarzer Hinweis 'Diese Webseite verwendet Cookies…'",
+          "url": "https://www.xn--helferbr-6za.de/",
+          "observed_at": "2026-11-11T21:20:00+01:00",
+          "method": "Playwright-Screenshot ohne Interaktion",
+          "asset_path": null
+        }
+      ],
+      "business_relevance": {
+        "classification": "inference",
+        "text": "Ein englischer Hinweis für eine deutschsprachige Senioren-Zielgruppe kann verunsichern und verdeckt mobil das Angebot. Keine rechtliche Bewertung."
+      },
+      "client_observation": "Beim ersten Besuch erscheinen zwei Cookie-Hinweise gleichzeitig – einer davon komplett auf Englisch.",
+      "client_impact": "Ältere Besucher sehen zuerst englischen Text statt des Angebots; das kann gleich zu Beginn verunsichern.",
+      "client_action": "Nur einen Cookie-Hinweis verwenden, ihn auf Deutsch stellen und den zweiten Hinweis abschalten.",
+      "recommendation": {
+        "action": "Termly-Banner auf Deutsch umstellen, Baukasten-Cookie-Hinweis deaktivieren; Consent-Konfiguration fachlich prüfen lassen.",
+        "owner": "Website-Pflege / Datenschutz",
+        "horizon": "0_30_days",
+        "acceptance_test": "Beim Erstaufruf erscheint genau ein deutschsprachiger Hinweis."
+      },
+      "confidence": 4,
+      "visual_asset": null,
+      "metric_refs": [
+        "UX-01",
+        "PERF-08"
+      ]
+    },
+    {
+      "id": "F-007",
+      "category": "ai_readiness",
+      "title": "Kennzahlen und Bewertungen stehen nicht im lesbaren Seitentext",
+      "severity": "medium",
+      "observation": "Im statischen HTML der Startseite fehlen die Kennzahlen (seit 2019, 6 Standorte, 274 Helfer, 917 Klienten) und die Google-Bewertungen (4,9 aus 31); beide erscheinen nur per JavaScript. JSON-LD-Typ ist MedicalBusiness, obwohl die Seite nicht-medizinische Alltagshilfe beschreibt.",
+      "evidence": [
+        {
+          "id": "E-111",
+          "type": "visible_observation",
+          "detail": "[Bundle-Evidenz E-5012] Statisches HTML: Abschnitt 'Helferbär-Fakten' ohne Zahlen; kein Bewertungstext; gerendert: 2019/6/274/917 und 4,9 (31)",
+          "url": "https://www.xn--helferbr-6za.de/",
+          "observed_at": "2026-11-11T21:20:00+01:00",
+          "method": "Vergleich curl-HTML vs. Playwright-Rendering",
+          "asset_path": null
+        }
+      ],
+      "business_relevance": {
+        "classification": "inference",
+        "text": "Systeme, die Seiten ohne JavaScript lesen, erfassen die stärksten Vertrauensbelege nicht. KI-Antworten wurden nicht abgefragt."
+      },
+      "client_observation": "Kennzahlen und Google-Bewertungen werden erst per Skript geladen und fehlen im lesbaren Seitentext.",
+      "client_impact": "Dienste, die Seiten ohne Skripte lesen, sehen die stärksten Belege (4,9 Sterne, 917 Klienten) nicht.",
+      "client_action": "Kennzahlen und eine kurze Bewertungszusammenfassung als normalen Text in die Startseite schreiben.",
+      "recommendation": {
+        "action": "Zahlen statisch ausgeben (Animation optional darüber); Bewertungszusammenfassung als Text; JSON-LD-Typ prüfen.",
+        "owner": "Inhalte / Website-Pflege",
+        "horizon": "31_90_days",
+        "acceptance_test": "curl der Startseite enthält '917' und '4,9'."
+      },
+      "confidence": 4,
+      "visual_asset": null,
+      "metric_refs": [
+        "AI-05",
+        "AI-01"
+      ]
+    },
+    {
+      "id": "F-008",
+      "category": "ux_conversion",
+      "title": "Die Hauptüberschrift bricht auf dem Handy mitten im Wort",
+      "severity": "low",
+      "observation": "Bei iPhone-Darstellung bricht die H1 „Entlastungsdienst“ als „Entlastung | sdienst“ ohne Trennstrich.",
+      "evidence": [
+        {
+          "id": "E-112",
+          "type": "visible_observation",
+          "detail": "[Bundle-Evidenz E-5002] Screenshot home_mobile_fold.png",
+          "url": "https://www.xn--helferbr-6za.de/",
+          "observed_at": "2026-11-11T21:20:00+01:00",
+          "method": "Playwright iPhone-UA 390x844",
+          "asset_path": null
+        }
+      ],
+      "business_relevance": {
+        "classification": "inference",
+        "text": "Wirkt unfertig im ersten Eindruck; geringe Tragweite."
+      },
+      "client_observation": "Die Hauptüberschrift „Entlastungsdienst“ bricht auf dem Handy mitten im Wort um.",
+      "client_impact": "Der erste Eindruck wirkt unfertig, und das Angebot ist schwerer auf einen Blick zu erfassen.",
+      "client_action": "Überschrift mobil kleiner setzen oder mit Silbentrennung versehen.",
+      "recommendation": {
+        "action": "Mobile Schriftgröße der H1 reduzieren oder weiche Trennung einfügen.",
+        "owner": "Website-Pflege",
+        "horizon": "0_30_days",
+        "acceptance_test": "Bei 390 px bricht kein Wort der H1 ohne Trennstrich."
+      },
+      "confidence": 4,
+      "visual_asset": null,
+      "metric_refs": [
+        "UX-04",
+        "PERF-08"
+      ]
+    },
+    {
+      "id": "F-009",
+      "category": "accessibility",
+      "title": "Einige Karussell-Elemente zeigen beim Tabben keinen Fokus",
+      "severity": "low",
+      "observation": "Startseite: 23 von 30 Tab-Stopps mit sichtbarer Fokusanzeige; 7 DIV-Stopps (Karussell) ohne outline/box-shadow.",
+      "evidence": [
+        {
+          "id": "E-113",
+          "type": "measurement",
+          "detail": "[Bundle-Evidenz E-5003] Tab-Stichprobe 30 Stopps",
+          "url": "https://www.xn--helferbr-6za.de/",
+          "observed_at": "2026-11-11T21:20:00+01:00",
+          "method": "Playwright Tastatur-Stichprobe",
+          "asset_path": null
+        }
+      ],
+      "business_relevance": {
+        "classification": "inference",
+        "text": "Tastaturnutzer verlieren kurz die Orientierung; begrenzte Tragweite."
+      },
+      "client_observation": "Beim Bedienen per Tastatur ist an 7 von 30 Stellen nicht zu sehen, wo man sich befindet.",
+      "client_impact": "Menschen, die ohne Maus surfen, verlieren dort kurz die Orientierung.",
+      "client_action": "Für die Karussell-Elemente einen sichtbaren Fokusrahmen ergänzen.",
+      "recommendation": {
+        "action": "focus-visible-Stil für Karussell-Container.",
+        "owner": "Website-Pflege",
+        "horizon": "31_90_days",
+        "acceptance_test": "30 von 30 Tab-Stopps mit sichtbarer Fokusanzeige."
+      },
+      "confidence": 3,
+      "visual_asset": null,
+      "metric_refs": [
+        "A11Y-01"
+      ]
+    },
+    {
+      "id": "F-010",
+      "category": "trust_privacy_content",
+      "title": "Prüfhinweis: Mess-Signale vor der Cookie-Entscheidung",
+      "severity": "low",
+      "observation": "Ohne Interaktion mit dem Banner wurden Anfragen an google-analytics.com/g/collect (Consent-Status gcs=G100) und pagead2.googlesyndication.com/ccm/collect sowie Cookies _sp_id/_sp_ses und dm_* beobachtet. Keine rechtliche Bewertung.",
+      "evidence": [
+        {
+          "id": "E-114",
+          "type": "network_observation",
+          "detail": "[Bundle-Evidenz E-5001] Netzwerkmitschnitt Startseite 6 s ohne Klick",
+          "url": "https://www.xn--helferbr-6za.de/",
+          "observed_at": "2026-11-11T21:20:00+01:00",
+          "method": "Playwright request-Log",
+          "asset_path": null
+        }
+      ],
+      "business_relevance": {
+        "classification": "recommendation",
+        "text": "Technische Konfiguration fachlich (Datenschutz) prüfen lassen; kein Rechtsurteil."
+      },
+      "client_observation": "Vor der Cookie-Entscheidung werden bereits einzelne Mess-Signale an Google gesendet.",
+      "client_impact": "Ob das zur gewählten Einwilligungslösung passt, sollte fachlich geprüft werden.",
+      "client_action": "Consent-Einstellungen von der Datenschutz-Beratung prüfen lassen.",
+      "recommendation": {
+        "action": "Consent-Mode-/Tag-Konfiguration fachlich prüfen.",
+        "owner": "Datenschutz",
+        "horizon": "31_90_days",
+        "acceptance_test": "Dokumentierte fachliche Prüfung."
+      },
+      "confidence": 3,
+      "visual_asset": null,
+      "metric_refs": [
+        "TRUST-02"
+      ]
+    },
+    {
+      "id": "F-011",
+      "category": "ux_conversion",
+      "title": "Stärke: Angebot, Finanzierung und Ablauf sind klar erklärt",
+      "severity": "positive",
+      "observation": "Desktop-Startseite nennt Angebot, Abrechnung über die Pflegekasse und Städte im ersten Sichtbereich; FAQ mit 4 Themenblöcken; 3-Schritte-Ablauf; Google-Bewertungen 4,9 (31); verlinkte Presseberichte.",
+      "evidence": [
+        {
+          "id": "E-115",
+          "type": "visible_observation",
+          "detail": "[Bundle-Evidenz E-5008] Gerenderte Texte Start/FAQ/Alltagshilfe",
+          "url": "https://www.xn--helferbr-6za.de/faq",
+          "observed_at": "2026-11-11T21:20:00+01:00",
+          "method": "Lesen gerenderter Seiten",
+          "asset_path": null
+        }
+      ],
+      "business_relevance": {
+        "classification": "fact",
+        "text": "Zentrale Fragen der Zielgruppe (Kosten, Pflegegrad, Ablauf) werden beantwortet."
+      },
+      "client_observation": "Angebot, Kostenübernahme durch die Pflegekasse und Ablauf sind verständlich erklärt.",
+      "client_impact": "Interessenten finden Antworten auf ihre wichtigsten Fragen, bevor sie anfragen.",
+      "client_action": "Diese Stärke beibehalten und bei Änderungen am Entlastungsbetrag aktuell halten.",
+      "recommendation": {
+        "action": "Beibehalten.",
+        "owner": "Inhalte",
+        "horizon": "monitor",
+        "acceptance_test": "Beträge und FAQ jährlich geprüft."
+      },
+      "confidence": 4,
+      "visual_asset": null,
+      "metric_refs": [
+        "UX-03",
+        "AI-03",
+        "UX-06"
+      ]
+    },
+    {
+      "id": "F-012",
+      "category": "findability_seo",
+      "title": "Stärke: solide technische Basis",
+      "severity": "positive",
+      "observation": "HTTPS mit Weiterleitung, robots.txt und Sitemap (64 URLs), Canonicals, strukturierte Unternehmensdaten (JSON-LD), Impressum und Datenschutz verlinkt, Kompression und Caching aktiv.",
+      "evidence": [
+        {
+          "id": "E-116",
+          "type": "measurement",
+          "detail": "[Bundle-Evidenz E-0001] Live-Collector pxk-live-ae9a2e9a45ca",
+          "url": "https://www.xn--helferbr-6za.de/",
+          "observed_at": "2026-11-11T21:20:07+01:00",
+          "method": "pxk.py collect_public_evidence",
+          "asset_path": null
+        }
+      ],
+      "business_relevance": {
+        "classification": "fact",
+        "text": "Grundvoraussetzungen für Auffindbarkeit und Vertrauen sind erfüllt."
+      },
+      "client_observation": "Sichere Verbindung, Sitemap, Firmendaten für Suchmaschinen und Impressum sind sauber eingerichtet.",
+      "client_impact": "Die Website hat eine solide technische Grundlage; ein Neubau ist dafür nicht nötig.",
+      "client_action": "Grundlage bei Änderungen erhalten und Sitemap regelmäßig bereinigen.",
+      "recommendation": {
+        "action": "Beibehalten.",
+        "owner": "Website-Pflege",
+        "horizon": "monitor",
+        "acceptance_test": "Collector-Wiederholung ohne Verschlechterung."
+      },
+      "confidence": 4,
+      "visual_asset": null,
+      "metric_refs": [
+        "FIND-01",
+        "FIND-02",
+        "FIND-07",
+        "TRUST-01",
+        "TRUST-03"
+      ]
+    }
+  ],
+  "scenario_horizons": [],
+  "options": [
+    {
+      "route": "monitor",
+      "evidence_basis": [
+        "F-011",
+        "F-012"
+      ]
+    },
+    {
+      "route": "maintenance",
+      "evidence_basis": [
+        "F-001",
+        "F-002",
+        "F-003",
+        "F-005",
+        "F-006",
+        "F-008"
+      ]
+    },
+    {
+      "route": "targeted_modernization",
+      "evidence_basis": [
+        "F-004",
+        "F-007"
+      ]
+    }
+  ],
+  "roadmap": [
+    {
+      "priority": "P1",
+      "horizon": "now",
+      "action": "Kontrast der orangen Anfrage-Buttons auf mindestens 4,5:1 anheben.",
+      "owner": "Design / Website-Pflege",
+      "evidence_basis": [
+        "F-001"
+      ]
+    },
+    {
+      "priority": "P1",
+      "horizon": "now",
+      "action": "Alle Telefonnummern antippbar machen und mobil einen Anruf-Button oben zeigen.",
+      "owner": "Website-Pflege",
+      "evidence_basis": [
+        "F-002"
+      ]
+    },
+    {
+      "priority": "P1",
+      "horizon": "0_30_days",
+      "action": "Eine Standortliste festlegen und überall angleichen; defekten E-Mail-Link reparieren.",
+      "owner": "Inhalte",
+      "evidence_basis": [
+        "F-003"
+      ]
+    },
+    {
+      "priority": "P2",
+      "horizon": "0_30_days",
+      "action": "Alte Entwurfs- und Kopie-Seiten entfernen und Sitemap bereinigen.",
+      "owner": "Website-Pflege",
+      "evidence_basis": [
+        "F-005"
+      ]
+    },
+    {
+      "priority": "P2",
+      "horizon": "0_30_days",
+      "action": "Nur einen deutschsprachigen Cookie-Hinweis verwenden.",
+      "owner": "Website-Pflege",
+      "evidence_basis": [
+        "F-006"
+      ]
+    },
+    {
+      "priority": "P2",
+      "horizon": "31_90_days",
+      "action": "Startseiten-Bilder verkleinern und mobil neu messen.",
+      "owner": "Website-Pflege / Hosting",
+      "evidence_basis": [
+        "F-004"
+      ]
+    },
+    {
+      "priority": "P3",
+      "horizon": "31_90_days",
+      "action": "Kennzahlen und Bewertungszusammenfassung als Text ausgeben.",
+      "owner": "Inhalte",
+      "evidence_basis": [
+        "F-007"
+      ]
+    }
+  ],
+  "sources": [
+    {
+      "id": "S-001",
+      "type": "primary",
+      "title": "Helferbär Startseite",
+      "location": "https://www.xn--helferbr-6za.de/",
+      "purpose": "First-Party-Evidenz Angebot, Zielgruppe, Standorte"
+    },
+    {
+      "id": "S-002",
+      "type": "primary",
+      "title": "Helferbär – Leistungen Alltagshilfe",
+      "location": "https://www.xn--helferbr-6za.de/leistungen-alltagshilfe",
+      "purpose": "Branchennachweis: lokale Dienstleistung (Alltagshilfe) mit Anfrage-Modell"
+    },
+    {
+      "id": "S-003",
+      "type": "primary",
+      "title": "Helferbär Impressum",
+      "location": "https://www.xn--helferbr-6za.de/impressum",
+      "purpose": "Anbieteridentität, Rechtsform, Register"
+    },
+    {
+      "id": "S-004",
+      "type": "primary",
+      "title": "web.dev – Web Vitals (zuletzt aktualisiert 2024-10-31)",
+      "location": "https://web.dev/articles/vitals",
+      "purpose": "LCP/CLS-Schwellen, abgerufen 2026-11-11"
+    },
+    {
+      "id": "S-005",
+      "type": "primary",
+      "title": "Lighthouse performance scoring",
+      "location": "https://developer.chrome.com/docs/lighthouse/performance/performance-scoring",
+      "purpose": "Score-Bänder, abgerufen 2026-11-11"
+    },
+    {
+      "id": "S-006",
+      "type": "primary",
+      "title": "W3C WCAG 2.2 SC 1.4.3 Contrast (Minimum)",
+      "location": "https://www.w3.org/TR/WCAG22/#contrast-minimum",
+      "purpose": "Kontrast-Zielwerte 4,5:1 / 3:1"
+    },
+    {
+      "id": "S-007",
+      "type": "uncertain",
+      "title": "Websuche-Stichprobe (US-only Suchwerkzeug), 8 Abfragen",
+      "location": "Claude WebSearch, 2026-11-11",
+      "purpose": "nicht gewertet: für DE-Markt nicht repräsentativ"
+    },
+    {
+      "id": "S-008",
+      "type": "secondary",
+      "title": "Drittanbieter-Verzeichnisse (pflege-helfer24.de, pflegesuche.de)",
+      "location": "https://pflege-helfer24.de/pflegedienste/helferbar",
+      "purpose": "Kontext: externe Einträge mit abweichenden Adressen/Standorten (nicht gewertet)"
+    }
+  ],
+  "limitations": [
+    "Stichprobe von 13 öffentlichen Seiten; keine Aussage über die gesamte Website.",
+    "Labordaten (Lighthouse aus Rechenzentrum) sind keine Felddaten realer Besucher.",
+    "Kontrast-/Tastatur-/axe-Prüfungen sind Stichproben, keine WCAG-Konformitätsprüfung.",
+    "Datenschutz-Beobachtungen sind Oberflächenbefunde, kein Rechtsgutachten.",
+    "Keine Aussage zu Anfragezahlen, Umsatz oder Rankings."
+  ],
+  "missing": [
+    "CrUX-Felddaten",
+    "Repräsentative DE-Suchstichprobe",
+    "Search Console / Analytics des Inhabers"
+  ],
+  "source_needed": [
+    "Ob die Anerkennung als Angebot zur Unterstützung im Alltag eine Aufsichtsangabe im Impressum erfordert (§ 5 Abs. 1 Nr. 3 DDG) – fachliche Prüfung."
+  ],
+  "visualizations": []
+}

@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="480" viewBox="0 0 900 480" role="img" aria-label="Die vier wichtigsten Hebel">
+<rect width="900" height="480" rx="18" fill="#FFFFFF"/>
+<text x="42" y="46" font-family="PixelkiezDisplay, Schibsted Grotesk, IBM Plex Sans, Noto Sans, DejaVu Sans, sans-serif" font-size="24" fill="#0E1414" font-weight="700"><tspan x="42" dy="0">Die vier wichtigsten Hebel</tspan></text>
+<text x="42" y="78" font-family="PixelkiezDisplay, Schibsted Grotesk, IBM Plex Sans, Noto Sans, DejaVu Sans, sans-serif" font-size="14.5" fill="#566360"><tspan x="42" dy="0">Nach geschäftlicher Bedeutung geordnet; die Reihenfolge der Umsetzung zeigt der Fahrplan</tspan></text>
+<circle cx="86" cy="128.0" r="20" fill="#EC5E43"/>
+<text x="86" y="134.0" text-anchor="middle" font-family="PixelkiezData, IBM Plex Mono, Noto Sans Mono, DejaVu Sans Mono, monospace" font-size="14" font-weight="700" fill="#0E1414">1</text>
+<text x="126" y="134" font-family="PixelkiezDisplay, Schibsted Grotesk, IBM Plex Sans, Noto Sans, DejaVu Sans, sans-serif" font-size="14" fill="#0E1414"><tspan x="126" dy="0">Auf dem Handy lassen sich die Telefonnummern auf Start- und Kontaktseite</tspan><tspan x="126" dy="15">nicht antippen.</tspan></text>
+<circle cx="86" cy="194.0" r="20" fill="#EC5E43"/>
+<text x="86" y="200.0" text-anchor="middle" font-family="PixelkiezData, IBM Plex Mono, Noto Sans Mono, DejaVu Sans Mono, monospace" font-size="14" font-weight="700" fill="#0E1414">2</text>
+<text x="126" y="200" font-family="PixelkiezDisplay, Schibsted Grotesk, IBM Plex Sans, Noto Sans, DejaVu Sans, sans-serif" font-size="14" fill="#0E1414"><tspan x="126" dy="0">Die Seiten nennen andere Städte – mal Dresden, mal Hamburg; die</tspan><tspan x="126" dy="15">Dresden-Seite trägt den Titel „Hamburg“.</tspan></text>
+<circle cx="86" cy="260.0" r="20" fill="#EC5E43"/>
+<text x="86" y="266.0" text-anchor="middle" font-family="PixelkiezData, IBM Plex Mono, Noto Sans Mono, DejaVu Sans Mono, monospace" font-size="14" font-weight="700" fill="#0E1414">3</text>
+<text x="126" y="266" font-family="PixelkiezDisplay, Schibsted Grotesk, IBM Plex Sans, Noto Sans, DejaVu Sans, sans-serif" font-size="14" fill="#0E1414"><tspan x="126" dy="0">Die orangen Anfrage-Buttons haben nur 2,03:1 Kontrast – empfohlen sind</tspan><tspan x="126" dy="15">mindestens 4,5:1.</tspan></text>
+<circle cx="86" cy="326.0" r="20" fill="#EC5E43"/>
+<text x="86" y="332.0" text-anchor="middle" font-family="PixelkiezData, IBM Plex Mono, Noto Sans Mono, DejaVu Sans Mono, monospace" font-size="14" font-weight="700" fill="#0E1414">4</text>
+<text x="126" y="332" font-family="PixelkiezDisplay, Schibsted Grotesk, IBM Plex Sans, Noto Sans, DejaVu Sans, sans-serif" font-size="14" fill="#0E1414"><tspan x="126" dy="0">Kennzahlen und Google-Bewertungen werden erst per Skript geladen und</tspan><tspan x="126" dy="15">fehlen im lesbaren Seitentext.</tspan></text>
+<line x1="42" y1="407" x2="858" y2="407" stroke="#C6D4D1"/>
+</svg>

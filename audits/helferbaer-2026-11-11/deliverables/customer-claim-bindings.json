@@ -1,0 +1,76 @@
+{
+  "schema_version": "1.0",
+  "audited_url": "https://www.xn--helferbr-6za.de/",
+  "scored_report_sha256": "e6d9aed69df22e661cc539b89aee79bff12f1426e22d5e3f91bf06360a05bd9b",
+  "client_model_sha256": "9408ea4f32dfe1669998ca89d94c4b9dad7ce489b2b22121e27b349f32aa5834",
+  "rule": "strength admitted only from a positive finding whose metric_refs all read Klar and are uncontested",
+  "claims": [
+    {
+      "text": "Angebot, Kostenübernahme durch die Pflegekasse und Ablauf sind verständlich erklärt.",
+      "finding_ref": "F-011",
+      "metric_refs": [
+        "UX-03",
+        "AI-03",
+        "UX-06"
+      ],
+      "evidence_refs": [
+        "E-115"
+      ],
+      "admitted": false,
+      "reasons": [
+        "TOPIC_OVERLAP:UX-06"
+      ]
+    },
+    {
+      "text": "Sichere Verbindung, Sitemap, Firmendaten für Suchmaschinen und Impressum sind sauber eingerichtet.",
+      "finding_ref": "F-012",
+      "metric_refs": [
+        "FIND-01",
+        "FIND-02",
+        "FIND-07",
+        "TRUST-01",
+        "TRUST-03"
+      ],
+      "evidence_refs": [
+        "E-116"
+      ],
+      "admitted": false,
+      "reasons": [
+        "METRIC_NOT_CLEAR:TRUST-01",
+        "METRIC_CONTESTED:TRUST-01",
+        "METRIC_NOT_CLEAR:TRUST-03",
+        "LEGAL_SURFACE_CONTESTED"
+      ]
+    },
+    {
+      "text": "Angebot, Pflegekassen-Abrechnung und Ablauf sind klar erklärt.",
+      "finding_ref": null,
+      "metric_refs": [],
+      "evidence_refs": [],
+      "admitted": false,
+      "reasons": [
+        "NO_FINDING_LINK"
+      ]
+    },
+    {
+      "text": "Google-Bewertungen 4,9 (31) und Presseberichte stärken Vertrauen.",
+      "finding_ref": null,
+      "metric_refs": [],
+      "evidence_refs": [],
+      "admitted": false,
+      "reasons": [
+        "NO_FINDING_LINK"
+      ]
+    },
+    {
+      "text": "Technische Basis mit HTTPS, Sitemap und Firmendaten ist solide.",
+      "finding_ref": null,
+      "metric_refs": [],
+      "evidence_refs": [],
+      "admitted": false,
+      "reasons": [
+        "NO_FINDING_LINK"
+      ]
+    }
+  ]
+}

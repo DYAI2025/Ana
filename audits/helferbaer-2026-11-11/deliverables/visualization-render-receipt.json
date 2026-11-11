@@ -1,0 +1,54 @@
+{
+  "schema_version": "1.0",
+  "status": "PASS",
+  "plan_sha256": "b474a3389c04b1709befdcc6298b0f6d2bd2a2d1ced8a5eb9733671b953f3227",
+  "rendered_count": 4,
+  "visuals": [
+    {
+      "id": "VIZ-001",
+      "template_id": "V02_CATEGORY_BARS",
+      "backend": "PIXELKIEZ_SVG_FALLBACK",
+      "spec_path": "visuals/specs/VIZ-001-V02_CATEGORY_BARS.vl.json",
+      "spec_sha256": "daaae062a4e043605624a949ae2a173d4f92bc0b69c99b3fae9f0d15bd4f6793",
+      "svg_path": "visuals/VIZ-001-V02_CATEGORY_BARS.svg",
+      "svg_sha256": "f307a41dab55e74a9b37d180e1214c79bfdb5aa39a06cd6e597c5bdf58aaa632",
+      "status": "PASS"
+    },
+    {
+      "id": "VIZ-002",
+      "template_id": "V03_TOP_LEVERS",
+      "backend": "PIXELKIEZ_SVG_FALLBACK",
+      "spec_path": "visuals/specs/VIZ-002-V03_TOP_LEVERS.vl.json",
+      "spec_sha256": "44af7ee419d5f29fdd7bb7910300307bfde0b65bfa2385b856a504ac9b5ed9fd",
+      "svg_path": "visuals/VIZ-002-V03_TOP_LEVERS.svg",
+      "svg_sha256": "3e11593c5d2e318d7bf9cd724d683df54f91553fedebdfed9c56e2906bf2dc14",
+      "status": "PASS"
+    },
+    {
+      "id": "VIZ-003",
+      "template_id": "V08_AI_ANSWERABILITY",
+      "backend": "PIXELKIEZ_SVG_FALLBACK",
+      "spec_path": "visuals/specs/VIZ-003-V08_AI_ANSWERABILITY.vl.json",
+      "spec_sha256": "6c0a9ce28d420e0a3ed1cfd0e7c3cd6264d42f115c0f193a223283ca028fdad6",
+      "svg_path": "visuals/VIZ-003-V08_AI_ANSWERABILITY.svg",
+      "svg_sha256": "3fecc14294ec0d0a2d74b20cf27618954033bd2635cd633ef1f8134331faec06",
+      "status": "PASS"
+    },
+    {
+      "id": "VIZ-004",
+      "template_id": "V10_TRUST_MATRIX",
+      "backend": "PIXELKIEZ_SVG_FALLBACK",
+      "spec_path": "visuals/specs/VIZ-004-V10_TRUST_MATRIX.vl.json",
+      "spec_sha256": "993a3780c9d5f4e903ce23d307e4e2f7da6938e0dd1a796e27fea52c7005ebf6",
+      "svg_path": "visuals/VIZ-004-V10_TRUST_MATRIX.svg",
+      "svg_sha256": "e02bc38998f8d4b62b37ae984603dfab67678d430114e5f5f84f0e019e79afbd",
+      "status": "PASS"
+    }
+  ],
+  "capabilities": {
+    "vl_convert_python": false,
+    "vl2svg_cli": null,
+    "mmdc_cli": null,
+    "network_install_attempted": false
+  }
+}

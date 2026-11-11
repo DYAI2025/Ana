@@ -1,0 +1,160 @@
+import json
+A='/tmp/claude-0/-home-user-Ana/fbc077ab-f972-56bf-af89-73efddfc419e/scratchpad/audit'
+B='https://www.xn--helferbr-6za.de'
+T='2026-11-11T21:2'
+_c=[100]
+def ev(i,typ,detail,url,method,at='2026-11-11T21:20:00+01:00'):
+    _c[0]+=1
+    return {"id":f"E-{_c[0]}","type":typ,"detail":f"[Bundle-Evidenz {i}] "+detail,"url":url,"observed_at":at,"method":method,"asset_path":None}
+    return {"id":i,"type":typ,"detail":detail,"url":url,"observed_at":at,"method":method,"asset_path":None}
+pages=[('Startseite','/'),('Leistungsübersicht','/unsere-dienstleistungen'),('Leistung Alltagshilfe','/leistungen-alltagshilfe'),('Standortseite Berlin','/berlin'),('Kontakt','/kontakt'),('Über uns','/ueber-uns'),('FAQ','/faq'),('Ratgeber','/ratgeber'),('Pflegeberatung','/pflegeberatung'),('Impressum','/impressum'),('Datenschutz','/privacyb505f5ef'),('Standortseite Hamburg','/hamburg'),('Standortseite Dresden','/dresden')]
+F=[]
+F.append({"id":"F-001","category":"accessibility","title":"Die Haupt-Buttons sind für schwächere Augen schwer lesbar (Kontrast 2,03:1)","severity":"high",
+ "observation":"Weiße Schrift auf Orange (#E2AC66) bei „Jetzt Alltagshilfe anfragen“, „Kostenfrei anfragen“ und „Mehr Erfahren“ erreicht 2,03:1; WCAG 2.2 SC 1.4.3 nennt 4,5:1 (große Schrift 3:1). Startseite 11/24, Kontakt 8/21 geprüfte Farbkombinationen unter Ziel; axe-core meldet color-contrast an 34 bzw. 41 Elementen.",
+ "evidence":[ev("E-5004","measurement","Berechnetes Kontrastverhältnis 2,03:1 für weiße Schrift auf rgb(226,172,102)",B+"/","WCAG-2-Kontrastformel über getComputedStyle (Playwright/Chromium)"),ev("E-5005","measurement","axe-core 4.14.0: color-contrast serious, 34 Knoten (/) und 41 Knoten (/kontakt)",B+"/kontakt","axe-core wcag2a/aa")],
+ "business_relevance":{"classification":"inference","text":"Zielgruppe sind Senioren und Angehörige; schlecht lesbare Anfrage-Buttons können den wichtigsten Schritt erschweren. Wirkung auf Anfragen ist ohne Nutzungsdaten nicht messbar."},
+ "client_observation":"Die orangen Anfrage-Buttons haben nur 2,03:1 Kontrast – empfohlen sind mindestens 4,5:1.",
+ "client_impact":"Senioren mit nachlassender Sehkraft können „Jetzt Alltagshilfe anfragen“ schlechter erkennen – genau dort, wo sie anfragen.",
+ "client_action":"Button-Schrift dunkel setzen oder das Orange abdunkeln, bis 4,5:1 erreicht ist; dann erneut prüfen.",
+ "recommendation":{"action":"Farbwerte der Haupt-Buttons und orangen Textlinks auf mindestens 4,5:1 anheben.","owner":"Design / Website-Pflege","horizon":"now","acceptance_test":"Kontrast weißer bzw. dunkler Button-Text gegen Button-Hintergrund ≥ 4,5:1; axe color-contrast auf / und /kontakt ohne Treffer bei Buttons."},
+ "confidence":5,"visual_asset":None,"metric_refs":["A11Y-04","A11Y-06"]})
+F.append({"id":"F-002","category":"ux_conversion","title":"Mobil fehlt der direkte Anruf: Telefonnummern sind nicht antippbar","severity":"high",
+ "observation":"Auf Startseite und Kontaktseite sind 0 Telefonnummern als tel:-Link hinterlegt (nur /berlin hat einen). Im mobilen Kopfbereich gibt es nur Menü und E-Mail-Symbol; im ersten Sichtbereich weder Anruf- noch Anfrage-Button. Geschäftszeiten Mo–Fr 9–17 Uhr werden prominent genannt.",
+ "evidence":[ev("E-5002","visible_observation","iPhone-13-Emulation: tel-Links / = 0, /kontakt = 0, /berlin = 1; Kopfzeile nur Menü + Mail-Symbol",B+"/kontakt","Playwright devices['iPhone 13'] DOM-Auswertung"),ev("E-5001","visible_observation","390-px-Rendering aller 10 Stichprobenseiten, tel-Links gezählt",B+"/","Playwright/Chromium")],
+ "business_relevance":{"classification":"inference","text":"Bei Seniorenhilfe rufen Interessenten und Angehörige häufig lieber an; abzutippende Nummern sind eine vermeidbare Hürde. Effekt auf Anrufzahlen nicht gemessen."},
+ "client_observation":"Auf dem Handy lassen sich die Telefonnummern auf Start- und Kontaktseite nicht antippen.",
+ "client_impact":"Angehörige und Senioren, die lieber anrufen, müssen Nummern abtippen – das kann den Anruf erschweren.",
+ "client_action":"Alle Telefonnummern als Anruf-Link hinterlegen und mobil oben einen „Jetzt anrufen“-Button zeigen.",
+ "recommendation":{"action":"tel:-Links für alle Standortnummern; mobiler Anruf-Button im Kopfbereich.","owner":"Website-Pflege","horizon":"now","acceptance_test":"Auf / und /kontakt ist jede Telefonnummer ein tel:-Link; bei 390 px ist ein Anruf- oder Anfrage-Button ohne Scrollen sichtbar."},
+ "confidence":5,"visual_asset":None,"metric_refs":["UX-02","UX-04"]})
+F.append({"id":"F-003","category":"trust_privacy_content","title":"Standorte und Kontaktdaten widersprechen sich zwischen den Seiten","severity":"high",
+ "observation":"Startseite, FAQ und Alltagshilfe nennen Berlin, Potsdam, Dresden, Leipzig, Halle, Magdeburg. „Über uns“ nennt Hamburg statt Dresden und an anderer Stelle nur 4 Städte; /hamburg ist öffentlich; /dresden trägt den Seitentitel „Alltagshilfe Hamburg“. Der E-Mail-Link der Startseite ist defekt („mailto:il: berlin@…“); mobil verlinkt der Kopf auf info@helferbär.de, das Impressum nennt info@helferbaer.de.",
+ "evidence":[ev("E-5009","visible_observation","Städtelisten /, /faq, /leistungen-alltagshilfe vs. /ueber-uns; Titel von /dresden = 'Alltagshilfe Hamburg | Helferbär'",B+"/ueber-uns","Textabgleich gerenderter Seiten + HTML-Titel"),ev("E-5009","visible_observation","href='mailto:il: berlin@helferbaer.de' auf der Startseite; mobiler Header href='mailto:info@helferbär.de'",B+"/","DOM-Auswertung")],
+ "business_relevance":{"classification":"inference","text":"Bei einem Anbieter mit sechs Standorten entscheidet die Standortfrage über die Anfrage; widersprüchliche Angaben können Rückfragen oder Abbruch auslösen und Vertrauen mindern."},
+ "client_observation":"Die Seiten nennen andere Städte – mal Dresden, mal Hamburg; die Dresden-Seite trägt den Titel „Hamburg“.",
+ "client_impact":"Interessenten in Dresden oder Hamburg können nicht sicher erkennen, ob Helferbär bei ihnen hilft.",
+ "client_action":"Eine verbindliche Standortliste festlegen und auf Über uns, Stadtseiten, Seitentiteln und Footer angleichen.",
+ "recommendation":{"action":"Standortliste, Seitentitel /dresden, Footer-Logo-Text, defekten mailto-Link und E-Mail-Schreibweise vereinheitlichen.","owner":"Inhalte / Website-Pflege","horizon":"0_30_days","acceptance_test":"Alle Stichprobenseiten nennen dieselbe Standortliste; /dresden-Titel nennt Dresden; kein mailto mit 'il:'; eine einheitliche Info-Adresse."},
+ "confidence":5,"visual_asset":None,"metric_refs":["TRUST-04","AI-06","AI-02"]})
+F.append({"id":"F-004","category":"performance_technology","title":"Mobil erscheint der Hauptinhalt der Startseite im Labortest erst nach 5,9 s","severity":"medium",
+ "observation":"Lighthouse 12.8.2 mobil (3 Läufe, Median): Performance 53/100, LCP 5,9 s (Ziel ≤ 2,5 s laut web.dev), Total Blocking Time 534 ms. Desktop: 89/100, LCP 1,6 s. 0 % der Bilder in WebP/AVIF, kein srcset, kein Lazy Loading; Cookie-Skript blockiert das Rendern im Head.",
+ "evidence":[ev("E-5006","measurement","Lighthouse mobil Median: Score 53, LCP 5894 ms, TBT 534 ms, CLS 0,007",B+"/","Lighthouse CLI 12.8.2, simulierte Drosselung, 3 Läufe"),ev("E-5007","measurement","Lighthouse desktop Median: Score 89, LCP 1587 ms",B+"/","Lighthouse CLI 12.8.2 --preset=desktop, 3 Läufe")],
+ "business_relevance":{"classification":"inference","text":"Langsame mobile Darstellung verzögert den ersten Eindruck des Angebots; Laborwerte sind keine Felddaten und belegen keinen Besucherverlust."},
+ "client_observation":"Auf dem Handy erscheint der Hauptinhalt der Startseite im Labortest nach 5,9 s – Ziel sind 2,5 s.",
+ "client_impact":"Wer mobil mit schwacher Verbindung sucht, wartet spürbar, bevor Angebot und Anfrage-Button sichtbar werden.",
+ "client_action":"Startseiten-Bilder als WebP in passender Größe ausliefern, Cookie-Skript nicht blockierend laden, neu messen.",
+ "recommendation":{"action":"Bildformate/-größen optimieren, Lazy Loading unterhalb des ersten Bildschirms, Render-Blocker im Head reduzieren.","owner":"Website-Pflege / Hosting","horizon":"31_90_days","acceptance_test":"Lighthouse mobil (3 Läufe, Median) LCP ≤ 2,5 s oder Performance ≥ 75."},
+ "confidence":4,"visual_asset":None,"metric_refs":["PERF-02","PERF-05","PERF-07"]})
+F.append({"id":"F-005","category":"trust_privacy_content","title":"Acht alte Entwurfs- und Kopie-Seiten sind öffentlich und stehen in der Sitemap","severity":"medium",
+ "observation":"In sitemap.xml stehen u. a. /startseite, /kontakt-alt, /unser-team-alt, /leistungen---pflegeberatung--alt, /berlin---neu-in-bearbeitung, /kopie-kopie-stellenanzeige-pflegefachkraft-hamburg, /unsere-dienste, /standorte – alle Status 200, ohne noindex, Canonical auf sich selbst.",
+ "evidence":[ev("E-5010","http_observation","8 URLs: HTTP 200, kein robots-Meta, self-canonical",B+"/kontakt-alt","HTTP-Abruf + HTML-Meta-Prüfung")],
+ "business_relevance":{"classification":"inference","text":"Veraltete Seiten können über Suche oder Links gefunden werden und widersprüchliche Informationen liefern; tatsächliche Indexierung nicht geprüft."},
+ "client_observation":"8 alte Entwurfs- und Kopie-Seiten (z. B. „kontakt-alt“) sind öffentlich und stehen in der Sitemap.",
+ "client_impact":"Suchende können auf veraltete Kontakt- oder Teamseiten gelangen und dort andere Angaben finden.",
+ "client_action":"Alte Seiten löschen oder auf die aktuelle Seite weiterleiten und aus der Sitemap entfernen.",
+ "recommendation":{"action":"Alt-/Entwurfsseiten entfernen oder 301 weiterleiten; Sitemap bereinigen.","owner":"Website-Pflege","horizon":"0_30_days","acceptance_test":"Keine URL mit -alt, neu-in-bearbeitung oder kopie in sitemap.xml; die 8 URLs liefern 301 oder 404/410."},
+ "confidence":5,"visual_asset":None,"metric_refs":["TRUST-05"]})
+F.append({"id":"F-006","category":"ux_conversion","title":"Zwei Cookie-Hinweise gleichzeitig, einer davon auf Englisch","severity":"medium",
+ "observation":"Beim ersten Aufruf erscheinen ein englischsprachiger Termly-Consent-Banner und zusätzlich ein deutscher Cookie-Hinweis des Baukastens. Mobil überdecken beide den unteren Teil des ersten Bildschirms.",
+ "evidence":[ev("E-5001","visible_observation","Screenshots / mobil und desktop: Termly-Banner (englisch) + schwarzer Hinweis 'Diese Webseite verwendet Cookies…'",B+"/","Playwright-Screenshot ohne Interaktion")],
+ "business_relevance":{"classification":"inference","text":"Ein englischer Hinweis für eine deutschsprachige Senioren-Zielgruppe kann verunsichern und verdeckt mobil das Angebot. Keine rechtliche Bewertung."},
+ "client_observation":"Beim ersten Besuch erscheinen zwei Cookie-Hinweise gleichzeitig – einer davon komplett auf Englisch.",
+ "client_impact":"Ältere Besucher sehen zuerst englischen Text statt des Angebots; das kann gleich zu Beginn verunsichern.",
+ "client_action":"Nur einen Cookie-Hinweis verwenden, ihn auf Deutsch stellen und den zweiten Hinweis abschalten.",
+ "recommendation":{"action":"Termly-Banner auf Deutsch umstellen, Baukasten-Cookie-Hinweis deaktivieren; Consent-Konfiguration fachlich prüfen lassen.","owner":"Website-Pflege / Datenschutz","horizon":"0_30_days","acceptance_test":"Beim Erstaufruf erscheint genau ein deutschsprachiger Hinweis."},
+ "confidence":4,"visual_asset":None,"metric_refs":["UX-01","PERF-08"]})
+F.append({"id":"F-007","category":"ai_readiness","title":"Kennzahlen und Bewertungen stehen nicht im lesbaren Seitentext","severity":"medium",
+ "observation":"Im statischen HTML der Startseite fehlen die Kennzahlen (seit 2019, 6 Standorte, 274 Helfer, 917 Klienten) und die Google-Bewertungen (4,9 aus 31); beide erscheinen nur per JavaScript. JSON-LD-Typ ist MedicalBusiness, obwohl die Seite nicht-medizinische Alltagshilfe beschreibt.",
+ "evidence":[ev("E-5012","visible_observation","Statisches HTML: Abschnitt 'Helferbär-Fakten' ohne Zahlen; kein Bewertungstext; gerendert: 2019/6/274/917 und 4,9 (31)",B+"/","Vergleich curl-HTML vs. Playwright-Rendering")],
+ "business_relevance":{"classification":"inference","text":"Systeme, die Seiten ohne JavaScript lesen, erfassen die stärksten Vertrauensbelege nicht. KI-Antworten wurden nicht abgefragt."},
+ "client_observation":"Kennzahlen und Google-Bewertungen werden erst per Skript geladen und fehlen im lesbaren Seitentext.",
+ "client_impact":"Dienste, die Seiten ohne Skripte lesen, sehen die stärksten Belege (4,9 Sterne, 917 Klienten) nicht.",
+ "client_action":"Kennzahlen und eine kurze Bewertungszusammenfassung als normalen Text in die Startseite schreiben.",
+ "recommendation":{"action":"Zahlen statisch ausgeben (Animation optional darüber); Bewertungszusammenfassung als Text; JSON-LD-Typ prüfen.","owner":"Inhalte / Website-Pflege","horizon":"31_90_days","acceptance_test":"curl der Startseite enthält '917' und '4,9'."},
+ "confidence":4,"visual_asset":None,"metric_refs":["AI-05","AI-01"]})
+F.append({"id":"F-008","category":"ux_conversion","title":"Die Hauptüberschrift bricht auf dem Handy mitten im Wort","severity":"low",
+ "observation":"Bei iPhone-Darstellung bricht die H1 „Entlastungsdienst“ als „Entlastung | sdienst“ ohne Trennstrich.",
+ "evidence":[ev("E-5002","visible_observation","Screenshot home_mobile_fold.png",B+"/","Playwright iPhone-UA 390x844")],
+ "business_relevance":{"classification":"inference","text":"Wirkt unfertig im ersten Eindruck; geringe Tragweite."},
+ "client_observation":"Die Hauptüberschrift „Entlastungsdienst“ bricht auf dem Handy mitten im Wort um.",
+ "client_impact":"Der erste Eindruck wirkt unfertig, und das Angebot ist schwerer auf einen Blick zu erfassen.",
+ "client_action":"Überschrift mobil kleiner setzen oder mit Silbentrennung versehen.",
+ "recommendation":{"action":"Mobile Schriftgröße der H1 reduzieren oder weiche Trennung einfügen.","owner":"Website-Pflege","horizon":"0_30_days","acceptance_test":"Bei 390 px bricht kein Wort der H1 ohne Trennstrich."},
+ "confidence":4,"visual_asset":None,"metric_refs":["UX-04","PERF-08"]})
+F.append({"id":"F-009","category":"accessibility","title":"Einige Karussell-Elemente zeigen beim Tabben keinen Fokus","severity":"low",
+ "observation":"Startseite: 23 von 30 Tab-Stopps mit sichtbarer Fokusanzeige; 7 DIV-Stopps (Karussell) ohne outline/box-shadow.",
+ "evidence":[ev("E-5003","measurement","Tab-Stichprobe 30 Stopps",B+"/","Playwright Tastatur-Stichprobe")],
+ "business_relevance":{"classification":"inference","text":"Tastaturnutzer verlieren kurz die Orientierung; begrenzte Tragweite."},
+ "client_observation":"Beim Bedienen per Tastatur ist an 7 von 30 Stellen nicht zu sehen, wo man sich befindet.",
+ "client_impact":"Menschen, die ohne Maus surfen, verlieren dort kurz die Orientierung.",
+ "client_action":"Für die Karussell-Elemente einen sichtbaren Fokusrahmen ergänzen.",
+ "recommendation":{"action":"focus-visible-Stil für Karussell-Container.","owner":"Website-Pflege","horizon":"31_90_days","acceptance_test":"30 von 30 Tab-Stopps mit sichtbarer Fokusanzeige."},
+ "confidence":3,"visual_asset":None,"metric_refs":["A11Y-01"]})
+F.append({"id":"F-010","category":"trust_privacy_content","title":"Prüfhinweis: Mess-Signale vor der Cookie-Entscheidung","severity":"low",
+ "observation":"Ohne Interaktion mit dem Banner wurden Anfragen an google-analytics.com/g/collect (Consent-Status gcs=G100) und pagead2.googlesyndication.com/ccm/collect sowie Cookies _sp_id/_sp_ses und dm_* beobachtet. Keine rechtliche Bewertung.",
+ "evidence":[ev("E-5001","network_observation","Netzwerkmitschnitt Startseite 6 s ohne Klick",B+"/","Playwright request-Log")],
+ "business_relevance":{"classification":"recommendation","text":"Technische Konfiguration fachlich (Datenschutz) prüfen lassen; kein Rechtsurteil."},
+ "client_observation":"Vor der Cookie-Entscheidung werden bereits einzelne Mess-Signale an Google gesendet.",
+ "client_impact":"Ob das zur gewählten Einwilligungslösung passt, sollte fachlich geprüft werden.",
+ "client_action":"Consent-Einstellungen von der Datenschutz-Beratung prüfen lassen.",
+ "recommendation":{"action":"Consent-Mode-/Tag-Konfiguration fachlich prüfen.","owner":"Datenschutz","horizon":"31_90_days","acceptance_test":"Dokumentierte fachliche Prüfung."},
+ "confidence":3,"visual_asset":None,"metric_refs":["TRUST-02"]})
+F.append({"id":"F-011","category":"ux_conversion","title":"Stärke: Angebot, Finanzierung und Ablauf sind klar erklärt","severity":"positive",
+ "observation":"Desktop-Startseite nennt Angebot, Abrechnung über die Pflegekasse und Städte im ersten Sichtbereich; FAQ mit 4 Themenblöcken; 3-Schritte-Ablauf; Google-Bewertungen 4,9 (31); verlinkte Presseberichte.",
+ "evidence":[ev("E-5008","visible_observation","Gerenderte Texte Start/FAQ/Alltagshilfe",B+"/faq","Lesen gerenderter Seiten")],
+ "business_relevance":{"classification":"fact","text":"Zentrale Fragen der Zielgruppe (Kosten, Pflegegrad, Ablauf) werden beantwortet."},
+ "client_observation":"Angebot, Kostenübernahme durch die Pflegekasse und Ablauf sind verständlich erklärt.",
+ "client_impact":"Interessenten finden Antworten auf ihre wichtigsten Fragen, bevor sie anfragen.",
+ "client_action":"Diese Stärke beibehalten und bei Änderungen am Entlastungsbetrag aktuell halten.",
+ "recommendation":{"action":"Beibehalten.","owner":"Inhalte","horizon":"monitor","acceptance_test":"Beträge und FAQ jährlich geprüft."},
+ "confidence":4,"visual_asset":None,"metric_refs":["UX-03","AI-03","UX-06"]})
+F.append({"id":"F-012","category":"findability_seo","title":"Stärke: solide technische Basis","severity":"positive",
+ "observation":"HTTPS mit Weiterleitung, robots.txt und Sitemap (64 URLs), Canonicals, strukturierte Unternehmensdaten (JSON-LD), Impressum und Datenschutz verlinkt, Kompression und Caching aktiv.",
+ "evidence":[ev("E-0001","measurement","Live-Collector pxk-live-ae9a2e9a45ca",B+"/","pxk.py collect_public_evidence",at='2026-11-11T21:20:07+01:00')],
+ "business_relevance":{"classification":"fact","text":"Grundvoraussetzungen für Auffindbarkeit und Vertrauen sind erfüllt."},
+ "client_observation":"Sichere Verbindung, Sitemap, Firmendaten für Suchmaschinen und Impressum sind sauber eingerichtet.",
+ "client_impact":"Die Website hat eine solide technische Grundlage; ein Neubau ist dafür nicht nötig.",
+ "client_action":"Grundlage bei Änderungen erhalten und Sitemap regelmäßig bereinigen.",
+ "recommendation":{"action":"Beibehalten.","owner":"Website-Pflege","horizon":"monitor","acceptance_test":"Collector-Wiederholung ohne Verschlechterung."},
+ "confidence":4,"visual_asset":None,"metric_refs":["FIND-01","FIND-02","FIND-07","TRUST-01","TRUST-03"]})
+rep={"meta":{"report_title":"Website-Analyse 2026","customer_name":"Helferbär GmbH","audited_url":B+"/","audit_date":"11.11.2026","timezone":"Europe/Berlin","language":"de","auditor":"Pixelkiez","audit_mode":"measured_public","scope_summary":"Öffentliches Read-only-Audit von helferbär.de: Live-HTTP/HTML-Collector, Browser-Rendering (mobil/desktop) von 13 Seiten, Lighthouse-Labormessung, axe-core, Kontrast- und Tastatur-Stichprobe, Inhaltslesen. Keine Felddaten, keine Search Console/Analytics, keine repräsentative deutsche Suchstichprobe.","audit_id":"pxk-helferbaer-2026-11-11","website_language":"de"},
+ "public_business":{"display_name":"Helferbär GmbH","phone_number":"+493062939453","city":"Potsdam","business_category":"Entlastungsdienst / Alltagshilfe für Menschen mit Pflegegrad","verified_contact":{"name":"Alessandro Nobbe","role":"Geschäftsführer (laut Impressum, einer von zwei)","evidence_pointer":B+"/impressum"},"evidence_pointers":{"display_name":B+"/impressum","phone_number":B+"/impressum","city":B+"/impressum"}},
+ "coverage":{"sampled_pages":[{"page_type":t,"url":B+p,"accessed_at":"2026-11-11T21:20:00+01:00"} for t,p in pages],
+  "not_tested":["Core-Web-Vitals-Felddaten (CrUX)","repräsentative deutsche Suchstichprobe (Marke, site:, Non-Brand)","Search Console / Analytics","Formular-Fehlerzustände (kein Absenden)","Screenreader- und vollständige WCAG-Prüfung","Blog-Artikel im Einzelnen","Login-Bereich app.helferbaer.de"],
+  "tools_available":["Live-HTTP/HTML-Collector","Playwright/Chromium-Rendering mobil/desktop","Lighthouse 12.8.2 (Labor)","axe-core 4.14.0","Websuche (US-only)"],
+  "tools_unavailable":["CrUX/PageSpeed-API (kein Schlüssel, HTTP 429)","Search Console","Analytics","lokalisierte DE-SERP-Abfrage"],
+  "capabilities":[{"id":"public_http_fetch","status":"available","note":"wird durch materialize ersetzt"}]},
+ "metrics":[],
+ "score_summary":{"label":"Score nicht belastbar","score":None,"display_status":"NO_SCORE","coverage_percent":0,"confidence":"LOW","interpretation":"wird durch compute_score ersetzt","blocker_present":False,"category_scores":[],"does_not_prove":["Kein universeller Qualitätsstandard.","Keine Ranking-, Umsatz- oder Anfrageprognose."],"policy_version":"2.0.0","registry_version":"1.0.0"},
+ "executive_summary":{"overall_status":"needs_action","decision":"Solide Basis mit klarem Angebot. Größte Hebel: lesbare Anfrage-Buttons, antippbare Telefonnummern, einheitliche Standortangaben.","recommended_route":"maintenance",
+  "top_risks":["Anfrage-Buttons haben nur 2,03:1 Kontrast.","Telefonnummern sind mobil nicht antippbar.","Standortangaben widersprechen sich zwischen den Seiten."],
+  "top_strengths":["Angebot, Pflegekassen-Abrechnung und Ablauf sind klar erklärt.","Google-Bewertungen 4,9 (31) und Presseberichte stärken Vertrauen.","Technische Basis mit HTTPS, Sitemap und Firmendaten ist solide."]},
+ "pillar_summary":[],"findings":F,
+ "scenario_horizons":[],
+ "options":[{"route":"monitor","evidence_basis":["F-011","F-012"]},{"route":"maintenance","evidence_basis":["F-001","F-002","F-003","F-005","F-006","F-008"]},{"route":"targeted_modernization","evidence_basis":["F-004","F-007"]}],
+ "roadmap":[
+  {"priority":"P1","horizon":"now","action":"Kontrast der orangen Anfrage-Buttons auf mindestens 4,5:1 anheben.","owner":"Design / Website-Pflege","evidence_basis":["F-001"]},
+  {"priority":"P1","horizon":"now","action":"Alle Telefonnummern antippbar machen und mobil einen Anruf-Button oben zeigen.","owner":"Website-Pflege","evidence_basis":["F-002"]},
+  {"priority":"P1","horizon":"0_30_days","action":"Eine Standortliste festlegen und überall angleichen; defekten E-Mail-Link reparieren.","owner":"Inhalte","evidence_basis":["F-003"]},
+  {"priority":"P2","horizon":"0_30_days","action":"Alte Entwurfs- und Kopie-Seiten entfernen und Sitemap bereinigen.","owner":"Website-Pflege","evidence_basis":["F-005"]},
+  {"priority":"P2","horizon":"0_30_days","action":"Nur einen deutschsprachigen Cookie-Hinweis verwenden.","owner":"Website-Pflege","evidence_basis":["F-006"]},
+  {"priority":"P2","horizon":"31_90_days","action":"Startseiten-Bilder verkleinern und mobil neu messen.","owner":"Website-Pflege / Hosting","evidence_basis":["F-004"]},
+  {"priority":"P3","horizon":"31_90_days","action":"Kennzahlen und Bewertungszusammenfassung als Text ausgeben.","owner":"Inhalte","evidence_basis":["F-007"]}],
+ "sources":[
+  {"id":"S-001","type":"primary","title":"Helferbär Startseite","location":B+"/","purpose":"First-Party-Evidenz Angebot, Zielgruppe, Standorte"},
+  {"id":"S-002","type":"primary","title":"Helferbär – Leistungen Alltagshilfe","location":B+"/leistungen-alltagshilfe","purpose":"Branchennachweis: lokale Dienstleistung (Alltagshilfe) mit Anfrage-Modell"},
+  {"id":"S-003","type":"primary","title":"Helferbär Impressum","location":B+"/impressum","purpose":"Anbieteridentität, Rechtsform, Register"},
+  {"id":"S-004","type":"primary","title":"web.dev – Web Vitals (zuletzt aktualisiert 2024-10-31)","location":"https://web.dev/articles/vitals","purpose":"LCP/CLS-Schwellen, abgerufen 2026-11-11"},
+  {"id":"S-005","type":"primary","title":"Lighthouse performance scoring","location":"https://developer.chrome.com/docs/lighthouse/performance/performance-scoring","purpose":"Score-Bänder, abgerufen 2026-11-11"},
+  {"id":"S-006","type":"primary","title":"W3C WCAG 2.2 SC 1.4.3 Contrast (Minimum)","location":"https://www.w3.org/TR/WCAG22/#contrast-minimum","purpose":"Kontrast-Zielwerte 4,5:1 / 3:1"},
+  {"id":"S-007","type":"uncertain","title":"Websuche-Stichprobe (US-only Suchwerkzeug), 8 Abfragen","location":"Claude WebSearch, 2026-11-11","purpose":"nicht gewertet: für DE-Markt nicht repräsentativ"},
+  {"id":"S-008","type":"secondary","title":"Drittanbieter-Verzeichnisse (pflege-helfer24.de, pflegesuche.de)","location":"https://pflege-helfer24.de/pflegedienste/helferbar","purpose":"Kontext: externe Einträge mit abweichenden Adressen/Standorten (nicht gewertet)"}],
+ "limitations":["Stichprobe von 13 öffentlichen Seiten; keine Aussage über die gesamte Website.","Labordaten (Lighthouse aus Rechenzentrum) sind keine Felddaten realer Besucher.","Kontrast-/Tastatur-/axe-Prüfungen sind Stichproben, keine WCAG-Konformitätsprüfung.","Datenschutz-Beobachtungen sind Oberflächenbefunde, kein Rechtsgutachten.","Keine Aussage zu Anfragezahlen, Umsatz oder Rankings."],
+ "missing":["CrUX-Felddaten","Repräsentative DE-Suchstichprobe","Search Console / Analytics des Inhabers"],
+ "source_needed":["Ob die Anerkennung als Angebot zur Unterstützung im Alltag eine Aufsichtsangabe im Impressum erfordert (§ 5 Abs. 1 Nr. 3 DDG) – fachliche Prüfung."],
+ "visualizations":[]}
+json.dump(rep,open(f'{A}/diagnosis-report-base.json','w'),ensure_ascii=False,indent=1)
+for f in F:
+    for k,lim in [('title',110),('client_observation',110),('client_impact',135),('client_action',125)]:
+        if len(f[k])>lim: print('TOO LONG',f['id'],k,len(f[k]))
+print('ok')

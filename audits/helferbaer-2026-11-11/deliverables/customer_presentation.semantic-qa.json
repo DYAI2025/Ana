@@ -1,0 +1,161 @@
+{
+ "schema_version": "1.1",
+ "pdf_path": "customer_presentation.pdf",
+ "pdf_sha256": "cb11cff45004ebad3d240a85b94c388bacc69d201cb6ce71caab2f437546e02b",
+ "client_model_path": "client-report-model.json",
+ "client_model_sha256": "9408ea4f32dfe1669998ca89d94c4b9dad7ce489b2b22121e27b349f32aa5834",
+ "scored_report_path": "diagnosis-report.json",
+ "scored_report_sha256": "e6d9aed69df22e661cc539b89aee79bff12f1426e22d5e3f91bf06360a05bd9b",
+ "customer": "Helferbär GmbH",
+ "page_count": 9,
+ "inspection_status": "PASS",
+ "inspection_method": "agent_vision",
+ "inspected_by": "Claude (agent_vision), Pixelkiez-Diagnose-Lauf 2026-11-11",
+ "overall_checks": {
+  "customer_specificity": true,
+  "plain_language_comprehension": true,
+  "scan_first_story": true,
+  "evidence_fidelity": true,
+  "priority_quality": true,
+  "quantitative_content_visualized": true,
+  "cross_page_coherence": true,
+  "actionability": true,
+  "no_generic_agency_copy": true,
+  "no_unsupported_business_claims": true,
+  "cover_message_complete": true,
+  "score_projection_correct": true,
+  "lever_business_impact_complete": true,
+  "privacy_claim_scope_correct": true,
+  "no_synthetic_metric_visuals": true
+ },
+ "pages": [
+  {
+   "page": 1,
+   "role": "cover",
+   "checks": {
+    "customer_specific": true,
+    "main_message_clear": true,
+    "scan_in_seconds": true,
+    "plain_language": true,
+    "evidence_faithful": true,
+    "visual_semantic_fit": true
+   },
+   "notes": "Cover: Firma, URL (Punycode-Schreibweise, korrekt aber technisch), Branche, Score 76 und vollständige Kernaussage sichtbar; kein Clipping."
+  },
+  {
+   "page": 2,
+   "role": "executive",
+   "checks": {
+    "customer_specific": true,
+    "main_message_clear": true,
+    "scan_in_seconds": true,
+    "plain_language": true,
+    "evidence_faithful": true,
+    "visual_semantic_fit": true
+   },
+   "notes": "Auf einen Blick: Score 76/100, Branchenfokus, wichtigster Hebel und 3 Prioritäten, datierter Grundlagensatz; lesbar."
+  },
+  {
+   "page": 3,
+   "role": "decision_visual",
+   "checks": {
+    "customer_specific": true,
+    "main_message_clear": true,
+    "scan_in_seconds": true,
+    "plain_language": true,
+    "evidence_faithful": true,
+    "visual_semantic_fit": true
+   },
+   "notes": "V02 Bereichsbalken 93/64/78/54/78 entsprechen category_scores; Vertrauen-Bereich wegen rechtlichem Prüfhinweis ausgelassen und im Untertitel benannt."
+  },
+  {
+   "page": 4,
+   "role": "decision_visual",
+   "checks": {
+    "customer_specific": true,
+    "main_message_clear": true,
+    "scan_in_seconds": true,
+    "plain_language": true,
+    "evidence_faithful": true,
+    "visual_semantic_fit": true
+   },
+   "notes": "V03 vier Hebel 1–4 ordinal, keine Scheingrößen; Texte vollständig."
+  },
+  {
+   "page": 5,
+   "role": "decision_visual",
+   "checks": {
+    "customer_specific": true,
+    "main_message_clear": true,
+    "scan_in_seconds": true,
+    "plain_language": true,
+    "evidence_faithful": true,
+    "visual_semantic_fit": true
+   },
+   "notes": "V08 KI-Lesbarkeit: Status je Metrik entspricht AI-01..07 (minor_gaps=Verbesserung sinnvoll, strong=Klar)."
+  },
+  {
+   "page": 6,
+   "role": "decision_visual",
+   "checks": {
+    "customer_specific": true,
+    "main_message_clear": true,
+    "scan_in_seconds": true,
+    "plain_language": true,
+    "evidence_faithful": true,
+    "visual_semantic_fit": true
+   },
+   "notes": "V10 Vertrauen: Impressum/Datenschutz bewusst 'Nicht belastbar bewertet' (Rechtsprojektion), übrige Status entsprechen TRUST-03..07; Label 'HTTPS-Verschlüsselung' meint HTTPS+Schutz-Header."
+  },
+  {
+   "page": 7,
+   "role": "findings",
+   "checks": {
+    "customer_specific": true,
+    "main_message_clear": true,
+    "scan_in_seconds": true,
+    "plain_language": true,
+    "evidence_faithful": true,
+    "visual_semantic_fit": true
+   },
+   "notes": "Vier Hebel mit Beobachtung, 'Warum das zählt' und nächstem Schritt; keine Überlappung, Sätze vollständig."
+  },
+  {
+   "page": 8,
+   "role": "roadmap",
+   "checks": {
+    "customer_specific": true,
+    "main_message_clear": true,
+    "scan_in_seconds": true,
+    "plain_language": true,
+    "evidence_faithful": true,
+    "visual_semantic_fit": true
+   },
+   "notes": "Fahrplan Jetzt/30 Tage/Danach befüllt (Leerspalte aus Entwurf 1 behoben); Fußzeile wiederholt erste Maßnahme (Template-Verhalten, unkritisch)."
+  },
+  {
+   "page": 9,
+   "role": "closing",
+   "checks": {
+    "customer_specific": true,
+    "main_message_clear": true,
+    "scan_in_seconds": true,
+    "plain_language": true,
+    "evidence_faithful": true,
+    "visual_semantic_fit": true
+   },
+   "notes": "Abschluss mit vier Maßnahmen und klarem nächsten Schritt; Untertitel knapp über weißer Box, keine Überlappung."
+  }
+ ],
+ "review_questions": [
+  "Würde der Kerninhalt ohne Firmenname/Logo noch konkrete Beobachtungen dieser Website enthalten?",
+  "Kann ein Nicht-Fachmann je Prioritätsseite in einem Satz Problem und nächsten Schritt erklären?",
+  "Sind direkt messbare oder zählbare Signale als Zahl/Visual sichtbar statt im Fließtext versteckt?",
+  "Passt jedes Visual zur Aussage der Seite und zum kanonischen Audit?",
+  "Sind die wichtigsten 3-4 Hebel des konkreten Kunden priorisiert statt generischer Agenturthemen?",
+  "Ist die Kernaussage auf Seite 1 vollständig sichtbar und nicht auf eine Folgeseite abgeschnitten?",
+  "Ist die Score-Darstellung exakt mit dem internen display_status konsistent?",
+  "Zeigt jeder der vier Hebel Befund, geschäftliche Wirkung und nächsten Schritt?"
+ ],
+ "inspection_note": "Seiten gegen client-report-model.json und diagnosis-report.json (gescored) abgeglichen: Score 76 FULL_SCORE korrekt projiziert; Hebel F-002/F-003/F-001/F-007 mit Evidenz (tel-Links 0, Standort-Widerspruch, Kontrast 2,03:1, statisches HTML ohne Kennzahlen); keine Rechts-/Conversion-Behauptungen."
+}

@@ -1,0 +1,308 @@
+{
+  "schema_version": "1.0",
+  "source_report_sha256": "e6d9aed69df22e661cc539b89aee79bff12f1426e22d5e3f91bf06360a05bd9b",
+  "brand_token_sha256": "40ab7151e12231e4ff889e9d23264be9075425fc00a2556f492477c741031e2d",
+  "top_levers": [
+    "F-002",
+    "F-003",
+    "F-001",
+    "F-007"
+  ],
+  "visuals": [
+    {
+      "id": "VIZ-001",
+      "template_id": "V02_CATEGORY_BARS",
+      "engine": "VEGA_LITE",
+      "status": "SELECTED",
+      "title": "Stärken und Schwächen nach Bereich",
+      "subtitle": "Wie die wichtigsten Bereiche der Website heute abschneiden; ohne Bereiche mit rechtlichem Prüfbedarf",
+      "metric_refs": [
+        "CATEGORY:findability_seo",
+        "CATEGORY:performance_technology",
+        "CATEGORY:ux_conversion",
+        "CATEGORY:accessibility",
+        "CATEGORY:ai_readiness"
+      ],
+      "finding_refs": [],
+      "evidence_class": "DERIVED",
+      "population": "5 bewertete Kategorien; ohne Balken wegen rechtlichem Prüfbedarf: trust_privacy_content",
+      "method": "Pixelkiez Bewertungsmodell",
+      "does_not_prove": "Bereichswerte sind keine externen Benchmarks und beweisen keine Geschäftswirkung.",
+      "data": [
+        {
+          "label": "Auffindbarkeit in Suchmaschinen",
+          "value": 93.0
+        },
+        {
+          "label": "Ladegeschwindigkeit & Technik",
+          "value": 64.0
+        },
+        {
+          "label": "Nutzerführung & Anfragen",
+          "value": 78.0
+        },
+        {
+          "label": "Barrierefreiheit",
+          "value": 54.0
+        },
+        {
+          "label": "KI-Verständlichkeit",
+          "value": 78.0
+        }
+      ]
+    },
+    {
+      "id": "VIZ-002",
+      "template_id": "V03_TOP_LEVERS",
+      "engine": "VEGA_LITE",
+      "status": "SELECTED",
+      "title": "Die vier wichtigsten Hebel",
+      "subtitle": "Nach geschäftlicher Bedeutung geordnet; die Reihenfolge der Umsetzung zeigt der Fahrplan",
+      "metric_refs": [
+        "UX-02",
+        "UX-04",
+        "TRUST-04",
+        "AI-06",
+        "AI-02",
+        "A11Y-04",
+        "A11Y-06",
+        "AI-05",
+        "AI-01"
+      ],
+      "finding_refs": [
+        "F-002",
+        "F-003",
+        "F-001",
+        "F-007"
+      ],
+      "evidence_class": "DERIVED_FROM_FINDINGS",
+      "population": "Vier priorisierte Website-Hebel",
+      "method": "Interne Priorisierung",
+      "does_not_prove": "Die Rangfolge ist ordinal. Sie enthält keine gemessene Größe, Umsatz- oder Aufwandsschätzung.",
+      "data": [
+        {
+          "label": "Auf dem Handy lassen sich die Telefonnummern auf Start- und Kontaktseite nicht antippen.",
+          "priority": 1
+        },
+        {
+          "label": "Die Seiten nennen andere Städte – mal Dresden, mal Hamburg; die Dresden-Seite trägt den Titel „Hamburg“.",
+          "priority": 2
+        },
+        {
+          "label": "Die orangen Anfrage-Buttons haben nur 2,03:1 Kontrast – empfohlen sind mindestens 4,5:1.",
+          "priority": 3
+        },
+        {
+          "label": "Kennzahlen und Google-Bewertungen werden erst per Skript geladen und fehlen im lesbaren Seitentext.",
+          "priority": 4
+        }
+      ]
+    },
+    {
+      "id": "VIZ-003",
+      "template_id": "V08_AI_ANSWERABILITY",
+      "engine": "VEGA_LITE",
+      "status": "SELECTED",
+      "title": "Wie eindeutig die Website Fragen beantwortet",
+      "subtitle": "Wie klar dieser Bereich heute aufgestellt ist",
+      "metric_refs": [
+        "AI-01",
+        "AI-02",
+        "AI-03",
+        "AI-04",
+        "AI-05",
+        "AI-06",
+        "AI-07"
+      ],
+      "finding_refs": [],
+      "evidence_class": "DIRECT",
+      "population": "7 Aspekte in diesem Bereich",
+      "method": "Pixelkiez metric-status projection",
+      "does_not_prove": "Maschinenlesbare Antworten belegen keine Nennung, Zitierung oder Platzierung in KI-Antworten.",
+      "data": [
+        {
+          "question": "Eindeutige Unternehmensdarstellung",
+          "metric_ref": "AI-01",
+          "status": "Verbesserung sinnvoll",
+          "symbol": "!",
+          "tone": "warn",
+          "value": 0.5
+        },
+        {
+          "question": "Leistung, Zielgruppe und Standort",
+          "metric_ref": "AI-02",
+          "status": "Verbesserung sinnvoll",
+          "symbol": "!",
+          "tone": "warn",
+          "value": 0.5
+        },
+        {
+          "question": "Antworten auf Kundenfragen",
+          "metric_ref": "AI-03",
+          "status": "Klar",
+          "symbol": "OK",
+          "tone": "good",
+          "value": 1.0
+        },
+        {
+          "question": "Strukturierte Zusammenfassungen & Schema",
+          "metric_ref": "AI-04",
+          "status": "Klar",
+          "symbol": "OK",
+          "tone": "good",
+          "value": 1.0
+        },
+        {
+          "question": "Belege für Nutzenversprechen",
+          "metric_ref": "AI-05",
+          "status": "Verbesserung sinnvoll",
+          "symbol": "!",
+          "tone": "warn",
+          "value": 0.5
+        },
+        {
+          "question": "Einheitliche Fakten",
+          "metric_ref": "AI-06",
+          "status": "Verbesserung sinnvoll",
+          "symbol": "!",
+          "tone": "warn",
+          "value": 0.5
+        },
+        {
+          "question": "Inhaltliche Tiefe",
+          "metric_ref": "AI-07",
+          "status": "Klar",
+          "symbol": "OK",
+          "tone": "good",
+          "value": 1.0
+        }
+      ]
+    },
+    {
+      "id": "VIZ-004",
+      "template_id": "V10_TRUST_MATRIX",
+      "engine": "VEGA_LITE",
+      "status": "SELECTED",
+      "title": "Vertrauen und Konsistenz",
+      "subtitle": "Wo Handlungsbedarf besteht und was bereits trägt",
+      "metric_refs": [
+        "TRUST-01",
+        "TRUST-02",
+        "TRUST-03",
+        "TRUST-04",
+        "TRUST-05",
+        "TRUST-06",
+        "TRUST-07"
+      ],
+      "finding_refs": [],
+      "evidence_class": "DIRECT",
+      "population": "7 Aspekte in diesem Bereich",
+      "method": "Pixelkiez four-state customer status projection",
+      "does_not_prove": "Handlungsbedarf ist ein technischer/inhaltlicher Befund und keine juristische Feststellung.",
+      "data": [
+        {
+          "signal": "Impressum und rechtliche Angaben (vorhanden)",
+          "metric_ref": "TRUST-01",
+          "status": "Nicht belastbar bewertet",
+          "symbol": "-",
+          "tone": "neutral",
+          "value": 0.42
+        },
+        {
+          "signal": "Datenschutz und Einwilligungen (vorhanden)",
+          "metric_ref": "TRUST-02",
+          "status": "Nicht belastbar bewertet",
+          "symbol": "-",
+          "tone": "neutral",
+          "value": 0.42
+        },
+        {
+          "signal": "HTTPS-Verschlüsselung",
+          "metric_ref": "TRUST-03",
+          "status": "Verbesserung sinnvoll",
+          "symbol": "!",
+          "tone": "warn",
+          "value": 0.5
+        },
+        {
+          "signal": "Einheitliche Firmendaten",
+          "metric_ref": "TRUST-04",
+          "status": "Verbesserung sinnvoll",
+          "symbol": "!",
+          "tone": "warn",
+          "value": 0.5
+        },
+        {
+          "signal": "Aktuelle Inhalte",
+          "metric_ref": "TRUST-05",
+          "status": "Verbesserung sinnvoll",
+          "symbol": "!",
+          "tone": "warn",
+          "value": 0.5
+        },
+        {
+          "signal": "Referenzen und Fallbelege",
+          "metric_ref": "TRUST-06",
+          "status": "Verbesserung sinnvoll",
+          "symbol": "!",
+          "tone": "warn",
+          "value": 0.5
+        },
+        {
+          "signal": "Kontakttransparenz",
+          "metric_ref": "TRUST-07",
+          "status": "Klar",
+          "symbol": "OK",
+          "tone": "good",
+          "value": 1.0
+        }
+      ]
+    }
+  ],
+  "excluded_candidates": [
+    {
+      "template_id": "V01_OVERALL_SCORE",
+      "reason": "COVER_OR_OVERVIEW_ONLY_NO_DUPLICATE_CHART_PAGE"
+    },
+    {
+      "template_id": "V07_PERFORMANCE_THRESHOLD",
+      "reason": "NO_DIRECT_VALUE_WITH_SUPPORTED_THRESHOLD"
+    },
+    {
+      "template_id": "V11_SEVERITY_DISTRIBUTION",
+      "reason": "INTERNAL_ONLY_FINDING_COUNT_WITHOUT_STRATEGIC_RELEVANCE"
+    },
+    {
+      "template_id": "V12_AUDIT_COVERAGE",
+      "reason": "INTERNAL_ONLY_NOT_CUSTOMER_VISIBLE"
+    },
+    {
+      "template_id": "V04_FINDABILITY_BENCHMARK",
+      "reason": "BENCHMARK_CONTEXT_MISSING"
+    },
+    {
+      "template_id": "V05_RANKING_POSITION",
+      "reason": "SERP_QUERY_CONTEXT_MISSING"
+    },
+    {
+      "template_id": "V06_QUERY_COVERAGE",
+      "reason": "NO_QUERY_LEVEL_MATRIX"
+    },
+    {
+      "template_id": "V09_AGENT_READINESS",
+      "reason": "NO_AGENT_TASK_MATRIX"
+    },
+    {
+      "template_id": "V13_IMPACT_EFFORT",
+      "reason": "NO_EVIDENCE_BOUND_EFFORT_VALUES"
+    },
+    {
+      "template_id": "V14_REPEAT_AUDIT",
+      "reason": "NO_PREVIOUS_COMPARABLE_AUDIT"
+    },
+    {
+      "template_id": "D01_PROCESS_FLOW",
+      "reason": "NO_STRUCTURAL_FLOW_REQUIRED_FOR_TOP_STORY"
+    }
+  ]
+}

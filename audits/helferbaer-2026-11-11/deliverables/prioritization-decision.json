@@ -1,0 +1,89 @@
+{
+  "mode": "APPROVED_INDUSTRY_PROFILE",
+  "reason": "APPROVED_PROFILE_AND_MATCHING_EVIDENCE_CONTEXT",
+  "profile_id": "PXK-IND-LOKALE-DIENSTLEISTUNG-ANFRAGE-v1",
+  "goal_override_used": false,
+  "score_changed": false,
+  "benchmark_comparison_authorized": false,
+  "profile_source_ref": "PXK-POLICY-2026-10-29: Auffangprofil fuer lokale Betriebe mit 5-50 Mitarbeitenden; Produktheuristik, keine Marktdaten",
+  "profile_basis": "PIXELKIEZ_PRODUCT_POLICY",
+  "identity_evidence_ref": "S-002",
+  "ordering": {
+    "scope": "SEVERITY_BAND",
+    "min_confidence": 4
+  },
+  "customer_framing": {
+    "label": "Lokale Dienstleistung",
+    "focus_line": "Gefunden werden in der Region, schnell Vertrauen aufbauen und einfach anfragen lassen."
+  },
+  "uncertainty": [],
+  "synthetic_test_profile": false,
+  "legacy_selected_ids": [
+    "F-001",
+    "F-002",
+    "F-003",
+    "F-004"
+  ],
+  "selected_lever_ids": [
+    "F-002",
+    "F-003",
+    "F-001",
+    "F-007"
+  ],
+  "displaced_legacy_ids": [
+    "F-004"
+  ],
+  "deviations": [
+    {
+      "finding_id": "F-002",
+      "legacy_rank": 2,
+      "selected_rank": 1,
+      "severity": "high",
+      "confidence": 5,
+      "category": "ux_conversion",
+      "category_weight": 22,
+      "role": null,
+      "reason": "APPROVED_PROFILE_SEVERITY_BAND_ORDER",
+      "profile_id": "PXK-IND-LOKALE-DIENSTLEISTUNG-ANFRAGE-v1"
+    },
+    {
+      "finding_id": "F-003",
+      "legacy_rank": 3,
+      "selected_rank": 2,
+      "severity": "high",
+      "confidence": 5,
+      "category": "trust_privacy_content",
+      "category_weight": 20,
+      "role": null,
+      "reason": "APPROVED_PROFILE_SEVERITY_BAND_ORDER",
+      "profile_id": "PXK-IND-LOKALE-DIENSTLEISTUNG-ANFRAGE-v1"
+    },
+    {
+      "finding_id": "F-001",
+      "legacy_rank": 1,
+      "selected_rank": 3,
+      "severity": "high",
+      "confidence": 5,
+      "category": "accessibility",
+      "category_weight": 10,
+      "role": null,
+      "reason": "APPROVED_PROFILE_SEVERITY_BAND_ORDER",
+      "profile_id": "PXK-IND-LOKALE-DIENSTLEISTUNG-ANFRAGE-v1"
+    },
+    {
+      "finding_id": "F-007",
+      "legacy_rank": null,
+      "selected_rank": 4,
+      "severity": "medium",
+      "confidence": 4,
+      "category": "ai_readiness",
+      "category_weight": 14,
+      "role": null,
+      "reason": "APPROVED_PROFILE_SEVERITY_BAND_ORDER",
+      "profile_id": "PXK-IND-LOKALE-DIENSTLEISTUNG-ANFRAGE-v1"
+    }
+  ],
+  "candidate_role_ids": [],
+  "customer_pdf_contains_priority_metadata": false,
+  "canonical_core_score_unchanged": true
+}

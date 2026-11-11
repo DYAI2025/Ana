@@ -1,0 +1,167 @@
+{
+  "$schema": "https://vega.github.io/schema/vega-lite/v6.json",
+  "description": "Pixelkiez approved template V08_AI_ANSWERABILITY: AI-Antwortbarkeit",
+  "usermeta": {
+    "template_id": "V08_AI_ANSWERABILITY",
+    "name": "AI-Antwortbarkeit",
+    "purpose": "Fragen x Antwortstatus",
+    "brand_contract": "pixelkiez-v1",
+    "visual_id": "VIZ-003",
+    "metric_refs": [
+      "AI-01",
+      "AI-02",
+      "AI-03",
+      "AI-04",
+      "AI-05",
+      "AI-06",
+      "AI-07"
+    ],
+    "finding_refs": [],
+    "evidence_class": "DIRECT",
+    "population": "7 Aspekte in diesem Bereich",
+    "method": "Pixelkiez metric-status projection",
+    "does_not_prove": "Maschinenlesbare Antworten belegen keine Nennung, Zitierung oder Platzierung in KI-Antworten.",
+    "brand_font_status": "EXACT",
+    "resolved_fonts": {
+      "display": "Schibsted Grotesk",
+      "data": "IBM Plex Mono"
+    }
+  },
+  "width": 620,
+  "height": 310,
+  "data": {
+    "values": [
+      {
+        "question": "Eindeutige Unternehmensdarstellung",
+        "metric_ref": "AI-01",
+        "status": "Verbesserung sinnvoll",
+        "symbol": "!",
+        "tone": "warn",
+        "value": 0.5
+      },
+      {
+        "question": "Leistung, Zielgruppe und Standort",
+        "metric_ref": "AI-02",
+        "status": "Verbesserung sinnvoll",
+        "symbol": "!",
+        "tone": "warn",
+        "value": 0.5
+      },
+      {
+        "question": "Antworten auf Kundenfragen",
+        "metric_ref": "AI-03",
+        "status": "Klar",
+        "symbol": "OK",
+        "tone": "good",
+        "value": 1.0
+      },
+      {
+        "question": "Strukturierte Zusammenfassungen & Schema",
+        "metric_ref": "AI-04",
+        "status": "Klar",
+        "symbol": "OK",
+        "tone": "good",
+        "value": 1.0
+      },
+      {
+        "question": "Belege für Nutzenversprechen",
+        "metric_ref": "AI-05",
+        "status": "Verbesserung sinnvoll",
+        "symbol": "!",
+        "tone": "warn",
+        "value": 0.5
+      },
+      {
+        "question": "Einheitliche Fakten",
+        "metric_ref": "AI-06",
+        "status": "Verbesserung sinnvoll",
+        "symbol": "!",
+        "tone": "warn",
+        "value": 0.5
+      },
+      {
+        "question": "Inhaltliche Tiefe",
+        "metric_ref": "AI-07",
+        "status": "Klar",
+        "symbol": "OK",
+        "tone": "good",
+        "value": 1.0
+      }
+    ]
+  },
+  "mark": {
+    "type": "rect",
+    "cornerRadius": 3
+  },
+  "encoding": {
+    "y": {
+      "field": "question",
+      "type": "nominal",
+      "axis": {
+        "title": null
+      }
+    },
+    "x": {
+      "field": "status",
+      "type": "nominal",
+      "axis": {
+        "title": null
+      }
+    },
+    "color": {
+      "field": "value",
+      "type": "quantitative",
+      "scale": {
+        "domain": [
+          0,
+          0.5,
+          1
+        ],
+        "range": [
+          "#FBE3DE",
+          "#FBF0DC",
+          "#E4F4EB"
+        ]
+      },
+      "legend": null
+    }
+  },
+  "config": {
+    "background": "#FFFFFF",
+    "font": "Schibsted Grotesk",
+    "title": {
+      "font": "Schibsted Grotesk",
+      "fontSize": 18,
+      "fontWeight": 700,
+      "color": "#0E1414",
+      "anchor": "start"
+    },
+    "axis": {
+      "labelFont": "IBM Plex Mono",
+      "labelFontSize": 11,
+      "titleFont": "Schibsted Grotesk",
+      "titleFontSize": 12,
+      "labelColor": "#0E1414",
+      "titleColor": "#0E1414",
+      "gridColor": "#C6D4D1",
+      "domainColor": "#566360",
+      "tickColor": "#566360"
+    },
+    "legend": {
+      "labelFont": "Schibsted Grotesk",
+      "labelFontSize": 11,
+      "titleFont": "Schibsted Grotesk",
+      "titleFontSize": 12,
+      "labelColor": "#0E1414",
+      "titleColor": "#0E1414"
+    },
+    "view": {
+      "stroke": null
+    }
+  },
+  "title": {
+    "text": "Wie eindeutig die Website Fragen beantwortet",
+    "subtitle": "Wie klar dieser Bereich heute aufgestellt ist",
+    "anchor": "start"
+  }
+}
