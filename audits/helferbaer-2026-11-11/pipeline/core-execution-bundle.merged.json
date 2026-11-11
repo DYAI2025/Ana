@@ -1,0 +1,1922 @@
+{
+  "schema_version": "1.0",
+  "binding_contract_version": "1.0.0",
+  "target_url": "https://www.xn--helferbr-6za.de/",
+  "execution_run_id": "pxk-live-ae9a2e9a45ca",
+  "mode": "LIVE",
+  "generated_at": "2026-11-11T20:20:07Z",
+  "evidence_catalog": [
+    {
+      "id": "E-2001",
+      "source_family": "PUBLIC_DETERMINISTIC_TECHNICAL",
+      "target_url": "https://www.xn--helferbr-6za.de/",
+      "status": "MEASURED",
+      "evidence_grade": "E4",
+      "digest": "85ad6457ecaf7b9ece29a57caf591a7f59d679984d8d6b11d912af8e2f67f921",
+      "reference": "pxk-collect://pxk-live-ae9a2e9a45ca/FIND-01",
+      "claim_boundary": "Live public read-only sample by the Pixelkiez evidence collector; sampled pages only, not a whole-domain, legal, security or user-behaviour statement.",
+      "raw_provider_payload_present": false
+    },
+    {
+      "id": "E-2002",
+      "source_family": "PUBLIC_DETERMINISTIC_TECHNICAL",
+      "target_url": "https://www.xn--helferbr-6za.de/",
+      "status": "MEASURED",
+      "evidence_grade": "E4",
+      "digest": "8762f0088d4e77e2c808672512e3caac83477dd45b5feac4785dc739d00e7820",
+      "reference": "pxk-collect://pxk-live-ae9a2e9a45ca/FIND-02",
+      "claim_boundary": "Live public read-only sample by the Pixelkiez evidence collector; sampled pages only, not a whole-domain, legal, security or user-behaviour statement.",
+      "raw_provider_payload_present": false
+    },
+    {
+      "id": "E-2003",
+      "source_family": "STRUCTURED_CONTENT_DOM_METADATA",
+      "target_url": "https://www.xn--helferbr-6za.de/",
+      "status": "OBSERVED",
+      "evidence_grade": "E4",
+      "digest": "48418e9a7bc008dcc15785bc1cb8bd320735e2d336f3a6c024a0a5491cc7295d",
+      "reference": "pxk-collect://pxk-live-ae9a2e9a45ca/FIND-03",
+      "claim_boundary": "Live public read-only sample by the Pixelkiez evidence collector; sampled pages only, not a whole-domain, legal, security or user-behaviour statement.",
+      "raw_provider_payload_present": false
+    },
+    {
+      "id": "E-2004",
+      "source_family": "STRUCTURED_CONTENT_DOM_METADATA",
+      "target_url": "https://www.xn--helferbr-6za.de/",
+      "status": "OBSERVED",
+      "evidence_grade": "E4",
+      "digest": "ffc7e1539981baa1da6a9fbda8377b953a66e0b98a51433aa049301c366ef21c",
+      "reference": "pxk-collect://pxk-live-ae9a2e9a45ca/FIND-06",
+      "claim_boundary": "Live public read-only sample by the Pixelkiez evidence collector; sampled pages only, not a whole-domain, legal, security or user-behaviour statement.",
+      "raw_provider_payload_present": false
+    },
+    {
+      "id": "E-2005",
+      "source_family": "STRUCTURED_CONTENT_DOM_METADATA",
+      "target_url": "https://www.xn--helferbr-6za.de/",
+      "status": "OBSERVED",
+      "evidence_grade": "E4",
+      "digest": "3671c60e49c48603cd33131b95dec901322acec67e5982eb2895c5d7ee78bd08",
+      "reference": "pxk-collect://pxk-live-ae9a2e9a45ca/FIND-07",
+      "claim_boundary": "Live public read-only sample by the Pixelkiez evidence collector; sampled pages only, not a whole-domain, legal, security or user-behaviour statement.",
+      "raw_provider_payload_present": false
+    },
+    {
+      "id": "E-2006",
+      "source_family": "PUBLIC_DETERMINISTIC_TECHNICAL",
+      "target_url": "https://www.xn--helferbr-6za.de/",
+      "status": "MEASURED",
+      "evidence_grade": "E4",
+      "digest": "54b178925f93d02db548cd7b9693fba37cc98ec74336734ff08a0cff935a934f",
+      "reference": "pxk-collect://pxk-live-ae9a2e9a45ca/FIND-08",
+      "claim_boundary": "Live public read-only sample by the Pixelkiez evidence collector; sampled pages only, not a whole-domain, legal, security or user-behaviour statement.",
+      "raw_provider_payload_present": false
+    },
+    {
+      "id": "E-2007",
+      "source_family": "STRUCTURED_CONTENT_DOM_METADATA",
+      "target_url": "https://www.xn--helferbr-6za.de/",
+      "status": "OBSERVED",
+      "evidence_grade": "E4",
+      "digest": "9ca1bacedac10d14a6ebb0ab29b1504491071cd09a55bea3df868f50b8c3eef3",
+      "reference": "pxk-collect://pxk-live-ae9a2e9a45ca/FIND-09",
+      "claim_boundary": "Live public read-only sample by the Pixelkiez evidence collector; sampled pages only, not a whole-domain, legal, security or user-behaviour statement.",
+      "raw_provider_payload_present": false
+    },
+    {
+      "id": "E-2008",
+      "source_family": "STRUCTURED_CONTENT_DOM_METADATA",
+      "target_url": "https://www.xn--helferbr-6za.de/",
+      "status": "OBSERVED",
+      "evidence_grade": "E4",
+      "digest": "0206cab413da6ab681bdf6345e1d2e3c17220d523fe1482cbc8a21d791accd06",
+      "reference": "pxk-collect://pxk-live-ae9a2e9a45ca/FIND-10",
+      "claim_boundary": "Live public read-only sample by the Pixelkiez evidence collector; sampled pages only, not a whole-domain, legal, security or user-behaviour statement.",
+      "raw_provider_payload_present": false
+    },
+    {
+      "id": "E-2009",
+      "source_family": "PUBLIC_DETERMINISTIC_TECHNICAL",
+      "target_url": "https://www.xn--helferbr-6za.de/",
+      "status": "MEASURED",
+      "evidence_grade": "E4",
+      "digest": "e1757316235b0f451b7992fa621ed9abb864d5e3777f6c91b4be60a1cd3da442",
+      "reference": "pxk-collect://pxk-live-ae9a2e9a45ca/PERF-04",
+      "claim_boundary": "Live public read-only sample by the Pixelkiez evidence collector; sampled pages only, not a whole-domain, legal, security or user-behaviour statement.",
+      "raw_provider_payload_present": false
+    },
+    {
+      "id": "E-2010",
+      "source_family": "PUBLIC_DETERMINISTIC_TECHNICAL",
+      "target_url": "https://www.xn--helferbr-6za.de/",
+      "status": "MEASURED",
+      "evidence_grade": "E4",
+      "digest": "2221fc866d6ab4bc10faa4ba6e88780cf753bb5775fc81f25be255fede064151",
+      "reference": "pxk-collect://pxk-live-ae9a2e9a45ca/PERF-05",
+      "claim_boundary": "Live public read-only sample by the Pixelkiez evidence collector; sampled pages only, not a whole-domain, legal, security or user-behaviour statement.",
+      "raw_provider_payload_present": false
+    },
+    {
+      "id": "E-2011",
+      "source_family": "PUBLIC_DETERMINISTIC_TECHNICAL",
+      "target_url": "https://www.xn--helferbr-6za.de/",
+      "status": "MEASURED",
+      "evidence_grade": "E4",
+      "digest": "8ee3a2d73a0b6798c1d728790291b6ef830aa3e57ad8a004300827b33231a5ff",
+      "reference": "pxk-collect://pxk-live-ae9a2e9a45ca/PERF-06",
+      "claim_boundary": "Live public read-only sample by the Pixelkiez evidence collector; sampled pages only, not a whole-domain, legal, security or user-behaviour statement.",
+      "raw_provider_payload_present": false
+    },
+    {
+      "id": "E-2012",
+      "source_family": "PUBLIC_DETERMINISTIC_TECHNICAL",
+      "target_url": "https://www.xn--helferbr-6za.de/",
+      "status": "MEASURED",
+      "evidence_grade": "E4",
+      "digest": "1819fe44ef9c43ba73bd5023e4dc26ac9c116e6a28e300729a1142c95f526121",
+      "reference": "pxk-collect://pxk-live-ae9a2e9a45ca/PERF-07",
+      "claim_boundary": "Live public read-only sample by the Pixelkiez evidence collector; sampled pages only, not a whole-domain, legal, security or user-behaviour statement.",
+      "raw_provider_payload_present": false
+    },
+    {
+      "id": "E-2013",
+      "source_family": "STRUCTURED_CONTENT_DOM_METADATA",
+      "target_url": "https://www.xn--helferbr-6za.de/",
+      "status": "OBSERVED",
+      "evidence_grade": "E4",
+      "digest": "17993ad101881c440e4af1ee11d425ce7c1c86bd755c55377af7f15e3c32b836",
+      "reference": "pxk-collect://pxk-live-ae9a2e9a45ca/PERF-09",
+      "claim_boundary": "Live public read-only sample by the Pixelkiez evidence collector; sampled pages only, not a whole-domain, legal, security or user-behaviour statement.",
+      "raw_provider_payload_present": false
+    },
+    {
+      "id": "E-2014",
+      "source_family": "STRUCTURED_CONTENT_DOM_METADATA",
+      "target_url": "https://www.xn--helferbr-6za.de/",
+      "status": "OBSERVED",
+      "evidence_grade": "E4",
+      "digest": "d2147b6a4458966ba6d12c17ee8c2c9fe46b0ffb23f8248052a709e08d545a30",
+      "reference": "pxk-collect://pxk-live-ae9a2e9a45ca/A11Y-02",
+      "claim_boundary": "Live public read-only sample by the Pixelkiez evidence collector; sampled pages only, not a whole-domain, legal, security or user-behaviour statement.",
+      "raw_provider_payload_present": false
+    },
+    {
+      "id": "E-2015",
+      "source_family": "STRUCTURED_CONTENT_DOM_METADATA",
+      "target_url": "https://www.xn--helferbr-6za.de/",
+      "status": "OBSERVED",
+      "evidence_grade": "E4",
+      "digest": "80f63f8f43e0e0412ceb997488b1e1a77fa2832912b9c80628d0298f036f05a0",
+      "reference": "pxk-collect://pxk-live-ae9a2e9a45ca/A11Y-03",
+      "claim_boundary": "Live public read-only sample by the Pixelkiez evidence collector; sampled pages only, not a whole-domain, legal, security or user-behaviour statement.",
+      "raw_provider_payload_present": false
+    },
+    {
+      "id": "E-2016",
+      "source_family": "STRUCTURED_CONTENT_DOM_METADATA",
+      "target_url": "https://www.xn--helferbr-6za.de/",
+      "status": "OBSERVED",
+      "evidence_grade": "E4",
+      "digest": "6c4c02c0bcadd67fbbd45d7a8fe4924bd58b55987b87b6dcc962651885f2c388",
+      "reference": "pxk-collect://pxk-live-ae9a2e9a45ca/A11Y-05",
+      "claim_boundary": "Live public read-only sample by the Pixelkiez evidence collector; sampled pages only, not a whole-domain, legal, security or user-behaviour statement.",
+      "raw_provider_payload_present": false
+    },
+    {
+      "id": "E-2017",
+      "source_family": "RULE_BASED_QUALITATIVE_OBSERVATION",
+      "target_url": "https://www.xn--helferbr-6za.de/",
+      "status": "OBSERVED",
+      "evidence_grade": "E4",
+      "digest": "cdf167715043d68ae97a493cfa1838b3875b1fd2772673b462a4755ad342ba30",
+      "reference": "pxk-collect://pxk-live-ae9a2e9a45ca/TRUST-01",
+      "claim_boundary": "Live public read-only sample by the Pixelkiez evidence collector; sampled pages only, not a whole-domain, legal, security or user-behaviour statement.",
+      "raw_provider_payload_present": false
+    },
+    {
+      "id": "E-2018",
+      "source_family": "RULE_BASED_QUALITATIVE_OBSERVATION",
+      "target_url": "https://www.xn--helferbr-6za.de/",
+      "status": "OBSERVED",
+      "evidence_grade": "E4",
+      "digest": "1b19fd39bcb8287aa5b484ef2753d8e6771f417caf00ee7d63c62ec1b5ccc277",
+      "reference": "pxk-collect://pxk-live-ae9a2e9a45ca/TRUST-02",
+      "claim_boundary": "Live public read-only sample by the Pixelkiez evidence collector; sampled pages only, not a whole-domain, legal, security or user-behaviour statement.",
+      "raw_provider_payload_present": false
+    },
+    {
+      "id": "E-2019",
+      "source_family": "PUBLIC_DETERMINISTIC_TECHNICAL",
+      "target_url": "https://www.xn--helferbr-6za.de/",
+      "status": "MEASURED",
+      "evidence_grade": "E4",
+      "digest": "71f003d74914939e540254da789c821807d4707275798f3dcb55b349a2426f8b",
+      "reference": "pxk-collect://pxk-live-ae9a2e9a45ca/TRUST-03",
+      "claim_boundary": "Live public read-only sample by the Pixelkiez evidence collector; sampled pages only, not a whole-domain, legal, security or user-behaviour statement.",
+      "raw_provider_payload_present": false
+    },
+    {
+      "id": "E-2020",
+      "source_family": "RULE_BASED_QUALITATIVE_OBSERVATION",
+      "target_url": "https://www.xn--helferbr-6za.de/",
+      "status": "OBSERVED",
+      "evidence_grade": "E4",
+      "digest": "16b3699f1f31e0440de1f807b648a8fed4dccc8a2103a34aa2f68355b53b1552",
+      "reference": "pxk-collect://pxk-live-ae9a2e9a45ca/TRUST-07",
+      "claim_boundary": "Live public read-only sample by the Pixelkiez evidence collector; sampled pages only, not a whole-domain, legal, security or user-behaviour statement.",
+      "raw_provider_payload_present": false
+    },
+    {
+      "id": "E-2021",
+      "source_family": "STRUCTURED_CONTENT_DOM_METADATA",
+      "target_url": "https://www.xn--helferbr-6za.de/",
+      "status": "OBSERVED",
+      "evidence_grade": "E4",
+      "digest": "de8dbaf9fda303cf6ff5edf9507307ab24c1fee4eefabe5d2126d5bb0ac1af5c",
+      "reference": "pxk-collect://pxk-live-ae9a2e9a45ca/AI-04",
+      "claim_boundary": "Live public read-only sample by the Pixelkiez evidence collector; sampled pages only, not a whole-domain, legal, security or user-behaviour statement.",
+      "raw_provider_payload_present": false
+    },
+    {
+      "id": "E-5001",
+      "source_family": "BROWSER_RENDERING",
+      "target_url": "https://www.xn--helferbr-6za.de/",
+      "status": "OBSERVED",
+      "evidence_grade": "E4",
+      "digest": "178f4598f5471c45f35a7d33e4cad689f9a13415270aa7551382f7b2dcffa185",
+      "reference": "Playwright/Chromium-Rendering von 10 Seiten (Start, Leistungen, Alltagshilfe, Berlin, Kontakt, Über uns, FAQ, Ratgeber, Impressum, Pflegeberatung) bei 390x844 und 1440x900, abgerufen 2026-11-11",
+      "claim_boundary": "Stichprobe 10 Seiten, zwei Viewports, Rechenzentrums-Netz",
+      "raw_provider_payload_present": false
+    },
+    {
+      "id": "E-5002",
+      "source_family": "BROWSER_RENDERING",
+      "target_url": "https://www.xn--helferbr-6za.de/",
+      "status": "OBSERVED",
+      "evidence_grade": "E4",
+      "digest": "cd6af47655a196d410263b7e14341b7e0a00064e5cf705e9575b2a788d674d39",
+      "reference": "iPhone-13-Emulation (Playwright devices) Start/Kontakt/Berlin/Alltagshilfe, Cookie-Banner abgelehnt, abgerufen 2026-11-11",
+      "claim_boundary": "Emulation, kein echtes Gerät",
+      "raw_provider_payload_present": false
+    },
+    {
+      "id": "E-5003",
+      "source_family": "BROWSER_RENDERING",
+      "target_url": "https://www.xn--helferbr-6za.de/",
+      "status": "OBSERVED",
+      "evidence_grade": "E4",
+      "digest": "91d807efb251cc2c9fa83d72081444fb44b7bd5b2ed7e9aab66be5ab938dd33c",
+      "reference": "Tastatur-Stichprobe: 30 Tab-Stopps je Seite auf / und /kontakt (Desktop 1440x900), Fokus-Stil per getComputedStyle, 2026-11-11",
+      "claim_boundary": "30 Tab-Stopps je Seite, automatisiert, kein Screenreader-Test",
+      "raw_provider_payload_present": false
+    },
+    {
+      "id": "E-5004",
+      "source_family": "BROWSER_RENDERING",
+      "target_url": "https://www.xn--helferbr-6za.de/",
+      "status": "OBSERVED",
+      "evidence_grade": "E4",
+      "digest": "91d807efb251cc2c9fa83d72081444fb44b7bd5b2ed7e9aab66be5ab938dd33c",
+      "reference": "Kontrast-Stichprobe: berechnetes Kontrastverhältnis (WCAG-2-Formel) für eindeutige Text/Hintergrund-Kombinationen auf / und /kontakt, 2026-11-11",
+      "claim_boundary": "nur einfarbige Hintergründe; Texte auf Bildern ausgenommen",
+      "raw_provider_payload_present": false
+    },
+    {
+      "id": "E-5005",
+      "source_family": "BROWSER_RENDERING",
+      "target_url": "https://www.xn--helferbr-6za.de/",
+      "status": "OBSERVED",
+      "evidence_grade": "E5",
+      "digest": "91d807efb251cc2c9fa83d72081444fb44b7bd5b2ed7e9aab66be5ab938dd33c",
+      "reference": "axe-core 4.14.0, Tags wcag2a/wcag2aa/wcag21a/wcag21aa, Seiten / und /kontakt nach Ablehnen des Cookie-Banners, 2026-11-11",
+      "claim_boundary": "automatisierter Lauf, 2 Seiten, keine WCAG-Konformitätsaussage",
+      "raw_provider_payload_present": false
+    },
+    {
+      "id": "E-5006",
+      "source_family": "PERFORMANCE_CWV_LAB",
+      "target_url": "https://www.xn--helferbr-6za.de/",
+      "status": "MEASURED",
+      "evidence_grade": "E2",
+      "digest": "191424769d9e2f2d75fa73389be592bbf7b9d3de819cef2c4dcc620a50be87d6",
+      "reference": "Lighthouse 12.8.2 CLI, formFactor mobile, simulierte Drosselung, 3 Läufe Startseite, Median, 2026-11-11",
+      "claim_boundary": "Labordaten aus Rechenzentrum, keine Felddaten",
+      "raw_provider_payload_present": false
+    },
+    {
+      "id": "E-5007",
+      "source_family": "PERFORMANCE_CWV_LAB",
+      "target_url": "https://www.xn--helferbr-6za.de/",
+      "status": "MEASURED",
+      "evidence_grade": "E2",
+      "digest": "d289011db99a6a152e6a0c6c8aa10eeab2088107192c9646112d918fcf636278",
+      "reference": "Lighthouse 12.8.2 CLI, --preset=desktop, 3 Läufe Startseite, Median, 2026-11-11",
+      "claim_boundary": "Labordaten aus Rechenzentrum, keine Felddaten",
+      "raw_provider_payload_present": false
+    },
+    {
+      "id": "E-5008",
+      "source_family": "RULE_BASED_QUALITATIVE_OBSERVATION",
+      "target_url": "https://www.xn--helferbr-6za.de/",
+      "status": "OBSERVED",
+      "evidence_grade": "E6",
+      "digest": "178f4598f5471c45f35a7d33e4cad689f9a13415270aa7551382f7b2dcffa185",
+      "reference": "Lesen der gerenderten Seitentexte (innerText) der 10 Stichprobenseiten, 2026-11-11",
+      "claim_boundary": "Stichprobe; strukturierte Expertenbeobachtung nach Pixelkiez-Rubrik",
+      "raw_provider_payload_present": false
+    },
+    {
+      "id": "E-5009",
+      "source_family": "RULE_BASED_QUALITATIVE_OBSERVATION",
+      "target_url": "https://www.xn--helferbr-6za.de/",
+      "status": "OBSERVED",
+      "evidence_grade": "E4",
+      "digest": "bc6db3050363192caa58b532acf0901f73bbb6dbff1f352e3914b1c0f5862cdc",
+      "reference": "Abgleich Standort-/Kontaktangaben: Startseite, FAQ, Alltagshilfe, Über uns, /hamburg, /dresden, Header-/Footer-Links, 2026-11-11",
+      "claim_boundary": "direkt reproduzierbare öffentliche Beobachtung, Stichprobe",
+      "raw_provider_payload_present": false
+    },
+    {
+      "id": "E-5010",
+      "source_family": "STRUCTURED_CONTENT_DOM_METADATA",
+      "target_url": "https://www.xn--helferbr-6za.de/",
+      "status": "OBSERVED",
+      "evidence_grade": "E4",
+      "digest": "158baae27b624519cbfea4d5658827e1c5929a1ba5a4840e62bee6f94ef3d965",
+      "reference": "HTTP-Abruf von 8 Sitemap-URLs mit Alt-/Entwurfs-/Kopie-Charakter: Status 200, kein robots-noindex, Canonical auf sich selbst, 2026-11-11",
+      "claim_boundary": "8 geprüfte URLs aus der Sitemap",
+      "raw_provider_payload_present": false
+    },
+    {
+      "id": "E-5011",
+      "source_family": "STRUCTURED_CONTENT_DOM_METADATA",
+      "target_url": "https://www.xn--helferbr-6za.de/",
+      "status": "OBSERVED",
+      "evidence_grade": "E4",
+      "digest": "b2c1af969fafc2c009319a293fd9a6aebf3b234a64669deb4331aaba10c6ea6b",
+      "reference": "Statisches HTML der Startseite (ohne JavaScript) abgerufen 2026-11-11: Kennzahlen-Werte und Google-Bewertungen fehlen im Text",
+      "claim_boundary": "nur Startseite",
+      "raw_provider_payload_present": false
+    },
+    {
+      "id": "E-5012",
+      "source_family": "RULE_BASED_QUALITATIVE_OBSERVATION",
+      "target_url": "https://www.xn--helferbr-6za.de/",
+      "status": "OBSERVED",
+      "evidence_grade": "E6",
+      "digest": "7810395a9d2bfdc024f482524b360b2f36da657d1c3ab32de7a54343bb36b033",
+      "reference": "Vergleich statisches HTML vs. gerenderte Startseite, 2026-11-11",
+      "claim_boundary": "nur Startseite",
+      "raw_provider_payload_present": false
+    },
+    {
+      "id": "E-5013",
+      "source_family": "RULE_BASED_QUALITATIVE_OBSERVATION",
+      "target_url": "https://www.xn--helferbr-6za.de/",
+      "status": "OBSERVED",
+      "evidence_grade": "E6",
+      "digest": "158baae27b624519cbfea4d5658827e1c5929a1ba5a4840e62bee6f94ef3d965",
+      "reference": "Inhaltliche Einordnung der 8 Alt-/Entwurfs-/Kopie-Seiten aus der Sitemap, 2026-11-11",
+      "claim_boundary": "8 URLs",
+      "raw_provider_payload_present": false
+    }
+  ],
+  "results": [
+    {
+      "metric_id": "FIND-01",
+      "target_url": "https://www.xn--helferbr-6za.de/",
+      "source_family": "PUBLIC_DETERMINISTIC_TECHNICAL",
+      "execution_state": "MEASURED",
+      "evidence_grade": "E4",
+      "value": {
+        "requested_url": "https://www.xn--helferbr-6za.de/",
+        "final_url": "https://www.xn--helferbr-6za.de/",
+        "http_status": 200,
+        "redirect_hops": 0,
+        "redirect_chain": [],
+        "https_final": true,
+        "status_rule": "4xx/5xx=blocking; final URL not HTTPS=mixed; >2 redirect hops=minor_gaps; else strong",
+        "collector_version": "1.0.0"
+      },
+      "unit": null,
+      "evidence_refs": [
+        "E-2001"
+      ],
+      "source_or_method": "Fetch canonical public URL and record status/final URL. Pixelkiez evidence collector 1.0.0: 4xx/5xx=blocking; final URL not HTTPS=mixed; >2 redirect hops=minor_gaps; else strong",
+      "limitation": "Reachability does not prove indexation or search demand. Sampled public pages only; static HTML without JavaScript execution.",
+      "product_status": "strong",
+      "threshold_source": null,
+      "confidence": 5,
+      "observed_at": "2026-11-11T20:20:07Z",
+      "reason_codes": [],
+      "note": "LIVE_PUBLIC_COLLECTOR",
+      "raw_provider_payload_present": false
+    },
+    {
+      "metric_id": "FIND-02",
+      "target_url": "https://www.xn--helferbr-6za.de/",
+      "source_family": "PUBLIC_DETERMINISTIC_TECHNICAL",
+      "execution_state": "MEASURED",
+      "evidence_grade": "E4",
+      "value": {
+        "robots_status": 200,
+        "disallow_all_for_user_agent_star": false,
+        "sitemaps": [
+          {
+            "url": "https://www.xn--helferbr-6za.de/sitemap.xml",
+            "status": 200,
+            "error": null,
+            "loc_count": 64
+          }
+        ],
+        "sitemap_url_count": 64,
+        "status_rule": "Disallow:/ for *=blocking; robots 200 and sitemap with URLs=strong; one of both=minor_gaps; none=weak",
+        "collector_version": "1.0.0"
+      },
+      "unit": null,
+      "evidence_refs": [
+        "E-2002"
+      ],
+      "source_or_method": "Fetch robots.txt and sitemap locations when public. Pixelkiez evidence collector 1.0.0: Disallow:/ for *=blocking; robots 200 and sitemap with URLs=strong; one of both=minor_gaps; none=weak",
+      "limitation": "Presence does not prove complete crawl coverage or indexation. Sampled public pages only; static HTML without JavaScript execution.",
+      "product_status": "strong",
+      "threshold_source": null,
+      "confidence": 5,
+      "observed_at": "2026-11-11T20:20:07Z",
+      "reason_codes": [],
+      "note": "LIVE_PUBLIC_COLLECTOR",
+      "raw_provider_payload_present": false
+    },
+    {
+      "metric_id": "FIND-03",
+      "target_url": "https://www.xn--helferbr-6za.de/",
+      "source_family": "STRUCTURED_CONTENT_DOM_METADATA",
+      "execution_state": "OBSERVED",
+      "evidence_grade": "E4",
+      "value": {
+        "pages": [
+          {
+            "url": "https://www.xn--helferbr-6za.de/",
+            "kind": "home",
+            "noindex": false,
+            "canonical": "https://www.xn--helferbr-6za.de/",
+            "canonical_same_host": true,
+            "canonical_self": true
+          },
+          {
+            "url": "https://www.xn--helferbr-6za.de/impressum",
+            "kind": "impressum",
+            "noindex": false,
+            "canonical": "https://www.xn--helferbr-6za.de/impressum",
+            "canonical_same_host": true,
+            "canonical_self": true
+          },
+          {
+            "url": "https://www.xn--helferbr-6za.de/privacyb505f5ef",
+            "kind": "datenschutz",
+            "noindex": false,
+            "canonical": "https://www.xn--helferbr-6za.de/privacyb505f5ef",
+            "canonical_same_host": true,
+            "canonical_self": true
+          },
+          {
+            "url": "https://www.xn--helferbr-6za.de/kontakt",
+            "kind": "kontakt",
+            "noindex": false,
+            "canonical": "https://www.xn--helferbr-6za.de/kontakt",
+            "canonical_same_host": true,
+            "canonical_self": true
+          },
+          {
+            "url": "https://www.xn--helferbr-6za.de/unsere-dienstleistungen",
+            "kind": "leistungen",
+            "noindex": false,
+            "canonical": "https://www.xn--helferbr-6za.de/unsere-dienstleistungen",
+            "canonical_same_host": true,
+            "canonical_self": true
+          },
+          {
+            "url": "https://www.xn--helferbr-6za.de/ueber-uns",
+            "kind": "ueber",
+            "noindex": false,
+            "canonical": "https://www.xn--helferbr-6za.de/ueber-uns",
+            "canonical_same_host": true,
+            "canonical_self": true
+          }
+        ],
+        "pages_with_canonical": 6,
+        "sampled_pages": 6,
+        "status_rule": "homepage noindex=blocking; content page noindex or foreign canonical=mixed; canonical on all sampled pages=strong; else minor_gaps",
+        "collector_version": "1.0.0"
+      },
+      "unit": null,
+      "evidence_refs": [
+        "E-2003"
+      ],
+      "source_or_method": "Inspect index directives, canonical tags and redirect behavior on sampled templates. Pixelkiez evidence collector 1.0.0: homepage noindex=blocking; content page noindex or foreign canonical=mixed; canonical on all sampled pages=strong; else minor_gaps",
+      "limitation": "Sampled directives do not prove full-domain index state. Sampled public pages only; static HTML without JavaScript execution.",
+      "product_status": "strong",
+      "threshold_source": null,
+      "confidence": 4,
+      "observed_at": "2026-11-11T20:20:07Z",
+      "reason_codes": [],
+      "note": "LIVE_PUBLIC_COLLECTOR",
+      "raw_provider_payload_present": false
+    },
+    {
+      "metric_id": "FIND-04",
+      "source_family": "SEARCH_INDEXING_SERP",
+      "execution_state": "UNAVAILABLE",
+      "evidence_grade": "E8",
+      "value": null,
+      "unit": null,
+      "evidence_refs": [],
+      "source_or_method": "Agent-Versuch, siehe note",
+      "limitation": "nicht gemessen; keine Aussage über die Website",
+      "product_status": null,
+      "threshold_source": null,
+      "confidence": 1,
+      "observed_at": "2026-11-11T20:40:00Z",
+      "reason_codes": [
+        "EVIDENCE_UNAVAILABLE"
+      ],
+      "note": "Versuch 2026-11-11: verfügbares Suchwerkzeug ist US-only mit nicht offengelegtem Index; Markenabfrage „Helferbär Entlastungsdienst“ zeigte nur Verzeichnisse. Für den deutschen Zielmarkt nicht repräsentativ -> nicht gewertet. Bing-de-Abfrage per HTTP durch Laufzeit-Policy blockiert.",
+      "target_url": "https://www.xn--helferbr-6za.de/",
+      "raw_provider_payload_present": false
+    },
+    {
+      "metric_id": "FIND-05",
+      "source_family": "SEARCH_INDEXING_SERP",
+      "execution_state": "UNAVAILABLE",
+      "evidence_grade": "E8",
+      "value": null,
+      "unit": null,
+      "evidence_refs": [],
+      "source_or_method": "Agent-Versuch, siehe note",
+      "limitation": "nicht gemessen; keine Aussage über die Website",
+      "product_status": null,
+      "threshold_source": null,
+      "confidence": 1,
+      "observed_at": "2026-11-11T20:40:00Z",
+      "reason_codes": [
+        "EVIDENCE_UNAVAILABLE"
+      ],
+      "note": "Versuch 2026-11-11: 5 Non-Brand-Abfragen (Berlin/Leipzig/Potsdam/Magdeburg/Halle) im US-only-Suchwerkzeug ohne eigene Domain; Werkzeug für DE-Markt nicht repräsentativ -> nicht gewertet.",
+      "target_url": "https://www.xn--helferbr-6za.de/",
+      "raw_provider_payload_present": false
+    },
+    {
+      "metric_id": "FIND-06",
+      "target_url": "https://www.xn--helferbr-6za.de/",
+      "source_family": "STRUCTURED_CONTENT_DOM_METADATA",
+      "execution_state": "OBSERVED",
+      "evidence_grade": "E4",
+      "value": {
+        "check_pass_share": 0.833,
+        "pages": [
+          {
+            "url": "https://www.xn--helferbr-6za.de/",
+            "title_len": 49,
+            "title_ok": true,
+            "title_unique": true,
+            "description_len": 136,
+            "description_ok": true,
+            "h1_count": 3,
+            "h1_ok": false
+          },
+          {
+            "url": "https://www.xn--helferbr-6za.de/impressum",
+            "title_len": 52,
+            "title_ok": true,
+            "title_unique": false,
+            "description_len": 148,
+            "description_ok": true,
+            "h1_count": 1,
+            "h1_ok": true
+          },
+          {
+            "url": "https://www.xn--helferbr-6za.de/privacyb505f5ef",
+            "title_len": 52,
+            "title_ok": true,
+            "title_unique": false,
+            "description_len": 148,
+            "description_ok": true,
+            "h1_count": 1,
+            "h1_ok": true
+          },
+          {
+            "url": "https://www.xn--helferbr-6za.de/kontakt",
+            "title_len": 54,
+            "title_ok": true,
+            "title_unique": true,
+            "description_len": 173,
+            "description_ok": false,
+            "h1_count": 1,
+            "h1_ok": true
+          },
+          {
+            "url": "https://www.xn--helferbr-6za.de/unsere-dienstleistungen",
+            "title_len": 42,
+            "title_ok": true,
+            "title_unique": true,
+            "description_len": 156,
+            "description_ok": true,
+            "h1_count": 1,
+            "h1_ok": true
+          },
+          {
+            "url": "https://www.xn--helferbr-6za.de/ueber-uns",
+            "title_len": 41,
+            "title_ok": true,
+            "title_unique": true,
+            "description_len": 107,
+            "description_ok": true,
+            "h1_count": 1,
+            "h1_ok": true
+          }
+        ],
+        "status_rule": "per page: title 15-65 chars, unique title, meta description 70-165 chars, exactly one h1; pass share >=0.9 strong, >=0.75 minor_gaps, >=0.5 mixed, >=0.25 weak",
+        "collector_version": "1.0.0"
+      },
+      "unit": "share",
+      "evidence_refs": [
+        "E-2004"
+      ],
+      "source_or_method": "Inspect sampled titles, descriptions, H1/H2 structure and intent alignment. Pixelkiez evidence collector 1.0.0: per page: title 15-65 chars, unique title, meta description 70-165 chars, exactly one h1; pass share >=0.9 strong, >=0.75 minor_gaps, >=0.5 mixed, >=0.25 weak",
+      "limitation": "Sample quality does not prove rankings. Sampled public pages only; static HTML without JavaScript execution.",
+      "product_status": "minor_gaps",
+      "threshold_source": null,
+      "confidence": 4,
+      "observed_at": "2026-11-11T20:20:07Z",
+      "reason_codes": [],
+      "note": "LIVE_PUBLIC_COLLECTOR",
+      "raw_provider_payload_present": false
+    },
+    {
+      "metric_id": "FIND-07",
+      "target_url": "https://www.xn--helferbr-6za.de/",
+      "source_family": "STRUCTURED_CONTENT_DOM_METADATA",
+      "execution_state": "OBSERVED",
+      "evidence_grade": "E4",
+      "value": {
+        "jsonld_types": [
+          "MedicalBusiness",
+          "WebSite"
+        ],
+        "invalid_jsonld_blocks": 0,
+        "microdata_types": [],
+        "business_entity_present": true,
+        "status_rule": "valid JSON-LD with business entity type=strong; business entity via microdata or with invalid blocks=minor_gaps/mixed; only non-business types=mixed; none=weak",
+        "collector_version": "1.0.0"
+      },
+      "unit": null,
+      "evidence_refs": [
+        "E-2005"
+      ],
+      "source_or_method": "Inspect public structured data for syntax, entity fit and visible-content consistency. Pixelkiez evidence collector 1.0.0: valid JSON-LD with business entity type=strong; business entity via microdata or with invalid blocks=minor_gaps/mixed; only non-business types=mixed; none=weak",
+      "limitation": "Markup presence does not guarantee rich results. Sampled public pages only; static HTML without JavaScript execution.",
+      "product_status": "strong",
+      "threshold_source": null,
+      "confidence": 4,
+      "observed_at": "2026-11-11T20:20:07Z",
+      "reason_codes": [],
+      "note": "LIVE_PUBLIC_COLLECTOR",
+      "raw_provider_payload_present": false
+    },
+    {
+      "metric_id": "FIND-08",
+      "target_url": "https://www.xn--helferbr-6za.de/",
+      "source_family": "PUBLIC_DETERMINISTIC_TECHNICAL",
+      "execution_state": "MEASURED",
+      "evidence_grade": "E4",
+      "value": {
+        "homepage_internal_links": 20,
+        "key_pages_linked_from_homepage": {
+          "kontakt": true,
+          "impressum": true,
+          "datenschutz": true,
+          "leistungen": true
+        },
+        "nav_landmark": true,
+        "status_rule": "six checks: contact/imprint/privacy/service page linked from homepage, nav landmark, >=8 internal links; all=strong, >=0.8 minor_gaps, >=0.6 mixed, >=0.3 weak",
+        "collector_version": "1.0.0"
+      },
+      "unit": "share",
+      "evidence_refs": [
+        "E-2006"
+      ],
+      "source_or_method": "Inspect navigation depth, contextual links, descriptive anchors, breadcrumbs and orphan-risk patterns in bounded sample. Pixelkiez evidence collector 1.0.0: six checks: contact/imprint/privacy/service page linked from homepage, nav landmark, >=8 internal links; all=strong, >=0.8 minor_gaps, >=0.6 mixed, >=0.3 weak",
+      "limitation": "Bounded crawl does not prove complete link graph. Sampled public pages only; static HTML without JavaScript execution.",
+      "product_status": "strong",
+      "threshold_source": null,
+      "confidence": 4,
+      "observed_at": "2026-11-11T20:20:07Z",
+      "reason_codes": [],
+      "note": "LIVE_PUBLIC_COLLECTOR",
+      "raw_provider_payload_present": false
+    },
+    {
+      "metric_id": "FIND-09",
+      "target_url": "https://www.xn--helferbr-6za.de/",
+      "source_family": "STRUCTURED_CONTENT_DOM_METADATA",
+      "execution_state": "OBSERVED",
+      "evidence_grade": "E4",
+      "value": {
+        "images_sampled": 62,
+        "descriptive_alt_share": 0.677,
+        "explicit_dimensions_share": 0.452,
+        "status_rule": "mean of descriptive-alt share and width/height share over sampled <img>; >=0.9 strong, >=0.75 minor_gaps, >=0.5 mixed, >=0.25 weak",
+        "collector_version": "1.0.0"
+      },
+      "unit": "share",
+      "evidence_refs": [
+        "E-2007"
+      ],
+      "source_or_method": "Inspect sampled image alt text, context, filenames and responsive image delivery. Pixelkiez evidence collector 1.0.0: mean of descriptive-alt share and width/height share over sampled <img>; >=0.9 strong, >=0.75 minor_gaps, >=0.5 mixed, >=0.25 weak",
+      "limitation": "Sample does not prove image-search performance. Sampled public pages only; static HTML without JavaScript execution.",
+      "product_status": "mixed",
+      "threshold_source": null,
+      "confidence": 4,
+      "observed_at": "2026-11-11T20:20:07Z",
+      "reason_codes": [],
+      "note": "LIVE_PUBLIC_COLLECTOR",
+      "raw_provider_payload_present": false
+    },
+    {
+      "metric_id": "FIND-10",
+      "target_url": "https://www.xn--helferbr-6za.de/",
+      "source_family": "STRUCTURED_CONTENT_DOM_METADATA",
+      "execution_state": "OBSERVED",
+      "evidence_grade": "E4",
+      "value": {
+        "checks": {
+          "html_lang": true,
+          "postal_address_visible_or_structured": true,
+          "phone_visible_or_structured": true,
+          "hreflang_if_multilingual": true
+        },
+        "html_lang": "de",
+        "hreflang_alternates": [],
+        "status_rule": "html lang, postal address, phone, consistent hreflang when alternates exist; all=strong, >=0.75 minor_gaps, >=0.5 mixed, >=0.25 weak",
+        "collector_version": "1.0.0"
+      },
+      "unit": "share",
+      "evidence_refs": [
+        "E-2008"
+      ],
+      "source_or_method": "Inspect applicable local entity and language-alternate signals. Pixelkiez evidence collector 1.0.0: html lang, postal address, phone, consistent hreflang when alternates exist; all=strong, >=0.75 minor_gaps, >=0.5 mixed, >=0.25 weak",
+      "limitation": "Signals do not prove local rankings or international targeting success. Sampled public pages only; static HTML without JavaScript execution.",
+      "product_status": "strong",
+      "threshold_source": null,
+      "confidence": 4,
+      "observed_at": "2026-11-11T20:20:07Z",
+      "reason_codes": [],
+      "note": "LIVE_PUBLIC_COLLECTOR",
+      "raw_provider_payload_present": false
+    },
+    {
+      "metric_id": "PERF-01",
+      "source_family": "PERFORMANCE_CWV_LAB",
+      "execution_state": "UNAVAILABLE",
+      "evidence_grade": "E8",
+      "value": null,
+      "unit": null,
+      "evidence_refs": [],
+      "source_or_method": "Agent-Versuch, siehe note",
+      "limitation": "nicht gemessen; keine Aussage über die Website",
+      "product_status": null,
+      "threshold_source": null,
+      "confidence": 1,
+      "observed_at": "2026-11-11T20:40:00Z",
+      "reason_codes": [
+        "EVIDENCE_UNAVAILABLE"
+      ],
+      "note": "Keine CrUX-/PSI-Felddaten: PSI-API ohne Schlüssel HTTP 429 (2026-11-11), kein CrUX-API-Schlüssel.",
+      "target_url": "https://www.xn--helferbr-6za.de/",
+      "raw_provider_payload_present": false
+    },
+    {
+      "metric_id": "PERF-02",
+      "source_family": "PERFORMANCE_CWV_LAB",
+      "execution_state": "MEASURED",
+      "evidence_grade": "E2",
+      "value": {
+        "tool": "Lighthouse 12.8.2",
+        "form_factor": "mobile",
+        "throttling": "simulate",
+        "runs": 3,
+        "performance_score_median": 53,
+        "performance_score_runs": [
+          53,
+          53,
+          53
+        ],
+        "lcp_ms_median": 5893.562,
+        "lcp_ms_runs": [
+          5710.642,
+          5910.457,
+          5893.562
+        ],
+        "fcp_ms_median": 3993.397,
+        "tbt_ms_median": 534,
+        "cls_median": 0.007,
+        "speed_index_ms_median": 5281.787,
+        "total_byte_weight_median": 1849375,
+        "url": "https://www.xn--helferbr-6za.de/"
+      },
+      "unit": null,
+      "evidence_refs": [
+        "E-5006"
+      ],
+      "source_or_method": "Lighthouse CLI mobil, 3 Läufe, Median",
+      "limitation": "Labormessung aus Rechenzentrum; keine realen Nutzerdaten",
+      "product_status": "mixed",
+      "threshold_source": "web.dev/articles/vitals (LCP ≤ 2,5 s, CLS ≤ 0,1 „good“; zuletzt aktualisiert 2024-10-31) und developer.chrome.com/docs/lighthouse/performance/performance-scoring (0–49 poor, 50–89 needs improvement, 90–100 good), abgerufen 2026-11-11; Pixelkiez-Abbildung: ≥90 strong, 75–89 minor_gaps, 50–74 mixed, <50 weak",
+      "confidence": 4,
+      "observed_at": "2026-11-11T20:40:00Z",
+      "reason_codes": [],
+      "note": null,
+      "target_url": "https://www.xn--helferbr-6za.de/",
+      "raw_provider_payload_present": false
+    },
+    {
+      "metric_id": "PERF-03",
+      "source_family": "PERFORMANCE_CWV_LAB",
+      "execution_state": "MEASURED",
+      "evidence_grade": "E2",
+      "value": {
+        "tool": "Lighthouse 12.8.2",
+        "form_factor": "desktop",
+        "runs": 3,
+        "performance_score_median": 89,
+        "performance_score_runs": [
+          75,
+          89,
+          89
+        ],
+        "lcp_ms_median": 1587.074,
+        "lcp_ms_runs": [
+          1587.074,
+          1640.393,
+          1498.129
+        ],
+        "fcp_ms_median": 1239.01,
+        "tbt_ms_median": 3.5,
+        "cls_median": 0.025,
+        "cls_runs": [
+          0.286,
+          0.024,
+          0.025
+        ],
+        "speed_index_ms_median": 1641.42,
+        "total_byte_weight_median": 2743641,
+        "url": "https://www.xn--helferbr-6za.de/"
+      },
+      "unit": null,
+      "evidence_refs": [
+        "E-5007"
+      ],
+      "source_or_method": "Lighthouse CLI desktop, 3 Läufe, Median",
+      "limitation": "Labormessung; ein Lauf mit CLS 0,286 (Ausreißer)",
+      "product_status": "minor_gaps",
+      "threshold_source": "web.dev/articles/vitals (LCP ≤ 2,5 s, CLS ≤ 0,1 „good“; zuletzt aktualisiert 2024-10-31) und developer.chrome.com/docs/lighthouse/performance/performance-scoring (0–49 poor, 50–89 needs improvement, 90–100 good), abgerufen 2026-11-11; Pixelkiez-Abbildung: ≥90 strong, 75–89 minor_gaps, 50–74 mixed, <50 weak",
+      "confidence": 4,
+      "observed_at": "2026-11-11T20:40:00Z",
+      "reason_codes": [],
+      "note": null,
+      "target_url": "https://www.xn--helferbr-6za.de/",
+      "raw_provider_payload_present": false
+    },
+    {
+      "metric_id": "PERF-04",
+      "target_url": "https://www.xn--helferbr-6za.de/",
+      "source_family": "PUBLIC_DETERMINISTIC_TECHNICAL",
+      "execution_state": "MEASURED",
+      "evidence_grade": "E4",
+      "value": {
+        "homepage_transfer_bytes_static": 9463133,
+        "html_bytes": 36067,
+        "by_type": {
+          "css": {
+            "count": 6,
+            "bytes": 101397
+          },
+          "js": {
+            "count": 6,
+            "bytes": 910045
+          },
+          "img": {
+            "count": 13,
+            "bytes": 8415624
+          }
+        },
+        "assets_discovered_in_html": 25,
+        "assets_fetched": 25,
+        "status_rule": "static homepage transfer (HTML + referenced CSS/JS/IMG, max 45 assets, no JS execution): <=1.5 MB strong, <=3 MB minor_gaps, <=5 MB mixed, else weak",
+        "collector_version": "1.0.0"
+      },
+      "unit": "bytes",
+      "evidence_refs": [
+        "E-2009"
+      ],
+      "source_or_method": "Measure sampled transfer/resource weight and identify dominant resource classes. Pixelkiez evidence collector 1.0.0: static homepage transfer (HTML + referenced CSS/JS/IMG, max 45 assets, no JS execution): <=1.5 MB strong, <=3 MB minor_gaps, <=5 MB mixed, else weak",
+      "limitation": "Asset weight alone does not prove user-perceived speed. Sampled public pages only; static HTML without JavaScript execution.",
+      "product_status": "weak",
+      "threshold_source": null,
+      "confidence": 4,
+      "observed_at": "2026-11-11T20:20:07Z",
+      "reason_codes": [],
+      "note": "LIVE_PUBLIC_COLLECTOR",
+      "raw_provider_payload_present": false
+    },
+    {
+      "metric_id": "PERF-05",
+      "target_url": "https://www.xn--helferbr-6za.de/",
+      "source_family": "PUBLIC_DETERMINISTIC_TECHNICAL",
+      "execution_state": "MEASURED",
+      "evidence_grade": "E4",
+      "value": {
+        "images_sampled": 62,
+        "modern_format_images": 0,
+        "responsive_srcset_images": 0,
+        "lazy_loaded_images": 0,
+        "pipeline_share": 0.0,
+        "status_rule": "mean of modern-format share (WebP/AVIF), srcset share and lazy-loading share (first two images exempt); >=0.8 strong, >=0.6 minor_gaps, >=0.4 mixed, >=0.2 weak",
+        "collector_version": "1.0.0"
+      },
+      "unit": "share",
+      "evidence_refs": [
+        "E-2010"
+      ],
+      "source_or_method": "Inspect formats, responsive images, lazy loading and media delivery on sampled templates. Pixelkiez evidence collector 1.0.0: mean of modern-format share (WebP/AVIF), srcset share and lazy-loading share (first two images exempt); >=0.8 strong, >=0.6 minor_gaps, >=0.4 mixed, >=0.2 weak",
+      "limitation": "Observed media pipeline does not prove field performance. Sampled public pages only; static HTML without JavaScript execution.",
+      "product_status": "weak",
+      "threshold_source": null,
+      "confidence": 4,
+      "observed_at": "2026-11-11T20:20:07Z",
+      "reason_codes": [],
+      "note": "LIVE_PUBLIC_COLLECTOR",
+      "raw_provider_payload_present": false
+    },
+    {
+      "metric_id": "PERF-06",
+      "target_url": "https://www.xn--helferbr-6za.de/",
+      "source_family": "PUBLIC_DETERMINISTIC_TECHNICAL",
+      "execution_state": "MEASURED",
+      "evidence_grade": "E4",
+      "value": {
+        "html_compressed": true,
+        "text_asset_compression_share": 1.0,
+        "static_asset_long_cache_share": 1.0,
+        "same_host_static_assets": 1,
+        "html_cache_control": "no-cache, must-revalidate",
+        "status_rule": "compression share over HTML+same-host CSS/JS and share of same-host static assets with max-age>=7d or immutable: >=0.9&>=0.8 strong, >=0.7&>=0.5 minor_gaps, >=0.5|>=0.3 mixed, else weak",
+        "collector_version": "1.0.0"
+      },
+      "unit": "share",
+      "evidence_refs": [
+        "E-2011"
+      ],
+      "source_or_method": "Inspect public caching/compression headers or reproducible response behavior. Pixelkiez evidence collector 1.0.0: compression share over HTML+same-host CSS/JS and share of same-host static assets with max-age>=7d or immutable: >=0.9&>=0.8 strong, >=0.7&>=0.5 minor_gaps, >=0.5|>=0.3 mixed, else weak",
+      "limitation": "Headers alone do not prove end-to-end caching effectiveness. Sampled public pages only; static HTML without JavaScript execution.",
+      "product_status": "strong",
+      "threshold_source": null,
+      "confidence": 4,
+      "observed_at": "2026-11-11T20:20:07Z",
+      "reason_codes": [],
+      "note": "LIVE_PUBLIC_COLLECTOR",
+      "raw_provider_payload_present": false
+    },
+    {
+      "metric_id": "PERF-07",
+      "target_url": "https://www.xn--helferbr-6za.de/",
+      "source_family": "PUBLIC_DETERMINISTIC_TECHNICAL",
+      "execution_state": "MEASURED",
+      "evidence_grade": "E4",
+      "value": {
+        "render_blocking_scripts_in_head": 1,
+        "blocking_script_examples": [
+          "https://app.termly.io/resource-blocker/ec3677b9-9cf2-4773-9f75-9bfb72e7fdd8"
+        ],
+        "head_stylesheets": 6,
+        "status_rule": "synchronous <script src> in <head> without async/defer/module and head stylesheets: 0 & <=3 strong, <=2 & <=6 minor_gaps, <=5 mixed, else weak",
+        "collector_version": "1.0.0"
+      },
+      "unit": "count",
+      "evidence_refs": [
+        "E-2012"
+      ],
+      "source_or_method": "Inspect sampled blocking CSS/JS/resource dependencies with available lab or page tooling. Pixelkiez evidence collector 1.0.0: synchronous <script src> in <head> without async/defer/module and head stylesheets: 0 & <=3 strong, <=2 & <=6 minor_gaps, <=5 mixed, else weak",
+      "limitation": "Static inspection does not prove exact blocking time. Sampled public pages only; static HTML without JavaScript execution.",
+      "product_status": "minor_gaps",
+      "threshold_source": null,
+      "confidence": 4,
+      "observed_at": "2026-11-11T20:20:07Z",
+      "reason_codes": [],
+      "note": "LIVE_PUBLIC_COLLECTOR",
+      "raw_provider_payload_present": false
+    },
+    {
+      "metric_id": "PERF-08",
+      "source_family": "BROWSER_RENDERING",
+      "execution_state": "OBSERVED",
+      "evidence_grade": "E4",
+      "value": {
+        "observation": "Kein horizontales Überlaufen auf 10 Seiten bei 390 px und 1440 px; Hosting liefert eigene Mobilvariante. Mobile H1 der Startseite bricht mitten im Wort („Entlastung|sdienst“), zwei Cookie-Hinweise überdecken den unteren Teil des ersten Bildschirms.",
+        "pages_without_overflow": "10/10 je Viewport"
+      },
+      "unit": null,
+      "evidence_refs": [
+        "E-5001",
+        "E-5002"
+      ],
+      "source_or_method": "Gerendertes Layout in zwei Viewports, Screenshots",
+      "limitation": "Viewport-Stichprobe, keine echten Geräte",
+      "product_status": "minor_gaps",
+      "threshold_source": null,
+      "confidence": 4,
+      "observed_at": "2026-11-11T20:40:00Z",
+      "reason_codes": [],
+      "note": null,
+      "target_url": "https://www.xn--helferbr-6za.de/",
+      "raw_provider_payload_present": false
+    },
+    {
+      "metric_id": "PERF-09",
+      "target_url": "https://www.xn--helferbr-6za.de/",
+      "source_family": "STRUCTURED_CONTENT_DOM_METADATA",
+      "execution_state": "OBSERVED",
+      "evidence_grade": "E4",
+      "value": {
+        "generator": null,
+        "detected_stack": [
+          "Divi",
+          "jQuery"
+        ],
+        "jquery_version": null,
+        "version_exposing_headers": {},
+        "server": "nginx",
+        "status_rule": "publicly visible jQuery < 3.5=mixed; software versions exposed via generator/server/x-powered-by=minor_gaps; else strong",
+        "collector_version": "1.0.0"
+      },
+      "unit": null,
+      "evidence_refs": [
+        "E-2013"
+      ],
+      "source_or_method": "Record observable delivery/CMS/framework hints without asserting private architecture. Pixelkiez evidence collector 1.0.0: publicly visible jQuery < 3.5=mixed; software versions exposed via generator/server/x-powered-by=minor_gaps; else strong",
+      "limitation": "Public hints do not prove repository, backend or deployment quality. Sampled public pages only; static HTML without JavaScript execution.",
+      "product_status": "strong",
+      "threshold_source": null,
+      "confidence": 3,
+      "observed_at": "2026-11-11T20:20:07Z",
+      "reason_codes": [],
+      "note": "LIVE_PUBLIC_COLLECTOR",
+      "raw_provider_payload_present": false
+    },
+    {
+      "metric_id": "UX-01",
+      "source_family": "BROWSER_RENDERING",
+      "execution_state": "OBSERVED",
+      "evidence_grade": "E6",
+      "value": {
+        "observation": "Desktop: erster Bildschirm nennt Angebot (Entlastungsdienst für Senioren), Leistungen, Abrechnung über Pflegekasse und sechs Städte. Mobil: Überschrift bricht mitten im Wort, Leistung/Städte erst nach Scrollen.",
+        "quote": "Entlastungsdienst für Senioren · Abrechenbar über Ihre Pflegekasse"
+      },
+      "unit": null,
+      "evidence_refs": [
+        "E-5001",
+        "E-5002"
+      ],
+      "source_or_method": "Erster Sichtbereich Startseite, mobil und Desktop",
+      "limitation": "Heuristik, kein Nutzertest",
+      "product_status": "minor_gaps",
+      "threshold_source": null,
+      "confidence": 4,
+      "observed_at": "2026-11-11T20:40:00Z",
+      "reason_codes": [],
+      "note": null,
+      "target_url": "https://www.xn--helferbr-6za.de/",
+      "raw_provider_payload_present": false
+    },
+    {
+      "metric_id": "UX-02",
+      "source_family": "BROWSER_RENDERING",
+      "execution_state": "OBSERVED",
+      "evidence_grade": "E6",
+      "value": {
+        "observation": "Desktop: zwei klare Anfrage-Buttons. Mobil: kein Anfrage-Button und keine Telefonnummer im ersten Sichtbereich; Telefonnummern auf Start- und Kontaktseite sind nicht antippbar (0 tel:-Links).",
+        "tel_links_home": 0,
+        "tel_links_kontakt": 0,
+        "tel_links_berlin": 1
+      },
+      "unit": null,
+      "evidence_refs": [
+        "E-5001",
+        "E-5002"
+      ],
+      "source_or_method": "Prüfung Hauptaktion und Kontaktwege mobil/desktop",
+      "limitation": "CTA-Klarheit misst keine Anfragen",
+      "product_status": "mixed",
+      "threshold_source": null,
+      "confidence": 4,
+      "observed_at": "2026-11-11T20:40:00Z",
+      "reason_codes": [],
+      "note": null,
+      "target_url": "https://www.xn--helferbr-6za.de/",
+      "raw_provider_payload_present": false
+    },
+    {
+      "metric_id": "UX-03",
+      "source_family": "BROWSER_RENDERING",
+      "execution_state": "OBSERVED",
+      "evidence_grade": "E6",
+      "value": {
+        "observation": "Klare Navigation: Über uns, Leistungen (4 Unterseiten), Ratgeber, Jetzt Helferbär werden, Kontakt; mobil zusätzlich alle Standortseiten."
+      },
+      "unit": null,
+      "evidence_refs": [
+        "E-5001",
+        "E-5002"
+      ],
+      "source_or_method": "Navigationslabels und Pfade der Stichprobe",
+      "limitation": "Stichprobe, kein Aufgabentest",
+      "product_status": "strong",
+      "threshold_source": null,
+      "confidence": 4,
+      "observed_at": "2026-11-11T20:40:00Z",
+      "reason_codes": [],
+      "note": null,
+      "target_url": "https://www.xn--helferbr-6za.de/",
+      "raw_provider_payload_present": false
+    },
+    {
+      "metric_id": "UX-04",
+      "source_family": "BROWSER_RENDERING",
+      "execution_state": "OBSERVED",
+      "evidence_grade": "E6",
+      "value": {
+        "observation": "Mobil gut lesbare Schriftgrößen, aber H1 bricht mitten im Wort, schwebender Button „Zum Kontaktformular“ überdeckt auf /kontakt Text, 15–28 Klickflächen pro Seite unter 24 px.",
+        "small_targets_per_page_mobile": "15–28"
+      },
+      "unit": null,
+      "evidence_refs": [
+        "E-5001",
+        "E-5002"
+      ],
+      "source_or_method": "iPhone-13-Emulation und 390-px-Viewport",
+      "limitation": "Viewport-Review, kein Gerätetest",
+      "product_status": "minor_gaps",
+      "threshold_source": null,
+      "confidence": 3,
+      "observed_at": "2026-11-11T20:40:00Z",
+      "reason_codes": [],
+      "note": null,
+      "target_url": "https://www.xn--helferbr-6za.de/",
+      "raw_provider_payload_present": false
+    },
+    {
+      "metric_id": "UX-05",
+      "source_family": "BROWSER_RENDERING",
+      "execution_state": "OBSERVED",
+      "evidence_grade": "E6",
+      "value": {
+        "observation": "Kontaktformular mit 8 Feldern (Vorname, Nachname, E-Mail, Rückrufnummer, Anliegen, Standort, Nachricht, Checkbox „Opt-In“); keine Pflichtfeld-Kennzeichnung, alle Felder beschriftet; Formular nicht abgeschickt.",
+        "fields": 8
+      },
+      "unit": null,
+      "evidence_refs": [
+        "E-5001"
+      ],
+      "source_or_method": "Formularoberfläche /kontakt ohne Absenden",
+      "limitation": "misst keine Abschlussrate",
+      "product_status": "minor_gaps",
+      "threshold_source": null,
+      "confidence": 4,
+      "observed_at": "2026-11-11T20:40:00Z",
+      "reason_codes": [],
+      "note": null,
+      "target_url": "https://www.xn--helferbr-6za.de/",
+      "raw_provider_payload_present": false
+    },
+    {
+      "metric_id": "UX-06",
+      "source_family": "RULE_BASED_QUALITATIVE_OBSERVATION",
+      "execution_state": "OBSERVED",
+      "evidence_grade": "E6",
+      "value": {
+        "observation": "Nahe den Anfrage-Buttons: Google-Bewertungen 4,9 (31), Kennzahlen (seit 2019, 6 Standorte, 274 Helfer, 917 Klienten), Presse-Logos mit Artikel-Links, 3-Schritte-Ablauf, Förderlogos."
+      },
+      "unit": null,
+      "evidence_refs": [
+        "E-5008"
+      ],
+      "source_or_method": "Gerenderte Startseite nach Scrollen",
+      "limitation": "Belege nicht unabhängig verifiziert",
+      "product_status": "strong",
+      "threshold_source": null,
+      "confidence": 4,
+      "observed_at": "2026-11-11T20:40:00Z",
+      "reason_codes": [],
+      "note": null,
+      "target_url": "https://www.xn--helferbr-6za.de/",
+      "raw_provider_payload_present": false
+    },
+    {
+      "metric_id": "UX-07",
+      "source_family": "BROWSER_RENDERING",
+      "execution_state": "OBSERVED",
+      "evidence_grade": "E6",
+      "value": {
+        "observation": "Startseite gut gegliedert in Abschnitte, aber drei H1-Überschriften und Ebenensprünge; FAQ und Leistungsseiten gut scanbar."
+      },
+      "unit": null,
+      "evidence_refs": [
+        "E-5001"
+      ],
+      "source_or_method": "Hierarchie auf Start-, Leistungs-, FAQ-Seite",
+      "limitation": "Heuristik",
+      "product_status": "minor_gaps",
+      "threshold_source": null,
+      "confidence": 3,
+      "observed_at": "2026-11-11T20:40:00Z",
+      "reason_codes": [],
+      "note": null,
+      "target_url": "https://www.xn--helferbr-6za.de/",
+      "raw_provider_payload_present": false
+    },
+    {
+      "metric_id": "UX-08",
+      "source_family": "BROWSER_RENDERING",
+      "execution_state": "UNAVAILABLE",
+      "evidence_grade": "E8",
+      "value": null,
+      "unit": null,
+      "evidence_refs": [],
+      "source_or_method": "Agent-Versuch, siehe note",
+      "limitation": "nicht gemessen; keine Aussage über die Website",
+      "product_status": null,
+      "threshold_source": null,
+      "confidence": 1,
+      "observed_at": "2026-11-11T20:40:00Z",
+      "reason_codes": [
+        "EVIDENCE_UNAVAILABLE"
+      ],
+      "note": "Fehler-/Validierungszustände nur durch Absenden auslösbar; Formular wurde bewusst nicht abgeschickt.",
+      "target_url": "https://www.xn--helferbr-6za.de/",
+      "raw_provider_payload_present": false
+    },
+    {
+      "metric_id": "A11Y-01",
+      "source_family": "BROWSER_RENDERING",
+      "execution_state": "OBSERVED",
+      "evidence_grade": "E4",
+      "value": {
+        "observation": "Tab-Reihenfolge logisch; Startseite 23 von 30 Tab-Stopps mit sichtbarem Fokusstil, 7 Stopps (Karussell-Container) ohne Fokusanzeige; Kontakt 29 von 30.",
+        "home_with_indicator": 23,
+        "kontakt_with_indicator": 29,
+        "stops_per_page": 30
+      },
+      "unit": null,
+      "evidence_refs": [
+        "E-5003"
+      ],
+      "source_or_method": "Automatisierte Tab-Stichprobe mit Fokus-Stilprüfung",
+      "limitation": "keine WCAG-Konformitätsaussage; kein Screenreader",
+      "product_status": "minor_gaps",
+      "threshold_source": null,
+      "confidence": 3,
+      "observed_at": "2026-11-11T20:40:00Z",
+      "reason_codes": [],
+      "note": null,
+      "target_url": "https://www.xn--helferbr-6za.de/",
+      "raw_provider_payload_present": false
+    },
+    {
+      "metric_id": "A11Y-02",
+      "target_url": "https://www.xn--helferbr-6za.de/",
+      "source_family": "STRUCTURED_CONTENT_DOM_METADATA",
+      "execution_state": "OBSERVED",
+      "evidence_grade": "E4",
+      "value": {
+        "homepage_checks": {
+          "main_landmark": true,
+          "nav_landmark": true,
+          "header_or_footer": false,
+          "html_lang": true,
+          "single_h1": false,
+          "no_heading_level_skips": false
+        },
+        "heading_levels": [
+          1,
+          1,
+          2,
+          2,
+          2,
+          2,
+          4,
+          4,
+          4,
+          4,
+          2,
+          1,
+          2,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          2,
+          2,
+          4,
+          4,
+          4
+        ],
+        "heading_level_skips": 2,
+        "status_rule": "homepage: main, nav, header/footer landmark, html lang, one h1, no heading level skips; all=strong, >=0.8 minor_gaps, >=0.6 mixed, >=0.3 weak",
+        "collector_version": "1.0.0"
+      },
+      "unit": "share",
+      "evidence_refs": [
+        "E-2014"
+      ],
+      "source_or_method": "Inspect landmarks, headings, labels and semantic structure in sampled HTML. Pixelkiez evidence collector 1.0.0: homepage: main, nav, header/footer landmark, html lang, one h1, no heading level skips; all=strong, >=0.8 minor_gaps, >=0.6 mixed, >=0.3 weak",
+      "limitation": "Sample does not establish WCAG conformance. Sampled public pages only; static HTML without JavaScript execution.",
+      "product_status": "weak",
+      "threshold_source": null,
+      "confidence": 4,
+      "observed_at": "2026-11-11T20:20:07Z",
+      "reason_codes": [],
+      "note": "LIVE_PUBLIC_COLLECTOR",
+      "raw_provider_payload_present": false
+    },
+    {
+      "metric_id": "A11Y-03",
+      "target_url": "https://www.xn--helferbr-6za.de/",
+      "source_family": "STRUCTURED_CONTENT_DOM_METADATA",
+      "execution_state": "OBSERVED",
+      "evidence_grade": "E4",
+      "value": {
+        "images_sampled": 62,
+        "alt_attribute_share": 0.823,
+        "missing_alt_examples": [
+          "https://le-cdn.website-editor.net/s/b532111ae84b45109a2f2df5c635fb3b/dms3rep/multi/opt/DSC04869-1920w.png?Expires=179701",
+          "https://le-cdn.website-editor.net/s/b532111ae84b45109a2f2df5c635fb3b/dms3rep/multi/opt/DSC04851-35e5ddc8-1920w.png?Expir",
+          "https://le-cdn.website-editor.net/s/b532111ae84b45109a2f2df5c635fb3b/dms3rep/multi/opt/DSC04880-1920w.jpg?Expires=179701",
+          "https://le-cdn.website-editor.net/s/b532111ae84b45109a2f2df5c635fb3b/dms3rep/multi/opt/Alex-1920w.jpg?Expires=1797019594",
+          "https://le-cdn.website-editor.net/s/b532111ae84b45109a2f2df5c635fb3b/dms3rep/multi/opt/yannik-1920w.png?Expires=17970195",
+          "https://le-cdn.website-editor.net/s/b532111ae84b45109a2f2df5c635fb3b/dms3rep/multi/opt/patrizia_v2-b6cd5efc-1920w.png?Ex",
+          "https://le-cdn.website-editor.net/s/b532111ae84b45109a2f2df5c635fb3b/dms3rep/multi/opt/DSC04828-1920w.jpg?Expires=179701",
+          "https://le-cdn.website-editor.net/s/b532111ae84b45109a2f2df5c635fb3b/dms3rep/multi/opt/DSC04865-1920w.jpg?Expires=179701"
+        ],
+        "status_rule": "share of sampled <img> with an alt attribute (empty alt counts as decorative); >=0.95 strong, >=0.85 minor_gaps, >=0.6 mixed, >=0.3 weak",
+        "collector_version": "1.0.0"
+      },
+      "unit": "share",
+      "evidence_refs": [
+        "E-2015"
+      ],
+      "source_or_method": "Inspect representative informative/decorative image alternatives. Pixelkiez evidence collector 1.0.0: share of sampled <img> with an alt attribute (empty alt counts as decorative); >=0.95 strong, >=0.85 minor_gaps, >=0.6 mixed, >=0.3 weak",
+      "limitation": "Sample does not establish complete alternative-text quality. Sampled public pages only; static HTML without JavaScript execution.",
+      "product_status": "mixed",
+      "threshold_source": null,
+      "confidence": 4,
+      "observed_at": "2026-11-11T20:20:07Z",
+      "reason_codes": [],
+      "note": "LIVE_PUBLIC_COLLECTOR",
+      "raw_provider_payload_present": false
+    },
+    {
+      "metric_id": "A11Y-04",
+      "source_family": "BROWSER_RENDERING",
+      "execution_state": "OBSERVED",
+      "evidence_grade": "E4",
+      "value": {
+        "observation": "Haupt-Buttons weiße Schrift auf Orange (#E2AC66) = 2,03:1; Ziel nach WCAG 2.2 SC 1.4.3 mind. 4,5:1 (große Schrift 3:1). Startseite 11 von 24, Kontakt 8 von 21 geprüften Farbkombinationen unter Ziel.",
+        "primary_cta_ratio": 2.03,
+        "home_fail": 11,
+        "home_total": 24,
+        "kontakt_fail": 8,
+        "kontakt_total": 21
+      },
+      "unit": null,
+      "evidence_refs": [
+        "E-5004"
+      ],
+      "source_or_method": "Berechnete Kontrastverhältnisse (WCAG-2-Formel); axe color-contrast bestätigend (siehe A11Y-06)",
+      "limitation": "Stichprobe 2 Seiten; keine Konformitätsaussage",
+      "product_status": "weak",
+      "threshold_source": "W3C WCAG 2.2, SC 1.4.3 Contrast (Minimum), https://www.w3.org/TR/WCAG22/#contrast-minimum",
+      "confidence": 4,
+      "observed_at": "2026-11-11T20:40:00Z",
+      "reason_codes": [],
+      "note": null,
+      "target_url": "https://www.xn--helferbr-6za.de/",
+      "raw_provider_payload_present": false
+    },
+    {
+      "metric_id": "A11Y-05",
+      "target_url": "https://www.xn--helferbr-6za.de/",
+      "source_family": "STRUCTURED_CONTENT_DOM_METADATA",
+      "execution_state": "OBSERVED",
+      "evidence_grade": "E4",
+      "value": {
+        "form_controls_sampled": 8,
+        "accessible_name_share": 1.0,
+        "placeholder_only_controls": 0,
+        "status_rule": "share of visible form controls with label/aria-label/aria-labelledby/title (placeholder alone does not count); 1.0 strong, >=0.85 minor_gaps, >=0.6 mixed, >=0.3 weak",
+        "collector_version": "1.0.0"
+      },
+      "unit": "share",
+      "evidence_refs": [
+        "E-2016"
+      ],
+      "source_or_method": "Inspect public form labels/names/instructions without submission. Pixelkiez evidence collector 1.0.0: share of visible form controls with label/aria-label/aria-labelledby/title (placeholder alone does not count); 1.0 strong, >=0.85 minor_gaps, >=0.6 mixed, >=0.3 weak",
+      "limitation": "Sample does not establish complete accessible form behavior. Sampled public pages only; static HTML without JavaScript execution.",
+      "product_status": "strong",
+      "threshold_source": null,
+      "confidence": 4,
+      "observed_at": "2026-11-11T20:20:07Z",
+      "reason_codes": [],
+      "note": "LIVE_PUBLIC_COLLECTOR",
+      "raw_provider_payload_present": false
+    },
+    {
+      "metric_id": "A11Y-06",
+      "source_family": "BROWSER_RENDERING",
+      "execution_state": "MEASURED",
+      "evidence_grade": "E5",
+      "value": {
+        "tool": "axe-core 4.14.0",
+        "tags": [
+          "wcag2a",
+          "wcag2aa",
+          "wcag21a",
+          "wcag21aa"
+        ],
+        "home": {
+          "version": "4.14.0",
+          "violations": [
+            {
+              "id": "color-contrast",
+              "impact": "serious",
+              "nodes": 34,
+              "help": "Elements must meet minimum color contrast ratio thresholds"
+            }
+          ],
+          "passes": 28,
+          "incomplete": 2
+        },
+        "kontakt": {
+          "version": "4.14.0",
+          "violations": [
+            {
+              "id": "color-contrast",
+              "impact": "serious",
+              "nodes": 41,
+              "help": "Elements must meet minimum color contrast ratio thresholds"
+            },
+            {
+              "id": "link-name",
+              "impact": "serious",
+              "nodes": 2,
+              "help": "Links must have discernible text"
+            }
+          ],
+          "passes": 32,
+          "incomplete": 1
+        }
+      },
+      "unit": null,
+      "evidence_refs": [
+        "E-5005"
+      ],
+      "source_or_method": "axe-core im gerenderten Browser",
+      "limitation": "Automatisierung deckt nur Teil der Kriterien ab",
+      "product_status": "mixed",
+      "threshold_source": null,
+      "confidence": 4,
+      "observed_at": "2026-11-11T20:40:00Z",
+      "reason_codes": [],
+      "note": null,
+      "target_url": "https://www.xn--helferbr-6za.de/",
+      "raw_provider_payload_present": false
+    },
+    {
+      "metric_id": "TRUST-01",
+      "target_url": "https://www.xn--helferbr-6za.de/",
+      "source_family": "RULE_BASED_QUALITATIVE_OBSERVATION",
+      "execution_state": "OBSERVED",
+      "evidence_grade": "E4",
+      "value": {
+        "imprint_url": "https://www.xn--helferbr-6za.de/impressum",
+        "signals": {
+          "page_linked": true,
+          "page_reachable": true,
+          "provider_heading": true,
+          "address_visible": true,
+          "contact_visible": true
+        },
+        "status_rule": "presence check only: linked+reachable+provider heading+address+contact=strong; reachable with heading=minor_gaps; linked but unreachable=weak; no link found=blocking. Not a legal assessment.",
+        "collector_version": "1.0.0"
+      },
+      "unit": null,
+      "evidence_refs": [
+        "E-2017"
+      ],
+      "source_or_method": "Check visible imprint/legal surface presence and accessibility. Pixelkiez evidence collector 1.0.0: presence check only: linked+reachable+provider heading+address+contact=strong; reachable with heading=minor_gaps; linked but unreachable=weak; no link found=blocking. Not a legal assessment.",
+      "limitation": "Presence does not establish legal compliance. Sampled public pages only; static HTML without JavaScript execution.",
+      "product_status": "strong",
+      "threshold_source": null,
+      "confidence": 4,
+      "observed_at": "2026-11-11T20:20:07Z",
+      "reason_codes": [],
+      "note": "LIVE_PUBLIC_COLLECTOR",
+      "raw_provider_payload_present": false
+    },
+    {
+      "metric_id": "TRUST-02",
+      "target_url": "https://www.xn--helferbr-6za.de/",
+      "source_family": "RULE_BASED_QUALITATIVE_OBSERVATION",
+      "execution_state": "OBSERVED",
+      "evidence_grade": "E4",
+      "value": {
+        "privacy_url": "https://www.xn--helferbr-6za.de/privacyb505f5ef",
+        "privacy_page_reachable": true,
+        "tracker_markers_in_static_html": [
+          "googletagmanager.com",
+          "gtag("
+        ],
+        "consent_tool_marker_in_static_html": true,
+        "status_rule": "presence check only: privacy page reachable and (consent tool marker present or no tracker markers)=strong; reachable but trackers without consent marker=minor_gaps; linked but unreachable=weak; none=blocking. Consent behaviour and legality are not assessed.",
+        "collector_version": "1.0.0"
+      },
+      "unit": null,
+      "evidence_refs": [
+        "E-2018"
+      ],
+      "source_or_method": "Inspect visible privacy/consent surface and consistency with observed public behavior where possible. Pixelkiez evidence collector 1.0.0: presence check only: privacy page reachable and (consent tool marker present or no tracker markers)=strong; reachable but trackers without consent marker=minor_gaps; linked but unreachable=weak; none=blocking. Consent behaviour and legality are not assessed.",
+      "limitation": "Surface review is not legal advice or compliance proof. Sampled public pages only; static HTML without JavaScript execution.",
+      "product_status": "strong",
+      "threshold_source": null,
+      "confidence": 3,
+      "observed_at": "2026-11-11T20:20:07Z",
+      "reason_codes": [],
+      "note": "LIVE_PUBLIC_COLLECTOR",
+      "raw_provider_payload_present": false
+    },
+    {
+      "metric_id": "TRUST-03",
+      "target_url": "https://www.xn--helferbr-6za.de/",
+      "source_family": "PUBLIC_DETERMINISTIC_TECHNICAL",
+      "execution_state": "MEASURED",
+      "evidence_grade": "E4",
+      "value": {
+        "https_final": true,
+        "http_redirects_to_https": true,
+        "headers_present": {
+          "strict-transport-security": true,
+          "content-security-policy": true,
+          "x-content-type-options": true,
+          "referrer-policy": false,
+          "permissions-policy": false,
+          "frame_protection": true
+        },
+        "headers_present_count": 4,
+        "status_rule": "no HTTPS=blocking; HTTP not redirected to HTTPS=weak; of HSTS, CSP, X-Content-Type-Options, Referrer-Policy, Permissions-Policy, frame protection: >=5 strong, 4 minor_gaps, 2-3 mixed, <=1 weak",
+        "collector_version": "1.0.0"
+      },
+      "unit": "count",
+      "evidence_refs": [
+        "E-2019"
+      ],
+      "source_or_method": "Check HTTPS and selected public security headers without active exploitation. Pixelkiez evidence collector 1.0.0: no HTTPS=blocking; HTTP not redirected to HTTPS=weak; of HSTS, CSP, X-Content-Type-Options, Referrer-Policy, Permissions-Policy, frame protection: >=5 strong, 4 minor_gaps, 2-3 mixed, <=1 weak",
+      "limitation": "Header presence/absence does not prove security posture. Sampled public pages only; static HTML without JavaScript execution.",
+      "product_status": "minor_gaps",
+      "threshold_source": null,
+      "confidence": 5,
+      "observed_at": "2026-11-11T20:20:07Z",
+      "reason_codes": [],
+      "note": "LIVE_PUBLIC_COLLECTOR",
+      "raw_provider_payload_present": false
+    },
+    {
+      "metric_id": "TRUST-04",
+      "source_family": "RULE_BASED_QUALITATIVE_OBSERVATION",
+      "execution_state": "OBSERVED",
+      "evidence_grade": "E4",
+      "value": {
+        "observation": "Standortangaben widersprechen sich: Startseite/FAQ/Alltagshilfe nennen Berlin, Potsdam, Dresden, Leipzig, Halle, Magdeburg; „Über uns“ nennt Hamburg statt Dresden und an anderer Stelle nur 4 Städte; /hamburg ist öffentlich, /dresden trägt den Seitentitel „Alltagshilfe Hamburg“. E-Mail-Link der Startseite ist defekt („mailto:il: berlin@…“), mobiler Header nutzt info@helferbär.de statt info@helferbaer.de.",
+        "contradictions": [
+          "Standortliste Startseite vs. Über uns",
+          "Seitentitel /dresden = Hamburg",
+          "defekter mailto-Link Startseite",
+          "zwei Schreibweisen der Info-E-Mail"
+        ]
+      },
+      "unit": null,
+      "evidence_refs": [
+        "E-5009"
+      ],
+      "source_or_method": "Abgleich Standort-, E-Mail- und Telefonangaben über 6 Seiten",
+      "limitation": "Konsistenz beweist keine Richtigkeit",
+      "product_status": "mixed",
+      "threshold_source": null,
+      "confidence": 5,
+      "observed_at": "2026-11-11T20:40:00Z",
+      "reason_codes": [],
+      "note": null,
+      "target_url": "https://www.xn--helferbr-6za.de/",
+      "raw_provider_payload_present": false
+    },
+    {
+      "metric_id": "TRUST-05",
+      "source_family": "RULE_BASED_QUALITATIVE_OBSERVATION",
+      "execution_state": "OBSERVED",
+      "evidence_grade": "E6",
+      "value": {
+        "observation": "Aktuelle Signale (Team-Eintrag März 2026, Entlastungsbetrag 131 €, Sitemap-Änderungen Nov 2026), aber 8 alte/Entwurfs-/Kopie-Seiten öffentlich in der Sitemap (z. B. /kontakt-alt, /berlin---neu-in-bearbeitung, /kopie-kopie-stellenanzeige…) und „Ab 2025 begleiten wir Sie“ auf /berlin.",
+        "legacy_pages_public": 8
+      },
+      "unit": null,
+      "evidence_refs": [
+        "E-5008",
+        "E-5013"
+      ],
+      "source_or_method": "Sichtbare Daten und Sitemap-Seiten",
+      "limitation": "sichtbare Aktualität ≠ betriebliche Aktualität",
+      "product_status": "mixed",
+      "threshold_source": null,
+      "confidence": 4,
+      "observed_at": "2026-11-11T20:40:00Z",
+      "reason_codes": [],
+      "note": null,
+      "target_url": "https://www.xn--helferbr-6za.de/",
+      "raw_provider_payload_present": false
+    },
+    {
+      "metric_id": "TRUST-06",
+      "source_family": "RULE_BASED_QUALITATIVE_OBSERVATION",
+      "execution_state": "OBSERVED",
+      "evidence_grade": "E6",
+      "value": {
+        "observation": "Team mit Namen und Rollen, Google-Bewertungen 4,9 (31), verlinkte Presseberichte, Förderlogos. Bewertungen und Kennzahlen erscheinen nur per JavaScript."
+      },
+      "unit": null,
+      "evidence_refs": [
+        "E-5008",
+        "E-5012"
+      ],
+      "source_or_method": "Belege auf Start- und Über-uns-Seite",
+      "limitation": "Belege nicht unabhängig geprüft",
+      "product_status": "minor_gaps",
+      "threshold_source": null,
+      "confidence": 4,
+      "observed_at": "2026-11-11T20:40:00Z",
+      "reason_codes": [],
+      "note": null,
+      "target_url": "https://www.xn--helferbr-6za.de/",
+      "raw_provider_payload_present": false
+    },
+    {
+      "metric_id": "TRUST-07",
+      "target_url": "https://www.xn--helferbr-6za.de/",
+      "source_family": "RULE_BASED_QUALITATIVE_OBSERVATION",
+      "execution_state": "OBSERVED",
+      "evidence_grade": "E4",
+      "value": {
+        "checks": {
+          "contact_page_reachable": true,
+          "phone": true,
+          "email": true,
+          "postal_address": true
+        },
+        "status_rule": "contact page, phone, email, postal address on sampled pages; 4/4 strong, 3 minor_gaps, 2 mixed, 1 weak, 0 blocking",
+        "collector_version": "1.0.0"
+      },
+      "unit": "share",
+      "evidence_refs": [
+        "E-2020"
+      ],
+      "source_or_method": "Inspect public contact identity, channels and location transparency. Pixelkiez evidence collector 1.0.0: contact page, phone, email, postal address on sampled pages; 4/4 strong, 3 minor_gaps, 2 mixed, 1 weak, 0 blocking",
+      "limitation": "Transparency does not prove responsiveness or service quality. Sampled public pages only; static HTML without JavaScript execution.",
+      "product_status": "strong",
+      "threshold_source": null,
+      "confidence": 4,
+      "observed_at": "2026-11-11T20:20:07Z",
+      "reason_codes": [],
+      "note": "LIVE_PUBLIC_COLLECTOR",
+      "raw_provider_payload_present": false
+    },
+    {
+      "metric_id": "TRUST-08",
+      "source_family": "ANALYTICS_SEARCH_CONSOLE",
+      "execution_state": "UNAVAILABLE",
+      "evidence_grade": "E8",
+      "value": null,
+      "unit": null,
+      "evidence_refs": [],
+      "source_or_method": "Agent-Versuch, siehe note",
+      "limitation": "nicht gemessen; keine Aussage über die Website",
+      "product_status": null,
+      "threshold_source": null,
+      "confidence": 1,
+      "observed_at": "2026-11-11T20:40:00Z",
+      "reason_codes": [
+        "EVIDENCE_UNAVAILABLE"
+      ],
+      "note": "Kein vom Inhaber autorisierter Zugriff auf Analytics/Search Console. Öffentlich sichtbar: GTM- und GA4-Tags (nur Notiz, nicht gewertet).",
+      "target_url": "https://www.xn--helferbr-6za.de/",
+      "raw_provider_payload_present": false
+    },
+    {
+      "metric_id": "AI-01",
+      "source_family": "RULE_BASED_QUALITATIVE_OBSERVATION",
+      "execution_state": "OBSERVED",
+      "evidence_grade": "E6",
+      "value": {
+        "observation": "Marke „Helferbär“ durchgängig, Rechtsträger Helferbär GmbH im Impressum, JSON-LD mit Name/Adresse/Telefon; JSON-LD-Typ MedicalBusiness passt nicht zur nicht-medizinischen Alltagshilfe."
+      },
+      "unit": null,
+      "evidence_refs": [
+        "E-5008",
+        "E-5012"
+      ],
+      "source_or_method": "Sichtbarer Text + strukturierte Daten",
+      "limitation": "Extrahierbarkeit beweist keine KI-Zitate",
+      "product_status": "minor_gaps",
+      "threshold_source": null,
+      "confidence": 4,
+      "observed_at": "2026-11-11T20:40:00Z",
+      "reason_codes": [],
+      "note": null,
+      "target_url": "https://www.xn--helferbr-6za.de/",
+      "raw_provider_payload_present": false
+    },
+    {
+      "metric_id": "AI-02",
+      "source_family": "RULE_BASED_QUALITATIVE_OBSERVATION",
+      "execution_state": "OBSERVED",
+      "evidence_grade": "E6",
+      "value": {
+        "observation": "Leistung, Zielgruppe (Senioren, Pflegegrad ab 1, Angehörige), Finanzierung (§ 45b SGB XI, 131 €) und Städte explizit; Städteliste aber seitenweise widersprüchlich."
+      },
+      "unit": null,
+      "evidence_refs": [
+        "E-5008",
+        "E-5009"
+      ],
+      "source_or_method": "Lesen Leistungs-, FAQ-, Standortseiten",
+      "limitation": "Klarheit beweist keine KI-Sichtbarkeit",
+      "product_status": "minor_gaps",
+      "threshold_source": null,
+      "confidence": 4,
+      "observed_at": "2026-11-11T20:40:00Z",
+      "reason_codes": [],
+      "note": null,
+      "target_url": "https://www.xn--helferbr-6za.de/",
+      "raw_provider_payload_present": false
+    },
+    {
+      "metric_id": "AI-03",
+      "source_family": "RULE_BASED_QUALITATIVE_OBSERVATION",
+      "execution_state": "OBSERVED",
+      "evidence_grade": "E6",
+      "value": {
+        "observation": "FAQ-Seite mit 4 Themenblöcken in Frage-Antwort-Form, FAQ-Block auf Alltagshilfe-Seite, Ratgeber mit Stundenrechner."
+      },
+      "unit": null,
+      "evidence_refs": [
+        "E-5008"
+      ],
+      "source_or_method": "Lesen FAQ/Alltagshilfe/Ratgeber",
+      "limitation": "beweist keine Chatbot-Aufnahme",
+      "product_status": "strong",
+      "threshold_source": null,
+      "confidence": 4,
+      "observed_at": "2026-11-11T20:40:00Z",
+      "reason_codes": [],
+      "note": null,
+      "target_url": "https://www.xn--helferbr-6za.de/",
+      "raw_provider_payload_present": false
+    },
+    {
+      "metric_id": "AI-04",
+      "target_url": "https://www.xn--helferbr-6za.de/",
+      "source_family": "STRUCTURED_CONTENT_DOM_METADATA",
+      "execution_state": "OBSERVED",
+      "evidence_grade": "E4",
+      "value": {
+        "business_entity_fields_present": [
+          "name",
+          "url",
+          "telephone",
+          "address",
+          "openingHoursSpecification|openingHours",
+          "sameAs"
+        ],
+        "business_entity_fields_checked": [
+          "name",
+          "url",
+          "telephone",
+          "address",
+          "openingHoursSpecification|openingHours",
+          "sameAs",
+          "description"
+        ],
+        "completeness_share": 0.857,
+        "entity_types": [
+          "MedicalBusiness"
+        ],
+        "status_rule": "completeness of the strongest business JSON-LD entity over name,url,telephone,address,opening hours,sameAs,description; >=0.85 strong, >=0.7 minor_gaps, >=0.5 mixed, >=0.2 weak; no entity=weak",
+        "collector_version": "1.0.0"
+      },
+      "unit": "share",
+      "evidence_refs": [
+        "E-2021"
+      ],
+      "source_or_method": "Inspect summaries, schema and machine-readable organization of key facts. Pixelkiez evidence collector 1.0.0: completeness of the strongest business JSON-LD entity over name,url,telephone,address,opening hours,sameAs,description; >=0.85 strong, >=0.7 minor_gaps, >=0.5 mixed, >=0.2 weak; no entity=weak",
+      "limitation": "Structure does not guarantee AI or search presentation. Sampled public pages only; static HTML without JavaScript execution.",
+      "product_status": "strong",
+      "threshold_source": null,
+      "confidence": 4,
+      "observed_at": "2026-11-11T20:20:07Z",
+      "reason_codes": [],
+      "note": "LIVE_PUBLIC_COLLECTOR",
+      "raw_provider_payload_present": false
+    },
+    {
+      "metric_id": "AI-05",
+      "source_family": "RULE_BASED_QUALITATIVE_OBSERVATION",
+      "execution_state": "OBSERVED",
+      "evidence_grade": "E6",
+      "value": {
+        "observation": "Aussage „Unsere Zahlen sprechen für sich“ und Kundenstimmen: Werte und Bewertungen fehlen im statischen HTML (nur per JavaScript); „Der einzige Entlastungsdienst, den Sie brauchen“ ohne Beleg."
+      },
+      "unit": null,
+      "evidence_refs": [
+        "E-5008",
+        "E-5012"
+      ],
+      "source_or_method": "Statisches HTML vs. gerenderte Seite",
+      "limitation": "beweist keine Wahrheit der Aussagen",
+      "product_status": "mixed",
+      "threshold_source": null,
+      "confidence": 4,
+      "observed_at": "2026-11-11T20:40:00Z",
+      "reason_codes": [],
+      "note": null,
+      "target_url": "https://www.xn--helferbr-6za.de/",
+      "raw_provider_payload_present": false
+    },
+    {
+      "metric_id": "AI-06",
+      "source_family": "RULE_BASED_QUALITATIVE_OBSERVATION",
+      "execution_state": "OBSERVED",
+      "evidence_grade": "E6",
+      "value": {
+        "observation": "Kernfakten (Städte, E-Mail-Adresse, Seitentitel /dresden) über Seiten hinweg widersprüchlich; Telefonnummern konsistent."
+      },
+      "unit": null,
+      "evidence_refs": [
+        "E-5009"
+      ],
+      "source_or_method": "Abgleich Kernfakten über Stichprobenseiten",
+      "limitation": "Stichprobe",
+      "product_status": "mixed",
+      "threshold_source": null,
+      "confidence": 4,
+      "observed_at": "2026-11-11T20:40:00Z",
+      "reason_codes": [],
+      "note": null,
+      "target_url": "https://www.xn--helferbr-6za.de/",
+      "raw_provider_payload_present": false
+    },
+    {
+      "metric_id": "AI-07",
+      "source_family": "RULE_BASED_QUALITATIVE_OBSERVATION",
+      "execution_state": "OBSERVED",
+      "evidence_grade": "E6",
+      "value": {
+        "observation": "Themen rund um Entlastungsbetrag, Pflegegrad, Abrechnung, Verhinderungspflege, Reisebegleitung, Einzelfallhilfe abgedeckt (FAQ, Ratgeber, Blog, Stadtseiten)."
+      },
+      "unit": null,
+      "evidence_refs": [
+        "E-5008"
+      ],
+      "source_or_method": "Lesen der Stichprobe",
+      "limitation": "Tiefe beweist keine Autorität",
+      "product_status": "strong",
+      "threshold_source": null,
+      "confidence": 3,
+      "observed_at": "2026-11-11T20:40:00Z",
+      "reason_codes": [],
+      "note": null,
+      "target_url": "https://www.xn--helferbr-6za.de/",
+      "raw_provider_payload_present": false
+    }
+  ]
+}

@@ -1,0 +1,68 @@
+{
+  "schema_version": "1.0",
+  "jurisdiction": {
+    "status": "CONFIRMED",
+    "country": "DE",
+    "basis": "operator_establishment"
+  },
+  "business_context": {
+    "flags": [
+      "service_provider"
+    ],
+    "audience_scope": "B2C",
+    "distance_contract_status": "LIKELY"
+  },
+  "applicable_regimes": [
+    "EU-ECOM-2000-31-ART5",
+    "DE-DDG-5"
+  ],
+  "results": [
+    {
+      "metric_id": "LEGAL-IMP-07",
+      "dimension": "regulatory_profession",
+      "applicability_status": "CONDITIONAL",
+      "result_state": "POSSIBLE_LEGAL_REVIEW",
+      "defect_type": "ABSENT",
+      "iles_points": 0,
+      "severity": "review",
+      "evidence_grade": "E4",
+      "measurement_class": "observed"
+    }
+  ],
+  "iles": {
+    "points": 0,
+    "band": "LOW",
+    "dimensions": {
+      "identity": 0,
+      "geographic_address": 0,
+      "contactability": 0,
+      "legal_form_rep": 0,
+      "registry": 0,
+      "regulatory_profession": 0,
+      "accessibility": 0,
+      "conditional_ids": 0
+    }
+  },
+  "overrides": {
+    "iles_critical_override": false,
+    "audit_priority_critical": false
+  },
+  "enforcement_exposure": {
+    "jurisdiction": "DE",
+    "applicable_rule": "DE-DDG-33",
+    "administrative_exposure": "NOT_ASSESSED",
+    "civil_exposure": "NOT_ASSESSED",
+    "criminal_exposure": "NOT_ASSESSED",
+    "sector_regulatory_exposure": "NOT_ASSESSED",
+    "statutory_maximum_eur": null,
+    "expected_penalty": null,
+    "source": "https://www.gesetze-im-internet.de/ddg/__33.html",
+    "confidence": "HIGH"
+  },
+  "source_needed": [],
+  "limitations": [
+    "Internal prioritization model; not a legal certification.",
+    "GDPR/DSGVO is a separate compliance dimension."
+  ],
+  "pixelkiez_score_impact": "NONE_DIRECT"
+}

@@ -1,0 +1,88 @@
+{
+  "schema_version": "1.0",
+  "status": "PASS",
+  "output_dir": "/home/user/Ana/audits/helferbaer-2026-11-11/deliverables",
+  "customer_release_required": true,
+  "checks": [
+    {
+      "id": "required_artifacts",
+      "status": "PASS",
+      "count": 14
+    },
+    {
+      "id": "pxk",
+      "status": "PASS",
+      "stdout": "PASS: internal analysis complete metrics=48 json+markdown",
+      "stderr": ""
+    },
+    {
+      "id": "pxk",
+      "status": "PASS",
+      "stdout": "PASS: visualization plan selected=4 approved/referential/evidence-bound",
+      "stderr": ""
+    },
+    {
+      "id": "pxk",
+      "status": "PASS",
+      "stdout": "PASS: visual assets 4/4 hashed, branded, legible",
+      "stderr": ""
+    },
+    {
+      "id": "pxk",
+      "status": "PASS",
+      "stdout": "PASS: chart-led customer PDF pages=9 embedded_visuals=4 levers=4",
+      "stderr": ""
+    },
+    {
+      "id": "pxk",
+      "status": "PASS",
+      "stdout": "PASS: presentation brand pages=9 visuals=4 min_text=8.50pt font_status=EXACT embedding=VERIFIED",
+      "stderr": ""
+    },
+    {
+      "id": "impressum_compliance_sidecar",
+      "status": "PASS",
+      "stdout": "PASS: impressum compliance registry/schema invariants",
+      "stderr": ""
+    },
+    {
+      "id": "customer_claim_bindings",
+      "status": "PASS",
+      "stdout": "PASS: customer claim bindings consistent"
+    },
+    {
+      "id": "cross_artifact_digests",
+      "status": "PASS"
+    },
+    {
+      "id": "visual_count_parity",
+      "status": "PASS",
+      "count": 4
+    },
+    {
+      "id": "no_font_binaries_in_deliverable",
+      "status": "PASS"
+    }
+  ],
+  "errors": [],
+  "build_complete": true,
+  "customer_release_ready": true,
+  "brand_font_status": "EXACT",
+  "pdf_font_embedding_status": "VERIFIED",
+  "visual_qa_status": "PASS",
+  "semantic_qa_status": "PASS",
+  "quality_gate_status": "PASS",
+  "selected_visual_count": 4,
+  "source_report_sha256": "e6d9aed69df22e661cc539b89aee79bff12f1426e22d5e3f91bf06360a05bd9b",
+  "product_artifacts": [
+    "analysis_report.json",
+    "analysis_report.md",
+    "customer_presentation.pdf"
+  ],
+  "does_not_prove": [
+    "external ranking or benchmark data not present in the canonical audit",
+    "commercial outcome",
+    "customer acceptance",
+    "exact brand font parity when brand_font_status is not EXACT"
+  ]
+}

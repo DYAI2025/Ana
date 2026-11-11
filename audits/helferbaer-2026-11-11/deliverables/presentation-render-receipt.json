@@ -1,0 +1,186 @@
+{
+  "schema_version": "1.0",
+  "status": "PASS",
+  "renderer": "WEASYPRINT",
+  "renderer_version": "68.1",
+  "model_sha256": "9408ea4f32dfe1669998ca89d94c4b9dad7ce489b2b22121e27b349f32aa5834",
+  "visualization_plan_sha256": "b474a3389c04b1709befdcc6298b0f6d2bd2a2d1ced8a5eb9733671b953f3227",
+  "visual_render_receipt_sha256": "5dafc292a7b1da30e8d347c0f5eb785b942f6cd2dc4cb99d2f1e979ad8ff2a6a",
+  "css_sha256": "acf8b095c1fffc26de8780203ffbac5443c3cf7a834f0afa25983b76f240c4bb",
+  "template_sha256": "4accb02b5b0f098978d2369d863dc5f2fac9b3f3ebb6c1e669ea48e2e5cbee0f",
+  "html_path": "customer_presentation.html",
+  "html_sha256": "4cd362d4671035a4d5b6e038dc01ab9b789968f1ebf7d8a23228ed0a1f0cd836",
+  "pdf_sha256": "cb11cff45004ebad3d240a85b94c388bacc69d201cb6ce71caab2f437546e02b",
+  "page_count": 9,
+  "page_format": "A4",
+  "orientation": "landscape",
+  "available_visual_count": 4,
+  "embedded_visual_count": 4,
+  "omitted_visual_ids": [],
+  "brand_font_status": "EXACT",
+  "font_resolution": {
+    "requested": {
+      "display": "Schibsted Grotesk",
+      "data": "IBM Plex Mono"
+    },
+    "resolved": {
+      "display": "Schibsted Grotesk",
+      "data": "IBM Plex Mono"
+    },
+    "exact": {
+      "display": true,
+      "data": true
+    },
+    "customer_release_ready": true,
+    "font_file_sha256": {
+      "display_regular": "e2cc0926fd159816bd934df5875000077e5ec8b1f9cd18154fe4d3e482b03b42",
+      "display_bold": "d1d1ed9301f19a994161b0b763db11cce356204477e81bf3434d2f5dd85905e0",
+      "data_regular": "7c6fbddca4b700be918f5f6183d9bd4464fa427fe435f0b480d77fe2bb8c5a43",
+      "data_bold": "74e5eedcfa4596497d34e19023cabdabd3a8c852b903007a5654a59591a72ffb"
+    }
+  },
+  "font_provenance": {
+    "source": {
+      "display": "PACKAGED",
+      "data": "PACKAGED"
+    },
+    "package_policy": "PACKAGE_BUNDLED_MANIFEST_PINNED",
+    "package_fonts_status": "VERIFIED",
+    "package_manifest_sha256": "4b8a2e8ca39cdb5a1a3b6b0221d3e6afe9fdf2ec451390ac58a4c7a1255e1e16",
+    "verification": "NAME_TABLE_POSTSCRIPT_STYLE_WEIGHT_GLYPHS_PLUS_PACKAGE_SHA256",
+    "styles": {
+      "data_bold": {
+        "family": "IBM Plex Mono",
+        "style": "Bold",
+        "weight": 700,
+        "postscript_name": "IBMPlexMono-Bold",
+        "unique_id": "2.005;IBM ;IBMPlexMono-Bold",
+        "head_created": 3859630125,
+        "font_revision": 2.00499,
+        "sha256": "74e5eedcfa4596497d34e19023cabdabd3a8c852b903007a5654a59591a72ffb",
+        "source": "PACKAGED"
+      },
+      "data_regular": {
+        "family": "IBM Plex Mono",
+        "style": "Regular",
+        "weight": 400,
+        "postscript_name": "IBMPlexMono",
+        "unique_id": "2.005;IBM ;IBMPlexMono-Regular",
+        "head_created": 3859630127,
+        "font_revision": 2.00499,
+        "sha256": "7c6fbddca4b700be918f5f6183d9bd4464fa427fe435f0b480d77fe2bb8c5a43",
+        "source": "PACKAGED"
+      },
+      "display_bold": {
+        "family": "Schibsted Grotesk",
+        "style": "Bold",
+        "weight": 700,
+        "postscript_name": "SchibstedGrotesk-Bold",
+        "unique_id": "1.100;BBT;SchibstedGrotesk-Bold",
+        "head_created": 3733918028,
+        "font_revision": 1.10001,
+        "sha256": "d1d1ed9301f19a994161b0b763db11cce356204477e81bf3434d2f5dd85905e0",
+        "source": "PACKAGED"
+      },
+      "display_regular": {
+        "family": "Schibsted Grotesk",
+        "style": "Regular",
+        "weight": 400,
+        "postscript_name": "SchibstedGrotesk-Regular",
+        "unique_id": "1.100;BBT;SchibstedGrotesk-Regular",
+        "head_created": 3733918028,
+        "font_revision": 1.10001,
+        "sha256": "e2cc0926fd159816bd934df5875000077e5ec8b1f9cd18154fe4d3e482b03b42",
+        "source": "PACKAGED"
+      }
+    }
+  },
+  "pdf_font_embedding": {
+    "status": "VERIFIED",
+    "identity_method": "EMBEDDED_PROGRAM_NAME_TABLE_HEAD_AND_OUTLINES",
+    "required_embedded": {
+      "display_regular": true,
+      "display_bold": true,
+      "data_regular": true,
+      "data_bold": true
+    },
+    "embedded_fonts": [
+      {
+        "basefont": "BUBANG+PixelkiezData-Bold",
+        "embedded": true,
+        "matches": "data_bold",
+        "outline_glyphs_compared": 63,
+        "format": "ttf",
+        "family": "IBM Plex Mono",
+        "style": "Bold",
+        "postscript_name": "IBMPlexMono-Bold",
+        "unique_id": "2.005;IBM ;IBMPlexMono-Bold",
+        "head_created": 3859630125,
+        "font_revision": 2.00499
+      },
+      {
+        "basefont": "OQBBHA+PixelkiezDisplay-Bold",
+        "embedded": true,
+        "matches": "display_bold",
+        "outline_glyphs_compared": 66,
+        "format": "ttf",
+        "family": "Schibsted Grotesk",
+        "style": "Bold",
+        "postscript_name": "SchibstedGrotesk-Bold",
+        "unique_id": "1.100;BBT;SchibstedGrotesk-Bold",
+        "head_created": 3733918028,
+        "font_revision": 1.10001
+      },
+      {
+        "basefont": "RCSQNE+PixelkiezDisplay",
+        "embedded": true,
+        "matches": "display_regular",
+        "outline_glyphs_compared": 74,
+        "format": "ttf",
+        "family": "Schibsted Grotesk",
+        "style": "Regular",
+        "postscript_name": "SchibstedGrotesk-Regular",
+        "unique_id": "1.100;BBT;SchibstedGrotesk-Regular",
+        "head_created": 3733918028,
+        "font_revision": 1.10001
+      },
+      {
+        "basefont": "SFPXNM+PixelkiezData",
+        "embedded": true,
+        "matches": "data_regular",
+        "outline_glyphs_compared": 37,
+        "format": "ttf",
+        "family": "IBM Plex Mono",
+        "style": "Regular",
+        "postscript_name": "IBMPlexMono",
+        "unique_id": "2.005;IBM ;IBMPlexMono-Regular",
+        "head_created": 3859630127,
+        "font_revision": 2.00499
+      }
+    ],
+    "unexpected_fonts": [],
+    "not_embedded_fonts": [],
+    "family_mismatch": [],
+    "notdef_glyphs": []
+  },
+  "pdf_fonts": [
+    "BUBANG+PixelkiezData-Bold",
+    "OQBBHA+PixelkiezDisplay-Bold",
+    "RCSQNE+PixelkiezDisplay",
+    "SFPXNM+PixelkiezData"
+  ],
+  "minimum_rendered_text_size_pt": 8.499755859375,
+  "body_text_size_pt": 12.0,
+  "chart_label_minimum_pt": 10.0,
+  "brand_palette": [
+    "#EC5E43",
+    "#0E1414",
+    "#B6C7C4",
+    "#C6D4D1",
+    "#566360",
+    "#FFFFFF"
+  ],
+  "local_only_resources": true,
+  "legacy_reportlab_default": false,
+  "limitations": []
+}

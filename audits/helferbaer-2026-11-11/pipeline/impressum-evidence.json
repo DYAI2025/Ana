@@ -1,0 +1,25 @@
+{
+ "context": {
+  "operator_establishment": {"country": "DE", "confidence": "HIGH", "evidence_grade": "E4", "evidence_ref": "https://www.xn--helferbr-6za.de/impressum", "basis": "Impressum: Helferbär GmbH, August-Bebel-Straße 89, Haus 7, 14482 Potsdam; HRB 32592 P, Amtsgericht Potsdam"},
+  "business_flags": ["service_provider"],
+  "audience_scope": "B2C",
+  "distance_contract_status": "LIKELY",
+  "legal_form": "gmbh",
+  "registry_status": "CONFIRMED",
+  "regulated_profession_status": "UNKNOWN",
+  "conditional_id_status": "CONFIRMED",
+  "audit_date": "2026-11-11"
+ },
+ "discovery_scope": {"complete": true, "locations": ["https://www.xn--helferbr-6za.de/impressum", "https://www.xn--helferbr-6za.de/ (Footer-Link)", "https://www.xn--helferbr-6za.de/kontakt", "https://www.xn--helferbr-6za.de/privacyb505f5ef"]},
+ "observations": {
+  "operator_identity": {"status": "PRESENT", "measurement_class": "observed", "evidence_grade": "E4", "url": "https://www.xn--helferbr-6za.de/impressum", "method": "Lesen der gerenderten Impressumsseite", "timestamp": "2026-11-11T20:30:00Z", "evidence_ref": "Helferbär GmbH", "defect_supported": false, "unresolved_conflict": false},
+  "geographic_address": {"status": "PRESENT", "measurement_class": "observed", "evidence_grade": "E4", "url": "https://www.xn--helferbr-6za.de/impressum", "method": "Lesen der gerenderten Impressumsseite", "timestamp": "2026-11-11T20:30:00Z", "evidence_ref": "August-Bebel-Straße 89, Haus 7, 14482 Potsdam", "defect_supported": false, "unresolved_conflict": false},
+  "email": {"status": "PRESENT", "measurement_class": "observed", "evidence_grade": "E4", "url": "https://www.xn--helferbr-6za.de/impressum", "method": "Lesen", "timestamp": "2026-11-11T20:30:00Z", "evidence_ref": "info@helferbaer.de", "defect_supported": false, "unresolved_conflict": false},
+  "phone": {"status": "PRESENT", "measurement_class": "observed", "evidence_grade": "E4", "url": "https://www.xn--helferbr-6za.de/impressum", "method": "Lesen", "timestamp": "2026-11-11T20:30:00Z", "evidence_ref": "030 62 93 94 53", "defect_supported": false, "unresolved_conflict": false},
+  "legal_form_rep": {"status": "PRESENT", "measurement_class": "observed", "evidence_grade": "E4", "url": "https://www.xn--helferbr-6za.de/impressum", "method": "Lesen", "timestamp": "2026-11-11T20:30:00Z", "evidence_ref": "GmbH; Geschäftsführer: Alessandro Nobbe, Leonard Winkler", "defect_supported": false, "unresolved_conflict": false},
+  "registry": {"status": "PRESENT", "measurement_class": "observed", "evidence_grade": "E4", "url": "https://www.xn--helferbr-6za.de/impressum", "method": "Lesen", "timestamp": "2026-11-11T20:30:00Z", "evidence_ref": "Amtsgericht Potsdam, HRB 32592 P", "defect_supported": false, "unresolved_conflict": false},
+  "conditional_ids": {"status": "PRESENT", "measurement_class": "observed", "evidence_grade": "E4", "url": "https://www.xn--helferbr-6za.de/impressum", "method": "Lesen", "timestamp": "2026-11-11T20:30:00Z", "evidence_ref": "USt-ID DE 32 39 70 299", "defect_supported": false, "unresolved_conflict": false},
+  "regulatory_profession": {"status": "ABSENT", "measurement_class": "observed", "evidence_grade": "E4", "url": "https://www.xn--helferbr-6za.de/impressum", "method": "Lesen: keine Angabe zu einer zuständigen Aufsichts-/Anerkennungsbehörde", "timestamp": "2026-11-11T20:30:00Z", "evidence_ref": "Impressum ohne Aufsichtsbehörde; ob Anerkennung nach Landesrecht (§ 45a SGB XI) eine Angabe nach § 5 Abs. 1 Nr. 3 DDG auslöst, ist ungeklärt", "defect_supported": false, "unresolved_conflict": false},
+  "accessibility": {"status": "PRESENT", "measurement_class": "observed", "evidence_grade": "E4", "url": "https://www.xn--helferbr-6za.de/", "method": "Footer-Link 'Impressum' auf allen Stichprobenseiten, HTTP 200", "timestamp": "2026-11-11T20:30:00Z", "evidence_ref": "Footer-Link", "defect_supported": false, "unresolved_conflict": false}
+ }
+}

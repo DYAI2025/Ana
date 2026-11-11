@@ -1,0 +1,186 @@
+{
+ "schema_version": "1.2",
+ "pdf_path": "customer_presentation.pdf",
+ "pdf_sha256": "cb11cff45004ebad3d240a85b94c388bacc69d201cb6ce71caab2f437546e02b",
+ "visualization_plan_path": "visualization-plan.json",
+ "visualization_plan_sha256": "b474a3389c04b1709befdcc6298b0f6d2bd2a2d1ced8a5eb9733671b953f3227",
+ "page_count": 9,
+ "inspection_status": "PASS",
+ "inspection_method": "agent_vision",
+ "inspected_by": "Claude (agent_vision), Pixelkiez-Diagnose-Lauf 2026-11-11",
+ "inspection_note": "Alle 9 PNG-Seiten des finalen Digests einzeln angesehen (Entwurf 2 nach Korrektur der leeren Fahrplan-Spalte).",
+ "pages": [
+  {
+   "page": 1,
+   "image": "rendered-pages/page-001.png",
+   "checks": {
+    "text_readable": true,
+    "plain_language_clear": true,
+    "no_clipping": true,
+    "no_overlap": true,
+    "no_broken_glyphs": true,
+    "customer_density_ok": true
+   },
+   "notes": "Cover: Firma, URL (Punycode-Schreibweise, korrekt aber technisch), Branche, Score 76 und vollständige Kernaussage sichtbar; kein Clipping."
+  },
+  {
+   "page": 2,
+   "image": "rendered-pages/page-002.png",
+   "checks": {
+    "text_readable": true,
+    "plain_language_clear": true,
+    "no_clipping": true,
+    "no_overlap": true,
+    "no_broken_glyphs": true,
+    "customer_density_ok": true
+   },
+   "notes": "Auf einen Blick: Score 76/100, Branchenfokus, wichtigster Hebel und 3 Prioritäten, datierter Grundlagensatz; lesbar."
+  },
+  {
+   "page": 3,
+   "image": "rendered-pages/page-003.png",
+   "checks": {
+    "text_readable": true,
+    "plain_language_clear": true,
+    "no_clipping": true,
+    "no_overlap": true,
+    "no_broken_glyphs": true,
+    "customer_density_ok": true
+   },
+   "notes": "V02 Bereichsbalken 93/64/78/54/78 entsprechen category_scores; Vertrauen-Bereich wegen rechtlichem Prüfhinweis ausgelassen und im Untertitel benannt."
+  },
+  {
+   "page": 4,
+   "image": "rendered-pages/page-004.png",
+   "checks": {
+    "text_readable": true,
+    "plain_language_clear": true,
+    "no_clipping": true,
+    "no_overlap": true,
+    "no_broken_glyphs": true,
+    "customer_density_ok": true
+   },
+   "notes": "V03 vier Hebel 1–4 ordinal, keine Scheingrößen; Texte vollständig."
+  },
+  {
+   "page": 5,
+   "image": "rendered-pages/page-005.png",
+   "checks": {
+    "text_readable": true,
+    "plain_language_clear": true,
+    "no_clipping": true,
+    "no_overlap": true,
+    "no_broken_glyphs": true,
+    "customer_density_ok": true
+   },
+   "notes": "V08 KI-Lesbarkeit: Status je Metrik entspricht AI-01..07 (minor_gaps=Verbesserung sinnvoll, strong=Klar)."
+  },
+  {
+   "page": 6,
+   "image": "rendered-pages/page-006.png",
+   "checks": {
+    "text_readable": true,
+    "plain_language_clear": true,
+    "no_clipping": true,
+    "no_overlap": true,
+    "no_broken_glyphs": true,
+    "customer_density_ok": true
+   },
+   "notes": "V10 Vertrauen: Impressum/Datenschutz bewusst 'Nicht belastbar bewertet' (Rechtsprojektion), übrige Status entsprechen TRUST-03..07; Label 'HTTPS-Verschlüsselung' meint HTTPS+Schutz-Header."
+  },
+  {
+   "page": 7,
+   "image": "rendered-pages/page-007.png",
+   "checks": {
+    "text_readable": true,
+    "plain_language_clear": true,
+    "no_clipping": true,
+    "no_overlap": true,
+    "no_broken_glyphs": true,
+    "customer_density_ok": true
+   },
+   "notes": "Vier Hebel mit Beobachtung, 'Warum das zählt' und nächstem Schritt; keine Überlappung, Sätze vollständig."
+  },
+  {
+   "page": 8,
+   "image": "rendered-pages/page-008.png",
+   "checks": {
+    "text_readable": true,
+    "plain_language_clear": true,
+    "no_clipping": true,
+    "no_overlap": true,
+    "no_broken_glyphs": true,
+    "customer_density_ok": true
+   },
+   "notes": "Fahrplan Jetzt/30 Tage/Danach befüllt (Leerspalte aus Entwurf 1 behoben); Fußzeile wiederholt erste Maßnahme (Template-Verhalten, unkritisch)."
+  },
+  {
+   "page": 9,
+   "image": "rendered-pages/page-009.png",
+   "checks": {
+    "text_readable": true,
+    "plain_language_clear": true,
+    "no_clipping": true,
+    "no_overlap": true,
+    "no_broken_glyphs": true,
+    "customer_density_ok": true
+   },
+   "notes": "Abschluss mit vier Maßnahmen und klarem nächsten Schritt; Untertitel knapp über weißer Box, keine Überlappung."
+  }
+ ],
+ "cover_checks": {
+  "full_takeaway_visible": true,
+  "score_projection_visible_when_required": true,
+  "no_cross_page_sentence_split": true
+ },
+ "chart_pages": [
+  {
+   "page": 3,
+   "template_id": "V02_CATEGORY_BARS",
+   "checks": {
+    "finding_title_clear": true,
+    "chart_labels_legible": true,
+    "business_message_clear": true,
+    "threshold_or_reference_clear_when_applicable": true,
+    "no_internal_method_or_evidence_boilerplate": true
+   },
+   "notes": "V02 Bereichsbalken 93/64/78/54/78 entsprechen category_scores; Vertrauen-Bereich wegen rechtlichem Prüfhinweis ausgelassen und im Untertitel benannt."
+  },
+  {
+   "page": 4,
+   "template_id": "V03_TOP_LEVERS",
+   "checks": {
+    "finding_title_clear": true,
+    "chart_labels_legible": true,
+    "business_message_clear": true,
+    "threshold_or_reference_clear_when_applicable": true,
+    "no_internal_method_or_evidence_boilerplate": true
+   },
+   "notes": "V03 vier Hebel 1–4 ordinal, keine Scheingrößen; Texte vollständig."
+  },
+  {
+   "page": 5,
+   "template_id": "V08_AI_ANSWERABILITY",
+   "checks": {
+    "finding_title_clear": true,
+    "chart_labels_legible": true,
+    "business_message_clear": true,
+    "threshold_or_reference_clear_when_applicable": true,
+    "no_internal_method_or_evidence_boilerplate": true
+   },
+   "notes": "V08 KI-Lesbarkeit: Status je Metrik entspricht AI-01..07 (minor_gaps=Verbesserung sinnvoll, strong=Klar)."
+  },
+  {
+   "page": 6,
+   "template_id": "V10_TRUST_MATRIX",
+   "checks": {
+    "finding_title_clear": true,
+    "chart_labels_legible": true,
+    "business_message_clear": true,
+    "threshold_or_reference_clear_when_applicable": true,
+    "no_internal_method_or_evidence_boilerplate": true
+   },
+   "notes": "V10 Vertrauen: Impressum/Datenschutz bewusst 'Nicht belastbar bewertet' (Rechtsprojektion), übrige Status entsprechen TRUST-03..07; Label 'HTTPS-Verschlüsselung' meint HTTPS+Schutz-Header."
+  }
+ ]
+}

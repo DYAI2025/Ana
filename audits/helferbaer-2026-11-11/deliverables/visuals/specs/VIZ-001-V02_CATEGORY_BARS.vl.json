@@ -1,0 +1,128 @@
+{
+  "$schema": "https://vega.github.io/schema/vega-lite/v6.json",
+  "description": "Pixelkiez approved template V02_CATEGORY_BARS: Kategoriescores",
+  "usermeta": {
+    "template_id": "V02_CATEGORY_BARS",
+    "name": "Kategoriescores",
+    "purpose": "Sortierte horizontale Balken",
+    "brand_contract": "pixelkiez-v1",
+    "visual_id": "VIZ-001",
+    "metric_refs": [
+      "CATEGORY:findability_seo",
+      "CATEGORY:performance_technology",
+      "CATEGORY:ux_conversion",
+      "CATEGORY:accessibility",
+      "CATEGORY:ai_readiness"
+    ],
+    "finding_refs": [],
+    "evidence_class": "DERIVED",
+    "population": "5 bewertete Kategorien; ohne Balken wegen rechtlichem Prüfbedarf: trust_privacy_content",
+    "method": "Pixelkiez Bewertungsmodell",
+    "does_not_prove": "Bereichswerte sind keine externen Benchmarks und beweisen keine Geschäftswirkung.",
+    "brand_font_status": "EXACT",
+    "resolved_fonts": {
+      "display": "Schibsted Grotesk",
+      "data": "IBM Plex Mono"
+    }
+  },
+  "width": 620,
+  "height": 310,
+  "data": {
+    "values": [
+      {
+        "label": "Auffindbarkeit in Suchmaschinen",
+        "value": 93.0
+      },
+      {
+        "label": "Ladegeschwindigkeit & Technik",
+        "value": 64.0
+      },
+      {
+        "label": "Nutzerführung & Anfragen",
+        "value": 78.0
+      },
+      {
+        "label": "Barrierefreiheit",
+        "value": 54.0
+      },
+      {
+        "label": "KI-Verständlichkeit",
+        "value": 78.0
+      }
+    ]
+  },
+  "mark": {
+    "type": "bar",
+    "cornerRadiusEnd": 4,
+    "color": "#EC5E43"
+  },
+  "encoding": {
+    "y": {
+      "field": "label",
+      "type": "nominal",
+      "sort": "-x",
+      "axis": {
+        "title": null
+      }
+    },
+    "x": {
+      "field": "value",
+      "type": "quantitative",
+      "scale": {
+        "domain": [
+          0,
+          100
+        ]
+      },
+      "axis": {
+        "title": "Score 0-100"
+      }
+    },
+    "tooltip": [
+      {
+        "field": "label"
+      },
+      {
+        "field": "value"
+      }
+    ]
+  },
+  "config": {
+    "background": "#FFFFFF",
+    "font": "Schibsted Grotesk",
+    "title": {
+      "font": "Schibsted Grotesk",
+      "fontSize": 18,
+      "fontWeight": 700,
+      "color": "#0E1414",
+      "anchor": "start"
+    },
+    "axis": {
+      "labelFont": "IBM Plex Mono",
+      "labelFontSize": 11,
+      "titleFont": "Schibsted Grotesk",
+      "titleFontSize": 12,
+      "labelColor": "#0E1414",
+      "titleColor": "#0E1414",
+      "gridColor": "#C6D4D1",
+      "domainColor": "#566360",
+      "tickColor": "#566360"
+    },
+    "legend": {
+      "labelFont": "Schibsted Grotesk",
+      "labelFontSize": 11,
+      "titleFont": "Schibsted Grotesk",
+      "titleFontSize": 12,
+      "labelColor": "#0E1414",
+      "titleColor": "#0E1414"
+    },
+    "view": {
+      "stroke": null
+    }
+  },
+  "title": {
+    "text": "Stärken und Schwächen nach Bereich",
+    "subtitle": "Wie die wichtigsten Bereiche der Website heute abschneiden; ohne Bereiche mit rechtlichem Prüfbedarf",
+    "anchor": "start"
+  }
+}

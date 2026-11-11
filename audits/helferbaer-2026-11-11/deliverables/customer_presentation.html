@@ -1,0 +1,332 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="author" content="Pixelkiez">
+<meta name="description" content="Kundenpräsentation zur Pixelkiez Website-Analyse">
+<title>Pixelkiez Website-Analyse – Helferbär GmbH</title>
+<style>@font-face { font-family: "PixelkiezDisplay"; src: url("file:///root/.claude/skills/synced/f83339c8-22e8-4ab2-af93-49dd6f3dd61b_68bba996-f7bf-4d4f-9775-0d8988c782be/pixelkiez-website-diagnosis/assets/fonts/schibsted-grotesk/SchibstedGrotesk-Regular.ttf"); font-style: normal; font-weight: 400; }
+@font-face { font-family: "Schibsted Grotesk"; src: url("file:///root/.claude/skills/synced/f83339c8-22e8-4ab2-af93-49dd6f3dd61b_68bba996-f7bf-4d4f-9775-0d8988c782be/pixelkiez-website-diagnosis/assets/fonts/schibsted-grotesk/SchibstedGrotesk-Regular.ttf"); font-style: normal; font-weight: 400; }
+@font-face { font-family: "PixelkiezDisplay"; src: url("file:///root/.claude/skills/synced/f83339c8-22e8-4ab2-af93-49dd6f3dd61b_68bba996-f7bf-4d4f-9775-0d8988c782be/pixelkiez-website-diagnosis/assets/fonts/schibsted-grotesk/SchibstedGrotesk-Bold.ttf"); font-style: normal; font-weight: 700; }
+@font-face { font-family: "Schibsted Grotesk"; src: url("file:///root/.claude/skills/synced/f83339c8-22e8-4ab2-af93-49dd6f3dd61b_68bba996-f7bf-4d4f-9775-0d8988c782be/pixelkiez-website-diagnosis/assets/fonts/schibsted-grotesk/SchibstedGrotesk-Bold.ttf"); font-style: normal; font-weight: 700; }
+@font-face { font-family: "PixelkiezData"; src: url("file:///root/.claude/skills/synced/f83339c8-22e8-4ab2-af93-49dd6f3dd61b_68bba996-f7bf-4d4f-9775-0d8988c782be/pixelkiez-website-diagnosis/assets/fonts/ibm-plex-mono/IBMPlexMono-Regular.ttf"); font-style: normal; font-weight: 400; }
+@font-face { font-family: "IBM Plex Mono"; src: url("file:///root/.claude/skills/synced/f83339c8-22e8-4ab2-af93-49dd6f3dd61b_68bba996-f7bf-4d4f-9775-0d8988c782be/pixelkiez-website-diagnosis/assets/fonts/ibm-plex-mono/IBMPlexMono-Regular.ttf"); font-style: normal; font-weight: 400; }
+@font-face { font-family: "PixelkiezData"; src: url("file:///root/.claude/skills/synced/f83339c8-22e8-4ab2-af93-49dd6f3dd61b_68bba996-f7bf-4d4f-9775-0d8988c782be/pixelkiez-website-diagnosis/assets/fonts/ibm-plex-mono/IBMPlexMono-Bold.ttf"); font-style: normal; font-weight: 700; }
+@font-face { font-family: "IBM Plex Mono"; src: url("file:///root/.claude/skills/synced/f83339c8-22e8-4ab2-af93-49dd6f3dd61b_68bba996-f7bf-4d4f-9775-0d8988c782be/pixelkiez-website-diagnosis/assets/fonts/ibm-plex-mono/IBMPlexMono-Bold.ttf"); font-style: normal; font-weight: 700; }
+@page { size: A4 landscape; margin: 0; }
+* { box-sizing: border-box; font-family: "PixelkiezDisplay", "IBM Plex Sans", "Noto Sans", "DejaVu Sans", sans-serif; }
+html, body { margin: 0; padding: 0; font-family: "PixelkiezDisplay", "IBM Plex Sans", "Noto Sans", "DejaVu Sans", sans-serif; color: #0E1414; background: #B6C7C4; }
+body { font-size: 12pt; line-height: 1.35; }
+.page {
+  width: 297mm;
+  height: 210mm;
+  padding: 14mm 16mm 12mm;
+  position: relative;
+  overflow: hidden;
+  page-break-after: always;
+  background: #B6C7C4;
+}
+.page:last-child { page-break-after: auto; }
+.page.white { background: #FFFFFF; }
+.page.orange { background: #EC5E43; }
+.page.ink { background: #0E1414; color: #C6D4D1; }
+.header { display: flex; justify-content: space-between; align-items: center; height: 13mm; border-top: 1.2pt solid currentColor; padding-top: 3mm; }
+.brand { font-weight: 700; font-size: 18pt; letter-spacing: -0.03em; }
+.brand small { font-family: "PixelkiezData", "IBM Plex Mono", "Noto Sans Mono", "DejaVu Sans Mono", monospace; font-size: 8.5pt; font-weight: 400; letter-spacing: 0.15em; margin-left: 6mm; }
+.eyebrow, .meta, .label { font-family: "PixelkiezData", "IBM Plex Mono", "Noto Sans Mono", "DejaVu Sans Mono", monospace; text-transform: uppercase; letter-spacing: 0.12em; font-size: 8.5pt; font-weight: 700; }
+h1 { font-size: 36pt; line-height: 1.04; letter-spacing: -0.035em; margin: 0; max-width: 245mm; }
+h2 { font-size: 28pt; line-height: 1.08; letter-spacing: -0.025em; margin: 0; }
+h3 { font-size: 22pt; line-height: 1.15; margin: 0 0 3mm; }
+p { margin: 0; }
+.lead { font-size: 15pt; line-height: 1.35; max-width: 215mm; }
+.cover-main { margin-top: 23mm; }
+.cover-title { max-width: 220mm; }
+.cover-customer { font-size: 20pt; margin-top: 11mm; font-weight: 700; }
+.cover-url { font-family: "PixelkiezData", "IBM Plex Mono", "Noto Sans Mono", "DejaVu Sans Mono", monospace; font-size: 10pt; margin-top: 2mm; }
+.cover-band { position: absolute; left: 0; right: 0; bottom: 0; height: 47mm; background: #0E1414; color: #C6D4D1; padding: 8mm 16mm; display: grid; gap: 10mm; align-items:start; }
+.cover-band.with-score { grid-template-columns: 62mm 1fr; }
+.cover-band.no-score { grid-template-columns: 1fr; }
+.cover-band .cover-message { min-width:0; }
+.cover-band .cover-verdict { font-size:15pt; line-height:1.22; max-width:175mm; }
+.cover-band strong { display: block; font-family: "PixelkiezData", "IBM Plex Mono", "Noto Sans Mono", "DejaVu Sans Mono", monospace; font-size: 22pt; color: #EC5E43; }
+.section-title { margin-top: 7mm; display: flex; justify-content: space-between; align-items: flex-end; gap: 10mm; }
+.section-title p { max-width: 150mm; color: #3A4543; font-size: 11pt; }
+.chart-frame { margin-top: 7mm; height: 143mm; background: #FFFFFF; border-radius: 6mm; padding: 4mm; box-shadow: 0 0 0 0.6pt rgba(86,99,96,.28); display: flex; align-items: center; justify-content: center; }
+.chart-frame svg { width: 100%; height: 100%; display: block; }
+.executive-grid { margin-top: 6mm; display: grid; grid-template-columns: 78mm 1fr; gap: 10mm; height: 132mm; }
+.score-card { background: #EC5E43; border-radius: 6mm; padding: 9mm; display: flex; flex-direction: column; justify-content: space-between; }
+.score-card .score { font-family: "PixelkiezData", "IBM Plex Mono", "Noto Sans Mono", "DejaVu Sans Mono", monospace; font-size: 48pt; line-height: .95; font-weight: 700; }
+.score-card .score span { font-size: 16pt; }
+.summary-card { background: #FFFFFF; border-radius: 6mm; padding: 9mm; }
+.summary-card .takeaway { font-size: 16pt; line-height: 1.32; font-weight: 700; margin-bottom: 7mm; }
+.summary-columns { display: grid; grid-template-columns: 1fr 1fr; gap: 7mm; }
+.summary-columns.single { grid-template-columns: 1fr; }
+.summary-list { list-style: none; padding: 0; margin: 3mm 0 0; }
+.summary-list li { border-top: .7pt solid #C6D4D1; padding: 3mm 0; font-size: 11pt; }
+.industry-focus { border-top: .7pt solid #0E1414; padding-top: 3mm; }
+.industry-focus p { margin: 1.5mm 0 0; font-size: 11pt; line-height: 1.35; }
+.lever-grid { margin-top: 5mm; display: grid; grid-template-columns: 1fr 1fr; gap: 4mm; }
+.lever { min-height: 59mm; color: #0E1414; border-radius: 5mm; padding: 5.5mm; background: #FFFFFF; border-top: 5mm solid #EC5E43; }
+.lever:nth-child(2) { border-color: #0E1414; }
+.lever:nth-child(3) { border-color: #566360; }
+.lever:nth-child(4) { border-color: #EC5E43; }
+.lever .number { font-family: "PixelkiezData", "IBM Plex Mono", "Noto Sans Mono", "DejaVu Sans Mono", monospace; font-size: 11pt; font-weight: 700; }
+.lever h3 { font-size: 15pt; line-height: 1.14; margin-bottom: 2mm; }
+.lever .observation { font-size: 11pt; line-height: 1.28; margin-bottom: 2mm; }
+.lever .action { font-size: 10.5pt; line-height: 1.25; font-weight: 700; }
+.roadmap { margin-top: 10mm; display: grid; grid-template-columns: repeat(3,1fr); gap: 7mm; }
+.roadmap-col { background: #FFFFFF; color: #0E1414; border-radius: 5mm; padding: 7mm; min-height: 127mm; }
+.roadmap-col h3 { color: #EC5E43; font-size: 18pt; }
+.roadmap-item { border-top: .8pt solid #C6D4D1; padding: 5mm 0; }
+.roadmap-item { color: #0E1414; font-size: 11pt; line-height: 1.35; }
+.roadmap-item strong { font-family: "PixelkiezData", "IBM Plex Mono", "Noto Sans Mono", "DejaVu Sans Mono", monospace; font-size: 9pt; }
+.limits-grid { margin-top: 10mm; display: grid; grid-template-columns: 1fr 1fr; gap: 8mm; }
+.limit-card { background: #FFFFFF; color: #0E1414; border-radius: 5mm; padding: 8mm; min-height: 118mm; }
+.limit-card ul { padding-left: 6mm; }
+.limit-card li { margin: 0 0 4mm; font-size: 11.5pt; }
+.method-note { color: #0E1414; position: absolute; left: 16mm; right: 16mm; bottom: 18mm; background: #EC5E43; padding: 6mm; border-radius: 4mm; font-size: 10.5pt; }
+.footer { position: absolute; left: 16mm; right: 16mm; bottom: 6mm; display: flex; justify-content: space-between; font-family: "PixelkiezData", "IBM Plex Mono", "Noto Sans Mono", "DejaVu Sans Mono", monospace; font-size: 8.5pt; color: #3A4543; }
+.page.ink .footer, .page.ink .section-title p { color: #93A29E; }
+.pixel-mark { width: 20mm; display: grid; grid-template-columns: repeat(6, 2.5mm); gap: 1mm; }
+.pixel-mark i { width: 2.5mm; height: 2.5mm; background: #EC5E43; display: block; }
+
+.closing-page { background: #B6C7C4; color: #0E1414; }
+.measurement-highlights { display:grid; grid-template-columns: repeat(3,1fr); gap:5mm; margin: 3mm 0 7mm; }
+.measurement-highlight { background:#FFFFFF; border-radius:4mm; padding:5mm; min-height:27mm; }
+.measurement-highlight span, .measurement-highlight small { display:block; font-family:"IBM Plex Mono","DejaVu Sans Mono",monospace; font-size:8.5pt; color:#566360; }
+.measurement-highlight strong { display:block; font-size:18pt; margin:2mm 0 1mm; }
+.closing-grid { display:grid; grid-template-columns: 1.2fr .8fr; gap:7mm; }
+.closing-actions, .closing-cta { background:#FFFFFF; border-radius:5mm; padding:6mm; min-height:72mm; }
+.closing-action { display:grid; grid-template-columns:14mm 1fr; gap:3mm; padding:2.5mm 0; border-bottom:1px solid #C6D4D1; }
+.closing-action b { font-family:"IBM Plex Mono","DejaVu Sans Mono",monospace; color:#8F250F; }
+.closing-action span { font-size:12pt; font-weight:650; }
+.closing-cta { background:#EC5E43; }
+.closing-cta h3 { font-size:22pt; line-height:1.08; margin:6mm 0; }
+.closing-cta p { font-size:12pt; line-height:1.35; }
+.closing-note { margin-top:3mm; max-width:252mm; font-size:8.5pt; line-height:1.2; color:#566360; }
+
+.lever .impact{font-size:10.5pt;line-height:1.24;margin:7px 0 8px}.lever .impact strong{font-weight:700}.lever .action{margin-top:8px}
+.cover-warning { display:inline-block; margin:1.5mm 0 2mm; padding:1.5mm 2.5mm; border:1pt solid #EC5E43; border-radius:2mm; font-family:"IBM Plex Mono","DejaVu Sans Mono",monospace; font-size:9pt; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:#EC5E43; }
+.lever.severity-critical { border-color:#0E1414; box-shadow:0 0 0 1.2pt #0E1414 inset; }
+.lever.severity-high { border-color:#EC5E43; }
+.lever.severity-medium { border-color:#566360; }
+.lever.severity-low { border-color:#C6D4D1; }
+
+/* Lever page: the absolute footer band (bottom 6mm) is reserved. Card chrome and type are sized so that copy at the
+   client-report schema budgets (headline 110, observation 130, impact 135, action 125 chars) fits without overlap or
+   clipping; validate_pdf_output checks the footer clearance on every rendered page. */
+.page.levers .section-title { margin-top: 4mm; }
+.page.levers .section-title h2 { font-size: 22pt; }
+.page.levers .section-title p { font-size: 9.5pt; }
+/* One ink on orange: the sage hairline colour reaches only 1.9:1 there. */
+.page.orange .footer, .page.orange .section-title p { color: #0E1414; }
+.page.levers .lever-grid { margin-top: 4mm; gap: 3mm; }
+.page.levers .lever { min-height: 0; padding: 3.5mm 4.5mm 4mm; border-top-width: 3mm; border-radius: 4mm; }
+.page.levers .lever .number { font-size: 8.5pt; margin-bottom: 1mm; }
+.page.levers .lever h3 { font-size: 13.5pt; line-height: 1.12; margin-bottom: 1.5mm; }
+.page.levers .lever .observation { font-size: 10pt; line-height: 1.24; margin-bottom: 1.5mm; }
+.page.levers .lever .impact { font-size: 9.5pt; line-height: 1.24; margin: 0 0 1.5mm; }
+.page.levers .lever .action { font-size: 9.5pt; line-height: 1.24; margin-top: 0; }
+</style>
+</head>
+<body>
+
+<section class="page orange">
+  <div class="header"><div class="brand">Pixelkiez.<small>WEB DESIGN BERLIN</small></div><div class="eyebrow">Website-Analyse</div></div>
+  <div class="cover-main">
+    <div class="eyebrow">01 · ENTSCHEIDUNGSGRUNDLAGE</div>
+    <h1 class="cover-title">Was Ihre Website heute bremst - und was zuerst zählt.</h1>
+    <div class="cover-customer">Helferbär GmbH</div>
+    <div class="cover-url">https://www.xn--helferbr-6za.de/</div>
+    
+    <div class="cover-url">Branche: Lokale Dienstleistung</div>
+  </div>
+  <div class="cover-band with-score">
+    <div><span class="label">Pixelkiez Score</span><strong>76</strong><span>Pixelkiez Gesamtbild</span></div>
+    <div class="cover-message"><span class="label">Kernaussage</span><strong class="cover-verdict">Auf dem Handy lassen sich die Telefonnummern auf Start- und Kontaktseite nicht antippen.</strong><span>Die wichtigste Entscheidung für die Website.</span></div>
+  </div>
+</section>
+
+<section class="page">
+  <div class="header"><div class="brand">Pixelkiez.</div><div class="eyebrow">02 · AUF EINEN BLICK</div></div>
+  <div class="section-title"><h2>Was zuerst zählt.</h2></div>
+  <div class="executive-grid">
+    <div class="score-card">
+      <div><div class="label">Pixelkiez Score</div><div class="score">76<span>/100</span></div></div>
+      
+      <div class="industry-focus"><div class="label">Fokus Lokale Dienstleistung</div><p>Gefunden werden in der Region, schnell Vertrauen aufbauen und einfach anfragen lassen.</p></div>
+      <p>Auf dem Handy lassen sich die Telefonnummern auf Start- und Kontaktseite nicht antippen.</p>
+    </div>
+    <div class="summary-card" style="display: flex; flex-direction: column;">
+      <p class="takeaway">Wichtigster Hebel: Mobil fehlt der direkte Anruf: Telefonnummern sind nicht antippbar</p>
+      <div class="summary-columns single">
+        
+        <div><div class="label">Prioritäten</div><ul class="summary-list"><li>Mobil fehlt der direkte Anruf: Telefonnummern sind nicht antippbar</li><li>Standorte und Kontaktdaten widersprechen sich zwischen den Seiten</li><li>Die Haupt-Buttons sind für schwächere Augen schwer lesbar (Kontrast 2,03:1)</li></ul></div>
+      </div>
+      <p class="scope-note" style="margin-top: auto; padding-top: 4mm; font-size: 10pt; line-height: 1.35; color: #566360;">Grundlage: Stichprobe öffentlich erreichbarer Seiten, Stand 11.11.2026. KI-Antworten wurden nicht abgefragt.</p>
+    </div>
+  </div>
+  <div class="footer"><span>Helferbär GmbH · 11.11.2026</span><span>02</span></div>
+</section>
+
+
+<section class="page white">
+  <div class="header"><div class="brand">Pixelkiez.</div><div class="eyebrow">03 · WEBSITE-BEFUND</div></div>
+  <div class="chart-frame"><svg xmlns="http://www.w3.org/2000/svg" width="900" height="480" viewBox="0 0 900 480" role="img" aria-label="Stärken und Schwächen nach Bereich">
+<rect width="900" height="480" rx="18" fill="#FFFFFF"/>
+<text x="42" y="46" font-family="PixelkiezDisplay, Schibsted Grotesk, IBM Plex Sans, Noto Sans, DejaVu Sans, sans-serif" font-size="24" fill="#0E1414" font-weight="700"><tspan x="42" dy="0">Stärken und Schwächen nach Bereich</tspan></text>
+<text x="42" y="78" font-family="PixelkiezDisplay, Schibsted Grotesk, IBM Plex Sans, Noto Sans, DejaVu Sans, sans-serif" font-size="14.5" fill="#566360"><tspan x="42" dy="0">Wie die wichtigsten Bereiche der Website heute abschneiden; ohne Bereiche mit rechtlichem Prüfbedarf</tspan></text>
+<text x="42" y="148.8" font-family="PixelkiezDisplay, Schibsted Grotesk, IBM Plex Sans, Noto Sans, DejaVu Sans, sans-serif" font-size="13.5" fill="#0E1414"><tspan x="42" dy="0">Auffindbarkeit in Suchmaschinen</tspan></text>
+<rect x="335" y="132.0" width="485" height="24.0" rx="5" fill="#C6D4D1"/>
+<rect x="335" y="132.0" width="451.1" height="24.0" rx="5" fill="#EC5E43"/>
+<text x="796.0" y="149.3" font-family="PixelkiezData, IBM Plex Mono, Noto Sans Mono, DejaVu Sans Mono, monospace" font-size="13.5" font-weight="700" fill="#0E1414">93</text>
+<text x="42" y="197.8" font-family="PixelkiezDisplay, Schibsted Grotesk, IBM Plex Sans, Noto Sans, DejaVu Sans, sans-serif" font-size="13.5" fill="#0E1414"><tspan x="42" dy="0">Ladegeschwindigkeit &amp; Technik</tspan></text>
+<rect x="335" y="181.0" width="485" height="24.0" rx="5" fill="#C6D4D1"/>
+<rect x="335" y="181.0" width="310.4" height="24.0" rx="5" fill="#EC5E43"/>
+<text x="655.4" y="198.3" font-family="PixelkiezData, IBM Plex Mono, Noto Sans Mono, DejaVu Sans Mono, monospace" font-size="13.5" font-weight="700" fill="#0E1414">64</text>
+<text x="42" y="246.8" font-family="PixelkiezDisplay, Schibsted Grotesk, IBM Plex Sans, Noto Sans, DejaVu Sans, sans-serif" font-size="13.5" fill="#0E1414"><tspan x="42" dy="0">Nutzerführung &amp; Anfragen</tspan></text>
+<rect x="335" y="230.0" width="485" height="24.0" rx="5" fill="#C6D4D1"/>
+<rect x="335" y="230.0" width="378.3" height="24.0" rx="5" fill="#EC5E43"/>
+<text x="723.3" y="247.3" font-family="PixelkiezData, IBM Plex Mono, Noto Sans Mono, DejaVu Sans Mono, monospace" font-size="13.5" font-weight="700" fill="#0E1414">78</text>
+<text x="42" y="295.8" font-family="PixelkiezDisplay, Schibsted Grotesk, IBM Plex Sans, Noto Sans, DejaVu Sans, sans-serif" font-size="13.5" fill="#0E1414"><tspan x="42" dy="0">Barrierefreiheit</tspan></text>
+<rect x="335" y="279.0" width="485" height="24.0" rx="5" fill="#C6D4D1"/>
+<rect x="335" y="279.0" width="261.9" height="24.0" rx="5" fill="#EC5E43"/>
+<text x="606.9" y="296.3" font-family="PixelkiezData, IBM Plex Mono, Noto Sans Mono, DejaVu Sans Mono, monospace" font-size="13.5" font-weight="700" fill="#0E1414">54</text>
+<text x="42" y="344.8" font-family="PixelkiezDisplay, Schibsted Grotesk, IBM Plex Sans, Noto Sans, DejaVu Sans, sans-serif" font-size="13.5" fill="#0E1414"><tspan x="42" dy="0">KI-Verständlichkeit</tspan></text>
+<rect x="335" y="328.0" width="485" height="24.0" rx="5" fill="#C6D4D1"/>
+<rect x="335" y="328.0" width="378.3" height="24.0" rx="5" fill="#EC5E43"/>
+<text x="723.3" y="345.3" font-family="PixelkiezData, IBM Plex Mono, Noto Sans Mono, DejaVu Sans Mono, monospace" font-size="13.5" font-weight="700" fill="#0E1414">78</text>
+<line x1="42" y1="407" x2="858" y2="407" stroke="#C6D4D1"/>
+</svg>
+</div>
+  <div class="footer"><span>Helferbär GmbH · Website-Analyse</span><span>03</span></div>
+</section>
+
+<section class="page ">
+  <div class="header"><div class="brand">Pixelkiez.</div><div class="eyebrow">04 · WEBSITE-BEFUND</div></div>
+  <div class="chart-frame"><svg xmlns="http://www.w3.org/2000/svg" width="900" height="480" viewBox="0 0 900 480" role="img" aria-label="Die vier wichtigsten Hebel">
+<rect width="900" height="480" rx="18" fill="#FFFFFF"/>
+<text x="42" y="46" font-family="PixelkiezDisplay, Schibsted Grotesk, IBM Plex Sans, Noto Sans, DejaVu Sans, sans-serif" font-size="24" fill="#0E1414" font-weight="700"><tspan x="42" dy="0">Die vier wichtigsten Hebel</tspan></text>
+<text x="42" y="78" font-family="PixelkiezDisplay, Schibsted Grotesk, IBM Plex Sans, Noto Sans, DejaVu Sans, sans-serif" font-size="14.5" fill="#566360"><tspan x="42" dy="0">Nach geschäftlicher Bedeutung geordnet; die Reihenfolge der Umsetzung zeigt der Fahrplan</tspan></text>
+<circle cx="86" cy="128.0" r="20" fill="#EC5E43"/>
+<text x="86" y="134.0" text-anchor="middle" font-family="PixelkiezData, IBM Plex Mono, Noto Sans Mono, DejaVu Sans Mono, monospace" font-size="14" font-weight="700" fill="#0E1414">1</text>
+<text x="126" y="134" font-family="PixelkiezDisplay, Schibsted Grotesk, IBM Plex Sans, Noto Sans, DejaVu Sans, sans-serif" font-size="14" fill="#0E1414"><tspan x="126" dy="0">Auf dem Handy lassen sich die Telefonnummern auf Start- und Kontaktseite</tspan><tspan x="126" dy="15">nicht antippen.</tspan></text>
+<circle cx="86" cy="194.0" r="20" fill="#EC5E43"/>
+<text x="86" y="200.0" text-anchor="middle" font-family="PixelkiezData, IBM Plex Mono, Noto Sans Mono, DejaVu Sans Mono, monospace" font-size="14" font-weight="700" fill="#0E1414">2</text>
+<text x="126" y="200" font-family="PixelkiezDisplay, Schibsted Grotesk, IBM Plex Sans, Noto Sans, DejaVu Sans, sans-serif" font-size="14" fill="#0E1414"><tspan x="126" dy="0">Die Seiten nennen andere Städte – mal Dresden, mal Hamburg; die</tspan><tspan x="126" dy="15">Dresden-Seite trägt den Titel „Hamburg“.</tspan></text>
+<circle cx="86" cy="260.0" r="20" fill="#EC5E43"/>
+<text x="86" y="266.0" text-anchor="middle" font-family="PixelkiezData, IBM Plex Mono, Noto Sans Mono, DejaVu Sans Mono, monospace" font-size="14" font-weight="700" fill="#0E1414">3</text>
+<text x="126" y="266" font-family="PixelkiezDisplay, Schibsted Grotesk, IBM Plex Sans, Noto Sans, DejaVu Sans, sans-serif" font-size="14" fill="#0E1414"><tspan x="126" dy="0">Die orangen Anfrage-Buttons haben nur 2,03:1 Kontrast – empfohlen sind</tspan><tspan x="126" dy="15">mindestens 4,5:1.</tspan></text>
+<circle cx="86" cy="326.0" r="20" fill="#EC5E43"/>
+<text x="86" y="332.0" text-anchor="middle" font-family="PixelkiezData, IBM Plex Mono, Noto Sans Mono, DejaVu Sans Mono, monospace" font-size="14" font-weight="700" fill="#0E1414">4</text>
+<text x="126" y="332" font-family="PixelkiezDisplay, Schibsted Grotesk, IBM Plex Sans, Noto Sans, DejaVu Sans, sans-serif" font-size="14" fill="#0E1414"><tspan x="126" dy="0">Kennzahlen und Google-Bewertungen werden erst per Skript geladen und</tspan><tspan x="126" dy="15">fehlen im lesbaren Seitentext.</tspan></text>
+<line x1="42" y1="407" x2="858" y2="407" stroke="#C6D4D1"/>
+</svg>
+</div>
+  <div class="footer"><span>Helferbär GmbH · Website-Analyse</span><span>04</span></div>
+</section>
+
+<section class="page white">
+  <div class="header"><div class="brand">Pixelkiez.</div><div class="eyebrow">05 · WEBSITE-BEFUND</div></div>
+  <div class="chart-frame"><svg xmlns="http://www.w3.org/2000/svg" width="900" height="480" viewBox="0 0 900 480" role="img" aria-label="Wie eindeutig die Website Fragen beantwortet">
+<rect width="900" height="480" rx="18" fill="#FFFFFF"/>
+<text x="42" y="46" font-family="PixelkiezDisplay, Schibsted Grotesk, IBM Plex Sans, Noto Sans, DejaVu Sans, sans-serif" font-size="24" fill="#0E1414" font-weight="700"><tspan x="42" dy="0">Wie eindeutig die Website Fragen beantwortet</tspan></text>
+<text x="42" y="78" font-family="PixelkiezDisplay, Schibsted Grotesk, IBM Plex Sans, Noto Sans, DejaVu Sans, sans-serif" font-size="14.5" fill="#566360"><tspan x="42" dy="0">Wie klar dieser Bereich heute aufgestellt ist</tspan></text>
+<text x="42" y="145" font-family="PixelkiezDisplay, Schibsted Grotesk, IBM Plex Sans, Noto Sans, DejaVu Sans, sans-serif" font-size="13" fill="#0E1414"><tspan x="42" dy="0">Eindeutige Unternehmensdarstellung</tspan></text>
+<rect x="520" y="125" width="300" height="26" rx="5" fill="#FBF0DC" stroke="#C6D4D1"/>
+<text x="535" y="143" font-family="PixelkiezData, IBM Plex Mono, Noto Sans Mono, DejaVu Sans Mono, monospace" font-size="13.5" font-weight="700" fill="#0E1414">Verbesserung sinnvoll</text>
+<text x="42" y="179" font-family="PixelkiezDisplay, Schibsted Grotesk, IBM Plex Sans, Noto Sans, DejaVu Sans, sans-serif" font-size="13" fill="#0E1414"><tspan x="42" dy="0">Leistung, Zielgruppe und Standort</tspan></text>
+<rect x="520" y="159" width="300" height="26" rx="5" fill="#FBF0DC" stroke="#C6D4D1"/>
+<text x="535" y="177" font-family="PixelkiezData, IBM Plex Mono, Noto Sans Mono, DejaVu Sans Mono, monospace" font-size="13.5" font-weight="700" fill="#0E1414">Verbesserung sinnvoll</text>
+<text x="42" y="213" font-family="PixelkiezDisplay, Schibsted Grotesk, IBM Plex Sans, Noto Sans, DejaVu Sans, sans-serif" font-size="13" fill="#0E1414"><tspan x="42" dy="0">Antworten auf Kundenfragen</tspan></text>
+<rect x="520" y="193" width="300" height="26" rx="5" fill="#E4F4EB" stroke="#C6D4D1"/>
+<text x="535" y="211" font-family="PixelkiezData, IBM Plex Mono, Noto Sans Mono, DejaVu Sans Mono, monospace" font-size="13.5" font-weight="700" fill="#0E1414">Klar</text>
+<text x="42" y="247" font-family="PixelkiezDisplay, Schibsted Grotesk, IBM Plex Sans, Noto Sans, DejaVu Sans, sans-serif" font-size="13" fill="#0E1414"><tspan x="42" dy="0">Strukturierte Zusammenfassungen &amp; Schema</tspan></text>
+<rect x="520" y="227" width="300" height="26" rx="5" fill="#E4F4EB" stroke="#C6D4D1"/>
+<text x="535" y="245" font-family="PixelkiezData, IBM Plex Mono, Noto Sans Mono, DejaVu Sans Mono, monospace" font-size="13.5" font-weight="700" fill="#0E1414">Klar</text>
+<text x="42" y="281" font-family="PixelkiezDisplay, Schibsted Grotesk, IBM Plex Sans, Noto Sans, DejaVu Sans, sans-serif" font-size="13" fill="#0E1414"><tspan x="42" dy="0">Belege für Nutzenversprechen</tspan></text>
+<rect x="520" y="261" width="300" height="26" rx="5" fill="#FBF0DC" stroke="#C6D4D1"/>
+<text x="535" y="279" font-family="PixelkiezData, IBM Plex Mono, Noto Sans Mono, DejaVu Sans Mono, monospace" font-size="13.5" font-weight="700" fill="#0E1414">Verbesserung sinnvoll</text>
+<text x="42" y="315" font-family="PixelkiezDisplay, Schibsted Grotesk, IBM Plex Sans, Noto Sans, DejaVu Sans, sans-serif" font-size="13" fill="#0E1414"><tspan x="42" dy="0">Einheitliche Fakten</tspan></text>
+<rect x="520" y="295" width="300" height="26" rx="5" fill="#FBF0DC" stroke="#C6D4D1"/>
+<text x="535" y="313" font-family="PixelkiezData, IBM Plex Mono, Noto Sans Mono, DejaVu Sans Mono, monospace" font-size="13.5" font-weight="700" fill="#0E1414">Verbesserung sinnvoll</text>
+<text x="42" y="349" font-family="PixelkiezDisplay, Schibsted Grotesk, IBM Plex Sans, Noto Sans, DejaVu Sans, sans-serif" font-size="13" fill="#0E1414"><tspan x="42" dy="0">Inhaltliche Tiefe</tspan></text>
+<rect x="520" y="329" width="300" height="26" rx="5" fill="#E4F4EB" stroke="#C6D4D1"/>
+<text x="535" y="347" font-family="PixelkiezData, IBM Plex Mono, Noto Sans Mono, DejaVu Sans Mono, monospace" font-size="13.5" font-weight="700" fill="#0E1414">Klar</text>
+<line x1="42" y1="407" x2="858" y2="407" stroke="#C6D4D1"/>
+</svg>
+</div>
+  <div class="footer"><span>Helferbär GmbH · Website-Analyse</span><span>05</span></div>
+</section>
+
+<section class="page ">
+  <div class="header"><div class="brand">Pixelkiez.</div><div class="eyebrow">06 · WEBSITE-BEFUND</div></div>
+  <div class="chart-frame"><svg xmlns="http://www.w3.org/2000/svg" width="900" height="480" viewBox="0 0 900 480" role="img" aria-label="Vertrauen und Konsistenz">
+<rect width="900" height="480" rx="18" fill="#FFFFFF"/>
+<text x="42" y="46" font-family="PixelkiezDisplay, Schibsted Grotesk, IBM Plex Sans, Noto Sans, DejaVu Sans, sans-serif" font-size="24" fill="#0E1414" font-weight="700"><tspan x="42" dy="0">Vertrauen und Konsistenz</tspan></text>
+<text x="42" y="78" font-family="PixelkiezDisplay, Schibsted Grotesk, IBM Plex Sans, Noto Sans, DejaVu Sans, sans-serif" font-size="14.5" fill="#566360"><tspan x="42" dy="0">Wo Handlungsbedarf besteht und was bereits trägt</tspan></text>
+<text x="42" y="145" font-family="PixelkiezDisplay, Schibsted Grotesk, IBM Plex Sans, Noto Sans, DejaVu Sans, sans-serif" font-size="13" fill="#0E1414"><tspan x="42" dy="0">Impressum und rechtliche Angaben (vorhanden)</tspan></text>
+<rect x="520" y="125" width="300" height="26" rx="5" fill="#C6D4D1" stroke="#566360" stroke-width="1"/>
+<text x="536" y="143" font-family="PixelkiezData, IBM Plex Mono, Noto Sans Mono, DejaVu Sans Mono, monospace" font-size="14" font-weight="700" fill="#0E1414">-</text>
+<text x="566" y="143" font-family="PixelkiezData, IBM Plex Mono, Noto Sans Mono, DejaVu Sans Mono, monospace" font-size="13" font-weight="700" fill="#0E1414">Nicht belastbar bewertet</text>
+<text x="42" y="179" font-family="PixelkiezDisplay, Schibsted Grotesk, IBM Plex Sans, Noto Sans, DejaVu Sans, sans-serif" font-size="13" fill="#0E1414"><tspan x="42" dy="0">Datenschutz und Einwilligungen (vorhanden)</tspan></text>
+<rect x="520" y="159" width="300" height="26" rx="5" fill="#C6D4D1" stroke="#566360" stroke-width="1"/>
+<text x="536" y="177" font-family="PixelkiezData, IBM Plex Mono, Noto Sans Mono, DejaVu Sans Mono, monospace" font-size="14" font-weight="700" fill="#0E1414">-</text>
+<text x="566" y="177" font-family="PixelkiezData, IBM Plex Mono, Noto Sans Mono, DejaVu Sans Mono, monospace" font-size="13" font-weight="700" fill="#0E1414">Nicht belastbar bewertet</text>
+<text x="42" y="213" font-family="PixelkiezDisplay, Schibsted Grotesk, IBM Plex Sans, Noto Sans, DejaVu Sans, sans-serif" font-size="13" fill="#0E1414"><tspan x="42" dy="0">HTTPS-Verschlüsselung</tspan></text>
+<rect x="520" y="193" width="300" height="26" rx="5" fill="#FBF0DC" stroke="#0E1414" stroke-width="1"/>
+<text x="536" y="211" font-family="PixelkiezData, IBM Plex Mono, Noto Sans Mono, DejaVu Sans Mono, monospace" font-size="14" font-weight="700" fill="#0E1414">!</text>
+<text x="566" y="211" font-family="PixelkiezData, IBM Plex Mono, Noto Sans Mono, DejaVu Sans Mono, monospace" font-size="13" font-weight="700" fill="#0E1414">Verbesserung sinnvoll</text>
+<text x="42" y="247" font-family="PixelkiezDisplay, Schibsted Grotesk, IBM Plex Sans, Noto Sans, DejaVu Sans, sans-serif" font-size="13" fill="#0E1414"><tspan x="42" dy="0">Einheitliche Firmendaten</tspan></text>
+<rect x="520" y="227" width="300" height="26" rx="5" fill="#FBF0DC" stroke="#0E1414" stroke-width="1"/>
+<text x="536" y="245" font-family="PixelkiezData, IBM Plex Mono, Noto Sans Mono, DejaVu Sans Mono, monospace" font-size="14" font-weight="700" fill="#0E1414">!</text>
+<text x="566" y="245" font-family="PixelkiezData, IBM Plex Mono, Noto Sans Mono, DejaVu Sans Mono, monospace" font-size="13" font-weight="700" fill="#0E1414">Verbesserung sinnvoll</text>
+<text x="42" y="281" font-family="PixelkiezDisplay, Schibsted Grotesk, IBM Plex Sans, Noto Sans, DejaVu Sans, sans-serif" font-size="13" fill="#0E1414"><tspan x="42" dy="0">Aktuelle Inhalte</tspan></text>
+<rect x="520" y="261" width="300" height="26" rx="5" fill="#FBF0DC" stroke="#0E1414" stroke-width="1"/>
+<text x="536" y="279" font-family="PixelkiezData, IBM Plex Mono, Noto Sans Mono, DejaVu Sans Mono, monospace" font-size="14" font-weight="700" fill="#0E1414">!</text>
+<text x="566" y="279" font-family="PixelkiezData, IBM Plex Mono, Noto Sans Mono, DejaVu Sans Mono, monospace" font-size="13" font-weight="700" fill="#0E1414">Verbesserung sinnvoll</text>
+<text x="42" y="315" font-family="PixelkiezDisplay, Schibsted Grotesk, IBM Plex Sans, Noto Sans, DejaVu Sans, sans-serif" font-size="13" fill="#0E1414"><tspan x="42" dy="0">Referenzen und Fallbelege</tspan></text>
+<rect x="520" y="295" width="300" height="26" rx="5" fill="#FBF0DC" stroke="#0E1414" stroke-width="1"/>
+<text x="536" y="313" font-family="PixelkiezData, IBM Plex Mono, Noto Sans Mono, DejaVu Sans Mono, monospace" font-size="14" font-weight="700" fill="#0E1414">!</text>
+<text x="566" y="313" font-family="PixelkiezData, IBM Plex Mono, Noto Sans Mono, DejaVu Sans Mono, monospace" font-size="13" font-weight="700" fill="#0E1414">Verbesserung sinnvoll</text>
+<text x="42" y="349" font-family="PixelkiezDisplay, Schibsted Grotesk, IBM Plex Sans, Noto Sans, DejaVu Sans, sans-serif" font-size="13" fill="#0E1414"><tspan x="42" dy="0">Kontakttransparenz</tspan></text>
+<rect x="520" y="329" width="300" height="26" rx="5" fill="#E4F4EB" stroke="#0E1414" stroke-width="1"/>
+<text x="536" y="347" font-family="PixelkiezData, IBM Plex Mono, Noto Sans Mono, DejaVu Sans Mono, monospace" font-size="14" font-weight="700" fill="#0E1414">OK</text>
+<text x="566" y="347" font-family="PixelkiezData, IBM Plex Mono, Noto Sans Mono, DejaVu Sans Mono, monospace" font-size="13" font-weight="700" fill="#0E1414">Klar</text>
+<line x1="42" y1="407" x2="858" y2="407" stroke="#C6D4D1"/>
+</svg>
+</div>
+  <div class="footer"><span>Helferbär GmbH · Website-Analyse</span><span>06</span></div>
+</section>
+
+
+<section class="page orange levers">
+  <div class="header"><div class="brand">Pixelkiez.</div><div class="eyebrow">07 · VIER HEBEL</div></div>
+  <div class="section-title"><h2>Vier konkrete Hebel – jeweils mit nächstem Schritt.</h2><p>Nach geschäftlicher Bedeutung für Lokale Dienstleistung geordnet, jeweils mit konkretem nächsten Schritt.</p></div>
+  <div class="lever-grid">
+    <div class="lever severity-high"><div class="number">01 · HOCH</div><h3>Mobil fehlt der direkte Anruf: Telefonnummern sind nicht antippbar</h3><p class="observation">Auf dem Handy lassen sich die Telefonnummern auf Start- und Kontaktseite nicht antippen.</p><p class="impact"><strong>Warum das zählt:</strong> Angehörige und Senioren, die lieber anrufen, müssen Nummern abtippen – das kann den Anruf erschweren.</p><p class="action">Nächster Schritt: Alle Telefonnummern als Anruf-Link hinterlegen und mobil oben einen „Jetzt anrufen“-Button zeigen.</p></div><div class="lever severity-high"><div class="number">02 · HOCH</div><h3>Standorte und Kontaktdaten widersprechen sich zwischen den Seiten</h3><p class="observation">Die Seiten nennen andere Städte – mal Dresden, mal Hamburg; die Dresden-Seite trägt den Titel „Hamburg“.</p><p class="impact"><strong>Warum das zählt:</strong> Interessenten in Dresden oder Hamburg können nicht sicher erkennen, ob Helferbär bei ihnen hilft.</p><p class="action">Nächster Schritt: Eine verbindliche Standortliste festlegen und auf Über uns, Stadtseiten, Seitentiteln und Footer angleichen.</p></div><div class="lever severity-high"><div class="number">03 · HOCH</div><h3>Die Haupt-Buttons sind für schwächere Augen schwer lesbar (Kontrast 2,03:1)</h3><p class="observation">Die orangen Anfrage-Buttons haben nur 2,03:1 Kontrast – empfohlen sind mindestens 4,5:1.</p><p class="impact"><strong>Warum das zählt:</strong> Senioren mit nachlassender Sehkraft können „Jetzt Alltagshilfe anfragen“ schlechter erkennen – genau dort, wo sie anfragen.</p><p class="action">Nächster Schritt: Button-Schrift dunkel setzen oder das Orange abdunkeln, bis 4,5:1 erreicht ist; dann erneut prüfen.</p></div><div class="lever severity-medium"><div class="number">04 · MITTEL</div><h3>Kennzahlen und Bewertungen stehen nicht im lesbaren Seitentext</h3><p class="observation">Kennzahlen und Google-Bewertungen werden erst per Skript geladen und fehlen im lesbaren Seitentext.</p><p class="impact"><strong>Warum das zählt:</strong> Dienste, die Seiten ohne Skripte lesen, sehen die stärksten Belege (4,9 Sterne, 917 Klienten) nicht.</p><p class="action">Nächster Schritt: Kennzahlen und eine kurze Bewertungszusammenfassung als normalen Text in die Startseite schreiben.</p></div>
+  </div>
+  <div class="footer"><span>Helferbär GmbH · priorisierte Befunde</span><span>07</span></div>
+</section>
+
+<section class="page ink">
+  <div class="header"><div class="brand">Pixelkiez.</div><div class="eyebrow">08 · ROADMAP</div></div>
+  <div class="section-title"><h2>Vom Befund zur überprüfbaren Verbesserung.</h2><p>Reihenfolge der Umsetzung: was jetzt, in 30 Tagen und danach ansteht.</p></div>
+  <div class="roadmap">
+    <div class="roadmap-col"><h3>Jetzt</h3><div class="roadmap-item"><strong>Website-Pflege</strong><p>Alle Telefonnummern als Anruf-Link hinterlegen und mobil oben einen „Jetzt anrufen“-Button zeigen.</p></div><div class="roadmap-item"><strong>Design / Website-Pflege</strong><p>Button-Schrift dunkel setzen oder das Orange abdunkeln, bis 4,5:1 erreicht ist; dann erneut prüfen.</p></div></div><div class="roadmap-col"><h3>In 30 Tagen</h3><div class="roadmap-item"><strong>Inhalte / Website-Pflege</strong><p>Eine verbindliche Standortliste festlegen und auf Über uns, Stadtseiten, Seitentiteln und Footer angleichen.</p></div></div><div class="roadmap-col"><h3>Danach</h3><div class="roadmap-item"><strong>Inhalte / Website-Pflege</strong><p>Kennzahlen und eine kurze Bewertungszusammenfassung als normalen Text in die Startseite schreiben.</p></div></div>
+  </div>
+  <div class="footer"><span>Helferbär GmbH · Alle Telefonnummern als Anruf-Link hinterlegen und mobil oben einen „Jetzt anrufen“-Button zeigen.</span><span>08</span></div>
+</section>
+
+<section class="page closing-page">
+  <div class="header"><div class="brand">Pixelkiez.</div><div class="eyebrow">09 · NÄCHSTER SCHRITT</div></div>
+  <div class="section-title"><h2>Aus Analyse wird Umsetzung.</h2><p>Die wichtigsten Stellschrauben sind klar. Jetzt geht es darum, sie in der richtigen Reihenfolge umzusetzen und die geschäftliche Wirkung zu verbessern.</p></div>
+  
+  <div class="closing-grid">
+    <div class="closing-actions"><div class="label">REIHENFOLGE DER UMSETZUNG</div><div class="closing-action"><b>01</b><span>Alle Telefonnummern als Anruf-Link hinterlegen und mobil oben einen „Jetzt anrufen“-Button zeigen.</span></div><div class="closing-action"><b>02</b><span>Button-Schrift dunkel setzen oder das Orange abdunkeln, bis 4,5:1 erreicht ist; dann erneut prüfen.</span></div><div class="closing-action"><b>03</b><span>Eine verbindliche Standortliste festlegen und auf Über uns, Stadtseiten, Seitentiteln und Footer angleichen.</span></div><div class="closing-action"><b>04</b><span>Kennzahlen und eine kurze Bewertungszusammenfassung als normalen Text in die Startseite schreiben.</span></div></div>
+    <div class="closing-cta"><div class="label">NÄCHSTER SCHRITT</div><h3>Prioritäten bestätigen. Umsetzung starten.</h3><p>Gemeinsam priorisieren wir die vier Hebel und starten mit dem ersten konkreten Umsetzungspaket.</p></div>
+  </div>
+  <div class="footer"><span>Helferbär GmbH · Pixelkiez Umsetzungspfad</span><span>09</span></div>
+</section>
+</body>
+</html>

@@ -1,0 +1,169 @@
+{
+  "$schema": "https://vega.github.io/schema/vega-lite/v6.json",
+  "description": "Pixelkiez approved template V10_TRUST_MATRIX: four-state trust/privacy matrix with explicit action-needed warning semantics",
+  "usermeta": {
+    "template_id": "V10_TRUST_MATRIX",
+    "name": "Trust-/Entity-Matrix",
+    "purpose": "Status je Vertrauenssignal",
+    "brand_contract": "pixelkiez-v1",
+    "visual_id": "VIZ-004",
+    "metric_refs": [
+      "TRUST-01",
+      "TRUST-02",
+      "TRUST-03",
+      "TRUST-04",
+      "TRUST-05",
+      "TRUST-06",
+      "TRUST-07"
+    ],
+    "finding_refs": [],
+    "evidence_class": "DIRECT",
+    "population": "7 Aspekte in diesem Bereich",
+    "method": "Pixelkiez four-state customer status projection",
+    "does_not_prove": "Handlungsbedarf ist ein technischer/inhaltlicher Befund und keine juristische Feststellung.",
+    "brand_font_status": "EXACT",
+    "resolved_fonts": {
+      "display": "Schibsted Grotesk",
+      "data": "IBM Plex Mono"
+    }
+  },
+  "width": 620,
+  "height": 310,
+  "data": {
+    "values": [
+      {
+        "signal": "Impressum und rechtliche Angaben (vorhanden)",
+        "metric_ref": "TRUST-01",
+        "status": "Nicht belastbar bewertet",
+        "symbol": "-",
+        "tone": "neutral",
+        "value": 0.42
+      },
+      {
+        "signal": "Datenschutz und Einwilligungen (vorhanden)",
+        "metric_ref": "TRUST-02",
+        "status": "Nicht belastbar bewertet",
+        "symbol": "-",
+        "tone": "neutral",
+        "value": 0.42
+      },
+      {
+        "signal": "HTTPS-Verschlüsselung",
+        "metric_ref": "TRUST-03",
+        "status": "Verbesserung sinnvoll",
+        "symbol": "!",
+        "tone": "warn",
+        "value": 0.5
+      },
+      {
+        "signal": "Einheitliche Firmendaten",
+        "metric_ref": "TRUST-04",
+        "status": "Verbesserung sinnvoll",
+        "symbol": "!",
+        "tone": "warn",
+        "value": 0.5
+      },
+      {
+        "signal": "Aktuelle Inhalte",
+        "metric_ref": "TRUST-05",
+        "status": "Verbesserung sinnvoll",
+        "symbol": "!",
+        "tone": "warn",
+        "value": 0.5
+      },
+      {
+        "signal": "Referenzen und Fallbelege",
+        "metric_ref": "TRUST-06",
+        "status": "Verbesserung sinnvoll",
+        "symbol": "!",
+        "tone": "warn",
+        "value": 0.5
+      },
+      {
+        "signal": "Kontakttransparenz",
+        "metric_ref": "TRUST-07",
+        "status": "Klar",
+        "symbol": "OK",
+        "tone": "good",
+        "value": 1.0
+      }
+    ]
+  },
+  "mark": {
+    "type": "rect",
+    "cornerRadius": 3
+  },
+  "encoding": {
+    "y": {
+      "field": "signal",
+      "type": "nominal",
+      "axis": {
+        "title": null
+      }
+    },
+    "x": {
+      "field": "status",
+      "type": "nominal",
+      "axis": {
+        "title": null
+      }
+    },
+    "color": {
+      "field": "status",
+      "type": "nominal",
+      "scale": {
+        "domain": [
+          "Handlungsbedarf",
+          "Verbesserung sinnvoll",
+          "Klar",
+          "Nicht belastbar bewertet"
+        ],
+        "range": [
+          "#FBE3DE",
+          "#FBF0DC",
+          "#E4F4EB",
+          "#D9E3E1"
+        ]
+      },
+      "legend": null
+    }
+  },
+  "config": {
+    "background": "#FFFFFF",
+    "font": "Schibsted Grotesk",
+    "title": {
+      "font": "Schibsted Grotesk",
+      "fontSize": 18,
+      "fontWeight": 700,
+      "color": "#0E1414",
+      "anchor": "start"
+    },
+    "axis": {
+      "labelFont": "IBM Plex Mono",
+      "labelFontSize": 11,
+      "titleFont": "Schibsted Grotesk",
+      "titleFontSize": 12,
+      "labelColor": "#0E1414",
+      "titleColor": "#0E1414",
+      "gridColor": "#C6D4D1",
+      "domainColor": "#566360",
+      "tickColor": "#566360"
+    },
+    "legend": {
+      "labelFont": "Schibsted Grotesk",
+      "labelFontSize": 11,
+      "titleFont": "Schibsted Grotesk",
+      "titleFontSize": 12,
+      "labelColor": "#0E1414",
+      "titleColor": "#0E1414"
+    },
+    "view": {
+      "stroke": null
+    }
+  },
+  "title": {
+    "text": "Vertrauen und Konsistenz",
+    "subtitle": "Wo Handlungsbedarf besteht und was bereits trägt",
+    "anchor": "start"
+  }
+}

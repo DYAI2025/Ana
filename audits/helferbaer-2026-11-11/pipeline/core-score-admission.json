@@ -1,0 +1,987 @@
+{
+  "schema_version": "1.0",
+  "target_url": "https://www.xn--helferbr-6za.de/",
+  "execution_run_id": "pxk-live-ae9a2e9a45ca",
+  "mode": "LIVE",
+  "binding_contract_version": "1.0.0",
+  "measurement_registry_version": "1.0.0",
+  "binding_digest": "09a3b2e2ce8d6b264347af53e9423df87c367d4c475a97940cc24fb415927f09",
+  "measurement_registry_digest": "b527f71f397b2f95194ec35f2b85e6ff68024ab90ed25c65d2eccc255a93acac",
+  "execution_semantic_digest": "5f6eeea0db15742eae1e46a448c8c15b0e3c2bd68bc4707508071ce618aa98da",
+  "total_registry_metrics": 48,
+  "execution_results": 48,
+  "score_admitted": 43,
+  "metrics": [
+    {
+      "metric_id": "FIND-01",
+      "category": "findability_seo",
+      "metric_weight": 10,
+      "category_weight": 25,
+      "source_family": "PUBLIC_DETERMINISTIC_TECHNICAL",
+      "execution_state": "MEASURED",
+      "evidence_grade": "E4",
+      "evidence_refs": [
+        "E-2001"
+      ],
+      "threshold_source": null,
+      "score_admitted": true,
+      "product_status": "strong",
+      "score": 100,
+      "reason_codes": [],
+      "score_anchor_source": "assets/measurement-registry.json#metric_score_scale",
+      "control_basis": "PUBLIC_REPRODUCIBLE",
+      "normalization_path": "CORE_EXECUTION_BUNDLE_V1_TO_DIAGNOSIS_METRIC"
+    },
+    {
+      "metric_id": "FIND-02",
+      "category": "findability_seo",
+      "metric_weight": 10,
+      "category_weight": 25,
+      "source_family": "PUBLIC_DETERMINISTIC_TECHNICAL",
+      "execution_state": "MEASURED",
+      "evidence_grade": "E4",
+      "evidence_refs": [
+        "E-2002"
+      ],
+      "threshold_source": null,
+      "score_admitted": true,
+      "product_status": "strong",
+      "score": 100,
+      "reason_codes": [],
+      "score_anchor_source": "assets/measurement-registry.json#metric_score_scale",
+      "control_basis": "PUBLIC_REPRODUCIBLE",
+      "normalization_path": "CORE_EXECUTION_BUNDLE_V1_TO_DIAGNOSIS_METRIC"
+    },
+    {
+      "metric_id": "FIND-03",
+      "category": "findability_seo",
+      "metric_weight": 10,
+      "category_weight": 25,
+      "source_family": "STRUCTURED_CONTENT_DOM_METADATA",
+      "execution_state": "OBSERVED",
+      "evidence_grade": "E4",
+      "evidence_refs": [
+        "E-2003"
+      ],
+      "threshold_source": null,
+      "score_admitted": true,
+      "product_status": "strong",
+      "score": 100,
+      "reason_codes": [],
+      "score_anchor_source": "assets/measurement-registry.json#metric_score_scale",
+      "control_basis": "PUBLIC_REPRODUCIBLE",
+      "normalization_path": "CORE_EXECUTION_BUNDLE_V1_TO_DIAGNOSIS_METRIC"
+    },
+    {
+      "metric_id": "FIND-04",
+      "category": "findability_seo",
+      "metric_weight": 10,
+      "category_weight": 25,
+      "source_family": "SEARCH_INDEXING_SERP",
+      "execution_state": "UNAVAILABLE",
+      "evidence_grade": "E8",
+      "evidence_refs": [],
+      "threshold_source": null,
+      "score_admitted": false,
+      "product_status": null,
+      "score": null,
+      "reason_codes": [
+        "EVIDENCE_UNAVAILABLE"
+      ],
+      "score_anchor_source": "assets/measurement-registry.json#metric_score_scale",
+      "control_basis": "PUBLIC_SEARCH_SAMPLE",
+      "normalization_path": "CORE_EXECUTION_BUNDLE_V1_TO_DIAGNOSIS_METRIC"
+    },
+    {
+      "metric_id": "FIND-05",
+      "category": "findability_seo",
+      "metric_weight": 15,
+      "category_weight": 25,
+      "source_family": "SEARCH_INDEXING_SERP",
+      "execution_state": "UNAVAILABLE",
+      "evidence_grade": "E8",
+      "evidence_refs": [],
+      "threshold_source": null,
+      "score_admitted": false,
+      "product_status": null,
+      "score": null,
+      "reason_codes": [
+        "EVIDENCE_UNAVAILABLE"
+      ],
+      "score_anchor_source": "assets/measurement-registry.json#metric_score_scale",
+      "control_basis": "PUBLIC_SEARCH_SAMPLE",
+      "normalization_path": "CORE_EXECUTION_BUNDLE_V1_TO_DIAGNOSIS_METRIC"
+    },
+    {
+      "metric_id": "FIND-06",
+      "category": "findability_seo",
+      "metric_weight": 10,
+      "category_weight": 25,
+      "source_family": "STRUCTURED_CONTENT_DOM_METADATA",
+      "execution_state": "OBSERVED",
+      "evidence_grade": "E4",
+      "evidence_refs": [
+        "E-2004"
+      ],
+      "threshold_source": null,
+      "score_admitted": true,
+      "product_status": "minor_gaps",
+      "score": 75,
+      "reason_codes": [],
+      "score_anchor_source": "assets/measurement-registry.json#metric_score_scale",
+      "control_basis": "PIXELKIEZ_PRODUCT_RUBRIC",
+      "normalization_path": "CORE_EXECUTION_BUNDLE_V1_TO_DIAGNOSIS_METRIC"
+    },
+    {
+      "metric_id": "FIND-07",
+      "category": "findability_seo",
+      "metric_weight": 10,
+      "category_weight": 25,
+      "source_family": "STRUCTURED_CONTENT_DOM_METADATA",
+      "execution_state": "OBSERVED",
+      "evidence_grade": "E4",
+      "evidence_refs": [
+        "E-2005"
+      ],
+      "threshold_source": null,
+      "score_admitted": true,
+      "product_status": "strong",
+      "score": 100,
+      "reason_codes": [],
+      "score_anchor_source": "assets/measurement-registry.json#metric_score_scale",
+      "control_basis": "CURRENT_PRIMARY_SOURCE_AT_RUNTIME",
+      "normalization_path": "CORE_EXECUTION_BUNDLE_V1_TO_DIAGNOSIS_METRIC"
+    },
+    {
+      "metric_id": "FIND-08",
+      "category": "findability_seo",
+      "metric_weight": 15,
+      "category_weight": 25,
+      "source_family": "PUBLIC_DETERMINISTIC_TECHNICAL",
+      "execution_state": "MEASURED",
+      "evidence_grade": "E4",
+      "evidence_refs": [
+        "E-2006"
+      ],
+      "threshold_source": null,
+      "score_admitted": true,
+      "product_status": "strong",
+      "score": 100,
+      "reason_codes": [],
+      "score_anchor_source": "assets/measurement-registry.json#metric_score_scale",
+      "control_basis": "PIXELKIEZ_PRODUCT_RUBRIC",
+      "normalization_path": "CORE_EXECUTION_BUNDLE_V1_TO_DIAGNOSIS_METRIC"
+    },
+    {
+      "metric_id": "FIND-09",
+      "category": "findability_seo",
+      "metric_weight": 5,
+      "category_weight": 25,
+      "source_family": "STRUCTURED_CONTENT_DOM_METADATA",
+      "execution_state": "OBSERVED",
+      "evidence_grade": "E4",
+      "evidence_refs": [
+        "E-2007"
+      ],
+      "threshold_source": null,
+      "score_admitted": true,
+      "product_status": "mixed",
+      "score": 50,
+      "reason_codes": [],
+      "score_anchor_source": "assets/measurement-registry.json#metric_score_scale",
+      "control_basis": "CURRENT_PRIMARY_SOURCE_AT_RUNTIME",
+      "normalization_path": "CORE_EXECUTION_BUNDLE_V1_TO_DIAGNOSIS_METRIC"
+    },
+    {
+      "metric_id": "FIND-10",
+      "category": "findability_seo",
+      "metric_weight": 5,
+      "category_weight": 25,
+      "source_family": "STRUCTURED_CONTENT_DOM_METADATA",
+      "execution_state": "OBSERVED",
+      "evidence_grade": "E4",
+      "evidence_refs": [
+        "E-2008"
+      ],
+      "threshold_source": null,
+      "score_admitted": true,
+      "product_status": "strong",
+      "score": 100,
+      "reason_codes": [],
+      "score_anchor_source": "assets/measurement-registry.json#metric_score_scale",
+      "control_basis": "CURRENT_PRIMARY_SOURCE_AT_RUNTIME",
+      "normalization_path": "CORE_EXECUTION_BUNDLE_V1_TO_DIAGNOSIS_METRIC"
+    },
+    {
+      "metric_id": "PERF-01",
+      "category": "performance_technology",
+      "metric_weight": 20,
+      "category_weight": 20,
+      "source_family": "PERFORMANCE_CWV_LAB",
+      "execution_state": "UNAVAILABLE",
+      "evidence_grade": "E8",
+      "evidence_refs": [],
+      "threshold_source": null,
+      "score_admitted": false,
+      "product_status": null,
+      "score": null,
+      "reason_codes": [
+        "EVIDENCE_UNAVAILABLE"
+      ],
+      "score_anchor_source": "assets/measurement-registry.json#metric_score_scale",
+      "control_basis": "CURRENT_PRIMARY_SOURCE_AT_RUNTIME",
+      "normalization_path": "CORE_EXECUTION_BUNDLE_V1_TO_DIAGNOSIS_METRIC"
+    },
+    {
+      "metric_id": "PERF-02",
+      "category": "performance_technology",
+      "metric_weight": 15,
+      "category_weight": 20,
+      "source_family": "PERFORMANCE_CWV_LAB",
+      "execution_state": "MEASURED",
+      "evidence_grade": "E2",
+      "evidence_refs": [
+        "E-5006"
+      ],
+      "threshold_source": "web.dev/articles/vitals (LCP ≤ 2,5 s, CLS ≤ 0,1 „good“; zuletzt aktualisiert 2024-10-31) und developer.chrome.com/docs/lighthouse/performance/performance-scoring (0–49 poor, 50–89 needs improvement, 90–100 good), abgerufen 2026-11-11; Pixelkiez-Abbildung: ≥90 strong, 75–89 minor_gaps, 50–74 mixed, <50 weak",
+      "score_admitted": true,
+      "product_status": "mixed",
+      "score": 50,
+      "reason_codes": [],
+      "score_anchor_source": "assets/measurement-registry.json#metric_score_scale",
+      "control_basis": "CURRENT_PRIMARY_SOURCE_AT_RUNTIME",
+      "normalization_path": "CORE_EXECUTION_BUNDLE_V1_TO_DIAGNOSIS_METRIC"
+    },
+    {
+      "metric_id": "PERF-03",
+      "category": "performance_technology",
+      "metric_weight": 10,
+      "category_weight": 20,
+      "source_family": "PERFORMANCE_CWV_LAB",
+      "execution_state": "MEASURED",
+      "evidence_grade": "E2",
+      "evidence_refs": [
+        "E-5007"
+      ],
+      "threshold_source": "web.dev/articles/vitals (LCP ≤ 2,5 s, CLS ≤ 0,1 „good“; zuletzt aktualisiert 2024-10-31) und developer.chrome.com/docs/lighthouse/performance/performance-scoring (0–49 poor, 50–89 needs improvement, 90–100 good), abgerufen 2026-11-11; Pixelkiez-Abbildung: ≥90 strong, 75–89 minor_gaps, 50–74 mixed, <50 weak",
+      "score_admitted": true,
+      "product_status": "minor_gaps",
+      "score": 75,
+      "reason_codes": [],
+      "score_anchor_source": "assets/measurement-registry.json#metric_score_scale",
+      "control_basis": "CURRENT_PRIMARY_SOURCE_AT_RUNTIME",
+      "normalization_path": "CORE_EXECUTION_BUNDLE_V1_TO_DIAGNOSIS_METRIC"
+    },
+    {
+      "metric_id": "PERF-04",
+      "category": "performance_technology",
+      "metric_weight": 10,
+      "category_weight": 20,
+      "source_family": "PUBLIC_DETERMINISTIC_TECHNICAL",
+      "execution_state": "MEASURED",
+      "evidence_grade": "E4",
+      "evidence_refs": [
+        "E-2009"
+      ],
+      "threshold_source": null,
+      "score_admitted": true,
+      "product_status": "weak",
+      "score": 25,
+      "reason_codes": [],
+      "score_anchor_source": "assets/measurement-registry.json#metric_score_scale",
+      "control_basis": "PUBLIC_REPRODUCIBLE",
+      "normalization_path": "CORE_EXECUTION_BUNDLE_V1_TO_DIAGNOSIS_METRIC"
+    },
+    {
+      "metric_id": "PERF-05",
+      "category": "performance_technology",
+      "metric_weight": 10,
+      "category_weight": 20,
+      "source_family": "PUBLIC_DETERMINISTIC_TECHNICAL",
+      "execution_state": "MEASURED",
+      "evidence_grade": "E4",
+      "evidence_refs": [
+        "E-2010"
+      ],
+      "threshold_source": null,
+      "score_admitted": true,
+      "product_status": "weak",
+      "score": 25,
+      "reason_codes": [],
+      "score_anchor_source": "assets/measurement-registry.json#metric_score_scale",
+      "control_basis": "PIXELKIEZ_PRODUCT_RUBRIC",
+      "normalization_path": "CORE_EXECUTION_BUNDLE_V1_TO_DIAGNOSIS_METRIC"
+    },
+    {
+      "metric_id": "PERF-06",
+      "category": "performance_technology",
+      "metric_weight": 10,
+      "category_weight": 20,
+      "source_family": "PUBLIC_DETERMINISTIC_TECHNICAL",
+      "execution_state": "MEASURED",
+      "evidence_grade": "E4",
+      "evidence_refs": [
+        "E-2011"
+      ],
+      "threshold_source": null,
+      "score_admitted": true,
+      "product_status": "strong",
+      "score": 100,
+      "reason_codes": [],
+      "score_anchor_source": "assets/measurement-registry.json#metric_score_scale",
+      "control_basis": "PUBLIC_REPRODUCIBLE",
+      "normalization_path": "CORE_EXECUTION_BUNDLE_V1_TO_DIAGNOSIS_METRIC"
+    },
+    {
+      "metric_id": "PERF-07",
+      "category": "performance_technology",
+      "metric_weight": 10,
+      "category_weight": 20,
+      "source_family": "PUBLIC_DETERMINISTIC_TECHNICAL",
+      "execution_state": "MEASURED",
+      "evidence_grade": "E4",
+      "evidence_refs": [
+        "E-2012"
+      ],
+      "threshold_source": null,
+      "score_admitted": true,
+      "product_status": "minor_gaps",
+      "score": 75,
+      "reason_codes": [],
+      "score_anchor_source": "assets/measurement-registry.json#metric_score_scale",
+      "control_basis": "PUBLIC_REPRODUCIBLE",
+      "normalization_path": "CORE_EXECUTION_BUNDLE_V1_TO_DIAGNOSIS_METRIC"
+    },
+    {
+      "metric_id": "PERF-08",
+      "category": "performance_technology",
+      "metric_weight": 5,
+      "category_weight": 20,
+      "source_family": "BROWSER_RENDERING",
+      "execution_state": "OBSERVED",
+      "evidence_grade": "E4",
+      "evidence_refs": [
+        "E-5001",
+        "E-5002"
+      ],
+      "threshold_source": null,
+      "score_admitted": true,
+      "product_status": "minor_gaps",
+      "score": 75,
+      "reason_codes": [],
+      "score_anchor_source": "assets/measurement-registry.json#metric_score_scale",
+      "control_basis": "PIXELKIEZ_PRODUCT_RUBRIC",
+      "normalization_path": "CORE_EXECUTION_BUNDLE_V1_TO_DIAGNOSIS_METRIC"
+    },
+    {
+      "metric_id": "PERF-09",
+      "category": "performance_technology",
+      "metric_weight": 10,
+      "category_weight": 20,
+      "source_family": "STRUCTURED_CONTENT_DOM_METADATA",
+      "execution_state": "OBSERVED",
+      "evidence_grade": "E4",
+      "evidence_refs": [
+        "E-2013"
+      ],
+      "threshold_source": null,
+      "score_admitted": true,
+      "product_status": "strong",
+      "score": 100,
+      "reason_codes": [],
+      "score_anchor_source": "assets/measurement-registry.json#metric_score_scale",
+      "control_basis": "PIXELKIEZ_PRODUCT_RUBRIC",
+      "normalization_path": "CORE_EXECUTION_BUNDLE_V1_TO_DIAGNOSIS_METRIC"
+    },
+    {
+      "metric_id": "UX-01",
+      "category": "ux_conversion",
+      "metric_weight": 15,
+      "category_weight": 20,
+      "source_family": "BROWSER_RENDERING",
+      "execution_state": "OBSERVED",
+      "evidence_grade": "E6",
+      "evidence_refs": [
+        "E-5001",
+        "E-5002"
+      ],
+      "threshold_source": null,
+      "score_admitted": true,
+      "product_status": "minor_gaps",
+      "score": 75,
+      "reason_codes": [],
+      "score_anchor_source": "assets/measurement-registry.json#metric_score_scale",
+      "control_basis": "PIXELKIEZ_PRODUCT_RUBRIC",
+      "normalization_path": "CORE_EXECUTION_BUNDLE_V1_TO_DIAGNOSIS_METRIC"
+    },
+    {
+      "metric_id": "UX-02",
+      "category": "ux_conversion",
+      "metric_weight": 15,
+      "category_weight": 20,
+      "source_family": "BROWSER_RENDERING",
+      "execution_state": "OBSERVED",
+      "evidence_grade": "E6",
+      "evidence_refs": [
+        "E-5001",
+        "E-5002"
+      ],
+      "threshold_source": null,
+      "score_admitted": true,
+      "product_status": "mixed",
+      "score": 50,
+      "reason_codes": [],
+      "score_anchor_source": "assets/measurement-registry.json#metric_score_scale",
+      "control_basis": "PIXELKIEZ_PRODUCT_RUBRIC",
+      "normalization_path": "CORE_EXECUTION_BUNDLE_V1_TO_DIAGNOSIS_METRIC"
+    },
+    {
+      "metric_id": "UX-03",
+      "category": "ux_conversion",
+      "metric_weight": 15,
+      "category_weight": 20,
+      "source_family": "BROWSER_RENDERING",
+      "execution_state": "OBSERVED",
+      "evidence_grade": "E6",
+      "evidence_refs": [
+        "E-5001",
+        "E-5002"
+      ],
+      "threshold_source": null,
+      "score_admitted": true,
+      "product_status": "strong",
+      "score": 100,
+      "reason_codes": [],
+      "score_anchor_source": "assets/measurement-registry.json#metric_score_scale",
+      "control_basis": "PIXELKIEZ_PRODUCT_RUBRIC",
+      "normalization_path": "CORE_EXECUTION_BUNDLE_V1_TO_DIAGNOSIS_METRIC"
+    },
+    {
+      "metric_id": "UX-04",
+      "category": "ux_conversion",
+      "metric_weight": 15,
+      "category_weight": 20,
+      "source_family": "BROWSER_RENDERING",
+      "execution_state": "OBSERVED",
+      "evidence_grade": "E6",
+      "evidence_refs": [
+        "E-5001",
+        "E-5002"
+      ],
+      "threshold_source": null,
+      "score_admitted": true,
+      "product_status": "minor_gaps",
+      "score": 75,
+      "reason_codes": [],
+      "score_anchor_source": "assets/measurement-registry.json#metric_score_scale",
+      "control_basis": "PIXELKIEZ_PRODUCT_RUBRIC",
+      "normalization_path": "CORE_EXECUTION_BUNDLE_V1_TO_DIAGNOSIS_METRIC"
+    },
+    {
+      "metric_id": "UX-05",
+      "category": "ux_conversion",
+      "metric_weight": 15,
+      "category_weight": 20,
+      "source_family": "BROWSER_RENDERING",
+      "execution_state": "OBSERVED",
+      "evidence_grade": "E6",
+      "evidence_refs": [
+        "E-5001"
+      ],
+      "threshold_source": null,
+      "score_admitted": true,
+      "product_status": "minor_gaps",
+      "score": 75,
+      "reason_codes": [],
+      "score_anchor_source": "assets/measurement-registry.json#metric_score_scale",
+      "control_basis": "PIXELKIEZ_PRODUCT_RUBRIC",
+      "normalization_path": "CORE_EXECUTION_BUNDLE_V1_TO_DIAGNOSIS_METRIC"
+    },
+    {
+      "metric_id": "UX-06",
+      "category": "ux_conversion",
+      "metric_weight": 10,
+      "category_weight": 20,
+      "source_family": "RULE_BASED_QUALITATIVE_OBSERVATION",
+      "execution_state": "OBSERVED",
+      "evidence_grade": "E6",
+      "evidence_refs": [
+        "E-5008"
+      ],
+      "threshold_source": null,
+      "score_admitted": true,
+      "product_status": "strong",
+      "score": 100,
+      "reason_codes": [],
+      "score_anchor_source": "assets/measurement-registry.json#metric_score_scale",
+      "control_basis": "PIXELKIEZ_PRODUCT_RUBRIC",
+      "normalization_path": "CORE_EXECUTION_BUNDLE_V1_TO_DIAGNOSIS_METRIC"
+    },
+    {
+      "metric_id": "UX-07",
+      "category": "ux_conversion",
+      "metric_weight": 10,
+      "category_weight": 20,
+      "source_family": "BROWSER_RENDERING",
+      "execution_state": "OBSERVED",
+      "evidence_grade": "E6",
+      "evidence_refs": [
+        "E-5001"
+      ],
+      "threshold_source": null,
+      "score_admitted": true,
+      "product_status": "minor_gaps",
+      "score": 75,
+      "reason_codes": [],
+      "score_anchor_source": "assets/measurement-registry.json#metric_score_scale",
+      "control_basis": "PIXELKIEZ_PRODUCT_RUBRIC",
+      "normalization_path": "CORE_EXECUTION_BUNDLE_V1_TO_DIAGNOSIS_METRIC"
+    },
+    {
+      "metric_id": "UX-08",
+      "category": "ux_conversion",
+      "metric_weight": 5,
+      "category_weight": 20,
+      "source_family": "BROWSER_RENDERING",
+      "execution_state": "UNAVAILABLE",
+      "evidence_grade": "E8",
+      "evidence_refs": [],
+      "threshold_source": null,
+      "score_admitted": false,
+      "product_status": null,
+      "score": null,
+      "reason_codes": [
+        "EVIDENCE_UNAVAILABLE"
+      ],
+      "score_anchor_source": "assets/measurement-registry.json#metric_score_scale",
+      "control_basis": "PIXELKIEZ_PRODUCT_RUBRIC",
+      "normalization_path": "CORE_EXECUTION_BUNDLE_V1_TO_DIAGNOSIS_METRIC"
+    },
+    {
+      "metric_id": "A11Y-01",
+      "category": "accessibility",
+      "metric_weight": 20,
+      "category_weight": 10,
+      "source_family": "BROWSER_RENDERING",
+      "execution_state": "OBSERVED",
+      "evidence_grade": "E4",
+      "evidence_refs": [
+        "E-5003"
+      ],
+      "threshold_source": null,
+      "score_admitted": true,
+      "product_status": "minor_gaps",
+      "score": 75,
+      "reason_codes": [],
+      "score_anchor_source": "assets/measurement-registry.json#metric_score_scale",
+      "control_basis": "CURRENT_PRIMARY_SOURCE_AT_RUNTIME",
+      "normalization_path": "CORE_EXECUTION_BUNDLE_V1_TO_DIAGNOSIS_METRIC"
+    },
+    {
+      "metric_id": "A11Y-02",
+      "category": "accessibility",
+      "metric_weight": 20,
+      "category_weight": 10,
+      "source_family": "STRUCTURED_CONTENT_DOM_METADATA",
+      "execution_state": "OBSERVED",
+      "evidence_grade": "E4",
+      "evidence_refs": [
+        "E-2014"
+      ],
+      "threshold_source": null,
+      "score_admitted": true,
+      "product_status": "weak",
+      "score": 25,
+      "reason_codes": [],
+      "score_anchor_source": "assets/measurement-registry.json#metric_score_scale",
+      "control_basis": "CURRENT_PRIMARY_SOURCE_AT_RUNTIME",
+      "normalization_path": "CORE_EXECUTION_BUNDLE_V1_TO_DIAGNOSIS_METRIC"
+    },
+    {
+      "metric_id": "A11Y-03",
+      "category": "accessibility",
+      "metric_weight": 15,
+      "category_weight": 10,
+      "source_family": "STRUCTURED_CONTENT_DOM_METADATA",
+      "execution_state": "OBSERVED",
+      "evidence_grade": "E4",
+      "evidence_refs": [
+        "E-2015"
+      ],
+      "threshold_source": null,
+      "score_admitted": true,
+      "product_status": "mixed",
+      "score": 50,
+      "reason_codes": [],
+      "score_anchor_source": "assets/measurement-registry.json#metric_score_scale",
+      "control_basis": "CURRENT_PRIMARY_SOURCE_AT_RUNTIME",
+      "normalization_path": "CORE_EXECUTION_BUNDLE_V1_TO_DIAGNOSIS_METRIC"
+    },
+    {
+      "metric_id": "A11Y-04",
+      "category": "accessibility",
+      "metric_weight": 15,
+      "category_weight": 10,
+      "source_family": "BROWSER_RENDERING",
+      "execution_state": "OBSERVED",
+      "evidence_grade": "E4",
+      "evidence_refs": [
+        "E-5004"
+      ],
+      "threshold_source": "W3C WCAG 2.2, SC 1.4.3 Contrast (Minimum), https://www.w3.org/TR/WCAG22/#contrast-minimum",
+      "score_admitted": true,
+      "product_status": "weak",
+      "score": 25,
+      "reason_codes": [],
+      "score_anchor_source": "assets/measurement-registry.json#metric_score_scale",
+      "control_basis": "CURRENT_PRIMARY_SOURCE_AT_RUNTIME",
+      "normalization_path": "CORE_EXECUTION_BUNDLE_V1_TO_DIAGNOSIS_METRIC"
+    },
+    {
+      "metric_id": "A11Y-05",
+      "category": "accessibility",
+      "metric_weight": 15,
+      "category_weight": 10,
+      "source_family": "STRUCTURED_CONTENT_DOM_METADATA",
+      "execution_state": "OBSERVED",
+      "evidence_grade": "E4",
+      "evidence_refs": [
+        "E-2016"
+      ],
+      "threshold_source": null,
+      "score_admitted": true,
+      "product_status": "strong",
+      "score": 100,
+      "reason_codes": [],
+      "score_anchor_source": "assets/measurement-registry.json#metric_score_scale",
+      "control_basis": "CURRENT_PRIMARY_SOURCE_AT_RUNTIME",
+      "normalization_path": "CORE_EXECUTION_BUNDLE_V1_TO_DIAGNOSIS_METRIC"
+    },
+    {
+      "metric_id": "A11Y-06",
+      "category": "accessibility",
+      "metric_weight": 15,
+      "category_weight": 10,
+      "source_family": "BROWSER_RENDERING",
+      "execution_state": "MEASURED",
+      "evidence_grade": "E5",
+      "evidence_refs": [
+        "E-5005"
+      ],
+      "threshold_source": null,
+      "score_admitted": true,
+      "product_status": "mixed",
+      "score": 50,
+      "reason_codes": [],
+      "score_anchor_source": "assets/measurement-registry.json#metric_score_scale",
+      "control_basis": "VENDOR_TOOL_SIGNAL",
+      "normalization_path": "CORE_EXECUTION_BUNDLE_V1_TO_DIAGNOSIS_METRIC"
+    },
+    {
+      "metric_id": "TRUST-01",
+      "category": "trust_privacy_content",
+      "metric_weight": 10,
+      "category_weight": 15,
+      "source_family": "RULE_BASED_QUALITATIVE_OBSERVATION",
+      "execution_state": "OBSERVED",
+      "evidence_grade": "E4",
+      "evidence_refs": [
+        "E-2017"
+      ],
+      "threshold_source": null,
+      "score_admitted": true,
+      "product_status": "strong",
+      "score": 100,
+      "reason_codes": [],
+      "score_anchor_source": "assets/measurement-registry.json#metric_score_scale",
+      "control_basis": "PRESENCE_CHECK_ONLY",
+      "normalization_path": "CORE_EXECUTION_BUNDLE_V1_TO_DIAGNOSIS_METRIC"
+    },
+    {
+      "metric_id": "TRUST-02",
+      "category": "trust_privacy_content",
+      "metric_weight": 15,
+      "category_weight": 15,
+      "source_family": "RULE_BASED_QUALITATIVE_OBSERVATION",
+      "execution_state": "OBSERVED",
+      "evidence_grade": "E4",
+      "evidence_refs": [
+        "E-2018"
+      ],
+      "threshold_source": null,
+      "score_admitted": true,
+      "product_status": "strong",
+      "score": 100,
+      "reason_codes": [],
+      "score_anchor_source": "assets/measurement-registry.json#metric_score_scale",
+      "control_basis": "PRESENCE_CHECK_ONLY",
+      "normalization_path": "CORE_EXECUTION_BUNDLE_V1_TO_DIAGNOSIS_METRIC"
+    },
+    {
+      "metric_id": "TRUST-03",
+      "category": "trust_privacy_content",
+      "metric_weight": 15,
+      "category_weight": 15,
+      "source_family": "PUBLIC_DETERMINISTIC_TECHNICAL",
+      "execution_state": "MEASURED",
+      "evidence_grade": "E4",
+      "evidence_refs": [
+        "E-2019"
+      ],
+      "threshold_source": null,
+      "score_admitted": true,
+      "product_status": "minor_gaps",
+      "score": 75,
+      "reason_codes": [],
+      "score_anchor_source": "assets/measurement-registry.json#metric_score_scale",
+      "control_basis": "PUBLIC_REPRODUCIBLE",
+      "normalization_path": "CORE_EXECUTION_BUNDLE_V1_TO_DIAGNOSIS_METRIC"
+    },
+    {
+      "metric_id": "TRUST-04",
+      "category": "trust_privacy_content",
+      "metric_weight": 10,
+      "category_weight": 15,
+      "source_family": "RULE_BASED_QUALITATIVE_OBSERVATION",
+      "execution_state": "OBSERVED",
+      "evidence_grade": "E4",
+      "evidence_refs": [
+        "E-5009"
+      ],
+      "threshold_source": null,
+      "score_admitted": true,
+      "product_status": "mixed",
+      "score": 50,
+      "reason_codes": [],
+      "score_anchor_source": "assets/measurement-registry.json#metric_score_scale",
+      "control_basis": "PIXELKIEZ_PRODUCT_RUBRIC",
+      "normalization_path": "CORE_EXECUTION_BUNDLE_V1_TO_DIAGNOSIS_METRIC"
+    },
+    {
+      "metric_id": "TRUST-05",
+      "category": "trust_privacy_content",
+      "metric_weight": 15,
+      "category_weight": 15,
+      "source_family": "RULE_BASED_QUALITATIVE_OBSERVATION",
+      "execution_state": "OBSERVED",
+      "evidence_grade": "E6",
+      "evidence_refs": [
+        "E-5008",
+        "E-5013"
+      ],
+      "threshold_source": null,
+      "score_admitted": true,
+      "product_status": "mixed",
+      "score": 50,
+      "reason_codes": [],
+      "score_anchor_source": "assets/measurement-registry.json#metric_score_scale",
+      "control_basis": "PIXELKIEZ_PRODUCT_RUBRIC",
+      "normalization_path": "CORE_EXECUTION_BUNDLE_V1_TO_DIAGNOSIS_METRIC"
+    },
+    {
+      "metric_id": "TRUST-06",
+      "category": "trust_privacy_content",
+      "metric_weight": 15,
+      "category_weight": 15,
+      "source_family": "RULE_BASED_QUALITATIVE_OBSERVATION",
+      "execution_state": "OBSERVED",
+      "evidence_grade": "E6",
+      "evidence_refs": [
+        "E-5008",
+        "E-5012"
+      ],
+      "threshold_source": null,
+      "score_admitted": true,
+      "product_status": "minor_gaps",
+      "score": 75,
+      "reason_codes": [],
+      "score_anchor_source": "assets/measurement-registry.json#metric_score_scale",
+      "control_basis": "PIXELKIEZ_PRODUCT_RUBRIC",
+      "normalization_path": "CORE_EXECUTION_BUNDLE_V1_TO_DIAGNOSIS_METRIC"
+    },
+    {
+      "metric_id": "TRUST-07",
+      "category": "trust_privacy_content",
+      "metric_weight": 10,
+      "category_weight": 15,
+      "source_family": "RULE_BASED_QUALITATIVE_OBSERVATION",
+      "execution_state": "OBSERVED",
+      "evidence_grade": "E4",
+      "evidence_refs": [
+        "E-2020"
+      ],
+      "threshold_source": null,
+      "score_admitted": true,
+      "product_status": "strong",
+      "score": 100,
+      "reason_codes": [],
+      "score_anchor_source": "assets/measurement-registry.json#metric_score_scale",
+      "control_basis": "PIXELKIEZ_PRODUCT_RUBRIC",
+      "normalization_path": "CORE_EXECUTION_BUNDLE_V1_TO_DIAGNOSIS_METRIC"
+    },
+    {
+      "metric_id": "TRUST-08",
+      "category": "trust_privacy_content",
+      "metric_weight": 10,
+      "category_weight": 15,
+      "source_family": "ANALYTICS_SEARCH_CONSOLE",
+      "execution_state": "UNAVAILABLE",
+      "evidence_grade": "E8",
+      "evidence_refs": [],
+      "threshold_source": null,
+      "score_admitted": false,
+      "product_status": null,
+      "score": null,
+      "reason_codes": [
+        "EVIDENCE_UNAVAILABLE"
+      ],
+      "score_anchor_source": "assets/measurement-registry.json#metric_score_scale",
+      "control_basis": "PIXELKIEZ_PRODUCT_RUBRIC",
+      "normalization_path": "CORE_EXECUTION_BUNDLE_V1_TO_DIAGNOSIS_METRIC"
+    },
+    {
+      "metric_id": "AI-01",
+      "category": "ai_readiness",
+      "metric_weight": 15,
+      "category_weight": 10,
+      "source_family": "RULE_BASED_QUALITATIVE_OBSERVATION",
+      "execution_state": "OBSERVED",
+      "evidence_grade": "E6",
+      "evidence_refs": [
+        "E-5008",
+        "E-5012"
+      ],
+      "threshold_source": null,
+      "score_admitted": true,
+      "product_status": "minor_gaps",
+      "score": 75,
+      "reason_codes": [],
+      "score_anchor_source": "assets/measurement-registry.json#metric_score_scale",
+      "control_basis": "PIXELKIEZ_PRODUCT_RUBRIC",
+      "normalization_path": "CORE_EXECUTION_BUNDLE_V1_TO_DIAGNOSIS_METRIC"
+    },
+    {
+      "metric_id": "AI-02",
+      "category": "ai_readiness",
+      "metric_weight": 15,
+      "category_weight": 10,
+      "source_family": "RULE_BASED_QUALITATIVE_OBSERVATION",
+      "execution_state": "OBSERVED",
+      "evidence_grade": "E6",
+      "evidence_refs": [
+        "E-5008",
+        "E-5009"
+      ],
+      "threshold_source": null,
+      "score_admitted": true,
+      "product_status": "minor_gaps",
+      "score": 75,
+      "reason_codes": [],
+      "score_anchor_source": "assets/measurement-registry.json#metric_score_scale",
+      "control_basis": "PIXELKIEZ_PRODUCT_RUBRIC",
+      "normalization_path": "CORE_EXECUTION_BUNDLE_V1_TO_DIAGNOSIS_METRIC"
+    },
+    {
+      "metric_id": "AI-03",
+      "category": "ai_readiness",
+      "metric_weight": 15,
+      "category_weight": 10,
+      "source_family": "RULE_BASED_QUALITATIVE_OBSERVATION",
+      "execution_state": "OBSERVED",
+      "evidence_grade": "E6",
+      "evidence_refs": [
+        "E-5008"
+      ],
+      "threshold_source": null,
+      "score_admitted": true,
+      "product_status": "strong",
+      "score": 100,
+      "reason_codes": [],
+      "score_anchor_source": "assets/measurement-registry.json#metric_score_scale",
+      "control_basis": "PIXELKIEZ_PRODUCT_RUBRIC",
+      "normalization_path": "CORE_EXECUTION_BUNDLE_V1_TO_DIAGNOSIS_METRIC"
+    },
+    {
+      "metric_id": "AI-04",
+      "category": "ai_readiness",
+      "metric_weight": 15,
+      "category_weight": 10,
+      "source_family": "STRUCTURED_CONTENT_DOM_METADATA",
+      "execution_state": "OBSERVED",
+      "evidence_grade": "E4",
+      "evidence_refs": [
+        "E-2021"
+      ],
+      "threshold_source": null,
+      "score_admitted": true,
+      "product_status": "strong",
+      "score": 100,
+      "reason_codes": [],
+      "score_anchor_source": "assets/measurement-registry.json#metric_score_scale",
+      "control_basis": "PIXELKIEZ_PRODUCT_RUBRIC",
+      "normalization_path": "CORE_EXECUTION_BUNDLE_V1_TO_DIAGNOSIS_METRIC"
+    },
+    {
+      "metric_id": "AI-05",
+      "category": "ai_readiness",
+      "metric_weight": 15,
+      "category_weight": 10,
+      "source_family": "RULE_BASED_QUALITATIVE_OBSERVATION",
+      "execution_state": "OBSERVED",
+      "evidence_grade": "E6",
+      "evidence_refs": [
+        "E-5008",
+        "E-5012"
+      ],
+      "threshold_source": null,
+      "score_admitted": true,
+      "product_status": "mixed",
+      "score": 50,
+      "reason_codes": [],
+      "score_anchor_source": "assets/measurement-registry.json#metric_score_scale",
+      "control_basis": "PIXELKIEZ_PRODUCT_RUBRIC",
+      "normalization_path": "CORE_EXECUTION_BUNDLE_V1_TO_DIAGNOSIS_METRIC"
+    },
+    {
+      "metric_id": "AI-06",
+      "category": "ai_readiness",
+      "metric_weight": 15,
+      "category_weight": 10,
+      "source_family": "RULE_BASED_QUALITATIVE_OBSERVATION",
+      "execution_state": "OBSERVED",
+      "evidence_grade": "E6",
+      "evidence_refs": [
+        "E-5009"
+      ],
+      "threshold_source": null,
+      "score_admitted": true,
+      "product_status": "mixed",
+      "score": 50,
+      "reason_codes": [],
+      "score_anchor_source": "assets/measurement-registry.json#metric_score_scale",
+      "control_basis": "PIXELKIEZ_PRODUCT_RUBRIC",
+      "normalization_path": "CORE_EXECUTION_BUNDLE_V1_TO_DIAGNOSIS_METRIC"
+    },
+    {
+      "metric_id": "AI-07",
+      "category": "ai_readiness",
+      "metric_weight": 10,
+      "category_weight": 10,
+      "source_family": "RULE_BASED_QUALITATIVE_OBSERVATION",
+      "execution_state": "OBSERVED",
+      "evidence_grade": "E6",
+      "evidence_refs": [
+        "E-5008"
+      ],
+      "threshold_source": null,
+      "score_admitted": true,
+      "product_status": "strong",
+      "score": 100,
+      "reason_codes": [],
+      "score_anchor_source": "assets/measurement-registry.json#metric_score_scale",
+      "control_basis": "PIXELKIEZ_PRODUCT_RUBRIC",
+      "normalization_path": "CORE_EXECUTION_BUNDLE_V1_TO_DIAGNOSIS_METRIC"
+    }
+  ],
+  "release_state": "BLOCKED_FULL_48_ACTIVE"
+}

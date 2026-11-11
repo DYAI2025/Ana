@@ -1,0 +1,12 @@
+{
+  "schema_version": "1.0",
+  "required": false,
+  "priority": "ELIGIBLE",
+  "claim_state": "POSSIBLE_LEGAL_REVIEW",
+  "group": "PROVIDER_INFORMATION",
+  "legal_metric_refs": [
+    "LEGAL-IMP-07"
+  ],
+  "warning_label": "Rechtlicher Prüfhinweis",
+  "reason": "SUPPORTED_LEGAL_REVIEW_SIGNAL"
+}
